@@ -1,0 +1,33 @@
+{
+  "skill_name": "design-md-to-app",
+  "evals": [
+    {
+      "id": 1,
+      "name": "totality-festival-shadcn-new-project",
+      "prompt": "Ho un DESIGN.md (è quello del Totality Festival, design system glassmorphism scuro con Space Grotesk + Inter, colori solari oro/cyan). Voglio partire un nuovo progetto Next.js usando shadcn/ui con tutti i componenti già stilizzati secondo il DESIGN.md. Il file è in input/DESIGN.md, fammi lo scaffold in app/.",
+      "expected_output": "A Next.js app under app/ with: tailwind.config.ts extended with all DESIGN.md tokens (fontSize headline-xl/lg/md/body-*, custom colors with HSL vars, radius scale, custom spacing), app/globals.css with HSL channel triplets in :root, shadcn Button/Card/Input/Badge installed and customized for primary/secondary/glass variants matching the DESIGN.md, app/showcase/page.tsx rendering color swatches + typography ladder + components, STYLE_NOTES.md capturing glassmorphism + ambient glow + radial gradient rules, dev server runs and showcase page visually matches.",
+      "files": ["input/DESIGN.md"]
+    },
+    {
+      "id": 2,
+      "name": "material-style-design-mui-new-project",
+      "prompt": "Questo DESIGN.md è chiaramente Material 3 (surface-container-lowest fino a highest, on-primary-container, inverse-surface, ecc.) ed è una dashboard. Voglio MUI. Crea il progetto da zero in dashboard/.",
+      "expected_output": "A Next.js app under dashboard/ with: @mui/material + @emotion + AppRouterCacheProvider wired in app/layout.tsx, lib/theme.ts with createTheme augmented for tertiary + surfaceContainer + radius + layout, palette mapped from M3 tokens, typography mapped to MUI variants, MuiButton/MuiCard/MuiTextField overrides reflecting DESIGN.md components, app/showcase/page.tsx, STYLE_NOTES.md, type-check passes, dev server runs.",
+      "files": ["input/DESIGN.md"]
+    },
+    {
+      "id": 3,
+      "name": "existing-project-shadcn-customize-only",
+      "prompt": "Ho già un progetto Next.js + shadcn in ./web. Ho appena aggiunto questo DESIGN.md, applicalo: aggiorna globals.css, tailwind config, e i variants dei componenti shadcn esistenti (button, card, input). Non rifare da zero.",
+      "expected_output": "Existing app left intact except: web/app/globals.css updated with new CSS vars, web/tailwind.config.ts extended (not replaced) with new fontSize/colors/borderRadius/spacing entries, components/ui/button.tsx + card.tsx + input.tsx variants updated to match DESIGN.md, optional /showcase route added if missing, STYLE_NOTES.md created at web/STYLE_NOTES.md, no node_modules deletion or non-related file changes, diff is reviewable.",
+      "files": ["web/DESIGN.md"]
+    },
+    {
+      "id": 4,
+      "name": "library-suggestion-only",
+      "prompt": "Dammi solo il consiglio: shadcn o MUI per questo DESIGN.md? È un sito editoriale per una galleria d'arte, tipografia drammatica, niente componenti standard tipo data table.",
+      "expected_output": "A short reply (2-4 lines) recommending shadcn with rationale tied to the DESIGN.md content (editorial, dramatic typography, no enterprise components needed), without scaffolding anything. Skill should respect the user's narrow ask and not over-deliver.",
+      "files": ["input/DESIGN.md"]
+    }
+  ]
+}

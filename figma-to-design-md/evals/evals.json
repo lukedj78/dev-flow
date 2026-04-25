@@ -1,0 +1,26 @@
+{
+  "skill_name": "figma-to-design-md",
+  "evals": [
+    {
+      "id": 1,
+      "name": "rich-mcp-output",
+      "prompt": "Sto generando il DESIGN.md per il nostro design system 'Lumen Studio'. Ho già estratto i dati da Figma — trovi tutto in inputs/figma_variables.json (è l'output combinato di /variables/local + text styles + component sets, simulando una sessione Figma MCP riuscita). Il file Figma è https://www.figma.com/design/LUMEN-FAKE-001/Lumen-Studio. Genera il DESIGN.md nella cartella corrente (= la project root per questo test). Brand brief: 'Lumen Studio è una piattaforma SaaS per studi di product analytics. Tono professionale, denso, ottimizzato per uso desktop con dashboard ricche di dati.'",
+      "expected_output": "DESIGN.md valido secondo Google design.md spec con frontmatter YAML completo (colors, typography, rounded, spacing, components) e 8 sezioni in ordine corretto.",
+      "files": ["inputs/figma_variables.json"]
+    },
+    {
+      "id": 2,
+      "name": "tokens-json",
+      "prompt": "Voglio creare un DESIGN.md da questo Figma: https://www.figma.com/file/VERDANT-FAKE-002/Verdant-CRM. Non ho MCP né token disponibili al momento, però ho un export tokens.json fatto col plugin Tokens Studio — lo trovi in inputs/tokens.json, contiene anche il brand brief in fondo. Genera il DESIGN.md nella project root.",
+      "expected_output": "DESIGN.md che mappa correttamente i token nidificati di Tokens Studio alla struttura piatta di design.md, mantenendo il tono brand descritto.",
+      "files": ["inputs/tokens.json"]
+    },
+    {
+      "id": 3,
+      "name": "manual-fallback",
+      "prompt": "Devo fare il DESIGN.md per Aurora Bank. Link Figma: https://www.figma.com/design/AURORA-FAKE-003/Aurora-Mobile. Non ho MCP, non ho token (corporate restriction), e non posso esportare tokens.json. Ho solo le mie osservazioni testuali — sono in inputs/brand_notes.md. Genera comunque il DESIGN.md nella project root, lavorando con quello che hai.",
+      "expected_output": "DESIGN.md che riconosce il path manuale, estrae quel che può dalle osservazioni, e flagga onestamente le sezioni a bassa confidenza nel report finale.",
+      "files": ["inputs/brand_notes.md"]
+    }
+  ]
+}

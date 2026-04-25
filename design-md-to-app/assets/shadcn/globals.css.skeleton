@@ -1,0 +1,76 @@
+/* Skeleton for app/globals.css after DESIGN.md → shadcn mapping.
+ * Replace ALL "/* TOKEN: … */" placeholders with HSL channel triplets
+ * (no hsl() wrapper, no commas) derived from DESIGN.md `colors.*`.
+ * Drop unused custom-token blocks if the DESIGN.md doesn't define them.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core shadcn semantic palette */
+    --background:            /* TOKEN: colors.background or colors.surface */;
+    --foreground:            /* TOKEN: colors.on-background or colors.on-surface */;
+    --card:                  /* TOKEN: colors.surface-container */;
+    --card-foreground:       /* TOKEN: colors.on-surface */;
+    --popover:               /* TOKEN: colors.surface-container-high */;
+    --popover-foreground:    /* TOKEN: colors.on-surface */;
+    --primary:               /* TOKEN: colors.primary */;
+    --primary-foreground:    /* TOKEN: colors.on-primary */;
+    --secondary:             /* TOKEN: colors.secondary */;
+    --secondary-foreground:  /* TOKEN: colors.on-secondary */;
+    --muted:                 /* TOKEN: colors.surface-container-low or fallback */;
+    --muted-foreground:      /* TOKEN: colors.on-surface-variant */;
+    --accent:                /* TOKEN: colors.tertiary or colors.secondary-container */;
+    --accent-foreground:     /* TOKEN: colors.on-tertiary or on-secondary-container */;
+    --destructive:           /* TOKEN: colors.error */;
+    --destructive-foreground:/* TOKEN: colors.on-error */;
+    --border:                /* TOKEN: colors.outline or outline-variant */;
+    --input:                 /* TOKEN: colors.outline-variant */;
+    --ring:                  /* TOKEN: colors.surface-tint or colors.primary */;
+    --radius:                /* TOKEN: rounded.DEFAULT or rounded.md */;
+
+    /* Custom tokens that don't fit shadcn's semantic buckets.
+     * Keep the same names as DESIGN.md for traceability. */
+    --primary-container:     /* TOKEN: colors.primary-container */;
+    --on-primary-container:  /* TOKEN: colors.on-primary-container */;
+    /* … add one line per remaining custom color … */
+  }
+
+  /* If the DESIGN.md is dark-themed, the variables above ARE the dark theme.
+   * Add a light variant here only if the DESIGN.md explicitly defines one
+   * (it usually doesn't — most DESIGN.md files are single-mode).
+   */
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom utilities encoding qualitative rules from the DESIGN.md body.
+ * Only include the ones the DESIGN.md actually calls for — delete the rest. */
+@layer utilities {
+  .glass {
+    /* "Glassmorphism level 2": semi-transparent surface, 20px blur, 1px stroke */
+    @apply backdrop-blur-xl bg-foreground/[0.05] border border-foreground/10;
+  }
+
+  .glow-primary {
+    /* "Ambient glow on hover" */
+    box-shadow: 0 0 24px hsl(var(--primary) / 0.6);
+  }
+
+  .bg-hero-radial {
+    /* "Radial gradients for hero backgrounds" */
+    background-image:
+      radial-gradient(ellipse at center,
+        hsl(var(--accent) / 0.15) 0%,
+        hsl(var(--background)) 70%);
+  }
+}
