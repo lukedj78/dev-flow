@@ -27,10 +27,50 @@ The contract is `.workflow/` — a single hidden folder at your project root tha
 
 ### 1. Install the skills
 
-Drag-and-drop the `.skill` files from `dist/` into your Claude Code window, or copy the source folders into `~/.claude/skills/`:
+Pick whichever fits your setup — they all end up at `~/.claude/skills/<name>/` :
+
+#### Option A — bundled `install.sh` (recommended for this repo)
 
 ```bash
-cp -r skills/* ~/.claude/skills/   # or your client's skills directory
+git clone git@github.com:lukedj78/dev-flow.git
+cd dev-flow
+./install.sh
+```
+
+The script copies the 8 skill folders into `$CLAUDE_SKILLS_DIR` (defaults to `~/.claude/skills`), backing up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh`.
+
+#### Option B — Claude Code `/plugin add` (interactive)
+
+If you have the repo cloned locally:
+
+```
+/plugin add /path/to/dev-flow/dev-flow
+/plugin add /path/to/dev-flow/prd-from-idea
+…
+```
+
+Run once per skill folder. Useful if you only want to install a subset.
+
+#### Option C — `gh skill install` (GitHub CLI extension)
+
+```bash
+gh extension install <ext-author>/gh-skill          # one-time
+gh skill install lukedj78/dev-flow                   # private repo, requires auth
+# OR for a specific subset
+gh skill install lukedj78/dev-flow dev-flow design-md-to-app
+```
+
+This works with the same `gh auth` you already use to clone private repos.
+
+#### Option D — drag-and-drop the `.skill` files
+
+The `dist/` folder contains all 8 packaged `.skill` archives. Drag them into your Claude Code window one at a time — useful when you don't have shell access on the target machine.
+
+#### Verify
+
+```bash
+ls ~/.claude/skills/ | grep -E "dev-flow|prd-|figma-|image-|design-|screenshot-|module-"
+# Should print 8 entries. Restart Claude Code if you don't see them in /skills.
 ```
 
 The 8 skills are:
