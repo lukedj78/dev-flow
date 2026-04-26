@@ -122,7 +122,7 @@ mkdir -p ~/projects/my-app && cd ~/projects/my-app
 
 ### 3. Open Claude Code in that directory and say:
 
-> *"Voglio costruire un CRM per studi notarili italiani. Anagrafica clienti, pratiche, scadenze, archivio documentale."*
+> *"I want to build a CRM for veterinary clinics. Customer records, vaccination history, appointment scheduling, document archive."*
 
 The orchestrator (`dev-flow`) will:
 1. Create `.workflow/meta.json`.
@@ -135,6 +135,263 @@ The orchestrator (`dev-flow`) will:
 8. Optionally invoke `module-add` for db / auth / etc.
 
 By the end you have a runnable Next.js app at the project root, with a `.workflow/` folder that documents every decision.
+
+---
+
+## Use cases
+
+Seven concrete recipes — what to type, what to expect. Pick the one that matches your situation and start there. The sections below assume you've installed the skills (see Quick start).
+
+### 1. Greenfield project — idea to running app
+
+**Situation**: empty directory, you have an idea, no design assets yet.
+
+```bash
+mkdir -p ~/projects/vet-crm && cd ~/projects/vet-crm
+```
+
+In Claude Code, say:
+
+> *"I want to build a CRM for veterinary clinics. Customer records, vaccination history, appointment scheduling."*
+
+The orchestrator routes through phases:
+
+```
+1. dev-flow            → init_workflow .  (creates .workflow/meta.json, phase=empty)
+2. prd-from-idea       → PROJECT.md + PRD.md  (phase=prd_drafted)
+3. prd-to-tasks        → tasks.md  (phase=tasks_split)
+4. image-to-design-md  → DESIGN.md  (asks for reference screenshots)
+   OR figma-to-design-md if you have a Figma URL
+5. design-md-to-app    → full scaffold + /showcase  (phase=scaffolded)
+6. screenshot-to-page  → /clients, /appointments, …  (phase=page_generated)
+7. module-add db       → Drizzle + Neon
+8. module-add auth     → better-auth
+```
+
+Check progress at any time:
+
+```bash
+$ python3 ~/.claude/skills/dev-flow/scripts/show_state.py .
+Project:  'Vet CRM'  ('vet-crm')
+Phase:    scaffolded
+Stack:    framework=next, ui=shadcn
+Skill runs: 4
+  - prd-from-idea         → phase=prd_drafted
+  - image-to-design-md    → phase=design_extracted
+  - design-md-to-app      → phase=scaffolded
+Next step proposal: screenshot-to-page  OR  module-add
+```
+
+**End-to-end time**: ~25 minutes if Neon credentials are ready, ~10 minutes with placeholder env values.
+
+---
+
+### 2. You already have a `DESIGN.md` — skip straight to scaffold
+
+**Situation**: you wrote a DESIGN.md by hand (or copied from another project) and want to scaffold immediately.
+
+```bash
+mkdir my-app && cd my-app
+mkdir .workflow
+cat > .workflow/DESIGN.md << 'EOF'
+# My App Design System
+## Color Palette
+- primary: #0066cc
+- background: #ffffff
+- on-surface: #111827
+## Typography
+- display: Inter, 48px, 600
+- body: Inter, 16px, 400
+...
+EOF
+```
+
+In Claude Code:
+
+> *"Use this DESIGN.md to scaffold the app. Next + shadcn."*
+
+`design-md-to-app` starts directly from `phase=design_extracted`, skips PRD/tasks (the DESIGN is already there), and produces:
+
+- `package.json`, `app/`, `components/site/`, `lib/server/`, `lib/queries/`
+- `registry.json` (token-first shadcn install)
+- `app/showcase/page.tsx` with 9 sections
+- `app/error.tsx`, `app/loading.tsx`, `lib/env.ts` (Zod-validated), `next.config.ts` (security headers)
+- Theme provider + mode-toggle (D-key shortcut, with rich-editor exclusion)
+- Folder skeleton ready for `screenshot-to-page` and `module-add`
+
+---
+
+### 3. Figma → DESIGN.md (3 access paths, picked automatically)
+
+**Situation**: you have a Figma URL and want to extract the design system.
+
+```bash
+mkdir ~/projects/aether && cd ~/projects/aether
+```
+
+In Claude Code:
+
+> *"Extract the design system from this Figma file: `https://www.figma.com/design/<file-key>/Aetherfield`"*
+
+`figma-to-design-md` picks the first available access path:
+
+| Path | When it fires | Quality |
+|---|---|---|
+| **A — Figma Dev Mode MCP** | A `mcp__figma*` tool is exposed in this session | High — uses real variables + styles |
+| **B — Figma REST API** | `FIGMA_ACCESS_TOKEN` is set, OR you provide a personal access token when asked | Medium-high — variables + styles via `/v1/files/<key>` |
+| **C-bis — Playwright-assisted** | Browser MCP available but no Figma access — opens the file in a headless browser, screenshots key frames, runs k-means on the pixels | Medium — palette inferred, typography from rendered text |
+| **C — Manual export** | Nothing else available — guides you to export PNGs + (optional) Tokens Studio JSON | Lower, but always works |
+
+The skill **tells you explicitly** which path it's using:
+
+```
+$ "Using Path A — Figma MCP, found mcp__figma__get_file"
+$ "Using Path B — REST API with token from env"
+$ "No Figma access. Falling back to Path C-bis with Playwright."
+```
+
+**Path B example** (most common — you have a token but no MCP):
+
+```bash
+export FIGMA_ACCESS_TOKEN=figd_xxx
+```
+
+> *"Extract design from `https://www.figma.com/design/<file-key>/MyProject`"*
+
+The extraction produces:
+- `.workflow/DESIGN.md` (Google design.md spec)
+- `.workflow/screenshots/<frame-name>.png` (2–3 reference frames)
+- `.workflow/_design-md-mapping.json` recording which path was used + any fallbacks
+
+If Path A/B couldn't read typography (rare), the skill **stops and asks** instead of inventing weights — typography is non-negotiable.
+
+---
+
+### 4. Screenshot → page (two-mode pixel verification)
+
+**Situation**: you have a screenshot of a UI and want it as a real route.
+
+Drop the screenshot in `.workflow/screenshots/dashboard.png`, then:
+
+> *"Turn `dashboard.png` into `/dashboard`."*
+
+`screenshot-to-page` picks the verification mode based on the **kind of route**:
+
+| Route shape | Mode | Target | Iter cap |
+|---|---|---|---|
+| `/dashboard`, `/settings`, `/clients/<id>`, anything CRUD | **`structure-first`** (default) | ≤ 8% delta, token-correct | 3 |
+| `/`, `/pricing`, `/about`, `/sign-up`, marketing/landing | **`pixel-tight`** (opt-in) | ≤ 2% delta | 8 |
+
+Why two modes: pixel-tight on dashboards produces rigid HTML that imitates pixels instead of respecting tokens. The next developer can't tell which spacing was a design choice and which was an LLM matching one pixel. For brand-critical surfaces (heros, pricing), the inverse is true — fidelity IS the value.
+
+The skill states the chosen mode in its hand-off:
+
+> *"Iterated in `structure-first` mode (3 passes, final delta 6.4%) — token-correct, semantically clean. Switch to pixel-tight if you want closer fidelity for production."*
+
+---
+
+### 5. Retroactive edit to DESIGN.md (drift detection)
+
+**Situation**: you edited `.workflow/DESIGN.md` by hand (changed primary from blue to purple) after the app was already scaffolded.
+
+```bash
+$ python3 ~/.claude/skills/dev-flow/scripts/check_drift.py . --plan
+  ✗ .workflow/DESIGN.md    image-to-design-md  self-drift
+  ⚠ registry.json          design-md-to-app    upstream-stale
+  ⚠ app/showcase/page.tsx  design-md-to-app    upstream-stale  (transitively via registry.json)
+
+Migration plan (re-run these skills, in order):
+  image-to-design-md:
+    ✗ .workflow/DESIGN.md  (self-drift)
+  design-md-to-app:
+    ⚠ registry.json
+    ⚠ app/showcase/page.tsx
+
+Run the skills in the order shown — each one's outputs will refresh
+the artifacts and clear the drift downstream.
+```
+
+You know **exactly** what to re-run and in what order. Drift propagates transitively through `derived_from` chains.
+
+This is the use case the linear phase enum could not handle — the system now models the actual iterative workflow of product development.
+
+---
+
+### 6. Add a module to an existing scaffold
+
+**Situation**: scaffold is running. You want a database, then auth, then payments.
+
+> *"Add a database."*
+
+`module-add` checks prerequisites, picks the default (Drizzle + Neon), installs:
+- `drizzle-orm`, `@neondatabase/serverless`, `drizzle-kit`
+- `lib/db/schema.ts` with tenant-scoped indexes, `uniqueIndex`, soft-delete `archivedAt` convention, RLS docs
+- `drizzle.config.ts`, `lib/db/index.ts`
+- `pnpm db:push` / `db:migrate` / `db:studio` scripts in `package.json`
+- `DATABASE_URL` in `.env.local.example`
+
+> *"Add auth."*
+
+Detects `stack.db = neon-drizzle`, picks better-auth as the default:
+- `lib/auth.ts`, `lib/auth-client.ts`, `app/api/auth/[...all]/route.ts`
+- **`lib/auth-server.ts`** with `getCurrentUserId()` / `getCurrentTenantId()` helpers — replaces the stubs in `lib/server/<domain>.ts`
+- Auth tables appended to `lib/db/schema.ts`
+- `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` env vars
+
+> *"Add payments."*
+
+Stripe with subscriptions + one-time:
+- `lib/stripe.ts` (server SDK with pinned `apiVersion`), `lib/stripe-client.ts` (memoized loader)
+- `app/api/stripe/webhook/route.ts` (signed receiver, idempotent handler) + `/portal` redirect
+- `app/billing/page.tsx` reference UI
+- `subscriptions` table in Drizzle schema
+- Instructions for `stripe listen --forward-to localhost:3000/api/stripe/webhook` during dev
+
+Same shape for `module-add email` (Resend + React Email), `module-add test` (Vitest + Playwright), `module-add ci` (husky + GH Actions). Re-running is **idempotent** — the skill detects existing installs and skips.
+
+---
+
+### 7. Use the contract outside Claude Code
+
+**Situation**: you want to build your own tool — a CLI, a Cursor extension, a different LLM agent — that reads/writes `.workflow/`.
+
+```bash
+pip install -e ./contract-package    # while not on PyPI yet
+```
+
+```python
+from pathlib import Path
+from dev_flow_contract import (
+    init_workflow, record_artifact, set_phase, append_history,
+    check_drift, Phase
+)
+
+root = Path("./my-project")
+init_workflow(root, name="My Project")
+
+# After your tool writes a file:
+(root / ".workflow" / "DESIGN.md").write_text("# Design")
+record_artifact(root, ".workflow/DESIGN.md", produced_by="my-extractor")
+
+# Bump the phase + record the run:
+set_phase(root, Phase.DESIGN_EXTRACTED)
+append_history(
+    root,
+    skill="my-extractor",
+    inputs={"source_url": "https://..."},
+    outputs=["DESIGN.md"],
+    phase_after=Phase.DESIGN_EXTRACTED,
+)
+
+# Later, check what's stale:
+report = check_drift(root)
+if report.has_drift:
+    for row in report.rows:
+        if row.status != "fresh":
+            print(f"{row.path}: {row.status}")
+```
+
+The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
 
 ---
 
