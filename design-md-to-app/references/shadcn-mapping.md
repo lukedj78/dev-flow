@@ -193,7 +193,7 @@ shadcn's full registry schema is at https://ui.shadcn.com/schema/registry.json. 
 
 #### Generating registry.json — script
 
-There's a helper in `scripts/build_registry.py`. It reads `<root>/.workflow/DESIGN.md`, parses the YAML frontmatter, and writes `<root>/.workflow/app/registry.json`. Use it instead of hand-writing the JSON. If a DESIGN.md token has no clean shadcn equivalent (e.g., a custom `surface-tint` not in the standard scale), preserve it under `cssVars.light` / `cssVars.dark` anyway — shadcn passes through unknown CSS variable names without errors.
+There's a helper in `scripts/build_registry.py`. It reads `<root>/.workflow/DESIGN.md`, parses the YAML frontmatter, and writes `<root>/registry.json`. Use it instead of hand-writing the JSON. If a DESIGN.md token has no clean shadcn equivalent (e.g., a custom `surface-tint` not in the standard scale), preserve it under `cssVars.light` / `cssVars.dark` anyway — shadcn passes through unknown CSS variable names without errors.
 
 #### Why this matters
 

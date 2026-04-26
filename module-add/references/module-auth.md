@@ -6,9 +6,9 @@ Wire **better-auth** as the auth layer of an existing scaffold. Defaults: email/
 
 Before doing anything, check whether better-auth is already wired:
 
-1. `<root>/<project-root>/package.json` contains `"better-auth"` in `dependencies`.
-2. `<root>/<project-root>/src/lib/auth.ts` exists.
-3. `<root>/<project-root>/.env.local.example` contains `BETTER_AUTH_SECRET`.
+1. `<project-root>/package.json` contains `"better-auth"` in `dependencies`.
+2. `<project-root>/lib/auth.ts` exists.
+3. `<project-root>/.env.local.example` contains `BETTER_AUTH_SECRET`.
 
 If all three: tell the user it's installed, offer to regenerate the reference UI or rotate the secret. Don't double-install.
 
@@ -27,7 +27,7 @@ npm install --save-dev @types/node     # only if not already installed
 
 ## Files to write
 
-### `src/lib/auth.ts`
+### `lib/auth.ts`
 
 ```typescript
 import { betterAuth } from "better-auth";
@@ -47,7 +47,7 @@ export const auth = betterAuth({
 export type Session = typeof auth.$Infer.Session;
 ```
 
-### `src/lib/auth-client.ts`
+### `lib/auth-client.ts`
 
 ```typescript
 import { createAuthClient } from "better-auth/react";
@@ -59,7 +59,7 @@ export const authClient = createAuthClient({
 export const { signIn, signUp, signOut, useSession } = authClient;
 ```
 
-### `src/app/api/auth/[...all]/route.ts` (Next App Router)
+### `app/api/auth/[...all]/route.ts` (Next App Router)
 
 ```typescript
 import { auth } from "@/lib/auth";
@@ -68,7 +68,7 @@ import { toNextJsHandler } from "better-auth/next-js";
 export const { GET, POST } = toNextJsHandler(auth.handler);
 ```
 
-### Reference UI: `src/app/sign-in/page.tsx`
+### Reference UI: `app/sign-in/page.tsx`
 
 A minimal sign-in page using shadcn primitives (or MUI `TextField`/`Button` if `stack.ui = "mui"`). The page should:
 - Render Email + Password inputs and a submit button.
@@ -80,7 +80,7 @@ Templates live alongside this reference file when fleshed out — for v1, write 
 
 ### Schema additions for Drizzle
 
-better-auth needs `user`, `session`, `account`, and `verification` tables. Append the schema definitions to `src/lib/db/schema.ts` (created by `module-add db`). Use the official better-auth Drizzle schema generator:
+better-auth needs `user`, `session`, `account`, and `verification` tables. Append the schema definitions to `lib/db/schema.ts` (created by `module-add db`). Use the official better-auth Drizzle schema generator:
 
 ```bash
 npx @better-auth/cli generate

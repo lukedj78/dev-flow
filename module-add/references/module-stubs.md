@@ -22,7 +22,7 @@ If the user invokes `module-add` for one of these and the variant reference does
 
 ## `module-email` — Resend
 
-**Default**: Resend with React Email for templates. Single transactional helper at `src/lib/email.ts` exposing `sendEmail({ to, template, props })`.
+**Default**: Resend with React Email for templates. Single transactional helper at `lib/email.ts` exposing `sendEmail({ to, template, props })`.
 
 **Prerequisites**: none (independent).
 

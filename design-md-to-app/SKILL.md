@@ -348,14 +348,14 @@ export default function Showcase() {
 
 The site-shell has two components, both **mandatory** and both written by this skill alongside `/showcase`:
 
-**`<SiteTopNav>`** at `app/_components/site-top-nav.tsx`:
+**`<SiteTopNav>`** at `components/site/site-top-nav.tsx`:
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 h-14 flex items-center gap-8`.
 - Brand on the left: small logo box (`size-7 rounded-md bg-primary text-surface`) with the project initial + project name in `text-[14px] font-semibold`.
 - Nav links in the middle: 4–6 links to the project's main routes (`/`, `/showcase`, plus 2–4 product routes), `text-[14px] text-on-surface-variant hover:text-on-surface`.
 - Right side: a secondary text link (e.g., `Accedi` / `Sign in`) + the project's primary CTA as a small `<Button>` ("Nuova pratica" / "Reserve" / "Deploy").
 - Background `bg-surface` with `border-b border-outline`.
 
-**`<WordmarkFooter>`** at `app/_components/wordmark-footer.tsx`:
+**`<WordmarkFooter>`** at `components/site/wordmark-footer.tsx`:
 - Background: a soft branded surface — for projects with a brand banner color (Aetherfield lime, Notarius lavender), use it; otherwise `bg-background-primary` or equivalent tinted surface.
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 pt-16 pb-10 space-y-10`.
 - **Meta row** (top): brand description on the left (eyebrow + 1-2 sentences) + 2-3 columns of nav links on the right (uppercase eyebrow + 3 links each).

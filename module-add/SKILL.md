@@ -30,7 +30,7 @@ The user can override any default. If they say "add auth with Clerk", read `refe
 
 This skill follows the dev-flow contract — see `references/contracts.md`. Key facts:
 - Reads `<root>/.workflow/meta.json#stack` to honor existing choices.
-- Modifies `<root>/<project-root>/` (installs deps, writes config, writes one example route or function).
+- Modifies `<project-root>/` (installs deps, writes config, writes one example route or function).
 - Updates `meta.json#stack` to record the module's tech choice (e.g., `stack.auth = "better-auth"`).
 - Sets `phase = "module-added"` (only if current phase is earlier in the enum).
 - **Idempotent**: re-running the same module check whether it's already wired and skips/updates instead of duplicating.
@@ -52,7 +52,7 @@ Open `references/module-<name>.md` for the chosen module. The reference is the s
 
 Each reference describes:
 1. **Install commands** — packages to add, optional dev deps, environment variables to set.
-2. **Config files** — paths and templates (e.g., `<project-root>/src/lib/auth.ts`, `drizzle.config.ts`).
+2. **Config files** — paths and templates (e.g., `<project-root>/lib/auth.ts`, `drizzle.config.ts`).
 3. **Schema or migration setup** — for `db`, the Drizzle schema folder layout; for `payments`, the webhook secret rotation.
 4. **Reference implementation** — exactly one route or server function showing the module in use (e.g., a `/sign-in` page for auth, a `/api/stripe/webhook` for payments). The user can copy-paste-evolve from there.
 5. **Idempotency check** — how to detect the module is already installed (typically a `package.json` dependency check + a config file check). On re-run, skip install + config but offer to regenerate the reference implementation if the user asks.
@@ -86,7 +86,7 @@ Update `.workflow/meta.json`:
     "skill": "module-add",
     "ran_at": "<now>",
     "inputs": {"module": "auth", "tech": "better-auth"},
-    "outputs": ["app/src/lib/auth.ts", "app/src/app/sign-in/page.tsx", ".env.local.example"],
+    "outputs": ["lib/auth.ts", "lib/auth-client.ts", "app/api/auth/[...all]/route.ts", "app/sign-in/page.tsx", ".env.local.example"],
     "phase_before": "<prev>",
     "phase_after": "module-added"
   }

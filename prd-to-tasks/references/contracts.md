@@ -83,8 +83,8 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 |---|---|---|
 | `empty` | `.workflow/` was just created, only `meta.json` exists | `prd-from-idea` |
 | `idea_captured` | `PROJECT.md` exists | `prd-from-idea` (to expand into PRD) or `design-md-to-app` (skip if simple) |
-| `prd_drafted` | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, or `design-md-to-app` |
-| `tasks_split` | `tasks.md` exists | `figma-to-design-md` or `design-md-to-app` |
+| `prd_drafted` | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, or `design-md-to-app` |
+| `tasks_split` | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or `design-md-to-app` |
 | `design_extracted` | `DESIGN.md` + (optional) `screenshots/` exist | `design-md-to-app` |
 | `scaffolded` | `app/` exists with framework + UI library installed | `screenshot-to-page`, `module-add` |
 | `page_generated` | At least one route in `app/` is implemented from a screenshot or PRD | `module-add`, more `screenshot-to-page` runs |
@@ -108,19 +108,19 @@ Use `null` (not `"none"`) when not yet decided.
 ## File-format conventions
 
 ### `PROJECT.md`
-Free-form prose, one h1 (the project name). Sections expected: **Overview**, **Audience**, **Success criteria**, **Out of scope** (optional). Written by `prd-from-idea`.
+Free-form prose, one h1 (the project name). Sections expected: **Overview**, **Audience**, **Problem & current alternatives**, **Value proposition**, **Success criteria**, **Out of scope** (optional). Written by `prd-from-idea`.
 
 ### `PRD.md`
-Free-form prose. Conventional sections: **Problem**, **Solution**, **User stories** (`As a … I want …`), **Acceptance criteria**, **Non-goals**, **Open questions**. Written by `prd-from-idea`.
+Free-form prose. Conventional sections: **Problem**, **Solution overview**, **User stories** (`As a … I want …`), **Non-goals**, **Technical constraints**, **Open questions**. Written by `prd-from-idea`.
 
 ### `tasks.md`
 A checklist compatible with beads / GitHub Issues / Linear import. Each task is a `## ` heading with body, plus a `- [ ]` line for status. Written by `prd-to-tasks`.
 
 ### `DESIGN.md`
-Strictly conformant to the Google design.md spec — see `figma-to-design-md/references/spec.md`. Written by `figma-to-design-md` (or by hand, then later skills consume it).
+Strictly conformant to the Google design.md spec — see `figma-to-design-md/references/spec.md`. Written by `figma-to-design-md`, `image-to-design-md`, or by hand (downstream skills consume it).
 
 ### `screenshots/`
-Raw screenshots of the UI for reference. Filenames should be slugged page names (`home-hero.png`, `pricing-comparison.png`). Written by `figma-to-design-md` and consumable by `screenshot-to-page`.
+Raw screenshots of the UI for reference. Filenames should be slugged page names (`home-hero.png`, `pricing-comparison.png`). Written by `figma-to-design-md` and `image-to-design-md`, consumable by `screenshot-to-page`.
 
 ### Codebase (project root)
 The actual codebase lives at `<project-root>/` (NOT inside `.workflow/`). It's owned by `design-md-to-app` (which scaffolds it) and modified by `screenshot-to-page` and `module-add`. Skills must **not** edit codebase files unless that's their explicit job — the orchestrator routes to the right specialist.

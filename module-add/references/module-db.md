@@ -1,15 +1,15 @@
 # module-add → `db` (Drizzle ORM + Neon Postgres)
 
-Wire **Drizzle ORM** with a **Neon** Postgres database into an existing scaffold. Defaults: Neon serverless driver, `drizzle-kit` for migrations, schema in `src/lib/db/schema.ts`.
+Wire **Drizzle ORM** with a **Neon** Postgres database into an existing scaffold. Defaults: Neon serverless driver, `drizzle-kit` for migrations, schema in `lib/db/schema.ts`.
 
 ## Idempotency check
 
 Before doing anything, check whether the db is already wired:
 
-1. `<root>/<project-root>/package.json` contains `"drizzle-orm"` and `"drizzle-kit"` in dependencies.
-2. `<root>/<project-root>/drizzle.config.ts` exists.
-3. `<root>/<project-root>/src/lib/db/index.ts` exists.
-4. `<root>/<project-root>/.env.local.example` contains `DATABASE_URL`.
+1. `<project-root>/package.json` contains `"drizzle-orm"` and `"drizzle-kit"` in dependencies.
+2. `<project-root>/drizzle.config.ts` exists.
+3. `<project-root>/lib/db/index.ts` exists.
+4. `<project-root>/.env.local.example` contains `DATABASE_URL`.
 
 If all four: tell the user it's installed, offer to regenerate the reference schema or add a new table example. Don't double-install.
 
@@ -35,15 +35,15 @@ import "dotenv/config";
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/lib/db/schema.ts",
-  out: "./src/lib/db/migrations",
+  schema: "./lib/db/schema.ts",
+  out: "./lib/db/migrations",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
 });
 ```
 
-### `src/lib/db/index.ts`
+### `lib/db/index.ts`
 
 ```typescript
 import { drizzle } from "drizzle-orm/neon-http";
@@ -53,7 +53,7 @@ const sql = neon(process.env.DATABASE_URL!);
 export const db = drizzle({ client: sql });
 ```
 
-### `src/lib/db/schema.ts`
+### `lib/db/schema.ts`
 
 ```typescript
 import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
@@ -125,6 +125,6 @@ This pushes the schema to the connected Neon DB. The user runs this after they'v
 
 ## Known caveats
 
-- Neon's serverless driver works only over HTTP, not TCP. For local dev with a different Postgres (e.g., Docker), the user has to swap `neon-http` for `node-postgres` in `src/lib/db/index.ts`. Note this in the report.
+- Neon's serverless driver works only over HTTP, not TCP. For local dev with a different Postgres (e.g., Docker), the user has to swap `neon-http` for `node-postgres` in `lib/db/index.ts`. Note this in the report.
 - Drizzle's `drizzle-kit push` is destructive on column drops. For production, the user should switch to `drizzle-kit generate` + `drizzle-kit migrate` workflow. Mention this in the report — `push` is fine for dev only.
 - The `posts` example table is throwaway — invite the user to replace it once their schema starts taking shape.
