@@ -119,9 +119,39 @@ A page that looks right but fails basic a11y checks is not done. Run through thi
 
 If any item can't be fixed in the screenshot-to-page run (e.g., the DESIGN.md mandates a low-contrast color), document it explicitly in the hand-off message under "Accessibility notes" — never silently ship an a11y violation.
 
-### Step 6 — Pixel-perfect verification loop
+### Step 6 — Verification loop (two modes)
 
-The work isn't done after the first write. Iterate until visual delta is below threshold. **Required when a browser tool (Playwright / Chrome MCP / etc.) is available** — without one, fall back to the sub-section "No browser available" below.
+The work isn't done after the first write. Iterate until visual quality matches the threshold for the chosen mode. **Required when a browser tool (Playwright / Chrome MCP / etc.) is available** — without one, fall back to the sub-section "No browser available" below.
+
+#### Pick the mode FIRST, before writing a single iteration
+
+Two modes — they're not interchangeable, and over-applying pixel-tight is a real failure pattern:
+
+**`structure-first` (default for app routes — dashboards, forms, internal product pages)**
+- Target: **token correctness** + **semantic correctness** + visual delta ≤ 8%.
+- Stop after 3 iterations, or when delta plateaus.
+- The HTML is allowed to differ from the screenshot in pixel position by up to ~8 px on most edges, AS LONG AS:
+  - The colors used are the right tokens (no `bg-[#abc123]`, only `bg-primary` / `bg-card` / etc.).
+  - The typography uses the declared scale (`text-display-lg`, etc.), not free `text-[42px]`.
+  - The component structure is correct (a `<Card>` IS a `<Card>`, not a `<div>` faking it).
+  - The layout is responsive and respects the breakpoint rules from DESIGN.md.
+- **Why this is the default**: pixel-tight produces rigid HTML that imitates pixels instead of respecting tokens. For a dashboard / settings page / list view, that rigidity hurts more than it helps — the next developer can't tell which spacing was a "design choice" and which was an LLM matching one pixel.
+
+**`pixel-tight` (opt-in for marketing / landing pages / brand-critical surfaces)**
+- Target: **visual delta ≤ 2%** (the original threshold).
+- Stop after 8 iterations, or earlier if delta plateaus.
+- All `structure-first` rules still apply (still must use tokens, not arbitrary pixel values) — but on top of that, position, scale, and typographic detail must match the screenshot to within 2%.
+- **When this is right**: hero pages, pricing pages, signup flows, conversion-critical surfaces where the visual fidelity IS the value. A landing where the headline is 4px off feels broken; a dashboard where the table padding is 4px off is fine.
+
+#### How to decide
+
+The signal is **the kind of route**, not the user's preference. Ask the user only if the case is genuinely ambiguous.
+
+- Route looks like `/`, `/pricing`, `/about`, `/blog/<post>`, `/sign-up`, `/showcase` → **pixel-tight**.
+- Route looks like `/dashboard`, `/clienti/<id>`, `/settings`, `/admin`, anything CRUD → **structure-first**.
+- Mix on the same page (rare): pick `pixel-tight` for the hero, write the rest in `structure-first` style and call it good.
+
+State the chosen mode in your hand-off message: "Iterated in `structure-first` mode (3 passes, final delta 6.4%) — token-correct, semantically clean. Switch to `pixel-tight` if you want closer fidelity for production."
 
 #### The loop
 
@@ -147,7 +177,9 @@ The work isn't done after the first write. Iterate until visual delta is below t
    python3 scripts/visual_diff.py \
        <reference> .workflow/screenshots/_render-iter-N.png
    ```
-   Output: a delta percentage (0–100), and an annotated diff PNG showing where the renders differ. Threshold to chase: **<2% pixel delta** for a "shippable" match. <5% is acceptable if the gap is concentrated on imagery placeholders (and is flagged as such).
+   Output: a delta percentage (0–100), and an annotated diff PNG showing where the renders differ. Threshold depends on the mode you picked:
+   - `structure-first` (default for app routes): **≤ 8%** delta is shippable. Concentrate on token correctness over pixel match.
+   - `pixel-tight` (landing/marketing): **≤ 2%** delta. <5% is acceptable when the gap is on imagery placeholders.
 
 4. **Identify the worst region** in the diff and fix it. Common categories of delta, in order of frequency:
 
@@ -159,7 +191,7 @@ The work isn't done after the first write. Iterate until visual delta is below t
 
    Make **one targeted fix per iteration**. Don't try to fix everything at once — you lose the ability to attribute progress.
 
-5. **Repeat** Steps 2–4 until delta drops below the threshold OR you've done 8 iterations without meaningful improvement. If stuck, stop and ask the user — usually the screenshot is ambiguous on the disputed region.
+5. **Repeat** Steps 2–4 until delta drops below the threshold for your mode (≤ 8% for `structure-first`, ≤ 2% for `pixel-tight`) OR you've hit the iteration cap (3 for `structure-first`, 8 for `pixel-tight`). If stuck, stop and ask the user — usually the screenshot is ambiguous on the disputed region. Don't over-iterate in `structure-first` — past 3 passes you're chasing pixels in a context where pixels weren't the goal.
 
 6. **Kill the dev server** when done.
 

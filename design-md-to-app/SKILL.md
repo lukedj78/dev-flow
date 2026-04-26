@@ -598,11 +598,55 @@ Forcing a mode the spec rejects is worse than missing one the spec wants — der
 
 2. **System fallbacks** (`system-ui`, `ui-sans-serif`, generic stacks): pass through as-is. No loading needed.
 
-3. **Custom / proprietary / non-Google fonts** (Airbnb Cereal VF, Circular Std, Söhne, F37 Glare, brand-licensed fonts): **STOP and ASK THE USER** before substituting. The detailed protocol — including the exact wording to use when asking, where to look for the files, and how to document the fallback — lives in the relevant mapping reference (`references/shadcn-mapping.md` § "Missing font policy" and `references/mui-mapping.md` § "Font loading"). The short version:
+3. **Custom / proprietary / non-Google fonts** (Airbnb Cereal VF, Circular Std, Söhne, F37 Glare, brand-licensed fonts): the silent-substitute path (Söhne → Inter, Cereal → Manrope) is **forbidden**. The brand identity is downstream of typography — quietly swapping a paid foundry font for an open one corrupts the perception of the design system in ways the user can't easily undo later. Use the three-way branch below.
 
-   1. Check `public/fonts/<family>/` for `.woff2` / `.woff` / `.ttf` files. If found, use them via `next/font/local` (Next) or `@font-face` (Vite/Remix) and you're done.
-   2. If missing, present the user with the three options: provide files now, use the DESIGN.md's documented substitute (often listed under "Note on Substitutes"), or pick a sensible Google Font replacement. **Wait for an answer.** Don't pick silently.
-   3. Whatever fallback is used, document it explicitly in `STYLE_NOTES.md` (Known Gaps section) and `_design-md-mapping.json` (`fallbacks` array) with the original font, the substitute, and the reason. The user may swap later — make the breadcrumb visible.
+#### The 3-way font branch (mandatory for non-Google families)
+
+When the parser surfaces a custom/proprietary font name that's not a Google Font and not a system stack:
+
+**Branch A — License owned (files present)**
+1. Look for files at `<project-root>/public/fonts/<family>/` (any of `.woff2`, `.woff`, `.ttf`, `.otf`).
+2. If files exist: wire via `next/font/local` (Next) or `@font-face` (Vite/Remix). Done — no fallback needed.
+3. Record the resolution in `_design-md-mapping.json` under `fonts` as `{ name, source: "self-hosted", path: "public/fonts/<family>" }`.
+
+**Branch B — Pick alternative (with explicit user choice)**
+If no files are present, **stop and ask** with this exact pattern (Italian or English, match the user's language):
+
+> Il DESIGN.md richiede `Söhne` (Klim Type Foundry, font commerciale). Non ho i file di licenza. Ho due alternative open-source visivamente vicine — vuoi vederle?
+>
+> **Opzione 1 — Manrope** (Google Fonts): geometric sans, x-height un filo più alta di Söhne, terminali leggermente più morbidi. Più "tech" che "editorial".
+>
+> **Opzione 2 — Inter** (Google Fonts): neo-grotesque, terminali più squadrati, ottimizzato per UI ad alta densità. Più "neutrale".
+>
+> Se li vuoi confrontare, posso renderizzare entrambe le opzioni nel `/showcase` e farti scegliere visualmente. Oppure vuoi cercare la licenza ora? L'opzione fallback è sempre `system-ui`.
+
+**Critical**: list **two** alternatives with concrete pros/cons grounded in the typographic difference (x-height, terminals, weight axis, optical sizing, mood). Don't list five — paralyzes the user. Don't list one — feels like a forced choice.
+
+For each known proprietary family the skill has seen before, keep the recommendation pair stable:
+
+| Original | Alt 1 (closer) | Alt 2 (different mood) |
+|---|---|---|
+| Söhne | Manrope | Inter |
+| Circular Std | Public Sans | Manrope |
+| Cereal VF (Airbnb) | Manrope | Plus Jakarta Sans |
+| F37 Glare | Fraunces | Playfair Display |
+| Söhne Mono | JetBrains Mono | IBM Plex Mono |
+| Roobert | Geist | Inter |
+
+If the family isn't in the table: ask the user to name two alternatives they trust, OR look up VFonts/Fontesk for "alternatives to <family>" and propose the top two from there.
+
+**Branch C — Defer**
+If the user says "I'll think about it" or doesn't respond, scaffold with `system-ui` fallback chain and:
+1. Add a banner in the generated `STYLE_NOTES.md`:
+   > ⚠ **Font decision pending**: DESIGN.md specifies `<family>`. The scaffold is currently rendering with `system-ui` fallback. Choose a final font (license / alternative / different) before shipping — the design will look different from the source until then.
+2. Record `{ name, source: "deferred", fallback: "system-ui" }` in `_design-md-mapping.json`.
+3. Surface it in the hand-off message: "Font decision deferred — see STYLE_NOTES.md before shipping."
+
+#### Why this rigour
+
+The font is the most visible piece of the design system. Silently swapping it ships a project that *looks like* it has the right brand but doesn't. The user only notices when they show it to a client, and at that point fixing it requires re-installing the alt font everywhere, possibly different weight axes, possibly different metrics — hours of rework that 30 seconds of asking would have prevented.
+
+This is also where AI tools earn the most distrust: a tool that "did its best" and silently degraded the quality is harder to live with than a tool that paused and asked.
 
 **Load only the font weights the DESIGN.md declares.** Read the typography table or prose: if the spec says "weights observed: 500, 600, 700. No 400-regular", load exactly those weights. Don't pre-load 400 "for safety" — the design system explicitly forbade it, and keeping the option around lets code accidentally render in the wrong weight. Smaller payloads are a free side effect.
 
