@@ -433,13 +433,188 @@ dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is 
 
 4. **Agent-agnostic helper scripts** — `init_workflow.py`, `update_meta.py`, `check_drift.py`. They're invoked by shell, so every runtime can use them via whatever shell tool it has.
 
-### When to use each install method
+### Per-runtime usage guide
 
-- **Claude Code user**: `./install.sh` and you're done — auto-discovery picks up the skills, no bootstrap needed.
-- **Codex CLI user**: `./install.sh --platform codex`, then copy the generated `AGENTS.md` into your project root. Codex reads `AGENTS.md` at session start.
-- **Gemini CLI user**: `./install.sh --platform gemini`, copy the `GEMINI.md` into your project root.
-- **Cursor user**: `./install.sh --platform cursor`, copy the `.cursorrules` into your project root.
-- **Building a custom agent**: `./install.sh --platform generic`, prepend `system-prompt.md` to your agent's system prompt, ensure it has filesystem + shell access to `~/.dev-flow-skills/`.
+Six recipes — install once, then per-project. Same skill content, same `.workflow/` contract, different loading mechanism.
+
+#### Claude Code (native)
+
+Install once:
+```bash
+git clone https://github.com/lukedj78/dev-flow.git
+cd dev-flow
+./install.sh
+```
+
+Use it on any project:
+```bash
+mkdir ~/projects/my-app && cd ~/projects/my-app
+claude            # open Claude Code here
+```
+
+Then say:
+> *"I want to build a CRM for veterinary clinics."*
+
+Auto-discovery picks the skills from `~/.claude/skills/`, `dev-flow` orchestrator routes. Nothing to configure per project.
+
+#### Codex CLI (OpenAI)
+
+Install once:
+```bash
+./install.sh --platform codex
+# → ~/.codex/dev-flow-skills/ + ~/.codex/dev-flow-skills/AGENTS.md
+```
+
+Per project:
+```bash
+mkdir ~/projects/my-app && cd ~/projects/my-app
+cp ~/.codex/dev-flow-skills/AGENTS.md .
+codex
+```
+
+Codex reads `AGENTS.md` at session start. The template tells it where the skills live, how to translate Claude tool names to Codex equivalents (`Bash` → `shell`, `Edit` → `apply_patch`), and how to update `meta.json` after each step.
+
+> *"I want to build a CRM for veterinary clinics."*
+
+**Minimal variant** (if you don't want to copy AGENTS.md to every project):
+```bash
+echo "Load instructions from ~/.codex/dev-flow-skills/AGENTS.md" > AGENTS.md
+```
+
+#### Copilot CLI (GitHub)
+
+Install once:
+```bash
+./install.sh --platform copilot
+# → ~/.config/gh-copilot/skills/
+```
+
+No per-project bootstrap — Copilot CLI auto-discovers skills like Claude Code.
+
+```bash
+cd ~/projects/my-app
+gh copilot suggest "I want to build a CRM for veterinary clinics"
+```
+
+Verify the install:
+```bash
+gh copilot skills list | grep dev-flow
+```
+
+#### Gemini CLI (Google)
+
+Install once:
+```bash
+./install.sh --platform gemini
+# → ~/.gemini/skills/ + ~/.gemini/skills/GEMINI.md
+```
+
+Per project:
+```bash
+mkdir ~/projects/my-app && cd ~/projects/my-app
+cp ~/.gemini/skills/GEMINI.md .
+gemini
+```
+
+Gemini reads `GEMINI.md` at session start. Skills are activated via `activate_skill` when a trigger pattern matches.
+
+> *"I want to build a CRM for veterinary clinics."*
+
+#### Cursor
+
+Install once:
+```bash
+./install.sh --platform cursor
+# → ~/.dev-flow-skills/ + ~/.dev-flow-skills/.cursorrules
+```
+
+Per project:
+```bash
+mkdir ~/projects/my-app && cd ~/projects/my-app
+cp ~/.dev-flow-skills/.cursorrules .
+cursor .
+```
+
+Open Cursor's chat (`Cmd+L`) and say:
+> *"I want to build a CRM for veterinary clinics."*
+
+**Honesty caveat**: Cursor doesn't have a native skills system. The skills become *prompt augmentation* loaded via `.cursorrules` — not auto-routing. Quality depends on how well Cursor follows the rules; on long sessions it can drop references. Works better if you guide explicitly: *"Use the prd-from-idea skill to draft a PRD."*
+
+#### Custom agent (LangChain, OpenAI Assistants, raw API)
+
+Install once:
+```bash
+./install.sh --platform generic
+# → ~/.dev-flow-skills/ + ~/.dev-flow-skills/system-prompt.md
+```
+
+Prepend `system-prompt.md` to your agent's system prompt. Examples:
+
+**LangChain**
+```python
+from langchain.prompts import SystemMessagePromptTemplate
+
+with open("/Users/you/.dev-flow-skills/system-prompt.md") as f:
+    dev_flow_prompt = f.read()
+
+system_msg = SystemMessagePromptTemplate.from_template(
+    dev_flow_prompt + "\n\nYou are a coding assistant…"
+)
+```
+
+**OpenAI Assistants API**
+```python
+from openai import OpenAI
+client = OpenAI()
+
+assistant = client.beta.assistants.create(
+    name="My Dev Agent",
+    instructions=open("/Users/you/.dev-flow-skills/system-prompt.md").read(),
+    tools=[{"type": "code_interpreter"}],
+    model="gpt-4o",
+)
+```
+
+The agent **must** have:
+- Filesystem read/write to `~/.dev-flow-skills/` (so it can read SKILL.md files).
+- Shell execution (so it can call the Python helpers: `init_workflow.py`, `update_meta.py`, `check_drift.py`).
+
+Without both, the contract operations don't work.
+
+### Universal commands (any runtime)
+
+These are runtime-agnostic — every platform calls them via shell:
+
+```bash
+# Show project state
+python3 ~/.<platform>/<skills-dir>/dev-flow/scripts/show_state.py .
+
+# Detect drift after manual edits to contract files
+python3 ~/.<platform>/<skills-dir>/dev-flow/scripts/check_drift.py . --plan
+```
+
+Or, from any Python runtime that installed the contract package:
+
+```bash
+pip install -e ~/dev-flow/contract-package
+```
+
+```python
+from dev_flow_contract import init_workflow, check_drift, record_artifact
+```
+
+### Picking the right runtime
+
+| If… | Use | Why |
+|---|---|---|
+| You want zero-config + best auto-routing | **Claude Code** | The skills were designed for it; matching is unambiguous |
+| You're already on the OpenAI CLI / prefer OpenAI models | **Codex CLI** | Solid `AGENTS.md` support, but you'll need to validate (not e2e tested) |
+| You work in GitHub repos and want everything via `gh` | **Copilot CLI** | Auto-discovery + natural fit with git/PR workflows |
+| You want Google models / huge context windows | **Gemini CLI** | 1M+ token context useful on big projects |
+| Your IDE is Cursor and you don't want to switch tools | **Cursor** | No tool-switch, but routing is weaker — you'll be more explicit |
+| You're building a custom agent | **Generic** | `system-prompt.md` is the smallest possible starting point |
+
+**Honest disclaimer**: today only Claude Code has been tested end-to-end. The other 5 are scaffolded — install paths and bootstraps are wired, but full project runs haven't been validated. If you try one and it works, [open an issue](https://github.com/lukedj78/dev-flow/issues) so the support matrix can be updated; if it doesn't work, **also** open one — fixes come from feedback.
 
 ### Porting to a runtime not listed
 
