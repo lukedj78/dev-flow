@@ -134,6 +134,66 @@ The asset templates in `assets/shadcn/` and `assets/mui/` are starting points �
 
 After writing the theme files, also write `_design-md-mapping.json` at the project root. This is a debug artifact: a JSON dump of `{ token_path → resolved_value → library_target }` for every color/typography/component that was mapped, plus the list of fallbacks that were used because the DESIGN.md didn't define a value. Add `_design-md-mapping.json` to `.gitignore` if the user wants to keep it local-only — by default leave it tracked since it's useful for reviewers.
 
+### Step 4.3 — Library primitive priority (mandatory, supersedes custom components)
+
+**Rule**: when the chosen UI library (shadcn or MUI) ships a primitive for the pattern, **use it**. Don't roll custom.
+
+This is the single most-violated rule in scaffolders. The skill installs `shadcn add --all` (or MUI's full theme), giving the project access to dozens of pre-built, accessible, mobile-aware, theme-integrated primitives — and then the skill writes a custom 100-line `<Sidebar>` from scratch using `<aside>` + flex + lucide icons. The custom version is worse on every axis: less accessible, no mobile drawer, no collapsed state, no tooltip support, no keyboard shortcuts, no persistent state.
+
+#### The mandate
+
+Before authoring **any** component beyond the simplest (Eyebrow, simple text wrappers), **scan `components/ui/*.tsx`** for a primitive that matches the pattern. Common shadcn primitives projects miss:
+
+| Pattern in DESIGN.md / Figma | shadcn primitive | What you get for free |
+|---|---|---|
+| Vertical app sidebar (icon-only or expanded) | `Sidebar` + `SidebarProvider` + `SidebarMenu*` | Collapsible state (icon ↔ expanded), mobile drawer via Sheet, tooltips on hover when collapsed, `Cmd+B` toggle, persistent state in cookies, active-route detection via context |
+| Top navigation menu with hover dropdowns | `NavigationMenu` | Keyboard navigation, ARIA menu, hover delays |
+| Dialog / modal | `Dialog` + `AlertDialog` | Focus trap, Escape close, scroll lock, portal |
+| Hamburger drawer (mobile nav) | `Sheet` | Slide-in animation, focus management, swipe close |
+| Autocomplete / type-ahead | `Combobox` (Command + Popover) | Async search, keyboard nav, fuzzy match |
+| Command palette / cmd+k | `Command` (CMDK) | Categorized search, keyboard, animations |
+| Date range picker | `Calendar` + `Popover` | Locale-aware, keyboard nav, range selection |
+| Tabs (route-driven or panel) | `Tabs` | ARIA roles, keyboard nav, animations |
+| Sheet / slide-out panel | `Sheet` | Right/left/top/bottom variants |
+| Toast / notification | `Toast` (Sonner) | Stacking, swipe-dismiss, ARIA live region |
+| Form with validation | `Form` + `react-hook-form` adapter | Zod-validated, inline errors, accessible labels |
+| Table with sort/filter | `Table` (+ optional `tanstack-table` recipe) | ARIA grid, sortable columns, virtualizable |
+| Combobox toggle group | `ToggleGroup` | Single/multi select, keyboard |
+| Resizable panel layout | `Resizable` (react-resizable-panels) | Saved sizes, accessible, keyboard resize |
+| Right-click menu | `ContextMenu` | Submenu, keyboard, ARIA |
+| Tooltip | `Tooltip` + `TooltipProvider` | Delay, position, accessible |
+| Slider | `Slider` | Range / single, keyboard, ARIA |
+| Progress bar | `Progress` | ARIA progressbar, animations |
+| Skeleton loading | `Skeleton` | Pulse animation, theme-aware |
+| Avatar + fallback initials | `Avatar` + `AvatarFallback` | Image error fallback, accessible alt |
+| Pagination controls | `Pagination` | Keyboard, ellipsis, ARIA |
+
+The same logic applies to MUI: prefer `Drawer`, `AppBar`, `Modal`, `Autocomplete`, `DatePicker`, `Tabs`, `Snackbar`, `Table`, etc. over `<div>` constructions.
+
+#### When custom IS appropriate
+
+- The pattern doesn't exist in the library (e.g., a brand-specific WordmarkFooter, a project-specific KpiCard with a particular icon-badge + progress-bar shape).
+- The library's primitive is too rigid for what the DESIGN.md describes (rare — usually you compose primitives, not replace them).
+- The component is so trivial it'd be 5 lines either way (Eyebrow, simple section wrappers).
+
+In all other cases: **default to the primitive**. The custom version is technical debt the user has to maintain forever.
+
+#### Anti-patterns
+
+- ❌ Writing `<aside class="flex flex-col w-64 ...">` when `Sidebar` exists.
+- ❌ Building a hamburger drawer with `useState` + `<div className="fixed inset-0">` when `Sheet` exists.
+- ❌ Authoring a "command palette" lookalike with `<input>` + `useEffect` when `Command` exists.
+- ❌ Custom date pickers, custom modals, custom tooltips, custom comboboxes — all have shadcn primitives.
+
+#### How to apply at scaffold time
+
+1. Read the DESIGN.md / screenshot to identify the pattern (sidebar, modal, picker, etc).
+2. **Grep `components/ui/` for a matching primitive** (`grep -l Sidebar components/ui/*.tsx`).
+3. Check the primitive's exports + usage docs at https://ui.shadcn.com (or the primitive's source).
+4. Compose with the primitive. Style overrides via `className` + the design tokens already in `globals.css` make it brand-faithful without re-implementing the behavior.
+
+When in doubt: open `components/ui/<primitive>.tsx` and read its API. If the API supports your pattern, use it.
+
 ### Step 4.4 — Folder convention (mandatory)
 
 Once `add --all` lands the shadcn primitives, the project has too many "where does this go?" decisions waiting to happen. **Pin the convention now**, before writing application code, so every subsequent skill (and human) knows where to put things.
