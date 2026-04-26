@@ -9,16 +9,20 @@ This skill is the bridge between a styled-but-empty app and a functional product
 
 **Modules supported in v1**:
 
-| Module | Default tech | Reference file |
-|---|---|---|
-| `auth` | better-auth (with email/password + magic link) | `references/module-auth.md` |
-| `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` |
-| `payments` | Stripe (subscriptions + one-time) | `references/module-payments.md` |
-| `email` | Resend | `references/module-email.md` |
-| `storage` | UploadThing or S3 | `references/module-storage.md` |
-| `deploy` | Vercel | `references/module-deploy.md` |
+| Module | Default tech | Reference file | Status |
+|---|---|---|---|
+| `auth` | better-auth (email/password + magic link) | `references/module-auth.md` | ✅ implemented |
+| `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` | ✅ implemented |
+| `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
+| `ci` | husky + lint-staged + GitHub Actions | `references/module-ci.md` | ✅ implemented |
+| `payments` | Stripe (subscriptions + one-time) | `references/module-stubs.md` | 🚧 stub — implement on demand |
+| `email` | Resend | `references/module-stubs.md` | 🚧 stub — implement on demand |
+| `storage` | UploadThing | `references/module-stubs.md` | 🚧 stub — implement on demand |
+| `deploy` | Vercel | `references/module-stubs.md` | 🚧 stub — implement on demand |
 
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
+
+For modules marked "stub", the reference file gives the shape (packages, env vars, out-of-band steps) but doesn't provide the install templates. Implement the stub on first request — copy `module-auth.md` or `module-db.md` as the structural template and fill in.
 
 ## When this skill applies
 
@@ -116,6 +120,8 @@ Some modules depend on others. If the user runs them out of order, the skill mus
 - `payments` requires `auth` and `db`. Same pattern.
 - `email` is independent.
 - `storage` is mostly independent (some providers integrate with auth for signed URLs, but it's optional).
+- `test` is independent — best run after `db` so server-action smoke tests have a schema to mock against, but works without it.
+- `ci` is mostly independent — works best after `test` (so CI has tests to run) but writes a workflow that gracefully skips test steps when none exist.
 - `deploy` should be last — it reads the configured stack and produces deploy config.
 
 When dependencies are missing, **ask, don't block silently.** "I see you're trying to add auth but there's no database yet. Want me to set up `db` (Neon + Drizzle) first, then come back to auth?"

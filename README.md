@@ -309,10 +309,33 @@ The full schema is in [docs/architecture.md](./docs/architecture.md).
 ## What's intentionally NOT in dev-flow
 
 - A code-generation tool that writes business logic for you. The skills generate **structure + conventions + first-pass UI**. Business logic stays human.
-- Test scaffolding. Each project is too different to template.
 - A CMS. Content layer is project-specific.
-- Hosting / CI. `module-add deploy` produces config; the actual deploy is your call.
-- Analytics / observability. Same reason — too project-specific.
+- Hosting. `module-add deploy` produces config; the actual deploy is your call.
+- Analytics / observability. Too project-specific to template.
+
+---
+
+## What comes next — when dev-flow hands you the keys
+
+When the skills are done, you have:
+
+- A scaffolded app with routing, theme system, dark/light toggle, server-action conventions.
+- A `/showcase` page proving the design system landed.
+- (Optionally) auth, db, tests, CI wired up via `module-add`.
+- A `lib/server/<domain>.ts` reference action that you can copy-evolve.
+
+What dev-flow does **not** do — these are your work as the developer:
+
+1. **Real business logic.** The server-action template returns mock data. You write the actual mutations (`db.insert(...)`, `db.update(...)`) for your domain.
+2. **Real forms wired to the actions.** The scaffold ships one stub form per declared route. You bind real inputs, real Zod schemas, real `useFormState` (or React 19's `useActionState`) per page.
+3. **Production env vars.** `.env.local.example` is a checklist — fill `.env.local` with real values from your Neon/Vercel/Stripe dashboards.
+4. **Migrations to a real DB.** Switch from `pnpm db:push` to `pnpm db:generate` + commit + `pnpm db:migrate` once you have data that matters.
+5. **Tightening the CSP.** `next.config.ts` ships a permissive default Content-Security-Policy. Tighten it as you remove inline scripts/styles.
+6. **Real photography / iconography.** Image placeholders are `bg-muted` divs with `TODO` comments. Replace with `next/image` + your CDN.
+7. **Test coverage.** `module-add test` ships smoke tests. Real coverage (unit + integration + E2E for critical flows) is yours.
+8. **A11y audit.** The scaffold passes basic checks (semantic landmarks, focus rings, reduced-motion). Run axe-core or Lighthouse on every shipped page before launch.
+
+If any of these feel too big to tackle alone, dev-flow's siblings ([screenshot-to-page](./screenshot-to-page) for new pages, `module-add` for new infra) keep working — call them again whenever you need a fresh page or a new module.
 
 ---
 

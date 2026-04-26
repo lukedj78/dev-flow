@@ -74,3 +74,23 @@
         hsl(var(--background)) 70%);
   }
 }
+
+/* Respect users who have requested reduced motion (vestibular disorders, etc).
+ * Without this, every transition/animation in the app keeps firing — and the
+ * theme-toggle's `disableTransitionOnChange` in next-themes handles only a tiny
+ * slice of motion. This block is the global guard.
+ *
+ * Note: we set durations to ~0.01ms instead of 0 because Safari has historically
+ * had bugs with `transition-duration: 0` (skips transitionend events). 0.01ms
+ * is effectively instant and keeps event handlers firing.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

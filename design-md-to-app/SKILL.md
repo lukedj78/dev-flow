@@ -316,7 +316,31 @@ A reference implementation lives at `references/server-action.template.ts` — c
 
 Server actions are the load-bearing connection between forms and the database. Without a reference file, every developer invents their own return shape, error handling, and validation pattern. A single scaffolded file pins the convention for the whole project.
 
- It is not optional, not "nice to have", not skippable for time. The reason: without `/showcase` the user has no way to visually verify that the DESIGN.md tokens landed correctly in the running app. Every primitive that shadcn `add --all` installed is dark code unless `/showcase` proves it's themed. Skipping `/showcase` and declaring the scaffold "done" is a contract violation.
+### Step 4.8 — Robustness scaffold (mandatory)
+
+Five tiny files that make the difference between "demo-grade scaffold" and "senior fullstack scaffold". Every project gets them — they take ~3 minutes to write and prevent entire categories of production incidents.
+
+Write each file from its template under `references/`:
+
+| File | Template | Why it matters |
+|---|---|---|
+| `app/error.tsx` | `references/error.template.tsx` | Root error boundary. Without it, a single uncaught render error blanks the whole app to a Next default page that leaks `error.message` to the user. The template scrubs the message, shows a clean fallback with `reset()`, and surfaces `digest` for log lookup. |
+| `app/loading.tsx` | `references/loading.template.tsx` | Streaming-RSC suspense fallback. Without it, navigating to a route that does any async work hangs on a blank page until the server finishes. The template uses shadcn `<Skeleton>` to render a content-shaped placeholder. |
+| `lib/env.ts` | `references/env.template.ts` | Zod-validated environment at boot. Without it, a missing `DATABASE_URL` only blows up the first time a request hits the DB layer — often in production, never in dev. The template fails fast with a clear message at module-eval time. **Import `env` from this file** instead of reading `process.env` ad hoc. |
+| `lib/queries/<domain>.ts` | `references/queries.template.ts` | Counterpart to `lib/server/<domain>.ts`. **Reads** live here (called from RSC), **mutations** live in `lib/server/`. Keeps the boundary clean — read-from-anywhere, mutate-only-from-actions. |
+| `next.config.ts` | `references/next-config.template.ts` | Security headers (CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal, HSTS). Default Next config has none of these. The template ships sane defaults; the user tightens CSP later if they introduce inline scripts. |
+
+These are **not optional** in dev-flow mode. A scaffold without `app/error.tsx` is a scaffold that crashes loudly the first time a server action throws. A scaffold without `lib/env.ts` is a scaffold where missing secrets are discovered in production.
+
+#### Wiring notes
+
+- `lib/env.ts` should be imported by `lib/db/index.ts`, `lib/auth.ts`, and any other module that reads env. The `module-add db` and `module-add auth` references already produce code that reads `process.env.DATABASE_URL` — when this skill runs **before** those, they pick up `env.DATABASE_URL` automatically; when they run after, do a quick pass on the existing files to swap `process.env.X` → `env.X`.
+- `next.config.ts` may already exist (Next scaffolds it). **Merge** the security headers block into the existing config — don't overwrite settings the user/scaffold has already chosen.
+- The `lib/queries/` folder is created empty alongside `lib/server/` in Step 4.4. The queries template is dropped in for the same domain as the server action template (e.g., `lib/queries/practices.ts` next to `lib/server/practices.ts`).
+
+### Step 5 — `/showcase` page (mandatory in dev-flow mode)
+
+It is not optional, not "nice to have", not skippable for time. The reason: without `/showcase` the user has no way to visually verify that the DESIGN.md tokens landed correctly in the running app. Every primitive that shadcn `add --all` installed is dark code unless `/showcase` proves it's themed. Skipping `/showcase` and declaring the scaffold "done" is a contract violation.
 
 **The only valid skip** is **theme-only mode**, where the user explicitly opted out of any new pages — in that case the verification is a code review of the diff, not a visual check.
 

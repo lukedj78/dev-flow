@@ -29,6 +29,13 @@ export function ModeToggle() {
       const tag = target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
       if (target.isContentEditable) return true;
+      // Rich-text editors (Tiptap, ProseMirror, Slate) and component libraries
+      // (Radix combobox) often render as <div role="textbox"> or carry a
+      // [data-editor] / [data-slate-editor] hook. Catch those too — pressing D
+      // inside a Notion-style editor flipping the theme is jarring.
+      const role = target.getAttribute("role");
+      if (role === "textbox" || role === "combobox" || role === "searchbox") return true;
+      if (target.closest("[data-editor], [data-slate-editor], [contenteditable='true']")) return true;
       return false;
     }
     function onKeyDown(e: KeyboardEvent) {

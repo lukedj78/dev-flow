@@ -102,6 +102,23 @@ Generate the files at the canonical framework path (see Contract). Constraints:
 - **Copy**: use the actual text visible in the screenshot. If text is illegible, write a one-line placeholder and flag it in the report.
 - **Responsive**: read the DESIGN.md `## Layout` section for breakpoint rules. If the system documents 3 breakpoints (Desktop/Tablet/Mobile), generate the page with appropriate Tailwind breakpoint classes (`md:`, `lg:`) or MUI breakpoint props.
 
+#### Accessibility checklist (always apply)
+
+A page that looks right but fails basic a11y checks is not done. Run through this list as you write — most items take seconds when done at write-time and hours when retrofitted:
+
+- **Semantic landmarks**: one `<main>` per page. Use `<nav>`, `<header>`, `<footer>`, `<aside>` instead of `<div>` when the role applies. Avoid wrapping everything in nested `<div>`s.
+- **Heading hierarchy**: exactly one `<h1>` per page, then `<h2>` → `<h3>` without skipping levels. Visual size and heading level are independent — style with classes, not by demoting `<h1>` to `<h3>`.
+- **Alt text**: every `<img>` and `<Image>` needs `alt`. For decorative-only imagery, use `alt=""` (empty string, not absent) so screen readers skip it. Photography placeholders inherit `alt="TODO"` plus a comment.
+- **Buttons vs. links**: `<button>` for actions inside the page, `<a>` (or `<Link>`) for navigation. Don't style a `<div onClick>` as a button — keyboard users can't reach it.
+- **Focus visible**: never `outline: none` without a replacement. shadcn ships `focus-visible:ring-2 focus-visible:ring-ring` by default — preserve it. If the design hides outlines for aesthetic reasons, add a custom `:focus-visible` style that's visible against the background.
+- **Form labels**: every input has an associated `<label>` (matched by `htmlFor`+`id`, or wrapping). Placeholder text is **not** a label substitute — it disappears on focus and many screen readers ignore it.
+- **Color contrast**: body text against its background needs ≥ 4.5:1 (WCAG AA). Brand colors that fail this on the surface they sit on are a DESIGN.md bug, not a screenshot-to-page bug — flag it back to the user instead of silently swapping the color.
+- **Interactive target size**: tappable elements are ≥ 24×24px (WCAG 2.5.8). Tight icon-only buttons need `p-2` minimum.
+- **`aria-label` for icon-only buttons**: a `<Button size="icon">` with only an icon inside is invisible to screen readers without `aria-label="Toggle theme"` or equivalent.
+- **`prefers-reduced-motion`**: handled globally by `globals.css` if the scaffold ran `design-md-to-app`. If you add a new long animation here, double-check it respects the global guard.
+
+If any item can't be fixed in the screenshot-to-page run (e.g., the DESIGN.md mandates a low-contrast color), document it explicitly in the hand-off message under "Accessibility notes" — never silently ship an a11y violation.
+
 ### Step 6 — Pixel-perfect verification loop
 
 The work isn't done after the first write. Iterate until visual delta is below threshold. **Required when a browser tool (Playwright / Chrome MCP / etc.) is available** — without one, fall back to the sub-section "No browser available" below.
