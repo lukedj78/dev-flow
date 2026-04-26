@@ -326,6 +326,108 @@ In these cases, default to the generic pattern but **state it in the hand-off**:
 - ❌ Inventing chart types (the user got "bars" when the Figma had radar + area + pie + bar + heatmap).
 - ❌ Skipping the `Read` step on the canonical PNG and writing the layout from imagination.
 
+### Step 4.5c — Verbatim copy from screenshots, never invent (mandatory)
+
+A separate failure mode from Step 4.5b: the skill reads the canonical
+screenshot, identifies a layout pattern correctly, and then **fills in
+the layout with invented copy** — plausible-sounding placeholder text
+that sounds like what the project might say but didn't actually appear
+in the Figma. The result: a scaffold that visually looks right but
+ships marketing copy the user never wrote and didn't approve.
+
+This step pins the rule.
+
+#### The rule
+
+When a screenshot shows visible copy, **transcribe it verbatim**. Never
+substitute "plausible-feeling" placeholder text. Specifically:
+
+1. **Display headlines, eyebrows, button labels, nav items** — these are
+   typically large enough to read directly from the rendered PNG. Copy
+   them character-for-character. Don't reword. Don't add punctuation
+   the source didn't have. Don't translate.
+
+2. **Body copy in cards / sections** — often smaller and harder to read.
+   Crop the PNG at full source resolution (no downscale) for the
+   relevant region and re-read. If still illegible, mark as
+   `<TBD — body copy in Figma too small to extract verbatim. Replace before launch.>`
+   in the generated code, NOT plausible filler.
+
+3. **Numbered lists / step descriptions** — same treatment as body copy.
+   Headings are usually readable; step body often isn't. Copy what you
+   can read; mark the rest TBD.
+
+4. **Footer columns / contact info / hours** — these are the most often
+   verbatim-extractable details (large monospace, tabular). Always copy
+   verbatim, including formatting (e.g., `MON – FRI` vs `Mon–Fri` is a
+   verbatim concern; don't normalize).
+
+5. **Pages NOT in the Figma at all** — the scaffold may need a sign-in,
+   contact, legal, or detail route the source design doesn't cover.
+   These are unavoidable for shipping but the content inside them is
+   100% invented. Add a `<TbdBanner>` component at the top of these
+   pages explaining "Placeholder content — not from Figma source."
+   The banner should be visually warning-styled (yellow / orange / brand
+   alert color) so the user can't miss that the content is invented.
+
+#### When to crop higher resolution
+
+If body copy is unreadable at the typical 1500-wide preview crop:
+
+```python
+# Crop the same region from the SOURCE cover.png (no downscale)
+img = Image.open('.workflow/screenshots/cover.png')
+section = img.crop((x0, y0, x1, y1))   # Source-resolution coords
+section.save('.workflow/screenshots/_<region>.png')
+```
+
+Then `Read` the new crop. Body text that's illegible at 1× becomes
+legible at the source resolution; tracking + leading details that
+matter typographically also become extractable.
+
+#### How invented copy poisons the project
+
+The user trusts the scaffold. They open the running site, see a
+"FOR THE COMMITTED" card with a "Train like an athlete with top-tier
+equipment and expert programming. Whether you're building muscle or
+breaking PRs, we help you push past limits with structured cycles
+and a coach who actually knows your name." body — and they think
+that's what the brand says. They don't compare back to the Figma
+because they trust you did. So the invented copy ships, gets passed
+to their copywriter as "the existing copy", gets edited around, and
+never gets corrected. That's the harm.
+
+#### Anti-patterns
+
+- ❌ Reading "FOR THE COMMITTED" body in Figma and writing
+  "Train like an athlete with top-tier equipment AND expert programming."
+  when the source said "Train like an athlete WITH top-tier equipment"
+  (subtle but verbatim matters).
+- ❌ Filling in numbered list bodies with plausible content when the
+  Figma's only legible bit was the title.
+- ❌ Writing detailed coach bios / journal articles / blog posts that
+  match the brand voice but aren't in the Figma at all.
+- ❌ Skipping the `<TbdBanner>` on pages that exist in routing but
+  not in the source design.
+- ❌ Using made-up phone numbers, email addresses, or street addresses
+  when the Figma showed Figma's standard placeholders
+  (`hello@figma.com`, `(203) 555-5555`) — preserve the placeholder
+  shape so the user knows it's TBD.
+
+#### Hand-off note
+
+In the final summary message, **explicitly list invented content**:
+
+> Pages NOT in the source Figma (content invented at scaffold time):
+> - `/coaches` index + 4 detail pages (lib/queries/coaches.ts)
+> - `/community/[slug]` 4 articles (lib/queries/journal.ts)
+> - `/sign-in`, `/contact`, `/book-session/checkout`, `/legal/*`
+>
+> All marked with `<TbdBanner>` in the rendered page.
+
+That way the user knows exactly what they need to rewrite vs. what's
+faithful to the source.
+
 ### Step 4.6 — Theme system + dark/light toggle (mandatory)
 
 `registry.json` already produces both `cssVars.light` and `cssVars.dark` blocks. Without a runtime toggle, the dark variant is dead code. **Wire the toggle as part of the scaffold** — every project gets dark mode for free, plus a keyboard shortcut.
