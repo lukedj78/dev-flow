@@ -338,6 +338,99 @@ These are **not optional** in dev-flow mode. A scaffold without `app/error.tsx` 
 - `next.config.ts` may already exist (Next scaffolds it). **Merge** the security headers block into the existing config — don't overwrite settings the user/scaffold has already chosen.
 - The `lib/queries/` folder is created empty alongside `lib/server/` in Step 4.4. The queries template is dropped in for the same domain as the server action template (e.g., `lib/queries/practices.ts` next to `lib/server/practices.ts`).
 
+### Step 4.9 — Mobile-first responsive (mandatory)
+
+The DESIGN.md §Responsive Behavior (or equivalent prose section) is **not optional reading**. Every project ships with non-trivial mobile usage; a desktop-only scaffold is a half-shipped scaffold. Yet the failure mode is consistent: skills generate beautiful desktop layouts, then drop responsive concerns to "I'll add `lg:` modifiers later" — and "later" never happens.
+
+This step pins **mobile-first** as the writing discipline, not as an afterthought.
+
+#### The mobile-first writing discipline
+
+For every component you author:
+
+1. **Write the mobile layout first.** The base classes — no `sm:`, `md:`, `lg:`, `xl:` prefix — describe the mobile experience. THEN add desktop modifiers as overrides:
+   ```tsx
+   // Right: base = mobile, lg: = desktop override
+   <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-12">
+
+   // Wrong: base = desktop, mobile is afterthought via override
+   <div className="grid grid-cols-3 gap-12 sm:grid-cols-1 sm:gap-6">
+   ```
+
+2. **Read the DESIGN.md §Responsive Behavior table** and match its breakpoints. Most DESIGN.md files declare 3-4 breakpoints:
+   - Mobile ≤ 767px
+   - Tablet 768–1023px
+   - Desktop ≥ 1024px
+   - Wide ≥ 1440px (optional)
+
+   Map them to Tailwind:
+   - default (no prefix) → mobile (≤640)
+   - `md:` → 768+ (tablet)
+   - `lg:` → 1024+ (desktop)
+   - `xl:` → 1280+ (wide)
+
+   Don't invent custom breakpoints — Tailwind's defaults align with the typical DESIGN.md scale.
+
+3. **Apply the DESIGN.md's collapsing strategy.** A typical DESIGN.md will say things like:
+   - "Service grid: asymmetric constellation → 2-up → 1-up stack on mobile"
+   - "Hero headline drops from 64px to ~40px on mobile"
+   - "Footer 4 columns → 1 column accordion on mobile"
+   - "Spacing compresses from 128px to 48px"
+   - "Nav full pill → compact pill with hamburger"
+
+   Each of these is a concrete Tailwind class set:
+   - `hero h1`: `text-[40px] lg:text-[64px]` (or use `clamp()` in inline style)
+   - `service grid`: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`
+   - `section padding`: `py-12 lg:py-32`
+   - `footer columns`: collapse to `<details>` accordion below `md:` OR stack vertically with `grid-cols-1 md:grid-cols-4`
+   - `nav`: hide primary links below `md:`, show hamburger button instead
+
+4. **Touch target minimums (WCAG 2.5.8)**: every interactive element ≥ 44×44px. Tailwind's `h-11` (44px) is the minimum for buttons and tap-friendly icons. Avoid `h-9` or `h-10` for primary tap targets on mobile.
+
+5. **Hamburger nav** for any nav with 4+ primary links. The DESIGN.md typically describes "Mobile Nav: full-screen overlay with primary links stacked vertically" — implement that, don't just hide the links. Use shadcn's `Sheet` primitive for the slide-in panel.
+
+6. **Mobile-only visual elements**: orbital arcs / decorative SVGs / asymmetric layouts often work only at desktop widths. The DESIGN.md will say so explicitly ("Orbital arcs are removed on mobile — they only work with asymmetric placement"). Hide them at small viewports with `hidden lg:block`.
+
+#### The 375px verification (best-effort but mandatory to attempt)
+
+Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12 mini width, the conservative lower bound):
+
+1. **If a browser tool is available** (Playwright MCP, Chrome MCP, Claude_Preview, etc.):
+   ```
+   browser_resize(width: 375, height: 812)
+   browser_navigate(url: "http://localhost:3000")
+   browser_take_screenshot()
+   ```
+   Then visit `/`, `/showcase`, and 1–2 placeholder routes. Spot-check:
+   - No horizontal scroll
+   - All primary nav reachable (hamburger visible)
+   - Hero headline doesn't overflow (clamps under 40px)
+   - Cards stack vertically
+   - Footer columns either accordion-collapse or stack 1-up
+   - All buttons ≥ 44px height
+   - Showcase 9-section structure intact, just narrower
+
+2. **If no browser tool is available**: state explicitly in the hand-off:
+   > ⚠ **Mobile verification pending**: I couldn't open a browser at 375px to verify the layout. Run `pnpm dev` and check `http://localhost:3000` in DevTools mobile emulation (375×812) before considering the scaffold done.
+
+   And surface the same warning in the final summary.
+
+3. **Do not** declare done from a desktop-only screenshot. "Mobile works" is not the same as "mobile compiles".
+
+#### The mobile-first checklist (apply before moving to Step 5)
+
+- [ ] DESIGN.md §Responsive Behavior section read and consumed
+- [ ] All grids start `grid-cols-1` and add larger breakpoints as overrides
+- [ ] All hero/section padding starts small and grows: `py-12 lg:py-24`
+- [ ] All hero headlines use `clamp()` or `text-[Xpx] lg:text-[Ypx]`
+- [ ] Touch targets ≥ 44×44px (`h-11` minimum on tappable elements)
+- [ ] Nav with 4+ links uses hamburger pattern below `md:` (Sheet primitive)
+- [ ] Decorative SVGs (orbital arcs, etc.) hidden below `lg:` if the design intent is asymmetric placement
+- [ ] Footer collapses appropriately (accordion or vertical stack)
+- [ ] Verified at 375px viewport (or stated as pending)
+
+Skipping any of these = scaffold is desktop-only and the user has to fix it before shipping.
+
 ### Step 5 — `/showcase` page (mandatory in dev-flow mode)
 
 It is not optional, not "nice to have", not skippable for time. The reason: without `/showcase` the user has no way to visually verify that the DESIGN.md tokens landed correctly in the running app. Every primitive that shadcn `add --all` installed is dark code unless `/showcase` proves it's themed. Skipping `/showcase` and declaring the scaffold "done" is a contract violation.
@@ -379,14 +472,45 @@ The site-shell has two components, both **mandatory** and both written by this s
 - Right side: a secondary text link (e.g., `Accedi` / `Sign in`) + the project's primary CTA as a small `<Button>` ("Nuova pratica" / "Reserve" / "Deploy").
 - Background `bg-surface` with `border-b border-outline`.
 
-**`<WordmarkFooter>`** at `components/site/wordmark-footer.tsx`:
+**`<SiteFooter>`** at `components/site/site-footer.tsx` (or `wordmark-footer.tsx` if the wordmark variant is chosen — see below):
+
+The footer **must be DESIGN.md-faithful**. Hardcoding the same wordmark template for every project is a contract violation — Mastercard-style design systems describe a 4-column link grid with a conversational H2; minimal portfolio designs may want a one-line footer; editorial brands use the giant wordmark. **Read the DESIGN.md before writing the footer.**
+
+#### Decision flow (mandatory in this order)
+
+1. **Look in DESIGN.md for an explicit footer specification.** The likely sections are §4 Components → Footer, §Layout, §Footer (top-level), or a `components.footer` block in YAML frontmatter. If found, generate the footer described there — colors, padding, structure, copy patterns. **The DESIGN.md is the spec.**
+
+2. **If the DESIGN.md describes a footer with named columns + conversational H2** (Mastercard pattern, common in institutional brands): generate a `SiteFooter` matching the spec — typically:
+   - Background: the spec's stated footer color (often a dark warm-black, sometimes a lifted brand surface)
+   - Layout: large left-aligned conversational H2 ("We're always here when you need us"-style), then a 4-column link grid below with uppercase muted column headers
+   - Bottom row: copyright, legal links, optional country/language selector pill, social icons
+   - **Skip the giant lowercase wordmark** unless the spec specifically asks for it
+
+3. **If the DESIGN.md is silent on the footer, OR explicitly describes a wordmark/marquee footer**, default to the WordmarkFooter pattern below. Editorial / portfolio / brand-focused projects (Aetherfield, Notarius, Wisely-style) live here — a giant lowercase project name **is** the footer's identity.
+
+4. **Always include the mono micro-row at the bottom** regardless of which pattern: two-column flex with `font-mono text-[11px] tracking-wide uppercase text-on-surface-variant` — left "© YEAR Project · regional/legal note", right "Generated by design-md-to-app from .workflow/DESIGN.md". This is the audit signature.
+
+#### WordmarkFooter pattern (the fallback)
+
+When DESIGN.md is silent or asks for a wordmark, write `wordmark-footer.tsx`:
+
 - Background: a soft branded surface — for projects with a brand banner color (Aetherfield lime, Notarius lavender), use it; otherwise `bg-background-primary` or equivalent tinted surface.
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 pt-16 pb-10 space-y-10`.
 - **Meta row** (top): brand description on the left (eyebrow + 1-2 sentences) + 2-3 columns of nav links on the right (uppercase eyebrow + 3 links each).
 - **Wordmark** (middle, the load-bearing visual): the project name in lowercase, sized `clamp(96px, 18vw, 240px)`, color = primary, line-height tight (~0.85), letter-spacing tight (-0.04em). It must span enough of the container width to BE the footer's identity, not garnish it.
-- **Mono micro-row** (bottom): two-column flex with `font-mono text-[11px] tracking-wide uppercase text-on-surface-variant` — left "© YEAR Project · regional/legal note", right "Generated by design-md-to-app from .workflow/DESIGN.md".
+- **Mono micro-row** (bottom, mandatory): the audit signature described above.
 
 Visual reference: see Aetherfield's giant "aetherfield" lime wordmark and Notarius's purple "notarius" wordmark on lavender — both sized to fill the container, both unmistakably the project's signature.
+
+#### Why this order
+
+Hardcoding wordmark for every project produces an identity mismatch on Mastercard-style designs (warm cream, 4-column institutional footer with "We're always here when you need us"). The wordmark is great for editorial brands; it's wrong for institutional / payments-network / corporate-brand designs. Always start from the DESIGN.md.
+
+When in doubt: which specific brands does the DESIGN.md prose evoke? Aetherfield-style (warm/editorial/portfolio) → wordmark fits. Mastercard/IBM/Stripe/Apple-style (institutional/utility) → 4-column link grid fits. The skill's job is to read that signal and produce the right one.
+
+#### Either way: site-shell is mandatory
+
+Whatever footer pattern is chosen, the site-shell rule stands: every page wrapped in `<SiteTopNav>` + `<SiteFooter>` (or `<WordmarkFooter>`). A naked `<main>` is a contract violation regardless.
 
 The site-shell is what makes the showcase **a complete document about the design system**. Without it the page reads as a free-floating gallery; with it the page reads as a real branded surface that proves the system works in shipping context.
 
@@ -494,8 +618,10 @@ Same wrapper, but `py-20` and the h1 is bigger (`72px / 80px / -0.02em / 600`). 
 #### Anti-patterns — do not produce
 
 - ❌ Wrapping `/showcase` in the same `AppShell` used by the rest of the app. The showcase is a **document about the system**, not a route inside the app.
-- ❌ Producing `/showcase` WITHOUT a site-shell (no `SiteTopNav`, no `WordmarkFooter`). The page must be branded top-and-bottom. A naked `<main>` is a contract violation.
-- ❌ Using a 1-line minimal text footer instead of a `WordmarkFooter`. The wordmark is the load-bearing brand asset of the page.
+- ❌ Producing `/showcase` WITHOUT a site-shell (no `SiteTopNav`, no `SiteFooter` of any kind). The page must be branded top-and-bottom. A naked `<main>` is a contract violation.
+- ❌ Using a 1-line minimal text footer when DESIGN.md describes either a wordmark OR a structured 4-column footer. Match what's specified.
+- ❌ Writing the giant lowercase wordmark on a project where DESIGN.md describes an institutional 4-column link grid (Mastercard-style). The wordmark is for editorial brands; for institutional brands it reads as off-brand.
+- ❌ Skipping the mono micro-row at the bottom of the footer ("© YEAR · Generated by design-md-to-app"). It's the audit signature regardless of which footer pattern is used.
 - ❌ Sections without `border-b` full-width wrapper. The whole page is a vertical stack of bordered bands.
 - ❌ Sections without an Eyebrow above the h2.
 - ❌ h2 at 28px or smaller. The h2 is **48px display**, always.
