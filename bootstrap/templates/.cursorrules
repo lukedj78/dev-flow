@@ -1,0 +1,76 @@
+# dev-flow — Cursor rules
+
+You have access to dev-flow, a set of 8 reference documents (under `dev-flow-skills/`) that guide product development from idea to running app via a filesystem contract at `.workflow/meta.json`.
+
+## How to use
+
+When the user's request matches one of these patterns, READ the corresponding skill's `SKILL.md` BEFORE doing the work:
+
+| User says… | Read first |
+|---|---|
+| "I have an idea: …" / "I want to build X" | `dev-flow-skills/dev-flow/SKILL.md` (orchestrator) → routes to next |
+| "Capture this idea / draft a PRD" | `dev-flow-skills/prd-from-idea/SKILL.md` |
+| "Split the PRD into tasks" | `dev-flow-skills/prd-to-tasks/SKILL.md` |
+| "Extract design from Figma" / "Use this Figma URL" | `dev-flow-skills/figma-to-design-md/SKILL.md` |
+| "Use these images for the design" / "Make a DESIGN.md from these screenshots" | `dev-flow-skills/image-to-design-md/SKILL.md` |
+| "Scaffold the app from DESIGN.md" / "Apply this DESIGN.md to shadcn/MUI" | `dev-flow-skills/design-md-to-app/SKILL.md` |
+| "Build this page from a screenshot" | `dev-flow-skills/screenshot-to-page/SKILL.md` |
+| "Add auth / db / payments / email / tests / CI" | `dev-flow-skills/module-add/SKILL.md` |
+
+## Read meta.json first
+
+Before any non-trivial work, read `<project-root>/.workflow/meta.json`. The `phase` field tells you the current state. The `stack` field tells you which framework + UI library are in use. The `artifacts` field records what's been produced and from what.
+
+If `.workflow/` doesn't exist, run:
+```
+python3 dev-flow-skills/dev-flow/scripts/init_workflow.py . --name "<project>"
+```
+
+## Tool name mapping
+
+Skills use Claude Code naming. Cursor uses different tool names — translate semantically:
+
+| Skill says | Cursor equivalent |
+|---|---|
+| `Bash` | terminal command |
+| `Read` | filesystem read |
+| `Edit` (string replace) | `edit_file` |
+| `Write` | `edit_file` (new file) |
+| `Glob` | `find_files` |
+| `Grep` | `grep_search` |
+
+## State updates
+
+After any skill produces a contract file (PROJECT.md, PRD.md, DESIGN.md, registry.json, generated pages, schema), record it:
+
+```bash
+python3 dev-flow-skills/dev-flow/scripts/update_meta.py <project-root> \
+  record-artifact --path <relative/path> --produced-by <skill-name> \
+  [--derived-from <upstream1> <upstream2>]
+```
+
+And bump the phase + history:
+
+```bash
+python3 dev-flow-skills/dev-flow/scripts/update_meta.py <project-root> \
+  append-history --skill <skill-name> \
+  --outputs '["file1.md", "file2.tsx"]' \
+  --phase-after <new-phase>
+```
+
+## Drift check
+
+If the user edits a contract file (especially `DESIGN.md`) after a skill ran, run:
+
+```bash
+python3 dev-flow-skills/dev-flow/scripts/check_drift.py <project-root> --plan
+```
+
+It tells you which downstream artifacts are stale and which skills should re-run, in order. Surface this to the user — don't silently re-run.
+
+## Constraints
+
+- Don't fabricate `meta.json` values. If unsure of the phase, run the show_state script.
+- Don't set `phase` backwards.
+- Codebase at project root (not nested inside `.workflow/`).
+- Skills are idempotent — re-running on existing setup is safe; trust the skill's check.

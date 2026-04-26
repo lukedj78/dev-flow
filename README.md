@@ -62,10 +62,14 @@ Pick whichever fits your setup — they all end up at `~/.claude/skills/<name>/`
 ```bash
 git clone git@github.com:lukedj78/dev-flow.git
 cd dev-flow
-./install.sh
+./install.sh                          # defaults to Claude Code
+./install.sh --platform codex         # or Codex CLI / Copilot / Gemini / Cursor
+./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies the 8 skill folders into `$CLAUDE_SKILLS_DIR` (defaults to `~/.claude/skills`), backing up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh`.
+The script copies the 8 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+
+**Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
 #### Option B — Claude Code `/plugin add` (interactive)
 
@@ -392,6 +396,60 @@ if report.has_drift:
 ```
 
 The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
+
+---
+
+## Cross-platform support
+
+dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is just JSON + Markdown + folders, the helper scripts are pure Python, and the skill bodies are tool-name-agnostic prose. The only Claude Code-specific bit is the discovery mechanism — and that's solved per-runtime by a small bootstrap file.
+
+### Support matrix
+
+| Runtime | Install path | Bootstrap | Status |
+|---|---|---|---|
+| **Claude Code** | `~/.claude/skills/` | none — auto-discovered | ✅ fully tested |
+| **Codex CLI** (OpenAI) | `~/.codex/dev-flow-skills/` | `AGENTS.md` (auto-copied) | 🧪 scaffolded, not yet validated end-to-end |
+| **Copilot CLI** (GitHub) | `~/.config/gh-copilot/skills/` | none — `skill` tool auto-discovers | 🧪 scaffolded |
+| **Gemini CLI** (Google) | `~/.gemini/skills/` | `GEMINI.md` (auto-copied) | 🧪 scaffolded |
+| **Cursor** | `~/.dev-flow-skills/` | `.cursorrules` (auto-copied) | 🧪 scaffolded |
+| **Generic** (any LLM agent) | `~/.dev-flow-skills/` | `system-prompt.md` (manual integration) | 🧪 scaffolded |
+
+`🧪 scaffolded` means: the install path + bootstrap file are wired and tested for shape (`./install.sh --platform codex` produces the right tree), but full end-to-end runs against the real runtime haven't been validated yet. If you try one and hit issues, please [file an issue](https://github.com/lukedj78/dev-flow/issues) — happy to iterate.
+
+### What makes it portable
+
+1. **Tool-name mapping** — the skill bodies use Claude Code names (`Bash`, `Read`, `Edit`, `Glob`, `Grep`). The `bootstrap/tool-mappings.md` reference (installed alongside the skills) is the canonical Claude → Codex → Copilot → Gemini → Cursor equivalence table. The LLM reads it once at session start and translates as it goes.
+
+2. **Bootstrap files** for runtimes that don't auto-discover skills:
+   - `bootstrap/templates/AGENTS.md` — Codex CLI entry point
+   - `bootstrap/templates/GEMINI.md` — Gemini CLI entry point
+   - `bootstrap/templates/.cursorrules` — Cursor entry point
+   - `bootstrap/templates/system-prompt.md` — generic system-prompt fallback for custom agents
+
+3. **`dev-flow-contract` Python package** — the runtime-independent core. Any Python-capable agent can read/write `.workflow/` correctly without depending on any specific runtime:
+   ```python
+   from dev_flow_contract import init_workflow, record_artifact, check_drift
+   ```
+
+4. **Agent-agnostic helper scripts** — `init_workflow.py`, `update_meta.py`, `check_drift.py`. They're invoked by shell, so every runtime can use them via whatever shell tool it has.
+
+### When to use each install method
+
+- **Claude Code user**: `./install.sh` and you're done — auto-discovery picks up the skills, no bootstrap needed.
+- **Codex CLI user**: `./install.sh --platform codex`, then copy the generated `AGENTS.md` into your project root. Codex reads `AGENTS.md` at session start.
+- **Gemini CLI user**: `./install.sh --platform gemini`, copy the `GEMINI.md` into your project root.
+- **Cursor user**: `./install.sh --platform cursor`, copy the `.cursorrules` into your project root.
+- **Building a custom agent**: `./install.sh --platform generic`, prepend `system-prompt.md` to your agent's system prompt, ensure it has filesystem + shell access to `~/.dev-flow-skills/`.
+
+### Porting to a runtime not listed
+
+If your agent runtime isn't in the matrix:
+
+1. Create a bootstrap file mirroring the structure of `bootstrap/templates/system-prompt.md`.
+2. Add your runtime's tool names to `bootstrap/tool-mappings.md` (PRs welcome).
+3. Add a case to `install.sh`'s platform switch.
+
+The skill bodies and the contract don't need to change — only the bootstrap layer.
 
 ---
 
