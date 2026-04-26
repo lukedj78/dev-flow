@@ -221,6 +221,51 @@ Generate a single `<PlaceholderPage>` component that all stubs use, so:
 
 After writing stubs: rerun `pnpm run build` to confirm everything still compiles.
 
+### Step 4.5b — Read `.workflow/screenshots/` before authoring the home page (mandatory)
+
+The single most common scaffolder failure mode: **generating a generic home page when the source Figma file has a canonical product layout in screenshots/**. The user expects the scaffold to **mirror what's in the Figma**, not invent a homepage from design tokens alone.
+
+This step pins the discipline.
+
+#### The protocol
+
+1. **List `.workflow/screenshots/`.** If empty, skip — generate the default home from design tokens (the Constellation marketplace pattern).
+
+2. **For each screenshot, classify it by file name + visual content** (you can `Read` each PNG — the Read tool returns image content):
+   - `cover` / `welcome` / `intro` → marketing/onboarding frames, not the canonical product layout
+   - `style-guide` / `design-system` → reference for the `/showcase` page, not the home
+   - `inspiration` / `dashboard` / `home` / `app` / `product` → **CANONICAL product layout** — this is what the home page must mirror
+   - `components` / `cards` / `<component-name>` → component-level references, can be borrowed for cards inside other pages
+
+3. **If a canonical layout exists, READ it visually** with the Read tool. Then identify:
+   - **Layout pattern**: sidebar + main? topbar only? full-width hero? split-pane?
+   - **Information density**: how many cards/widgets per row? what kind?
+   - **Specific components**: the exact KPI labels, the exact chart types, the exact statuses, the exact navigation items
+   - **Interactive surfaces**: search input position, profile avatar, primary CTA, mode toggle
+
+4. **Build the home page faithful to that screenshot.** Use the exact metric names ("Total Orders Today" not "Revenue"), the exact chart types (radar + area + pie + bar + heatmap, not generic bars), the exact sidebar pattern (vertical 64-72px wide if that's what the screenshot shows). The design tokens are how you style it; the Figma frame is how you compose it.
+
+5. **State the source explicitly** in the hand-off message: "Home page mirrors the `inspiration-dark-dashboard.png` frame from Figma — sidebar + 4 KPI cards (Orders/Conversion/Clients/Revenue Ratio) + 5 chart types (radar, area, pie, bar, heatmap)."
+
+#### Why this is mandatory
+
+When the user provides a Figma URL, they expect the scaffold to look like the Figma. A generic dashboard "themed with the design tokens" misses the point — the design system isn't a paint job, it's a layout vocabulary too. The icons in KPI cards, the progress bars, the way the radar chart relates to the area chart — these aren't decoration. They're the design.
+
+#### When to fall back to a generic home
+
+- `.workflow/screenshots/` is empty AND no PROJECT.md describes a specific product (rare).
+- The screenshots are all marketing / cover / intro frames with no canonical product layout.
+- The user explicitly says "ignore the Figma frames, build a generic dashboard for now".
+
+In these cases, default to the generic pattern but **state it in the hand-off**: "No canonical product layout found in screenshots/ — generated a generic home with the design tokens. Run `screenshot-to-page` later when you have a target frame."
+
+#### Anti-patterns
+
+- ❌ Generating a generic 4-card KPI grid when the Figma shows specific KPI cards with icon badges + progress bars.
+- ❌ Using a horizontal pill nav when the Figma shows a vertical icon sidebar.
+- ❌ Inventing chart types (the user got "bars" when the Figma had radar + area + pie + bar + heatmap).
+- ❌ Skipping the `Read` step on the canonical PNG and writing the layout from imagination.
+
 ### Step 4.6 — Theme system + dark/light toggle (mandatory)
 
 `registry.json` already produces both `cssVars.light` and `cssVars.dark` blocks. Without a runtime toggle, the dark variant is dead code. **Wire the toggle as part of the scaffold** — every project gets dark mode for free, plus a keyboard shortcut.
