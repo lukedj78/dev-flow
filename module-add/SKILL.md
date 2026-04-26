@@ -13,12 +13,12 @@ This skill is the bridge between a styled-but-empty app and a functional product
 |---|---|---|---|
 | `auth` | better-auth (email/password + magic link) | `references/module-auth.md` | ✅ implemented |
 | `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` | ✅ implemented |
+| `payments` | Stripe (subscriptions + one-time) | `references/module-payments.md` | ✅ implemented |
+| `email` | Resend + React Email | `references/module-email.md` | ✅ implemented |
 | `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
 | `ci` | husky + lint-staged + GitHub Actions | `references/module-ci.md` | ✅ implemented |
-| `payments` | Stripe (subscriptions + one-time) | `references/module-stubs.md` | 🚧 stub — implement on demand |
-| `email` | Resend | `references/module-stubs.md` | 🚧 stub — implement on demand |
-| `storage` | UploadThing | `references/module-stubs.md` | 🚧 stub — implement on demand |
-| `deploy` | Vercel | `references/module-stubs.md` | 🚧 stub — implement on demand |
+| `storage` | UploadThing | `references/module-stubs.md` | 🚧 planned — contributions welcome |
+| `deploy` | Vercel | `references/module-stubs.md` | 🚧 planned — contributions welcome |
 
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
 

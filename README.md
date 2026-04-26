@@ -1,25 +1,50 @@
 # dev-flow
 
-> An end-to-end product-development workflow built on **8 atomic Claude Code skills**.
-> From a paragraph of idea to a runnable, themed Next.js app — with a single shared filesystem contract.
+> **A filesystem contract for agent-driven SDLC.**
+> One folder (`.workflow/`), one state file (`meta.json`), and a small set of skills that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 
 ```
-idea  →  PRD  →  tasks  →  DESIGN.md  →  scaffold  →  pages  →  modules
-        │              │              │              │              │
-        prd-from-idea  prd-to-tasks   figma- /       design-       module-
-                                      image-to-      md-to-app     add
-                                      design-md
-                                                     │
-                                                     screenshot-to-page
+                      ┌────────────────────────┐
+                      │  .workflow/meta.json   │ ◄─── single source of truth
+                      │  (phase + stack +      │      every skill reads
+                      │   history + artifacts) │      every skill writes
+                      └─────────┬──────────────┘
+                                │
+            ┌───────────────────┼───────────────────┐
+            │                   │                   │
+            ▼                   ▼                   ▼
+     prd-from-idea       design-md-to-app     module-add
+     prd-to-tasks        screenshot-to-page   (auth, db,
+     figma-to-design-md                        payments,
+     image-to-design-md                        email, ci, …)
+            │                   │                   │
+            └───────────────────┼───────────────────┘
+                                │
+                                ▼
+                        Codebase at <project-root>/
 ```
+
+The skills are **interchangeable consumers** of the contract. Tomorrow you could rewrite any of them in TypeScript, swap one out for a Cursor-flavored variant, or extend with your own — as long as they read `meta.json` and respect the phase semantics, they compose.
 
 ---
 
-## Why dev-flow
+## Why a contract, not just skills
 
-Building a real product from scratch is a sequence of distinct, well-understood activities — capturing the idea, producing requirements, designing the visual system, scaffolding the codebase, building pages, wiring modules. **dev-flow doesn't reinvent any of these activities.** It pins them as 8 small, opinionated, atomic skills that share one filesystem contract, so you (or the AI) can move forward one step at a time without losing context.
+Most "AI agent toolkits" hardcode orchestration in prompts. That works until the conversation drops context — then the agent forgets which step you were on, what design tokens it picked, which modules it wired.
 
-The contract is `.workflow/` — a single hidden folder at your project root that holds planning + design metadata. Every skill reads `meta.json` first, writes its outputs in `.workflow/` or in the codebase, then bumps the phase. That's the entire orchestration model.
+dev-flow fixes that the way distributed systems fix it: **state lives on disk, not in the agent's head.** Every skill is independently re-runnable from `.workflow/meta.json`. Resume a build the next morning, hand it off to a different agent, run two skills in parallel — the contract holds.
+
+The skill count is an implementation detail. The contract is the moat.
+
+---
+
+## What the contract gives you
+
+- **Resumability.** The agent forgets, the filesystem doesn't. `meta.json` records where you are; any skill can pick up.
+- **Composability.** Skills don't call each other — they read/write the same state. New skills slot in by declaring which `phase` they consume and produce.
+- **Portability.** The contract is just JSON + Markdown + folders. It survives a model swap, a tooling pivot, even a rewrite of the skills in another language.
+- **Auditability.** Every skill run appends to `meta.json#history` with inputs, outputs, phase delta. You always know who wrote what when.
+- **Idempotency.** Re-running a skill is safe — it sees its own previous output and skips/updates instead of duplicating.
 
 ---
 
@@ -211,15 +236,21 @@ The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs
 
 ### `module-add` — wire backend / infra modules
 
-**Input**: a module name (`auth` / `db` / `payments` / `email` / `storage` / `deploy`).
-**Output**: dependencies installed, config files written, a reference implementation at the canonical path, `meta.json#stack` updated.
+**Input**: a module name from the supported list.
+**Output**: dependencies installed, config files written, a reference implementation at the canonical path, `meta.json#stack` updated, schema additions applied.
 
-**Currently shipped variants** (see `references/`):
-- `module-auth.md` — better-auth with Drizzle adapter, email/password + magic-link.
-- `module-db.md` — Drizzle ORM + Neon Postgres.
-- `module-stubs.md` — scaffolding cues for Stripe payments / Resend email / UploadThing storage / Vercel deploy.
+| Module | Tech | Status |
+|---|---|---|
+| `auth` | better-auth (email/password + magic link) | ✅ shipped |
+| `db` | Drizzle ORM + Neon Postgres | ✅ shipped |
+| `payments` | Stripe (subscriptions + one-time + webhook + portal) | ✅ shipped |
+| `email` | Resend + React Email | ✅ shipped |
+| `test` | Vitest + Testing Library + Playwright | ✅ shipped |
+| `ci` | husky + lint-staged + GitHub Actions | ✅ shipped |
+| `storage` | UploadThing / S3 | 🚧 planned |
+| `deploy` | Vercel / Fly / Cloudflare Pages | 🚧 planned |
 
-The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing.
+The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing. Cross-module dependencies are resolved automatically (`auth` requires `db`; `payments` requires both — the skill prompts before chaining).
 
 ---
 
