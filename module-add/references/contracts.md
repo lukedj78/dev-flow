@@ -55,6 +55,21 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
     "payments": null,
     "deploy": "vercel"
   },
+  "artifacts": {
+    ".workflow/DESIGN.md": {
+      "sha256": "abc123…",
+      "produced_by": "figma-to-design-md",
+      "produced_at": "2026-04-25T14:30:00Z"
+    },
+    "registry.json": {
+      "sha256": "def456…",
+      "produced_by": "design-md-to-app",
+      "produced_at": "2026-04-25T15:30:00Z",
+      "derived_from": [
+        { "path": ".workflow/DESIGN.md", "sha256": "abc123…" }
+      ]
+    }
+  },
   "history": [
     {
       "skill": "prd-from-idea",
@@ -74,6 +89,20 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
   ]
 }
 ```
+
+### `artifacts` field
+
+Tracks every contract-shaped file with its content hash and provenance. The model is content-addressed: an artifact entry says "skill X wrote this file with this exact content at time T". When the on-disk hash later differs from the recorded one, the artifact is **stale** and the producing skill (or the user) needs to decide what to do.
+
+Each entry:
+- `sha256` — hex digest of the file's bytes at write time.
+- `produced_by` — the skill name that last wrote (or rewrote) this file.
+- `produced_at` — ISO-8601 timestamp.
+- `derived_from` (optional) — list of `{path, sha256}` pairs. Each entry is an upstream input the skill used to derive this artifact, snapshotted at the version it was at when this artifact was produced. Used by `check_drift.py` to detect upstream-stale artifacts (output file is unchanged on disk but a `derived_from` input has drifted — common case: user edited `DESIGN.md` after `design-md-to-app` ran, so `registry.json` is now derived from a stale snapshot).
+
+Skills update this via `dev-flow/scripts/update_meta.py record-artifact …`. The `check_drift.py` script reports which artifacts are fresh / self-drift / upstream-stale / missing — diagnostic only, never mutating.
+
+The `artifacts` field is the foundation for resumability and drift detection: re-running a skill is safe if all its inputs are fresh; necessary if any are stale.
 
 ### `phase` enum (canonical)
 

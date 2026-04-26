@@ -104,5 +104,29 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`. Use when the user opts into the orchestrator on an empty directory.
 - `scripts/show_state.py <project-root>` — prints the current `phase`, the files present, and the proposed next step. Use early in every conversation when the user asks "what's next".
+- `scripts/update_meta.py <project-root> <op>` — mutate `meta.json` from a skill. Three operations:
+  - `record-artifact --path <p> --produced-by <skill> [--derived-from <p1> <p2> …]` — hash a file and record it under `meta.json#artifacts`. Skills call this after writing/updating contract files (DESIGN.md, registry.json, generated pages, schema, etc).
+  - `set-phase <phase>` — bump phase forward (refuses regression unless `--allow-regress`).
+  - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
+- `scripts/check_drift.py <project-root>` — diagnostic command. Compares `meta.json#artifacts` against the on-disk files and reports:
+  - **fresh**: file matches its recorded hash, all upstreams match too.
+  - **self-drift**: the file has been edited since the producing skill last hashed it.
+  - **upstream-stale**: the file is unchanged but a `derived_from` input has drifted (e.g., `DESIGN.md` was edited → `registry.json` is now derived from a stale snapshot).
+  - **missing**: the file was recorded but no longer exists on disk.
+  Exit code is always 0 unless `--exit-nonzero-on-drift` is passed (use in CI).
 
-Both scripts are simple JSON readers/writers; running them doesn't make decisions for the user.
+These scripts are JSON readers/writers; running them doesn't make decisions for the user. The artifact-hashing model is the foundation for **drift detection** — when the user later edits `DESIGN.md` by hand, `check_drift.py` surfaces what's now stale, and you (or the user) decide whether to re-run the relevant skills.
+
+### When to record an artifact
+
+Record an artifact whenever a skill writes a file that:
+- Is part of the dev-flow contract (`.workflow/DESIGN.md`, `.workflow/PRD.md`, etc.), OR
+- Is a generated config that downstream skills depend on (`registry.json`, `lib/db/schema.ts` initial scaffold, `app/showcase/page.tsx`), OR
+- Is a derivative of an upstream artifact (record `derived_from` so drift detection can chain).
+
+Don't record:
+- Temporary files, cache, build artifacts.
+- Files the user is expected to hand-edit freely (they'd always show as "self-drift").
+- Files produced by external tools (`pnpm-lock.yaml`, `node_modules`).
+
+The cost of recording is one shell-out per file; the benefit is a foundation for resumability and drift checks. Err on the side of recording when in doubt for contract-shaped files.
