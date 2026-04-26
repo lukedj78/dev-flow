@@ -45,6 +45,9 @@ The skill count is an implementation detail. The contract is the moat.
 - **Portability.** The contract is just JSON + Markdown + folders. It survives a model swap, a tooling pivot, even a rewrite of the skills in another language.
 - **Auditability.** Every skill run appends to `meta.json#history` with inputs, outputs, phase delta. You always know who wrote what when.
 - **Idempotency.** Re-running a skill is safe — it sees its own previous output and skips/updates instead of duplicating.
+- **Drift detection.** Every contract file is content-addressed. When the user edits `DESIGN.md` by hand, the system knows that `registry.json` and `/showcase` (which were derived from it) are now stale — and it knows transitively, so a chain of derivations propagates.
+
+The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. The skills are interchangeable consumers; the package is the durable surface.
 
 ---
 

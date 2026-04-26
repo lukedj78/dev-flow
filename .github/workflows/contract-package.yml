@@ -1,0 +1,38 @@
+name: contract-package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contract-package/**"
+      - ".github/workflows/contract-package.yml"
+  pull_request:
+    paths:
+      - "contract-package/**"
+      - ".github/workflows/contract-package.yml"
+
+jobs:
+  test:
+    name: pytest @ ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + test deps
+        working-directory: contract-package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Run tests
+        working-directory: contract-package
+        run: pytest -v
