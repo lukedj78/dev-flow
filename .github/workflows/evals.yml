@@ -1,0 +1,46 @@
+name: evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  property-evals:
+    name: Property-based evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install Pillow numpy scikit-learn pyyaml
+
+      - name: Generate synthetic fixtures
+        run: python3 evals/image-to-design-md/fixtures/gen_synthetic.py
+
+      - name: Run evals (CI mode — fail on first regression)
+        run: python3 evals/run_evals.py --ci
+
+      - name: Smoke-test artifact hashing + drift detection
+        run: |
+          mkdir -p /tmp/drift-smoke
+          python3 dev-flow/scripts/init_workflow.py /tmp/drift-smoke --name "Smoke"
+          echo "test" > /tmp/drift-smoke/.workflow/DESIGN.md
+          python3 dev-flow/scripts/update_meta.py /tmp/drift-smoke record-artifact \
+            --path .workflow/DESIGN.md --produced-by smoke-test
+          python3 dev-flow/scripts/check_drift.py /tmp/drift-smoke --exit-nonzero-on-drift
+          # Now mutate and confirm drift is detected
+          echo "edited" > /tmp/drift-smoke/.workflow/DESIGN.md
+          if python3 dev-flow/scripts/check_drift.py /tmp/drift-smoke --exit-nonzero-on-drift; then
+            echo "ERROR: check_drift should have detected the edit"
+            exit 1
+          fi
+          echo "OK: drift correctly detected after edit"

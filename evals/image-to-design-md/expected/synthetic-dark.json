@@ -1,0 +1,35 @@
+{
+  "skill": "image-to-design-md",
+  "fixture": "synthetic-dark",
+  "input": "evals/image-to-design-md/inputs/synthetic-dark.png",
+  "command": "python3 image-to-design-md/scripts/quantize_palette.py {input} --k 8 --no-crop",
+  "assertions": [
+    {
+      "type": "palette_size_between",
+      "min": 4,
+      "max": 8
+    },
+    {
+      "type": "background_lightness_below",
+      "value": 30,
+      "comment": "first cluster is dark bg (#0a0a0f, ~70% area)"
+    },
+    {
+      "type": "contains_color",
+      "hex": "#bef264",
+      "tolerance_de": 5,
+      "comment": "primary lime"
+    },
+    {
+      "type": "contains_color",
+      "hex": "#fb923c",
+      "tolerance_de": 5,
+      "comment": "secondary orange"
+    },
+    {
+      "type": "stable_across_runs",
+      "runs": 3,
+      "max_delta_e": 5
+    }
+  ]
+}

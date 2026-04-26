@@ -1,0 +1,43 @@
+{
+  "skill": "image-to-design-md",
+  "fixture": "synthetic-light",
+  "input": "evals/image-to-design-md/inputs/synthetic-light.png",
+  "command": "python3 image-to-design-md/scripts/quantize_palette.py {input} --k 8 --no-crop",
+  "assertions": [
+    {
+      "type": "palette_size_between",
+      "min": 4,
+      "max": 8,
+      "comment": "k=8 with near-white filter — typically yields 5-8 colors after filtering"
+    },
+    {
+      "type": "contains_color",
+      "hex": "#2563eb",
+      "tolerance_de": 5,
+      "comment": "primary blue from input palette"
+    },
+    {
+      "type": "contains_color",
+      "hex": "#d946ef",
+      "tolerance_de": 5,
+      "comment": "secondary magenta"
+    },
+    {
+      "type": "contains_color",
+      "hex": "#111827",
+      "tolerance_de": 5,
+      "comment": "near-black text color"
+    },
+    {
+      "type": "no_near_white",
+      "threshold": 95,
+      "comment": "the script must filter near-white background — synthetic-light's f8f9fa should NOT appear"
+    },
+    {
+      "type": "stable_across_runs",
+      "runs": 3,
+      "max_delta_e": 5,
+      "comment": "k-means is seeded (random_state=42) — output must be deterministic"
+    }
+  ]
+}
