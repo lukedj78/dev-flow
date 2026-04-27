@@ -428,6 +428,22 @@ In the final summary message, **explicitly list invented content**:
 That way the user knows exactly what they need to rewrite vs. what's
 faithful to the source.
 
+### Step 4.5d — Anti-slop fallbacks for under-specified surfaces
+
+Step 4.5c pins the verbatim-Figma rule for content the **source actually shows**. This step covers the inverse: surfaces where DESIGN.md is **silent** and Figma is **absent** (TBD pages, stub data, invented copy, body-only DESIGN.md without YAML tokens). Without explicit defaults, the LLM tilts to recognizable "AI generic" choices — pure black `#000000`, `h-screen` (broken on iOS), "John Doe" placeholders, "Acme" brand names, "Elevate / Seamless" filler words, three equal cards in a row.
+
+`references/anti-slop-fallbacks.md` enumerates 10 portable rules (off-black, `min-h-[100dvh]`, realistic placeholder data, banned filler vocabulary, Picsum over Unsplash, no 3-equal-card default, hardware-accelerated motion, tactile `:active` feedback, skeleton loaders, CSS-cascade stagger).
+
+**Read it before writing any of these surfaces:**
+- Stub data in `lib/queries/<domain>.ts` for routes not in Figma.
+- Copy on `<TbdBanner>` pages (sign-in, contact, /coaches, journal articles).
+- Empty states and loading states on any route.
+- Invented animations / hover effects when DESIGN.md is silent on motion.
+
+The rules are explicitly subordinate to Steps 4.5b and 4.5c — when Figma shows a value, Figma wins. Anti-slop fallbacks fire **only** where the source is silent.
+
+When you apply a fallback, log it to `_design-md-mapping.json` under `fallbacks_applied` so the reviewer can audit every opinionated default in one place.
+
 ### Step 4.6 — Theme system + dark/light toggle (mandatory)
 
 `registry.json` already produces both `cssVars.light` and `cssVars.dark` blocks. Without a runtime toggle, the dark variant is dead code. **Wire the toggle as part of the scaffold** — every project gets dark mode for free, plus a keyboard shortcut.
