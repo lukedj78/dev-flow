@@ -17,6 +17,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `email` | Resend + React Email | `references/module-email.md` | ✅ implemented |
 | `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
 | `ci` | husky + lint-staged + GitHub Actions | `references/module-ci.md` | ✅ implemented |
+| `motion` | Motion (rebranded framer-motion) + opinionated wrappers | `references/module-motion.md` | ✅ implemented |
 | `storage` | UploadThing | `references/module-stubs.md` | 🚧 planned — contributions welcome |
 | `deploy` | Vercel | `references/module-stubs.md` | 🚧 planned — contributions welcome |
 
@@ -122,6 +123,7 @@ Some modules depend on others. If the user runs them out of order, the skill mus
 - `storage` is mostly independent (some providers integrate with auth for signed URLs, but it's optional).
 - `test` is independent — best run after `db` so server-action smoke tests have a schema to mock against, but works without it.
 - `ci` is mostly independent — works best after `test` (so CI has tests to run) but writes a workflow that gracefully skips test steps when none exist.
+- `motion` is fully independent — pure UI concern, no backend dependency. Run only when a project genuinely needs JS-driven motion (gestures, magnetic hover, shared-element transitions); for plain reveal-on-scroll, `tw-animate-css` (already installed via shadcn) is enough and lighter.
 - `deploy` should be last — it reads the configured stack and produces deploy config.
 
 When dependencies are missing, **ask, don't block silently.** "I see you're trying to add auth but there's no database yet. Want me to set up `db` (Neon + Drizzle) first, then come back to auth?"

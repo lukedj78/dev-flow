@@ -15,7 +15,7 @@
             ▼                   ▼                   ▼
      prd-from-idea       design-md-to-app     module-add
      prd-to-tasks        screenshot-to-page   (auth, db,
-     figma-to-design-md                        payments,
+     figma-to-design-md  write-tests          payments,
      image-to-design-md                        email, ci, …)
             │                   │                   │
             └───────────────────┼───────────────────┘
@@ -116,7 +116,8 @@ The 8 skills are:
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
-| `module-add` | Wire `auth` / `db` / `payments` / `email` / `storage` / `deploy` modules |
+| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `storage` / `deploy` modules |
+| `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 
 ### 2. Create a project
 
@@ -650,7 +651,7 @@ phase=tasks_split      → figma-to-design-md  OR  image-to-design-md  OR  desig
 phase=design_extracted → design-md-to-app
 phase=scaffolded       → screenshot-to-page  OR  module-add
 phase=page_generated   → module-add  OR  more screenshot-to-page
-phase=module-added     → iterate
+phase=module-added     → write-tests  OR  more screenshot-to-page  OR  iterate
 ```
 
 `dev-flow` does not do specialist work itself — it **only routes** and updates state. If you find it doing PRD drafting or scaffolding directly, that's a bug.
@@ -740,10 +741,29 @@ The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs
 | `email` | Resend + React Email | ✅ shipped |
 | `test` | Vitest + Testing Library + Playwright | ✅ shipped |
 | `ci` | husky + lint-staged + GitHub Actions | ✅ shipped |
+| `motion` | Motion (rebranded framer-motion) + opinionated wrappers (FadeIn, StaggerList, MagneticButton) | ✅ shipped |
 | `storage` | UploadThing / S3 | 🚧 planned |
 | `deploy` | Vercel / Fly / Cloudflare Pages | 🚧 planned |
 
 The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing. Cross-module dependencies are resolved automatically (`auth` requires `db`; `payments` requires both — the skill prompts before chaining).
+
+### `write-tests` — generate a test for one source file
+
+**Input**: one source file path (`lib/server/clienti.ts`, `app/clienti/page.tsx`, `components/site/site-top-nav.tsx`, `lib/queries/scadenze.ts`).
+**Output**: the corresponding test file, written next to the source or in `e2e/`, following the project's existing mocking conventions and test framework (Vitest / Playwright).
+
+**Trigger phrases**: "scrivi i test per X", "test per la server action Y", "e2e per /clienti", "unit test per il componente Z".
+
+| File pattern | Test type | Path |
+|---|---|---|
+| `lib/server/<domain>.ts` | Vitest unit (server action) | `lib/server/__tests__/<name>.test.ts` |
+| `lib/queries/<domain>.ts` | Vitest unit (query) | `lib/queries/__tests__/<name>.test.ts` |
+| `app/<route>/page.tsx` | Playwright e2e | `e2e/<route-slug>.spec.ts` |
+| `components/<group>/<name>.tsx` | Vitest + RTL | co-located `.test.tsx` |
+
+**Prerequisite**: `module-add test` has been run (Vitest + Playwright are wired). If not, the skill stops and routes there. **Idempotent**: existing test files are never silently overwritten — the user is asked whether to regenerate, append missing cases, or abort.
+
+**What it does NOT do**: install test packages, run a full suite, fix failing tests. A failing test is a signal — the skill surfaces it, the user decides whether to fix the test or the source.
 
 ---
 
