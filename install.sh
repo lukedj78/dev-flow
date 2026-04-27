@@ -128,9 +128,10 @@ SKILLS=(
   design-md-to-app
   screenshot-to-page
   module-add
+  write-tests
 )
 
-echo "Installing 8 dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"
+echo "Installing 9 dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"
 mkdir -p "$SKILLS_DIR"
 
 # Sanity check the host environment. The skills install fine without these
