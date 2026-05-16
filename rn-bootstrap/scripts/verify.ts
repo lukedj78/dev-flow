@@ -56,6 +56,7 @@ const checks: Check[] = [
   { name: "file: tailwind.config.js", run: () => fileExists("tailwind.config.js") },
   { name: "file: babel.config.js", run: () => fileExists("babel.config.js") },
   { name: "file: metro.config.js", run: () => fileExists("metro.config.js") },
+  { name: "file: nativewind-env.d.ts", run: () => fileExists("nativewind-env.d.ts") },
   { name: "file: app.json with typedRoutes", run: () => {
     const p = path.join(projectRoot, "app.json");
     if (!fileExists("app.json")) return false;

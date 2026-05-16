@@ -23,8 +23,12 @@ npx expo install \
   @shopify/flash-list
 
 echo "[install-stack] installing animations stack (Reanimated + Gesture Handler) …"
-# expo install picks the version compatible with the current Expo SDK
-npx expo install react-native-reanimated react-native-gesture-handler
+# expo install picks the version compatible with the current Expo SDK.
+# --legacy-peer-deps works around a known peer-dep conflict where transitively-installed
+# react-native-screens (via @react-navigation/bottom-tabs) demands a newer RN than the
+# Expo SDK ships. The Expo CLI's chosen versions are still correct; npm just refuses to
+# resolve without the flag. Drop the flag once the upstream peer ranges align.
+npx expo install react-native-reanimated react-native-gesture-handler -- --legacy-peer-deps
 
 echo "[install-stack] installing state + data (Zustand + TanStack Query) …"
 npm install zustand @tanstack/react-query

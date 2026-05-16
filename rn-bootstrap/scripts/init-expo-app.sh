@@ -21,13 +21,48 @@ if [[ -f package.json ]]; then
   exit 1
 fi
 
+# create-expo-app refuses to scaffold into a non-empty dir. In real usage the project
+# root already contains PROJECT.md, PRD.md, DESIGN.md, .workflow/, possibly .git/, etc.
+# Stash those into a sibling temp dir, run create-expo-app, then restore.
+STASH_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rn-bootstrap-stash-XXXXXX")"
+echo "[init-expo-app] stashing pre-existing files to $STASH_DIR …"
+# Move everything except dotfiles managed by version control / OS (.git, .DS_Store) —
+# create-expo-app tolerates those. Anything else moves.
+shopt -s nullglob dotglob
+for entry in "$PROJECT_ROOT"/*; do
+  base="$(basename "$entry")"
+  # Keep .git in place so create-expo-app can append to it; never stash node_modules.
+  case "$base" in
+    .|..|.git|.DS_Store|node_modules) continue ;;
+  esac
+  mv "$entry" "$STASH_DIR/"
+done
+shopt -u nullglob dotglob
+
+# Trap ensures stash is restored even if create-expo-app fails.
+restore_stash() {
+  echo "[init-expo-app] restoring stashed files from $STASH_DIR …"
+  shopt -s nullglob dotglob
+  for entry in "$STASH_DIR"/*; do
+    base="$(basename "$entry")"
+    # If create-expo-app generated a file with the same name (unlikely for PROJECT.md etc.),
+    # the stashed copy is authoritative — overwrite.
+    mv -f "$entry" "$PROJECT_ROOT/"
+  done
+  shopt -u nullglob dotglob
+  rmdir "$STASH_DIR" 2>/dev/null || true
+}
+trap restore_stash EXIT
+
 echo "[init-expo-app] running create-expo-app …"
 npx --yes create-expo-app@latest . \
     --template blank-typescript \
     --no-install
 
-echo "[init-expo-app] adding expo-router preset …"
-# create-expo-app with blank-typescript does NOT include expo-router. Install it now.
-npm install expo-router
+echo "[init-expo-app] adding expo-router (SDK-matched version) …"
+# Use `npx expo install` so the Expo CLI picks the version compatible with the
+# installed Expo SDK. Plain `npm install expo-router` grabs latest from npm, which
+# can be one SDK ahead and fail with peer-dep conflicts (e.g. RN version mismatch).
+npx --yes expo install expo-router
 
 echo "[init-expo-app] done. Next: install-stack.sh"

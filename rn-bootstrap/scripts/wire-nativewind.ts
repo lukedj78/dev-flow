@@ -104,6 +104,16 @@ module.exports = withNativeWind(config, { input: "./global.css" });
   );
 }
 
+function writeNativewindEnvDts(projectRoot: string) {
+  // NativeWind v4 requires this ambient type declaration so JSX components have a
+  // typed `className` prop. Without it, tsc fails on every NativeWind className.
+  // See: https://www.nativewind.dev/v4/getting-started/typescript
+  fs.writeFileSync(
+    path.join(projectRoot, "nativewind-env.d.ts"),
+    `/// <reference types="nativewind/types" />\n`,
+  );
+}
+
 function main() {
   const projectRoot = process.argv[2];
   if (!projectRoot) {
@@ -119,7 +129,8 @@ function main() {
   writeGlobalCss(projectRoot);
   writeBabelConfig(projectRoot);
   writeMetroConfig(projectRoot);
-  console.log("[wire-nativewind] wrote tailwind.config.js, global.css, babel.config.js, metro.config.js");
+  writeNativewindEnvDts(projectRoot);
+  console.log("[wire-nativewind] wrote tailwind.config.js, global.css, babel.config.js, metro.config.js, nativewind-env.d.ts");
 }
 
 main();

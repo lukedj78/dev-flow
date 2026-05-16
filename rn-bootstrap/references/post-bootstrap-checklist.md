@@ -11,6 +11,7 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 - [ ] `tailwind.config.js` with `nativewind/preset` and tokens from DESIGN.md.
 - [ ] `babel.config.js` with `nativewind/babel`.
 - [ ] `metro.config.js` with `withNativeWind`.
+- [ ] `nativewind-env.d.ts` with `/// <reference types="nativewind/types" />` (required for NativeWind v4 `className` to type-check).
 - [ ] `app.json` with `expo.scheme`, `expo.experiments.typedRoutes: true`, `expo.newArchEnabled: true`.
 - [ ] `tsconfig.json` with `extends: "expo/tsconfig.base"` and `paths` for `@/*`.
 - [ ] `.env.example` listing `EXPO_PUBLIC_*` vars used by the app.
