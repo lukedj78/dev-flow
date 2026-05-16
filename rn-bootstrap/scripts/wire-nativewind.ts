@@ -23,7 +23,9 @@ function readDesignTokens(projectRoot: string): Tokens {
   }
   const md = fs.readFileSync(designPath, "utf8");
   // Convention: a fenced ```json block tagged "tokens" holds the tokens.
-  const match = md.match(/```json tokens\n([\s\S]*?)\n```/);
+  // Accept CRLF (\r\n) line endings too — common on Windows-authored DESIGN.md.
+  // Only the first matching block is used; additional blocks are silently ignored.
+  const match = md.match(/```json tokens\r?\n([\s\S]*?)\r?\n```/);
   if (!match) {
     console.warn("[wire-nativewind] no ```json tokens block in DESIGN.md, using defaults");
     return defaultTokens();
@@ -48,13 +50,18 @@ function defaultTokens(): Tokens {
 }
 
 function writeTailwindConfig(projectRoot: string, tokens: Tokens) {
+  // Indent the JSON so its closing brace lines up with `extend:` (column 4).
+  // `JSON.stringify(..., null, 2)` produces 2-space indents anchored at column 0;
+  // prefix every newline with 4 spaces so the embedded block reads as part of the
+  // surrounding `theme: { extend: ... }`.
+  const tokensJson = JSON.stringify(tokens, null, 2).replace(/\n/g, "\n    ");
   const config = `/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   darkMode: "class",
   theme: {
-    extend: ${JSON.stringify({ ...tokens }, null, 6)},
+    extend: ${tokensJson},
   },
   plugins: [],
 };
@@ -101,6 +108,10 @@ function main() {
   const projectRoot = process.argv[2];
   if (!projectRoot) {
     console.error("Usage: wire-nativewind.ts <project-root>");
+    process.exit(1);
+  }
+  if (!fs.existsSync(projectRoot)) {
+    console.error(`[wire-nativewind] project root not found: ${projectRoot}`);
     process.exit(1);
   }
   const tokens = readDesignTokens(projectRoot);
