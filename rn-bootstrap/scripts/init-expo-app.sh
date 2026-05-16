@@ -59,6 +59,16 @@ npx --yes create-expo-app@latest . \
     --template blank-typescript \
     --no-install
 
+echo "[init-expo-app] installing base dependencies …"
+# create-expo-app --no-install skipped npm install. We MUST install the base deps
+# (including the `expo` package itself) here so the subsequent `npx expo install …`
+# call can read the SDK version from node_modules/expo/package.json. Without this
+# step, expo CLI errors with: "Cannot determine the project's Expo SDK version".
+# --legacy-peer-deps avoids known peer-range mismatches between Expo SDK 54 deps
+# and transitively-required RN versions; safe to drop when upstream peer ranges
+# stabilize.
+npm install --legacy-peer-deps
+
 echo "[init-expo-app] adding expo-router (SDK-matched version) …"
 # Use `npx expo install` so the Expo CLI picks the version compatible with the
 # installed Expo SDK. Plain `npm install expo-router` grabs latest from npm, which
