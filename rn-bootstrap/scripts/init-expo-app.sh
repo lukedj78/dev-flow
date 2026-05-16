@@ -73,6 +73,9 @@ echo "[init-expo-app] adding expo-router (SDK-matched version) …"
 # Use `npx expo install` so the Expo CLI picks the version compatible with the
 # installed Expo SDK. Plain `npm install expo-router` grabs latest from npm, which
 # can be one SDK ahead and fail with peer-dep conflicts (e.g. RN version mismatch).
-npx --yes expo install expo-router
+# `-- --legacy-peer-deps` is passed through to the underlying npm install — same
+# reason as install-stack.sh: Expo SDK 54 transitively pulls packages (e.g.
+# react-native-screens 4.25) that demand RN ≥ 0.82, while SDK 54 ships RN 0.81.
+npx --yes expo install expo-router -- --legacy-peer-deps
 
 echo "[init-expo-app] done. Next: install-stack.sh"

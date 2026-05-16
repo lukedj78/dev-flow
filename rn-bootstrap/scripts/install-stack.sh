@@ -16,11 +16,12 @@ fi
 
 echo "[install-stack] installing styling stack (NativeWind v4 + safe-area + expo-image + FlashList) …"
 # NativeWind v4 requires Tailwind 3.4.x — pin explicitly. Do NOT bump to TW 4.
+# --legacy-peer-deps for the same reason as the animations install below.
 npx expo install \
   nativewind@^4 tailwindcss@^3.4 \
   react-native-safe-area-context \
   expo-image \
-  @shopify/flash-list
+  @shopify/flash-list -- --legacy-peer-deps
 
 echo "[install-stack] installing animations stack (Reanimated + Gesture Handler) …"
 # expo install picks the version compatible with the current Expo SDK.
