@@ -32,9 +32,10 @@ echo "[install-stack] installing animations stack (Reanimated + Gesture Handler)
 npx expo install react-native-reanimated react-native-gesture-handler -- --legacy-peer-deps
 
 echo "[install-stack] installing state + data (Zustand + TanStack Query) …"
-npm install zustand @tanstack/react-query
+# --legacy-peer-deps preventively applied — see Reanimated install above for context.
+npm install --legacy-peer-deps zustand @tanstack/react-query
 
 echo "[install-stack] installing dev tools (prettier + Tailwind plugin) …"
-npm install --save-dev prettier prettier-plugin-tailwindcss
+npm install --save-dev --legacy-peer-deps prettier prettier-plugin-tailwindcss
 
 echo "[install-stack] done. Next: wire-nativewind.ts"
