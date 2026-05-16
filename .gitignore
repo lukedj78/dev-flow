@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+.expo/
+*.log
+.playwright-mcp/
+figma-to-design-md-workspace/
