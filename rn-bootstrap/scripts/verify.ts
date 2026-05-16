@@ -21,17 +21,20 @@ if (!fs.existsSync(projectRoot)) {
 }
 
 const fileExists = (rel: string) => fs.existsSync(path.join(projectRoot, rel));
-const packageJson = (): Record<string, unknown> | null => {
+
+// Load package.json once at startup, not on every hasDep() call. Subsequent
+// dep checks read from this cached value — avoids 11+ redundant disk reads.
+type PackageJson = { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+const PKG: PackageJson | null = (() => {
   try {
-    return JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+    return JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8")) as PackageJson;
   } catch {
     return null;
   }
-};
+})();
 const hasDep = (name: string): boolean => {
-  const pkg = packageJson() as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null;
-  if (!pkg) return false;
-  return Boolean(pkg.dependencies?.[name]) || Boolean(pkg.devDependencies?.[name]);
+  if (!PKG) return false;
+  return Boolean(PKG.dependencies?.[name]) || Boolean(PKG.devDependencies?.[name]);
 };
 
 const checks: Check[] = [
