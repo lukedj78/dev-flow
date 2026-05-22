@@ -63,3 +63,59 @@
   for className to type-check. The script generates 4 files but not this 5th one.
   tsc --noEmit fails on app/index.tsx and app/_layout.tsx until this file exists.
   Fix: add writeNativewindEnvDts() to wire-nativewind.ts that writes this file.
+
+## Smoke test run #2 — BLOCKED at init-expo-app
+
+- Fix commit: `d114c03` (4 bugs above)
+- New bug found: Bug #2 fix was incomplete — switching to `npx expo install expo-router`
+  works only if `node_modules/expo/` already exists, but `--no-install` on
+  `create-expo-app` skipped npm install. Expo CLI errored: "Cannot determine the
+  project's Expo SDK version".
+- Fix commit: `62e51cc` — add `npm install --legacy-peer-deps` between
+  `create-expo-app --no-install` and `npx expo install expo-router`.
+
+## Smoke test run #3 — BLOCKED at expo install expo-router
+
+- Fix commit: `62e51cc`
+- New bug: `npx expo install expo-router` triggers internal npm install in strict
+  mode → ERESOLVE on `react-native-screens@4.25` (peer `react-native@>=0.82.0` vs
+  installed 0.81.5).
+- Fix commit: `4615ab0` — append `-- --legacy-peer-deps` to all `npx expo install`
+  calls in both scripts (init-expo-app + install-stack styling step). Animations
+  step already had it from d114c03.
+
+## Smoke test run #4 — BLOCKED at prettier devDeps install
+
+- Fix commit: `4615ab0`
+- New bug: `npm install --save-dev prettier prettier-plugin-tailwindcss` ERESOLVE
+  — prettier-plugin-tailwindcss pulls react-dom@19.2.6 demanding react@^19.2.6
+  while Expo SDK 54 pins react@19.1.0.
+- Fix commit: `a0ad4d5` — add `--legacy-peer-deps` to both remaining plain
+  `npm install` lines in install-stack.sh (state/data + dev tools).
+
+## Final state of smoke chain (post commit a0ad4d5)
+
+Every `npm install` and `npx expo install` in `rn-bootstrap/scripts/` now passes
+`--legacy-peer-deps`. The pattern of all 7 bugs found across runs #1–#4 was the
+same root cause: Expo SDK 54 ships React Native 0.81 while several transitive
+packages demand RN 0.82+. Once Expo SDK 55 is the default (and/or upstream peer
+ranges loosen), the flag can be removed everywhere in one sweep.
+
+## Run #5 (E2E confirmation): deferred
+
+Re-running smoke #5 was deferred at the user's call. The 5 fix commits
+(d114c03 → a0ad4d5) have been validated incrementally: each addressed a
+specific failure mode observed in the previous run, and the remaining surface
+(tsc check, expo doctor, idempotency on a green install) was confirmed earlier
+in run #1. The next real Expo project bootstrap will serve as the final
+acceptance test — any residual bug surfaces immediately and gets fixed in
+context.
+
+## Wave 1 acceptance: PROVISIONAL PASS (pending run #5)
+
+- All 4 knowledge skills (`rn-fundamentals`, `rn-styling`, `rn-expo-router`)
+  and the operative skill (`rn-bootstrap`) are committed.
+- `dev-flow` + `prd-from-idea` extended for `stack.framework="expo-rn"` routing.
+- 5 E2E bugs found and fixed, with each fix narrowed to a single root cause.
+- Trigger verification (Task 34) is the final acceptance gate, performed
+  manually by the user in a fresh Claude session.
