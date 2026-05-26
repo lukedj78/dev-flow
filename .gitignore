@@ -22,3 +22,9 @@ __pycache__/
 
 # Skill workspace artifacts (per-iteration test outputs)
 *-workspace/
+
+# Mobile-related workspace artifacts (RN/Expo skills)
+.expo/
+.playwright-mcp/
+ios/Pods/
+android/.gradle/
