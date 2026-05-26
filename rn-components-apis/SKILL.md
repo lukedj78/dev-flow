@@ -1,0 +1,36 @@
+---
+name: rn-components-apis
+description: 'Use when working with React Native core components (View, Text, ScrollView, FlatList, TextInput, Pressable, Modal, KeyboardAvoidingView, SafeAreaView) or platform APIs (Platform, Dimensions, useWindowDimensions, Linking, AppState). Triggers on: "which RN component should I use", "ScrollView vs FlatList", "how do I handle keyboard avoidance", "platform-specific code", "open external URL". Not for: styling (rn-styling), navigation (rn-expo-router), data fetching (rn-data-fetching), animations (rn-animations-gestures, Wave 3).'
+---
+
+# rn-components-apis — guardrail for RN core components + platform APIs
+
+## The 5 rules (non-negotiable)
+
+1. **`Pressable` for any touchable** — never `TouchableOpacity` / `TouchableHighlight` / `TouchableWithoutFeedback` in new code.
+2. **`expo-image` for any image** — never `Image` from `react-native` (no caching).
+3. **`@shopify/flash-list` for lists** with > 20 items or unknown length — never `FlatList` at scale.
+4. **`useWindowDimensions()` hook** in the component — never `Dimensions.get('window')` at module top-level (fails on rotation/foldables).
+5. **`Platform.select({ ios, android })`** for platform-specific styles or behavior — never `Platform.OS === ...` ternaries scattered across the file.
+
+## Quick decision tree
+
+- "Which list primitive?" → `references/decision-tree.md` (ScrollView/FlatList/FlashList/SectionList)
+- "Which touchable?" → always `Pressable`. See `references/patterns.md` for the canonical button pattern.
+- "How do I open an external URL / mail / phone?" → `references/patterns.md` (Linking section)
+- "Keyboard avoidance pattern?" → `references/patterns.md` (KeyboardAvoidingView + Android quirks)
+
+## Common anti-patterns (NEVER do)
+
+- ❌ `<TouchableOpacity onPress={...}>` → `<Pressable onPress={...}>`
+- ❌ `<Image source={{ uri }} />` from `react-native` → `import { Image } from "expo-image"`
+- ❌ `<FlatList data={items}>` for any list that may grow → `<FlashList data={items} estimatedItemSize={64}>`
+- ❌ `const { width } = Dimensions.get('window')` at module top — use `useWindowDimensions()` inside the component
+- ❌ `<KeyboardAvoidingView>` without explicit `behavior` prop — broken on Android. Use `Platform.select({ ios: "padding", android: "height" })`
+
+## Sources
+
+- Course: codewithbeto.dev/rnCourse — "Components and APIs" module (paid, distilled from docs).
+- Official: https://reactnative.dev/docs/components-and-apis
+- Official: https://docs.expo.dev/versions/latest/sdk/image/
+- Official: https://shopify.github.io/flash-list/
