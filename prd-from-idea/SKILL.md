@@ -45,13 +45,19 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 ### Step 3 — Interview the user (the high-leverage questions)
 
-For `PROJECT.md`, ask **at most 5 questions**, in this order. Skip any the user already answered in their initial paste.
+For `PROJECT.md`, ask **at most 6 questions**, in this order. Skip any the user already answered in their initial paste.
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)
 3. **How do they solve it today?** (status quo / competitors)
 4. **What's the wedge?** (the one thing this product does better than the status quo — be ruthless, one sentence)
 5. **What does success look like in 6 months?** (one or two measurable signals — MAU, revenue, retention, qualitative quotes)
+6. **What's the primary target — web, mobile (iOS+Android), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
+   - "web" / "web app" / no answer → `stack.framework: "next"` (current default for web)
+   - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
+   - "desktop" → out of scope for this skill set — refuse politely and refer the user to Tauri/Electron docs.
+
+Write `stack.framework` into `meta.json` immediately so downstream skills (`prd-to-tasks`, `dev-flow` routing) see it. Other `stack.*` keys (`ui`, `auth`, `db`, `payments`, `deploy`) remain `null` at this stage — they get filled in by `rn-bootstrap` / `design-md-to-app` / `module-add` / `rn-module-add` later.
 
 For `PRD.md`, after `PROJECT.md` is in place, ask:
 
