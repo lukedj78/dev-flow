@@ -21,6 +21,25 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 `.workflow/` is the load-bearing convention. Read **`references/contracts.md`** before doing anything — it defines the folder layout, the `meta.json` schema, the `phase` enum, and which skill owns which file. **Do not improvise.** If a skill behaves in a way the contract doesn't describe, fix the contract or fix the skill — never silently diverge.
 
+## Stack-aware routing
+
+`dev-flow` reads `meta.json#stack.framework` and routes to a stack-specific family of operative skills.
+
+| `stack.framework` value | family | bootstrap skill | reference |
+|---|---|---|---|
+| `next` (default if missing) | existing web skills | `design-md-to-app` | (this file) |
+| `expo-rn` | RN/Expo mobile skills | `rn-bootstrap` | `references/stack-expo-rn.md` |
+
+When `meta.json#stack.framework == "expo-rn"`:
+- `prd_drafted` or `design_extracted` → invoke `rn-bootstrap`
+- `scaffolded` or `page_generated` or `module-added` → invoke `rn-add-screen` (UI) or `rn-module-add` (backend/infra) or `rn-write-tests` (tests)
+- `feature_complete` → invoke `rn-eas-deploy`
+- `deployed` → maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes
+
+If a stack value is not recognized, refuse and ask the user which stack to use. NEVER silently fall back to Next.js when `stack.framework` is set explicitly to something else.
+
+See `references/stack-expo-rn.md` for the full RN stack configuration.
+
 ## Workflow
 
 ### Step 1 — Locate or create the project root
@@ -59,7 +78,9 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `design_extracted` | `design-md-to-app` (this is the natural next step — DESIGN.md exists, time to scaffold). |
 | `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; iterate. |
 | `page_generated` | `module-add` or more `screenshot-to-page` runs. |
-| `module-added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. There's no terminal state — ask the user what's next. |
+| `module-added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. For `expo-rn` stack, also `rn-eas-deploy` once feature-complete. |
+| `feature_complete` | (mobile only — `expo-rn` stack) → `rn-eas-deploy` to build, submit, and ship to App Store + Play Store. |
+| `deployed` | (mobile only) maintenance loop: more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`, telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
 
 The orchestrator must propose, not impose. After deciding, **tell the user the proposed next step in one sentence**, and ask for confirmation before invoking. Example: *"You're at `design_extracted` (DESIGN.md + 6 screenshots in place). I propose running `design-md-to-app` to scaffold a Next.js + shadcn project. OK to proceed, or do you want to add modules / change stack first?"*
@@ -84,14 +105,18 @@ Most projects need multiple specialists in sequence. The orchestrator's job is t
 
 When transitioning out of `prd_drafted` and into scaffolding, the user has to choose a stack. The orchestrator should ask once and persist in `meta.json#stack`. Sensible default-bundle suggestions:
 
-| Profile | framework | ui | auth | db | payments |
-|---|---|---|---|---|---|
-| **SaaS B2B** | next | shadcn | better-auth | neon-drizzle | stripe |
-| **B2C consumer** | next | shadcn | clerk | supabase | stripe |
-| **Marketing site** | astro | shadcn-astro | null | null | null |
-| **Internal tool** | vite-react | shadcn | better-auth | neon-drizzle | null |
+| Profile | framework | ui | auth | db | payments | deploy |
+|---|---|---|---|---|---|---|
+| **SaaS B2B** (web) | next | shadcn | better-auth | neon-drizzle | stripe | vercel |
+| **B2C consumer** (web) | next | shadcn | clerk | supabase | stripe | vercel |
+| **Marketing site** | astro | shadcn-astro | null | null | null | vercel |
+| **Internal tool** (web) | vite-react | shadcn | better-auth | neon-drizzle | null | null |
+| **Mobile app (iOS+Android)** | expo-rn | nativewind | supabase | supabase | revenuecat | eas |
+| **Mobile app, custom backend** | expo-rn | nativewind | custom-rest | custom-rest | revenuecat | eas |
 
 Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
+
+For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
 
 ## What dev-flow does NOT do
 
