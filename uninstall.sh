@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Remove the 8 dev-flow skills from the chosen runtime's skills directory.
-# Restores `*.bak` backups created by install.sh, if present.
+# Remove all 24 dev-flow skills (9 web + 15 mobile) from the chosen runtime's
+# skills directory. Restores `*.bak` backups created by install.sh, if present.
 #
 # Usage:
 #   ./uninstall.sh                              # defaults to claude
@@ -31,17 +31,38 @@ case "$PLATFORM" in
 esac
 
 SKILLS=(
+  # Core
   dev-flow
   prd-from-idea
   prd-to-tasks
+
+  # Web stack
   figma-to-design-md
   image-to-design-md
   design-md-to-app
   screenshot-to-page
   module-add
+  write-tests
+
+  # Mobile stack
+  rn-fundamentals
+  rn-styling
+  rn-expo-router
+  rn-bootstrap
+  rn-components-apis
+  rn-data-fetching
+  rn-add-screen
+  rn-write-tests
+  rn-animations-gestures
+  rn-push-notifications
+  rn-backend
+  rn-eas-build-submit-update
+  rn-publishing-payments
+  rn-module-add
+  rn-eas-deploy
 )
 
-echo "Uninstalling 8 dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"
+echo "Uninstalling ${#SKILLS[@]} dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"
 
 for s in "${SKILLS[@]}"; do
   dest="$SKILLS_DIR/$s"

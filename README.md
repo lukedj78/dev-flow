@@ -1,7 +1,7 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and a small set of skills that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **24 skills (9 web + 15 mobile)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 
 ```
                       ┌────────────────────────┐
@@ -10,21 +10,34 @@
                       │   history + artifacts) │      every skill writes
                       └─────────┬──────────────┘
                                 │
-            ┌───────────────────┼───────────────────┐
-            │                   │                   │
-            ▼                   ▼                   ▼
-     prd-from-idea       design-md-to-app     module-add
-     prd-to-tasks        screenshot-to-page   (auth, db,
-     figma-to-design-md  write-tests          payments,
-     image-to-design-md                        email, ci, …)
-            │                   │                   │
-            └───────────────────┼───────────────────┘
+              ┌─────────────────┴─────────────────┐
+              │                                   │
+              ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
+              │                                   │
+              │   WEB FAMILY (9 skills)            MOBILE FAMILY (15 skills)
+              │                                   │
+   ┌──────────┼──────────┐               ┌────────┼─────────┐
+   │          │          │               │        │         │
+   ▼          ▼          ▼               ▼        ▼         ▼
+ prd-from-  design-md-  module-add      rn-       rn-       rn-
+ idea       to-app      (auth, db,      bootstrap add-      module-add
+ prd-to-    screenshot- payments,        rn-      screen    (auth, db,
+ tasks      to-page     email, ci, …)   styling   rn-       storage,
+ figma-to-  write-tests                  rn-      write-    realtime,
+ design-md                                expo-    tests     push,
+ image-to-                                router   …         payments)
+ design-md                                                  rn-eas-deploy
+              │                                   │
+              └─────────────────┬─────────────────┘
                                 │
                                 ▼
                         Codebase at <project-root>/
+                        (Next.js app or Expo app)
 ```
 
 The skills are **interchangeable consumers** of the contract. Tomorrow you could rewrite any of them in TypeScript, swap one out for a Cursor-flavored variant, or extend with your own — as long as they read `meta.json` and respect the phase semantics, they compose.
+
+**Two stacks today, one contract.** The web stack ships Next.js + shadcn/ui apps; the mobile stack ships Expo + React Native + NativeWind apps with EAS publishing to the App Store + Play Store. `dev-flow` (the orchestrator) reads `meta.json#stack.framework` and routes to the correct family — `prd-from-idea` and `prd-to-tasks` are stack-agnostic and used by both.
 
 ---
 
@@ -637,7 +650,11 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 
 ---
 
-## The 8 skills, in detail
+## The 24 skills, in detail
+
+> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — both stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`. `dev-flow` reads that key and routes.
+
+### Web stack (Next.js + shadcn/ui)
 
 ### `dev-flow` — the orchestrator
 
@@ -646,12 +663,21 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 ```
 phase=empty            → prd-from-idea
 phase=idea_captured    → prd-from-idea (expand)
-phase=prd_drafted      → prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app
+phase=prd_drafted      → branches by stack.framework:
+                         "next"    → prd-to-tasks  OR  figma-to-design-md  OR
+                                     image-to-design-md  OR  design-md-to-app
+                         "expo-rn" → rn-bootstrap (mobile scaffold)
 phase=tasks_split      → figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app
-phase=design_extracted → design-md-to-app
-phase=scaffolded       → screenshot-to-page  OR  module-add
-phase=page_generated   → module-add  OR  more screenshot-to-page
-phase=module-added     → write-tests  OR  more screenshot-to-page  OR  iterate
+phase=design_extracted → "next"    → design-md-to-app
+                         "expo-rn" → rn-bootstrap
+phase=scaffolded       → "next"    → screenshot-to-page  OR  module-add
+                         "expo-rn" → rn-add-screen  OR  rn-module-add  OR  rn-write-tests
+phase=page_generated   → module-add (next)  OR  rn-module-add (expo-rn)  OR  more screen-gen
+phase=module-added     → write-tests / rn-write-tests  OR  iterate
+                         (expo-rn) → eventually  rn-eas-deploy  once feature-complete
+phase=feature_complete → (expo-rn only) rn-eas-deploy
+phase=deployed         → (expo-rn only) maintenance loop: rn-add-screen for new features,
+                         rn-eas-build-submit-update for OTA hotfixes
 ```
 
 `dev-flow` does not do specialist work itself — it **only routes** and updates state. If you find it doing PRD drafting or scaffolding directly, that's a bug.
@@ -764,6 +790,66 @@ The skill is **idempotent**: re-running `module-add db` on a project that alread
 **Prerequisite**: `module-add test` has been run (Vitest + Playwright are wired). If not, the skill stops and routes there. **Idempotent**: existing test files are never silently overwritten — the user is asked whether to regenerate, append missing cases, or abort.
 
 **What it does NOT do**: install test packages, run a full suite, fix failing tests. A failing test is a signal — the skill surfaces it, the user decides whether to fix the test or the source.
+
+### Mobile stack (Expo + React Native)
+
+The 15 mobile skills mirror the web stack philosophy: opinionated defaults, idempotent operations, contract-driven state. Activate by saying "mobile" / "iOS" / "Android" at the target-platform question in `prd-from-idea` — that sets `meta.json#stack.framework="expo-rn"`.
+
+**Stack opinions baked in** (Wave 1–3):
+
+- Expo SDK ultimo stabile + **TypeScript** + **New Architecture ON** + **npm** (not yarn/pnpm).
+- **Expo Router** for navigation (file-based + typed routes).
+- **NativeWind v4** for styling (Tailwind 3.4.x pinned — TW 4 incompatible today).
+- **Zustand** for global state, **TanStack Query v5** for server state.
+- **Reanimated 4 + Gesture Handler 2** for animations and gestures.
+- **`expo-image`** instead of RN's `Image`, **`@shopify/flash-list`** for any list > 20 items.
+- **`expo-secure-store`** for tokens (never AsyncStorage).
+- **EAS** for cloud build, submit, and OTA updates.
+- **RevenueCat** for IAP (Apple 3.1.1 enforcement), Stripe only for non-digital.
+- **Jest + React Native Testing Library** for unit/integration, **Maestro** for e2e (Detox banned).
+
+**Knowledge skills (10)** — guardrails that auto-activate when the agent enters that domain:
+
+| Skill | When it triggers |
+|---|---|
+| `rn-fundamentals` | Start of any RN/Expo task; choices about managed vs bare, SDK, New Architecture. |
+| `rn-styling` | NativeWind setup, Flexbox in RN, safe-area, dark mode, design tokens. |
+| `rn-expo-router` | File-based routing, layouts, typed routes, deep linking, modals. |
+| `rn-components-apis` | Which RN primitive to use (`Pressable`, `expo-image`, `FlashList`, `KeyboardAvoidingView`, `Linking`, `Platform.select`). |
+| `rn-data-fetching` | TanStack Query queries/mutations/optimistic/infinite scroll. Bans `fetch + useEffect` for production data. |
+| `rn-animations-gestures` | Reanimated worklets, layout animations, pan/pinch/scroll-linked. |
+| `rn-push-notifications` | `expo-notifications`, permission timing, 3 entry paths, deep linking from payload. |
+| `rn-backend` | **Provider-agnostic**: client-auth patterns (secure-store, Zustand auth, refresh-on-401, auth gate). Sub-references for **Supabase** (default) / **Firebase** / **custom REST** / **tRPC**. |
+| `rn-eas-build-submit-update` | EAS Build profiles, credentials, EAS Submit, OTA via EAS Update + channels, EAS Workflows CI. |
+| `rn-publishing-payments` | App Store + Play Store metadata, RevenueCat IAP, store assets, review-rejection patterns. |
+
+**Operative skills (5)** — invoked by `dev-flow` when the orchestrator routes to mobile:
+
+| Skill | Phase | What it does |
+|---|---|---|
+| `rn-bootstrap` | `prd_drafted` → `scaffolded` | Scaffolds a new Expo app from PRD + DESIGN.md. 4-script chain (init → install → wire-NativeWind → verify). Idempotent. |
+| `rn-add-screen` | `scaffolded` → `page_generated` | Adds a route to `app/` via 5 canonical templates (list / detail / form / modal / auth-gated). Wires data layer if needed. |
+| `rn-module-add` | `scaffolded` → `module-added` | Wires `auth` / `db` / `storage` / `realtime` / `push` / `payments` modules. Provider-agnostic (Supabase, Firebase, custom REST, tRPC, RevenueCat). |
+| `rn-write-tests` | any | Jest + RNTL + Maestro setup + tests for one source file. Mirrors `write-tests` for RN. |
+| `rn-eas-deploy` | `feature_complete` → `deployed` | End-to-end deploy: pre-submission checklist → preview build → smoke → production build → EAS Submit → channels. Refuses incomplete checklist. |
+
+**Use case — idea to App Store**:
+
+```
+1. paste idea → prd-from-idea ("target: mobile") → sets stack.framework="expo-rn"
+2. dev-flow proposes Mobile bundle (Supabase + RevenueCat + EAS) → user confirms
+3. rn-bootstrap → app scaffold (10 min)
+4. rn-module-add auth → Supabase wired
+5. rn-add-screen "login form" → app/(auth)/sign-in.tsx generated
+6. rn-add-screen "feed" → app/(app)/feed.tsx with TanStack Query + FlashList
+7. rn-module-add payments → RevenueCat paywall
+8. rn-write-tests → Jest covers feed + auth
+9. rn-eas-deploy → preview → production → submit to both stores
+```
+
+Typical timeline: 12–16 hours of focused work from PRD to live submission.
+
+**Single-source canonical reference**: [`dev-flow/references/stack-expo-rn.md`](./dev-flow/references/stack-expo-rn.md) — what `stack.framework="expo-rn"` means, which skill for which phase, what keys live under `meta.json#stack`, which web skills are NEVER invoked on this stack (`design-md-to-app`, `module-add`, `screenshot-to-page`, etc. are web-only).
 
 ---
 

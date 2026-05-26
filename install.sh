@@ -1,9 +1,24 @@
 #!/usr/bin/env bash
-# Install the 8 dev-flow skills + a runtime-appropriate bootstrap file.
+# Install all 24 dev-flow skills (9 web + 15 mobile) + a runtime-appropriate
+# bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
 # generic markdown that any agent can follow. This installer supports five
 # runtimes — pick yours with --platform.
+#
+# Stacks:
+#   * Web (Next.js + shadcn):    dev-flow, prd-from-idea, prd-to-tasks,
+#                                figma-to-design-md, image-to-design-md,
+#                                design-md-to-app, screenshot-to-page,
+#                                module-add, write-tests
+#   * Mobile (Expo + RN):         rn-fundamentals, rn-styling, rn-expo-router,
+#                                rn-bootstrap, rn-components-apis,
+#                                rn-data-fetching, rn-add-screen,
+#                                rn-write-tests, rn-animations-gestures,
+#                                rn-push-notifications, rn-backend,
+#                                rn-eas-build-submit-update,
+#                                rn-publishing-payments, rn-module-add,
+#                                rn-eas-deploy
 #
 # Usage:
 #   ./install.sh                                # defaults to claude
@@ -120,18 +135,38 @@ case "$PLATFORM" in
 esac
 
 SKILLS=(
+  # Core orchestrator + stack-agnostic flow
   dev-flow
   prd-from-idea
   prd-to-tasks
+
+  # Web stack (Next.js + shadcn)
   figma-to-design-md
   image-to-design-md
   design-md-to-app
   screenshot-to-page
   module-add
   write-tests
+
+  # Mobile stack (Expo + React Native)
+  rn-fundamentals
+  rn-styling
+  rn-expo-router
+  rn-bootstrap
+  rn-components-apis
+  rn-data-fetching
+  rn-add-screen
+  rn-write-tests
+  rn-animations-gestures
+  rn-push-notifications
+  rn-backend
+  rn-eas-build-submit-update
+  rn-publishing-payments
+  rn-module-add
+  rn-eas-deploy
 )
 
-echo "Installing 9 dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"
+echo "Installing ${#SKILLS[@]} dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"
 mkdir -p "$SKILLS_DIR"
 
 # Sanity check the host environment. The skills install fine without these
