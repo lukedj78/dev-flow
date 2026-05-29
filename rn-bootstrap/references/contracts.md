@@ -55,6 +55,21 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
     "payments": null,
     "deploy": "vercel"
   },
+  "artifacts": {
+    ".workflow/DESIGN.md": {
+      "sha256": "abc123…",
+      "produced_by": "figma-to-design-md",
+      "produced_at": "2026-04-25T14:30:00Z"
+    },
+    "registry.json": {
+      "sha256": "def456…",
+      "produced_by": "design-md-to-app",
+      "produced_at": "2026-04-25T15:30:00Z",
+      "derived_from": [
+        { "path": ".workflow/DESIGN.md", "sha256": "abc123…" }
+      ]
+    }
+  },
   "history": [
     {
       "skill": "prd-from-idea",
@@ -75,33 +90,58 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
 }
 ```
 
+### `artifacts` field
+
+Tracks every contract-shaped file with its content hash and provenance. The model is content-addressed: an artifact entry says "skill X wrote this file with this exact content at time T". When the on-disk hash later differs from the recorded one, the artifact is **stale** and the producing skill (or the user) needs to decide what to do.
+
+Each entry:
+- `sha256` — hex digest of the file's bytes at write time.
+- `produced_by` — the skill name that last wrote (or rewrote) this file.
+- `produced_at` — ISO-8601 timestamp.
+- `derived_from` (optional) — list of `{path, sha256}` pairs. Each entry is an upstream input the skill used to derive this artifact, snapshotted at the version it was at when this artifact was produced. Used by `check_drift.py` to detect upstream-stale artifacts (output file is unchanged on disk but a `derived_from` input has drifted — common case: user edited `DESIGN.md` after `design-md-to-app` ran, so `registry.json` is now derived from a stale snapshot).
+
+Skills update this via `dev-flow/scripts/update_meta.py record-artifact …`. The `check_drift.py` script reports which artifacts are fresh / self-drift / upstream-stale / missing — diagnostic only, never mutating.
+
+The `artifacts` field is the foundation for resumability and drift detection: re-running a skill is safe if all its inputs are fresh; necessary if any are stale.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.
 
-| `phase` value | When set | Ready for next skill |
-|---|---|---|
-| `empty` | `.workflow/` was just created, only `meta.json` exists | `prd-from-idea` |
-| `idea_captured` | `PROJECT.md` exists | `prd-from-idea` (to expand into PRD) or `design-md-to-app` (skip if simple) |
-| `prd_drafted` | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, or `design-md-to-app` |
-| `tasks_split` | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or `design-md-to-app` |
-| `design_extracted` | `DESIGN.md` + (optional) `screenshots/` exist | `design-md-to-app` |
-| `scaffolded` | `app/` exists with framework + UI library installed | `screenshot-to-page`, `module-add` |
-| `page_generated` | At least one route in `app/` is implemented from a screenshot or PRD | `module-add`, more `screenshot-to-page` runs |
-| `module-added` | Auth/DB/payments/etc. wired up | iterative — repeat as needed |
+**All phase values are `snake_case` strings**. The canonical list below is the complete enum; skills MUST NOT use values outside it. Unknown values are treated as `empty` (forward-compatibility).
 
-**Phase progression is monotonic in the list above** — a skill should never set `phase` to an earlier value than what it found. If a skill is re-run (e.g., user re-extracts design from a new Figma), it appends to `history` but keeps the phase ≥ the current one.
+| `phase` value | Stacks | When set | Ready for next skill |
+|---|---|---|---|
+| `empty` | all | `.workflow/` was just created, only `meta.json` exists | `prd-from-idea` |
+| `idea_captured` | all | `PROJECT.md` exists | `prd-from-idea` (to expand into PRD) or scaffold (skip if simple) |
+| `prd_drafted` | all | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, or scaffold |
+| `tasks_split` | all | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or scaffold |
+| `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile) |
+| `scaffolded` | all | `app/` exists with framework + UI library installed | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
+| `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |
+| `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; mobile leads to `feature_complete` |
+| `feature_complete` | **expo-rn only** | All planned features built and tested; ready to ship | `rn-eas-deploy` |
+| `deployed` | **expo-rn only** | App live on App Store + Play Store with EAS Update channels configured | maintenance loop (`rn-add-screen` for features, `rn-eas-build-submit-update` for OTA hotfixes) |
+
+**Notes**:
+- All values are `snake_case` (e.g., `module_added` NOT `module-added`). Skills that use the kebab-case variant are non-conforming and should be migrated.
+- The `feature_complete` and `deployed` phases are **mobile-only** (`stack.framework="expo-rn"`); web stack ends at `module_added` and continues iteratively.
+- **Phase progression is monotonic** — a skill should never set `phase` to an earlier value than what it found. If a skill is re-run (e.g., user re-extracts design from a new Figma), it appends to `history` but keeps the phase ≥ the current one.
+- The `deployed` phase is terminal in the sense that future runs stay there; subsequent EAS Update or new-feature work appends to `history` without phase regression.
 
 ### `stack` field
 
 Captures user choices that downstream skills need. Keys:
 
-- `framework`: `"next"` | `"vite-react"` | `"remix"` | `"astro"` | `"sveltekit"` | string
-- `ui`: `"shadcn"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | string
-- `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase-auth"` | `null`
-- `db`: `"neon-drizzle"` | `"supabase"` | `"planetscale-prisma"` | `null`
-- `payments`: `"stripe"` | `"lemon-squeezy"` | `null`
-- `deploy`: `"vercel"` | `"fly"` | `"cloudflare-pages"` | `null`
+- `framework`: `"next"` | `"vite-react"` | `"remix"` | `"astro"` | `"sveltekit"` | `"expo-rn"` | `"monorepo"` (planned) | string
+- `ui`: `"shadcn"` | `"base-ui"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string
+- `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase"` | `"supabase-auth"` | `"firebase"` | `"custom-rest"` | `"trpc"` | `null`
+- `db`: `"neon-drizzle"` | `"supabase"` | `"firebase"` | `"planetscale-prisma"` | `"custom-rest"` | `"trpc"` | `null`
+- `payments`: `"stripe"` | `"lemon-squeezy"` | `"revenuecat"` (mobile IAP) | `null`
+- `deploy`: `"vercel"` | `"fly"` | `"cloudflare-pages"` | `"eas"` (mobile) | `null`
+- `storage` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
+- `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
+- `push` (mobile, optional): `"expo-notifications"` | `null`
 
 Use `null` (not `"none"`) when not yet decided.
 
