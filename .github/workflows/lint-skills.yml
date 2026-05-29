@@ -1,0 +1,49 @@
+name: lint-skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*/SKILL.md"
+      - "*/references/**"
+      - "install.sh"
+      - "uninstall.sh"
+      - "scripts/lint_skills.py"
+      - "scripts/build_skills_registry.py"
+      - ".github/workflows/lint-skills.yml"
+  pull_request:
+    paths:
+      - "*/SKILL.md"
+      - "*/references/**"
+      - "install.sh"
+      - "uninstall.sh"
+      - "scripts/lint_skills.py"
+      - "scripts/build_skills_registry.py"
+      - ".github/workflows/lint-skills.yml"
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Lint all skills
+        run: python3 scripts/lint_skills.py
+
+      - name: Regenerate skills.json and check it's committed
+        run: |
+          python3 scripts/build_skills_registry.py
+          if ! git diff --quiet skills.json; then
+            echo "::error::skills.json is out of date. Run scripts/build_skills_registry.py and commit the result."
+            git diff skills.json | head -40
+            exit 1
+          fi
+          echo "✓ skills.json is up to date."

@@ -975,6 +975,25 @@ The skills are **plain folders** with a `SKILL.md` + `references/` + optional `s
 
 To add a new module variant to `module-add` (e.g., Clerk auth, Supabase db), drop a new `references/module-<name>.md` following the same pattern as `module-auth.md` / `module-db.md`. The orchestrator picks it up automatically.
 
+### Maintenance scripts
+
+The repo ships three top-level scripts (in `scripts/`) you can run anytime:
+
+```bash
+# Sanity-check every skill (frontmatter YAML, portable paths, snake_case phases,
+# sibling cross-references, installer coverage)
+python3 scripts/lint_skills.py
+
+# Regenerate skills.json (the machine-readable registry of all 24 skills)
+python3 scripts/build_skills_registry.py
+
+# Check for npm version drift in the RN/Expo stack-defaults pin set
+./scripts/refresh-stack-defaults.sh          # dry-run, print diff
+./scripts/refresh-stack-defaults.sh --apply  # rewrite the stack-defaults.md files
+```
+
+CI runs `lint_skills.py` + `build_skills_registry.py` on every PR (see `.github/workflows/lint-skills.yml`); a missing or stale `skills.json` will fail the workflow.
+
 ---
 
 ## License
