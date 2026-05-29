@@ -55,17 +55,39 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
 6. **What's the primary target — web, mobile (iOS+Android), both (monorepo), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
    - "web" / "web app" / no answer → `stack.framework: "next"` (current default for web)
    - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
-   - "both" / "monorepo" / "web + mobile" / "stesso prodotto su entrambi" → `stack.framework: "monorepo"` (note: `monorepo-bootstrap` is planned but not yet shipped — say so if picked)
+   - "both" / "monorepo" / "web + mobile" / "stesso prodotto su entrambi" → `stack.framework: "monorepo"`
    - "desktop" → out of scope for this skill set — refuse politely and refer the user to Tauri/Electron docs.
-7. **(Web side only — skip for `expo-rn`)** **Which UI library — shadcn/ui, Base UI, or MUI?** Map the answer → `meta.json#stack.ui`:
-   - "shadcn" / "shadcn/ui" / "i want to own the source" → `stack.ui: "shadcn"`
-   - "base ui" / "base-ui" / "headless library no CLI" → `stack.ui: "base-ui"`
-   - "mui" / "material ui" / "material design" / "internal tool with lots of tables" → `stack.ui: "mui"`
+7. **(Web only OR monorepo: ask for the web side)** **Which UI library — shadcn/ui, Base UI, or MUI?** Map the answer → `meta.json#stack.ui` (for `framework="next"`) or `meta.json#stack.monorepo.web.ui` (for `framework="monorepo"`):
+   - "shadcn" / "shadcn/ui" / "i want to own the source" → `"shadcn"`
+   - "base ui" / "base-ui" / "headless library no CLI" → `"base-ui"`
+   - "mui" / "material ui" / "material design" / "internal tool with lots of tables" → `"mui"`
    - No clear answer → default to `"shadcn"` (most flexible / well-trodden path), explain briefly, let the user override.
 
-For `monorepo` projects, ask Q7 separately for **web side** (shadcn/Base UI/MUI). Mobile side is fixed at `"nativewind"` so no ask needed.
+   For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
 
-Write `stack.framework` and `stack.ui` into `meta.json` immediately so downstream skills (`prd-to-tasks`, `dev-flow` routing, `design-md-to-app` library branch) see it. Other `stack.*` keys (`auth`, `db`, `payments`, `deploy`) remain `null` at this stage — they get filled in by `rn-bootstrap` / `design-md-to-app` / `module-add` / `rn-module-add` later.
+### Writing the stack into meta.json
+
+Depending on Q6, write to `meta.json` immediately:
+
+```json
+// framework="next" (web only)
+"stack": { "framework": "next", "ui": "<shadcn|base-ui|mui>", "auth": null, "db": null, ... }
+
+// framework="expo-rn" (mobile only)
+"stack": { "framework": "expo-rn", "ui": "nativewind", "auth": null, "db": null, ... }
+
+// framework="monorepo"
+"stack": {
+  "framework": "monorepo",
+  "monorepo": {
+    "web":    { "framework": "next",    "ui": "<shadcn|base-ui|mui>" },
+    "mobile": { "framework": "expo-rn", "ui": "nativewind" }
+  },
+  "auth": null, "db": null, "storage": null, "payments": null, "deploy": null
+}
+```
+
+Downstream skills (`prd-to-tasks`, `dev-flow` routing, `design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`) all read `stack.framework` and branch accordingly. Other `stack.*` keys (`auth`, `db`, `payments`, `deploy`) remain `null` at this stage.
 
 For `PRD.md`, after `PROJECT.md` is in place, ask:
 

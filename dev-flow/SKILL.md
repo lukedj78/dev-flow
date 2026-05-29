@@ -29,6 +29,7 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 |---|---|---|---|
 | `next` (default if missing) | existing web skills | `design-md-to-app` | (this file) |
 | `expo-rn` | RN/Expo mobile skills | `rn-bootstrap` | `references/stack-expo-rn.md` |
+| `monorepo` | turborepo (web + mobile, shared packages) | `monorepo-bootstrap` | `references/stack-monorepo.md` |
 
 When `meta.json#stack.framework == "expo-rn"`:
 - `prd_drafted` or `design_extracted` → invoke `rn-bootstrap`
@@ -36,9 +37,16 @@ When `meta.json#stack.framework == "expo-rn"`:
 - `feature_complete` → invoke `rn-eas-deploy`
 - `deployed` → maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes
 
+When `meta.json#stack.framework == "monorepo"`:
+- `prd_drafted` or `design_extracted` → invoke `monorepo-bootstrap`
+- `monorepo_initialized` (new phase, mid-bootstrap) → `monorepo-bootstrap` continues (invokes `design-md-to-app` in `apps/web/` then `rn-bootstrap` in `apps/mobile/`)
+- `scaffolded` or `page_generated` or `module_added` → web side: `screenshot-to-page` / `module-add` (operate in `apps/web/`). Mobile side: `rn-add-screen` / `rn-module-add` (operate in `apps/mobile/`). Cross-cutting: `monorepo-add-shared-package`, `monorepo-sync-types`
+- `feature_complete` → web: `setup-deploy` (Vercel). Mobile: `rn-eas-deploy`. Run both.
+- `deployed` → maintenance loop on both sides
+
 If a stack value is not recognized, refuse and ask the user which stack to use. NEVER silently fall back to Next.js when `stack.framework` is set explicitly to something else.
 
-See `references/stack-expo-rn.md` for the full RN stack configuration.
+See `references/stack-expo-rn.md` for the full RN stack configuration and `references/stack-monorepo.md` for the monorepo stack configuration.
 
 ## Workflow
 
