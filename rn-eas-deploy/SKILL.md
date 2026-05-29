@@ -22,11 +22,11 @@ See `references/contracts.md`. Key facts:
 
 ## Knowledge dependencies (read these first)
 
-- `~/my-skills/rn-eas-build-submit-update/SKILL.md` — the underlying knowledge (eas.json, credentials, channels, runtimeVersion).
-- `~/my-skills/rn-eas-build-submit-update/references/eas-json.md` — canonical 3-profile shape.
-- `~/my-skills/rn-eas-build-submit-update/references/credentials.md` — how `eas credentials` works.
-- `~/my-skills/rn-publishing-payments/references/review-guidelines.md` — pre-submission checklist.
-- `~/my-skills/rn-publishing-payments/references/store-assets.md` — what assets must be ready.
+- `rn-eas-build-submit-update/SKILL.md` — the underlying knowledge (eas.json, credentials, channels, runtimeVersion).
+- `rn-eas-build-submit-update/references/eas-json.md` — canonical 3-profile shape.
+- `rn-eas-build-submit-update/references/credentials.md` — how `eas credentials` works.
+- `rn-publishing-payments/references/review-guidelines.md` — pre-submission checklist.
+- `rn-publishing-payments/references/store-assets.md` — what assets must be ready.
 
 ## Workflow
 
@@ -39,7 +39,7 @@ Read `.workflow/meta.json`. Abort if:
 
 ### Step 2 — Pre-submission checklist
 
-Walk through `~/my-skills/rn-publishing-payments/references/review-guidelines.md` "Pre-submission checklist". For each item, verify:
+Walk through `rn-publishing-payments/references/review-guidelines.md` "Pre-submission checklist". For each item, verify:
 
 - [ ] App icon present + correct size.
 - [ ] Screenshots ready in `store-assets/`.
@@ -60,7 +60,7 @@ If `eas.json` exists at project root: read and validate it has 3 profiles. If mi
 
 - Run `eas init` to link the project to the EAS account.
 - Run `eas build:configure` to generate `eas.json`.
-- Then patch the generated config to match the canonical shape in `~/my-skills/rn-eas-build-submit-update/references/eas-json.md`.
+- Then patch the generated config to match the canonical shape in `rn-eas-build-submit-update/references/eas-json.md`.
 
 Commit: `chore(eas): initialize eas.json with 3 profiles`.
 

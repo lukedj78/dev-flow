@@ -23,12 +23,12 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 
 ## Knowledge dependencies (read these first)
 
-- `~/my-skills/rn-fundamentals/SKILL.md` — file layout, modern primitives.
-- `~/my-skills/rn-styling/references/patterns.md` — root screen pattern, dark mode, FlashList.
-- `~/my-skills/rn-expo-router/references/concepts.md` — file-based routing rules.
-- `~/my-skills/rn-expo-router/references/patterns.md` — modal vs push, search params, auth gates.
-- `~/my-skills/rn-data-fetching/references/patterns.md` — if the screen fetches data, use the patterns there.
-- `~/my-skills/rn-components-apis/references/decision-tree.md` — which primitive (FlashList vs ScrollView, Pressable, etc.).
+- `rn-fundamentals/SKILL.md` — file layout, modern primitives.
+- `rn-styling/references/patterns.md` — root screen pattern, dark mode, FlashList.
+- `rn-expo-router/references/concepts.md` — file-based routing rules.
+- `rn-expo-router/references/patterns.md` — modal vs push, search params, auth gates.
+- `rn-data-fetching/references/patterns.md` — if the screen fetches data, use the patterns there.
+- `rn-components-apis/references/decision-tree.md` — which primitive (FlashList vs ScrollView, Pressable, etc.).
 
 ## Workflow
 

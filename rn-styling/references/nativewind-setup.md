@@ -4,7 +4,7 @@
 
 Run this *once* per project, at bootstrap time. `rn-bootstrap`'s `install-stack.sh` automates this — these are the manual steps for reference.
 
-> ⚠️ **Tailwind version constraint**: NativeWind v4 requires `tailwindcss@^3.4.x`. **Do NOT install Tailwind 4.x** — it changed config format and NativeWind v4 cannot parse it yet. See `~/my-skills/rn-fundamentals/references/stack-defaults.md` for the canonical version table.
+> ⚠️ **Tailwind version constraint**: NativeWind v4 requires `tailwindcss@^3.4.x`. **Do NOT install Tailwind 4.x** — it changed config format and NativeWind v4 cannot parse it yet. See `rn-fundamentals/references/stack-defaults.md` for the canonical version table.
 
 ## 1. Install
 

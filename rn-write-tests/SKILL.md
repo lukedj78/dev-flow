@@ -21,8 +21,8 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 
 ## Knowledge dependencies (read these first)
 
-- `~/my-skills/rn-fundamentals/SKILL.md` — TS strict, modern primitives the tests will see.
-- `~/my-skills/rn-data-fetching/references/patterns.md` — query/mutation patterns the tests must exercise.
+- `rn-fundamentals/SKILL.md` — TS strict, modern primitives the tests will see.
+- `rn-data-fetching/references/patterns.md` — query/mutation patterns the tests must exercise.
 
 ## Workflow
 

@@ -21,9 +21,9 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 
 ## Knowledge dependencies (read these first)
 
-- `~/my-skills/rn-fundamentals/SKILL.md` — confirms Expo SDK + New Architecture + TypeScript + npm.
-- `~/my-skills/rn-styling/references/nativewind-setup.md` — the 7-step NativeWind setup (this skill automates it).
-- `~/my-skills/rn-expo-router/references/concepts.md` — folder layout for `app/`.
+- `rn-fundamentals/SKILL.md` — confirms Expo SDK + New Architecture + TypeScript + npm.
+- `rn-styling/references/nativewind-setup.md` — the 7-step NativeWind setup (this skill automates it).
+- `rn-expo-router/references/concepts.md` — folder layout for `app/`.
 
 ## Workflow
 

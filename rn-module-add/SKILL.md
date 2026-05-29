@@ -17,22 +17,22 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
   - `realtime` module → `meta.json#stack.realtime` (new sub-key)
   - `push` module → `meta.json#stack.push` (new sub-key)
   - `payments` module → `meta.json#stack.payments`
-- Sets `meta.json#phase = "module-added"` after the first module, then leaves it.
+- Sets `meta.json#phase = "module_added"` after the first module, then leaves it.
 - Always idempotent: re-running with same provider detects existing wiring and exits 0.
 
 ## When this skill applies
 
-- Phase is `scaffolded` or `page_generated` or `module-added`.
+- Phase is `scaffolded` or `page_generated` or `module_added`.
 - User asks to add ONE module by name. (To add multiple, run the skill multiple times.)
 - Orchestrator routes here from `dev-flow`.
 
 ## Knowledge dependencies (read these first)
 
-- `~/my-skills/rn-fundamentals/SKILL.md` — TypeScript strict, modern primitives.
-- `~/my-skills/rn-backend/SKILL.md` — provider-agnostic client-auth architecture.
-- `~/my-skills/rn-backend/references/<provider>.md` — provider-specific wiring (supabase.md / firebase.md / custom-rest.md / trpc.md).
-- `~/my-skills/rn-push-notifications/references/setup.md` — for the push module.
-- `~/my-skills/rn-publishing-payments/references/revenuecat.md` — for the payments module.
+- `rn-fundamentals/SKILL.md` — TypeScript strict, modern primitives.
+- `rn-backend/SKILL.md` — provider-agnostic client-auth architecture.
+- `rn-backend/references/<provider>.md` — provider-specific wiring (supabase.md / firebase.md / custom-rest.md / trpc.md).
+- `rn-push-notifications/references/setup.md` — for the push module.
+- `rn-publishing-payments/references/revenuecat.md` — for the payments module.
 
 ## Workflow
 
@@ -76,14 +76,14 @@ Provider matrix:
 
 For each (module, provider) combination, write to `<project-root>/lib/`:
 
-- `auth/Supabase` → `lib/supabase.ts` (client) + `lib/auth.ts` (sign-in/out hooks). See `~/my-skills/rn-backend/references/supabase.md`.
-- `auth/Firebase` → `lib/firebase.ts` + `lib/auth.ts`. See `~/my-skills/rn-backend/references/firebase.md`.
-- `auth/custom-rest` → `lib/api.ts` (already exists from rn-bootstrap, extend with refresh-on-401) + `lib/auth.ts`. See `~/my-skills/rn-backend/references/custom-rest.md`.
-- `auth/tRPC` → `lib/trpc.ts` + `lib/auth.ts`. See `~/my-skills/rn-backend/references/trpc.md`.
-- `payments/RevenueCat` → `lib/purchases.ts` + `hooks/usePro.ts`. See `~/my-skills/rn-publishing-payments/references/revenuecat.md`.
-- `push/expo-notifications` → `lib/push.ts` + edits to `app/_layout.tsx` (handlers + permissions). See `~/my-skills/rn-push-notifications/references/patterns.md`.
+- `auth/Supabase` → `lib/supabase.ts` (client) + `lib/auth.ts` (sign-in/out hooks). See `rn-backend/references/supabase.md`.
+- `auth/Firebase` → `lib/firebase.ts` + `lib/auth.ts`. See `rn-backend/references/firebase.md`.
+- `auth/custom-rest` → `lib/api.ts` (already exists from rn-bootstrap, extend with refresh-on-401) + `lib/auth.ts`. See `rn-backend/references/custom-rest.md`.
+- `auth/tRPC` → `lib/trpc.ts` + `lib/auth.ts`. See `rn-backend/references/trpc.md`.
+- `payments/RevenueCat` → `lib/purchases.ts` + `hooks/usePro.ts`. See `rn-publishing-payments/references/revenuecat.md`.
+- `push/expo-notifications` → `lib/push.ts` + edits to `app/_layout.tsx` (handlers + permissions). See `rn-push-notifications/references/patterns.md`.
 
-ALWAYS also create `store/auth.ts` (Zustand) and ensure `app/(app)/_layout.tsx` redirects when unauthenticated — see `~/my-skills/rn-backend/references/patterns.md`.
+ALWAYS also create `store/auth.ts` (Zustand) and ensure `app/(app)/_layout.tsx` redirects when unauthenticated — see `rn-backend/references/patterns.md`.
 
 ### Step 6 — Update `.env.example` + `app.json`
 
@@ -107,7 +107,7 @@ For modules with native config plugin changes (Firebase, push), the next build w
 
 Update `meta.json`:
 - `stack.<module>`: set to the provider name (e.g. `"supabase"`, `"firebase"`, `"custom-rest"`, `"trpc"`, `"revenuecat"`, `"stripe"`, `"expo-notifications"`).
-- `phase`: if currently `"scaffolded"` or `"page_generated"`, set to `"module-added"`. Otherwise leave.
+- `phase`: if currently `"scaffolded"` or `"page_generated"`, set to `"module_added"`. Otherwise leave.
 - `history`: append `{ skill: "rn-module-add", ran_at: <iso>, inputs: { module, provider }, outputs: [<files>], phase_before, phase_after }`.
 
 If git repo: `git add` the new files + `git commit -m "feat(<module>): wire <provider>"`.
