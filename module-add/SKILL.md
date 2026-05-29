@@ -40,6 +40,16 @@ This skill follows the dev-flow contract — see `references/contracts.md`. Key 
 - Sets `phase = "module_added"` (only if current phase is earlier in the enum).
 - **Idempotent**: re-running the same module check whether it's already wired and skips/updates instead of duplicating.
 
+## Monorepo awareness
+
+Before Step 1: check `meta.json#stack.framework`.
+
+- If `"monorepo"`: this skill operates inside `apps/web/` (cwd = `<project-root>/apps/web/`) for web-specific modules (motion, email server actions, queries), AND inside `packages/api/` for modules consumed by both apps (auth, db, storage, realtime, payments — these are backend client wiring, not web-specific UI). Run `monorepo-sync-types` after `db` and `auth` modules to propagate types to `packages/shared/`.
+- If `"next"` / `"vite-react"` / `"remix"` / `"astro"` / etc.: operate at project root (current behavior, unchanged).
+- If `"expo-rn"`: refuse — use `rn-module-add` instead.
+
+For the monorepo case, "install + generate" means: install npm packages into the appropriate workspace (`pnpm add --filter @<slug>/web` or `pnpm add --filter @<slug>/api`), and generate code into the right sub-folder. Use the workspace-relative paths in all references below.
+
 ## Workflow
 
 ### Step 1 — Determine the target module + tech

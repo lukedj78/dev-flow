@@ -34,11 +34,23 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - `rn-push-notifications/references/setup.md` — for the push module.
 - `rn-publishing-payments/references/revenuecat.md` — for the payments module.
 
+## Monorepo awareness
+
+Before Step 1: check `meta.json#stack.framework`.
+
+- If `"expo-rn"` (mobile-only project): proceed normally, operate at project root.
+- If `"monorepo"`: this skill operates inside `apps/mobile/` for mobile-specific modules (push, RevenueCat, expo-image-picker), AND inside `packages/api/` for modules shared with web (auth, db, storage, realtime). For shared modules, do NOT re-install the SDK if `packages/api/` already has it from a prior `module-add` (web side) call. Run `monorepo-sync-types` after `db` and `auth` are wired.
+- If anything else: refuse — use `module-add` (web stacks) or `monorepo-bootstrap` (greenfield monorepo).
+
+For the monorepo case, "install + generate" means: install npm packages into the appropriate workspace (`pnpm add --filter @<slug>/mobile` for mobile-specific, `pnpm add --filter @<slug>/api` for shared backend client), and generate code into the right sub-folder. The reference paths below all reference `apps/mobile/` instead of project root.
+
 ## Workflow
 
 ### Step 1 — Verify preconditions
 
-Read `.workflow/meta.json`. Abort if `stack.framework != "expo-rn"` or `phase < "scaffolded"`.
+Read `.workflow/meta.json`. Abort if `stack.framework ∉ {"expo-rn", "monorepo"}` or `phase < "scaffolded"`.
+
+If `stack.framework == "monorepo"`, all subsequent file paths are relative to `apps/mobile/` (e.g. `apps/mobile/lib/auth.ts`) or `packages/api/src/` (e.g. `packages/api/src/auth.ts`). Honor the workspace conventions.
 
 ### Step 2 — Identify the module + provider
 
