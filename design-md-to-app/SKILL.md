@@ -1,6 +1,6 @@
 ---
 name: design-md-to-app
-description: 'Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. Supports shadcn/ui (Tailwind-based) and MUI. Integrates with the dev-flow contract: when a `.workflow/` exists, reads `meta.json#stack`, writes the app at the project root (alongside `.workflow/`), and bumps phase to `scaffolded`. Use whenever the user has a DESIGN.md and wants to scaffold an app, set up a theme, customize shadcn/MUI from these tokens, or "use this DESIGN.md to start an app". Trigger on "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / MUI", "crea l''app dal DESIGN.md", "init shadcn con questo DESIGN.md". Always ask shadcn vs MUI (with a suggestion) before generating, unless `meta.json#stack.ui` already specifies one.'
+description: 'Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. Supports three UI libraries: shadcn/ui (Tailwind + copy-pasted source), Base UI (Tailwind + headless library, no CLI overhead), and MUI (runtime themed, Material-flavored). Integrates with the dev-flow contract: when a `.workflow/` exists, reads `meta.json#stack`, writes the app at the project root (alongside `.workflow/`), and bumps phase to `scaffolded`. Use whenever the user has a DESIGN.md and wants to scaffold an app, set up a theme, customize shadcn/Base UI/MUI from these tokens, or "use this DESIGN.md to start an app". Trigger on "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI", "crea l''app dal DESIGN.md", "init shadcn con questo DESIGN.md". Always ask shadcn vs Base UI vs MUI (with a suggestion) before generating, unless `meta.json#stack.ui` already specifies one.'
 ---
 
 ## Dev-flow contract
@@ -75,14 +75,21 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 
 ### Step 2 — Pick the library
 
-Ask the user once: **shadcn/ui or MUI?** Offer a recommendation based on `references/library-choice.md`. Common heuristics:
+Ask the user once: **shadcn/ui, Base UI, or MUI?** Offer a recommendation based on `references/library-choice.md`. Common heuristics:
 
-- Highly custom visual identity (glassmorphism, brutalist, editorial, distinctive shapes) → **shadcn** wins, because every component is owned source.
-- Material-leaning, dashboard, enterprise CRUD, lots of data tables / dialogs out of the box → **MUI** wins.
-- Tailwind already in use, or the user wants utility-first → shadcn.
-- Heavy Material Icons / Material Design heritage → MUI.
+- Highly custom visual identity (glassmorphism, brutalist, editorial, distinctive shapes) + user wants to edit source → **shadcn**.
+- Same custom-Tailwind philosophy as shadcn but the user prefers a library they can `pnpm update` (no CLI / `components.json` overhead) → **Base UI**.
+- Material-leaning, dashboard, enterprise CRUD, lots of data tables / dialogs out of the box → **MUI**.
+- Tailwind already in use, or the user wants utility-first → **shadcn** or **Base UI** (toss-up; Base UI for less source-maintenance, shadcn for max control).
+- Heavy Material Icons / Material Design heritage → **MUI**.
+- Best accessibility track record without Material visuals → **Base UI** (same MUI team, headless).
 
-State the suggestion with a one-line rationale ("Suggerisco shadcn perché il tuo DESIGN.md descrive vetro/glassmorphism custom, che si esprime meglio con CSS owned"), then accept whatever the user picks.
+Mapping skill choice → `meta.json#stack.ui` → `references/<lib>-mapping.md`:
+- "shadcn" → `references/shadcn-mapping.md`
+- "base-ui" → `references/base-ui-mapping.md`
+- "mui" → `references/mui-mapping.md`
+
+State the suggestion with a one-line rationale ("Suggerisco Base UI perché vuoi l'aesthetics flessibile di shadcn ma senza la source-maintenance del CLI"), then accept whatever the user picks. After picking, load the matching `<lib>-mapping.md` and follow it for installation, theming, and component wiring.
 
 ### Step 3 — Pick the project target, framework, and scope
 

@@ -1,15 +1,19 @@
-# Suggesting shadcn/ui vs MUI
+# Suggesting shadcn/ui vs Base UI vs MUI
 
 The user picks. This file is for **how to suggest** before they do.
 
-The two libraries solve overlapping problems but with very different philosophies. The DESIGN.md usually contains enough hints to pick a strong default — but always frame it as a suggestion, not a decision.
+The three libraries solve overlapping problems with three different philosophies. The DESIGN.md usually contains enough hints to pick a strong default — but always frame it as a suggestion, not a decision.
 
 ## One-line mental model
 
-- **shadcn/ui**: you own the source. Every component lives in `components/ui/` and you edit it. Tailwind-based. No runtime theming layer — CSS variables + utility classes.
-- **MUI**: you import components and theme them. The source stays in `node_modules`. Emotion-based. A single `theme` object propagates everywhere through `ThemeProvider`.
+- **shadcn/ui**: you own the source. Every component lives in `components/ui/` and you edit it. Tailwind-based. No runtime theming layer — CSS variables + utility classes. CLI-managed (`shadcn@latest add ...`).
+- **Base UI**: headless React library (installed dep, not copy-pasted source). Same Tailwind philosophy as shadcn for styling, but no CLI — you `import` each primitive from `@base-ui-components/react` on demand. Same accessibility quality as MUI.
+- **MUI** (Material UI): runtime themed library. The source stays in `node_modules`. Emotion-based. A single `theme` object propagates everywhere through `ThemeProvider`.
 
-Practical implication: shadcn lets you go arbitrarily custom (because you're editing the code), MUI gets you to "good enough material defaults" fast and resists deep visual customization unless you're disciplined about overrides.
+Practical implication:
+- shadcn = max flexibility (own the code) + ongoing source maintenance.
+- Base UI = shadcn-like flexibility (headless + Tailwind) without source maintenance (it's a library).
+- MUI = "good enough Material defaults" fast, resists deep customization unless disciplined with overrides.
 
 ## Strong signals for shadcn
 
@@ -21,6 +25,18 @@ Pick shadcn when the DESIGN.md shows any of:
 - **Tailwind already in the project** or any mention of utility-first CSS.
 - **Need for fine-grained light/dark or themed surfaces** — CSS variables + Tailwind opacity modifiers are very flexible here.
 - The user says "I want to ship fast and customize later" with a custom-looking design.
+- The user wants to **inspect, copy, and modify** UI source on a per-component basis (shadcn ships source you can edit; Base UI doesn't).
+
+## Strong signals for Base UI
+
+Pick Base UI when the DESIGN.md shows any of:
+
+- **Headless + Tailwind philosophy preferred** (same as shadcn), BUT the user does NOT want to maintain copy-pasted source — they want a library they can `pnpm update` and not think about.
+- **Strong accessibility requirements** (WCAG AA+, screenreader-first, keyboard navigation rigor) — Base UI inherits MUI team's a11y track record without Material's visual baggage.
+- **Modest component surface** suffices: the DESIGN.md uses Buttons, Dialogs, Popovers, Tabs, Forms — none of the things Base UI hasn't shipped yet (Calendar / DatePicker / Drawer are NOT in Base UI as of 2026-05).
+- The user has tried shadcn before and found CLI updates / `components.json` maintenance friction.
+- **Tree-shake matters** — Base UI imports cleanly per-primitive; shadcn ships everything you `add --all` (negligible for most apps, mentionable for embedded / kiosks).
+- **The project is part of an MUI shop** but the new app's visual identity wants to escape Material — Base UI is the smooth migration path because the headless layer is the same team.
 
 ## Strong signals for MUI
 
@@ -35,18 +51,23 @@ Pick MUI when the DESIGN.md shows any of:
 
 If the DESIGN.md is moderately custom + moderately broad:
 
-- Default to **shadcn** if the user is solo / small team and wants to iterate on look.
-- Default to **MUI** if the user is in a team where multiple people will theme the app and a single source of truth (`theme.ts`) helps coordination.
+- Default to **shadcn** if the user is solo / small team and wants to iterate on look (and edit source).
+- Default to **Base UI** if the user wants the same flexibility without owning the source forever (library install, normal `pnpm update`).
+- Default to **MUI** if the user is in a team where multiple people will theme the app and a single source of truth (`theme.ts`) helps coordination, OR the design is already Material.
 
 ## How to phrase the suggestion
 
-Keep it tight. Two lines:
+Keep it tight. Two lines, with explicit "if not, try X" fallback to one of the other two:
 
-> **Suggerisco shadcn/ui.** Il DESIGN.md descrive vetro/glassmorphism e usa molti nomi custom (`card-glass-level-2`, `badge-celestial`) — modificare il sorgente è la via più diretta. Se vuoi MUI lo stesso, dimmelo.
+> **Suggerisco shadcn/ui.** Il DESIGN.md descrive vetro/glassmorphism e usa molti nomi custom (`card-glass-level-2`, `badge-celestial`) — modificare il sorgente è la via più diretta. Se preferisci una libreria senza source-maintenance, Base UI è equivalente con `pnpm add @base-ui-components/react`. Dimmi.
 
 Or:
 
-> **Suggerisco MUI.** I tuoi token sono Material 3 puro (`surface-container-*`, `inverse-on-surface`) e il prodotto sembra una dashboard — la libreria già copre il 90% di quello che ti serve. shadcn rimane valido se vuoi più libertà visiva.
+> **Suggerisco Base UI.** Il design è custom (Tailwind tokens chiari, look distintivo) ma vuoi una libreria che si aggiorna sola — Base UI è shadcn-philosophy senza il CLI overhead. shadcn rimane valido se preferisci copy-pasted source, MUI se il design fosse stato Material.
+
+Or:
+
+> **Suggerisco MUI.** I tuoi token sono Material 3 puro (`surface-container-*`, `inverse-on-surface`) e il prodotto sembra una dashboard — la libreria già copre il 90% di quello che ti serve. shadcn o Base UI rimangono validi se vuoi più libertà visiva.
 
 Then accept whatever the user picks without arguing.
 
