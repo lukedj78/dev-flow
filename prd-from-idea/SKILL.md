@@ -45,19 +45,27 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 ### Step 3 — Interview the user (the high-leverage questions)
 
-For `PROJECT.md`, ask **at most 6 questions**, in this order. Skip any the user already answered in their initial paste.
+For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)
 3. **How do they solve it today?** (status quo / competitors)
 4. **What's the wedge?** (the one thing this product does better than the status quo — be ruthless, one sentence)
 5. **What does success look like in 6 months?** (one or two measurable signals — MAU, revenue, retention, qualitative quotes)
-6. **What's the primary target — web, mobile (iOS+Android), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
+6. **What's the primary target — web, mobile (iOS+Android), both (monorepo), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
    - "web" / "web app" / no answer → `stack.framework: "next"` (current default for web)
    - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
+   - "both" / "monorepo" / "web + mobile" / "stesso prodotto su entrambi" → `stack.framework: "monorepo"` (note: `monorepo-bootstrap` is planned but not yet shipped — say so if picked)
    - "desktop" → out of scope for this skill set — refuse politely and refer the user to Tauri/Electron docs.
+7. **(Web side only — skip for `expo-rn`)** **Which UI library — shadcn/ui, Base UI, or MUI?** Map the answer → `meta.json#stack.ui`:
+   - "shadcn" / "shadcn/ui" / "i want to own the source" → `stack.ui: "shadcn"`
+   - "base ui" / "base-ui" / "headless library no CLI" → `stack.ui: "base-ui"`
+   - "mui" / "material ui" / "material design" / "internal tool with lots of tables" → `stack.ui: "mui"`
+   - No clear answer → default to `"shadcn"` (most flexible / well-trodden path), explain briefly, let the user override.
 
-Write `stack.framework` into `meta.json` immediately so downstream skills (`prd-to-tasks`, `dev-flow` routing) see it. Other `stack.*` keys (`ui`, `auth`, `db`, `payments`, `deploy`) remain `null` at this stage — they get filled in by `rn-bootstrap` / `design-md-to-app` / `module-add` / `rn-module-add` later.
+For `monorepo` projects, ask Q7 separately for **web side** (shadcn/Base UI/MUI). Mobile side is fixed at `"nativewind"` so no ask needed.
+
+Write `stack.framework` and `stack.ui` into `meta.json` immediately so downstream skills (`prd-to-tasks`, `dev-flow` routing, `design-md-to-app` library branch) see it. Other `stack.*` keys (`auth`, `db`, `payments`, `deploy`) remain `null` at this stage — they get filled in by `rn-bootstrap` / `design-md-to-app` / `module-add` / `rn-module-add` later.
 
 For `PRD.md`, after `PROJECT.md` is in place, ask:
 

@@ -107,12 +107,16 @@ When transitioning out of `prd_drafted` and into scaffolding, the user has to ch
 
 | Profile | framework | ui | auth | db | payments | deploy |
 |---|---|---|---|---|---|---|
-| **SaaS B2B** (web) | next | shadcn | better-auth | neon-drizzle | stripe | vercel |
+| **SaaS B2B** (web, distinctive brand) | next | shadcn | better-auth | neon-drizzle | stripe | vercel |
+| **SaaS B2B** (web, low-maintenance UI) | next | base-ui | better-auth | neon-drizzle | stripe | vercel |
 | **B2C consumer** (web) | next | shadcn | clerk | supabase | stripe | vercel |
 | **Marketing site** | astro | shadcn-astro | null | null | null | vercel |
-| **Internal tool** (web) | vite-react | shadcn | better-auth | neon-drizzle | null | null |
+| **Internal tool / enterprise** (web) | next | mui | better-auth | neon-drizzle | null | null |
+| **Editorial / distinctive brand** (web) | next | shadcn | better-auth | neon-drizzle | null | vercel |
+| **Headless + a11y-first** (web) | next | base-ui | better-auth | neon-drizzle | null | vercel |
 | **Mobile app (iOS+Android)** | expo-rn | nativewind | supabase | supabase | revenuecat | eas |
 | **Mobile app, custom backend** | expo-rn | nativewind | custom-rest | custom-rest | revenuecat | eas |
+| **Monorepo (web + mobile)** *(planned)* | monorepo | `{web: <shadcn\|base-ui\|mui>, mobile: nativewind}` | supabase | supabase | revenuecat + stripe | eas + vercel |
 
 Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
 
