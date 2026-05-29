@@ -121,6 +121,21 @@ If git repo: `git add` the new files + `git commit -m "feat(<module>): wire <pro
 - ❌ Add a module that requires a new dev build without printing the "rebuild required" reminder.
 - ❌ Use `npm install` without `--legacy-peer-deps` — fails on Expo SDK 54 (see `rn-bootstrap` lessons-learned).
 
+## Updating meta.json (recommended pattern)
+
+When this skill modifies state (artifact written, phase advanced, history appended), use the canonical script when available:
+
+```bash
+# Wherever dev-flow is installed (e.g. ~/.claude/skills/dev-flow/), invoke:
+python3 .../dev-flow/scripts/update_meta.py <project-root> record-artifact \
+    --path <relative-path> --produced-by '<this-skill-name>' [--derived-from <p1> <p2> ...]
+python3 .../dev-flow/scripts/update_meta.py <project-root> set-phase <new_phase>
+python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
+    --skill '<this-skill-name>' --inputs '{...}' --outputs '{...}' --phase-after <new_phase>
+```
+
+The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
+
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — Backend Basics + Supabase + Publishing/Payments modules (paid).

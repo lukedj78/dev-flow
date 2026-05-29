@@ -96,6 +96,21 @@ git commit -m "test(<area>): cover <what>"
 - ❌ Skipping cleanup → tests leak state. Always use RNTL's auto-cleanup (default).
 - ❌ Sleeping `await new Promise(r => setTimeout(r, 1000))` → use `waitFor` with explicit assertions.
 
+## Updating meta.json (recommended pattern)
+
+When this skill modifies state (artifact written, phase advanced, history appended), use the canonical script when available:
+
+```bash
+# Wherever dev-flow is installed (e.g. ~/.claude/skills/dev-flow/), invoke:
+python3 .../dev-flow/scripts/update_meta.py <project-root> record-artifact \
+    --path <relative-path> --produced-by '<this-skill-name>' [--derived-from <p1> <p2> ...]
+python3 .../dev-flow/scripts/update_meta.py <project-root> set-phase <new_phase>
+python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
+    --skill '<this-skill-name>' --inputs '{...}' --outputs '{...}' --phase-after <new_phase>
+```
+
+The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
+
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — "Testing" module (paid, distilled).
