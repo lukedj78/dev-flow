@@ -1,0 +1,439 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-05-29T20:26:19Z",
+  "generated_by": "scripts/build_skills_registry.py",
+  "skill_count": 24,
+  "families": {
+    "core": [
+      "dev-flow",
+      "prd-from-idea",
+      "prd-to-tasks"
+    ],
+    "web": [
+      "design-md-to-app",
+      "figma-to-design-md",
+      "image-to-design-md",
+      "module-add",
+      "screenshot-to-page",
+      "write-tests"
+    ],
+    "mobile": [
+      "rn-add-screen",
+      "rn-animations-gestures",
+      "rn-backend",
+      "rn-bootstrap",
+      "rn-components-apis",
+      "rn-data-fetching",
+      "rn-eas-build-submit-update",
+      "rn-eas-deploy",
+      "rn-expo-router",
+      "rn-fundamentals",
+      "rn-module-add",
+      "rn-publishing-payments",
+      "rn-push-notifications",
+      "rn-styling",
+      "rn-write-tests"
+    ]
+  },
+  "skills": [
+    {
+      "name": "dev-flow",
+      "family": "core",
+      "role": "orchestrator",
+      "description": "Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`,...",
+      "skill_file": "dev-flow/SKILL.md",
+      "references": [
+        "contracts.md",
+        "stack-expo-rn.md"
+      ],
+      "scripts": [
+        "check_drift.py",
+        "init_workflow.py",
+        "show_state.py",
+        "update_meta.py"
+      ],
+      "skill_md_lines": 161,
+      "bundle": "dist/dev-flow.skill"
+    },
+    {
+      "name": "prd-from-idea",
+      "family": "core",
+      "role": "discovery",
+      "description": "Turn a raw product idea (a paragraph, a Notion dump, a half-formed thought) into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project's `.workflow/` folder, following the dev-flow contract. Use when the user pastes a product idea and says \"let's plan...",
+      "skill_file": "prd-from-idea/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 185,
+      "bundle": "dist/prd-from-idea.skill"
+    },
+    {
+      "name": "prd-to-tasks",
+      "family": "core",
+      "role": "discovery",
+      "description": "Break down a PRD.md into a concrete, executable `tasks.md` checklist that a developer or an AI agent can pick up and ship. Reads `.workflow/PRD.md` (and `.workflow/PROJECT.md` for context), produces `.workflow/tasks.md` with one task per checkable bullet, grouped by user story or epic, sized to ~2–8...",
+      "skill_file": "prd-to-tasks/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 133,
+      "bundle": "dist/prd-to-tasks.skill"
+    },
+    {
+      "name": "rn-add-screen",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Use to add a new screen to an existing Expo + RN app: from a description, a wireframe, or a screenshot, generate the route file in app/ (Expo Router file-based), wire up data fetching via TanStack Query if needed, apply NativeWind classes from the project DESIGN.md tokens, and respect the scaffolded...",
+      "skill_file": "rn-add-screen/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md",
+        "screen-patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 121,
+      "bundle": "dist/rn-add-screen.skill"
+    },
+    {
+      "name": "rn-animations-gestures",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when adding animations or gestures to a React Native + Expo app: scale/opacity/translation transitions, layout animations (FadeIn/SlideIn/FadeOut), shared-value driven motion, swipe-to-delete, pan/pinch/long-press gestures, scroll-linked animations. Triggers on: \"anima questo\", \"swipe to X\", \"fa...",
+      "skill_file": "rn-animations-gestures/SKILL.md",
+      "references": [
+        "decision-tree.md",
+        "patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 35,
+      "bundle": "dist/rn-animations-gestures.skill"
+    },
+    {
+      "name": "rn-backend",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use to connect an Expo + RN app to a backend (auth, database, storage, realtime), agnostic of the provider. Teaches the shared patterns: secure-store for tokens, auth state via Zustand + TanStack Query, refresh-on-401 middleware, auth-gate routing via Expo Router (app)/_layout.tsx, row-level securit...",
+      "skill_file": "rn-backend/SKILL.md",
+      "references": [
+        "concepts.md",
+        "custom-rest.md",
+        "decision-tree.md",
+        "firebase.md",
+        "patterns.md",
+        "supabase.md",
+        "trpc.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 41,
+      "bundle": "dist/rn-backend.skill"
+    },
+    {
+      "name": "rn-bootstrap",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Scaffold a new Expo + React Native app from a PROJECT.md + PRD.md + DESIGN.md using the opinionated stack (Expo Router, TypeScript, NativeWind v4, Zustand, TanStack Query, Reanimated, expo-image, FlashList). Reads .workflow/meta.json with stack.framework=\"expo-rn\" and phase in {prd_drafted, design_e...",
+      "skill_file": "rn-bootstrap/SKILL.md",
+      "references": [
+        "contracts.md",
+        "post-bootstrap-checklist.md",
+        "stack-defaults.md"
+      ],
+      "scripts": [
+        "init-expo-app.sh",
+        "install-stack.sh",
+        "verify.ts",
+        "wire-nativewind.ts"
+      ],
+      "skill_md_lines": 99,
+      "bundle": "dist/rn-bootstrap.skill"
+    },
+    {
+      "name": "rn-components-apis",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when working with React Native core components (View, Text, ScrollView, FlatList, TextInput, Pressable, Modal, KeyboardAvoidingView, SafeAreaView) or platform APIs (Platform, Dimensions, useWindowDimensions, Linking, AppState). Triggers on: \"which RN component should I use\", \"ScrollView vs FlatL...",
+      "skill_file": "rn-components-apis/SKILL.md",
+      "references": [
+        "decision-tree.md",
+        "patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 36,
+      "bundle": "dist/rn-components-apis.skill"
+    },
+    {
+      "name": "rn-data-fetching",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when fetching data from APIs in React Native: choosing between fetch+useEffect (didactic only) and TanStack Query (production default), wiring the QueryClient provider, building queries / mutations / optimistic updates / paginated and infinite lists / cache invalidation / refetch on focus, handl...",
+      "skill_file": "rn-data-fetching/SKILL.md",
+      "references": [
+        "concepts.md",
+        "decision-tree.md",
+        "patterns.md",
+        "tanstack-query-setup.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 38,
+      "bundle": "dist/rn-data-fetching.skill"
+    },
+    {
+      "name": "rn-eas-build-submit-update",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use for cloud builds and OTA updates of an Expo + RN app via EAS: configuring eas.json profiles (development/preview/production), managing credentials (APNs key, Android keystore) without committing them to git, submitting builds to App Store Connect / Google Play via EAS Submit, shipping JS-only fi...",
+      "skill_file": "rn-eas-build-submit-update/SKILL.md",
+      "references": [
+        "credentials.md",
+        "decision-tree.md",
+        "eas-json.md",
+        "workflows.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 37,
+      "bundle": "dist/rn-eas-build-submit-update.skill"
+    },
+    {
+      "name": "rn-eas-deploy",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Use to deploy an Expo + RN app end-to-end: initialize eas.json with 3 profiles (development/preview/production), set up credentials (APNs key, Android keystore) via `eas credentials`, build for preview to smoke-test, build production, submit to App Store Connect + Play Console via EAS Submit, config...",
+      "skill_file": "rn-eas-deploy/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md",
+        "deploy-checklist.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 170,
+      "bundle": "dist/rn-eas-deploy.skill"
+    },
+    {
+      "name": "rn-expo-router",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when working with navigation in an Expo + React Native app: adding routes, building tab/stack/drawer layouts, modal routes, dynamic segments (e.g. /profile/[id]), typed routes, deep linking, search params. Triggers on: \"add a route\", \"wire up tabs\", \"open as modal\", \"set up deep linking\", \"confi...",
+      "skill_file": "rn-expo-router/SKILL.md",
+      "references": [
+        "concepts.md",
+        "decision-tree.md",
+        "deep-linking-setup.md",
+        "patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 33,
+      "bundle": "dist/rn-expo-router.skill"
+    },
+    {
+      "name": "rn-fundamentals",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use at the start of any React Native or Expo task to lock in foundational choices: Expo managed workflow as default, latest Expo SDK with New Architecture ON, TypeScript, npm. Triggers on: \"starting a new RN/Expo project\", \"what is the right architecture for an Expo app\", \"managed vs bare workflow\",...",
+      "skill_file": "rn-fundamentals/SKILL.md",
+      "references": [
+        "concepts.md",
+        "decision-tree.md",
+        "patterns.md",
+        "stack-defaults.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 35,
+      "bundle": "dist/rn-fundamentals.skill"
+    },
+    {
+      "name": "rn-module-add",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat). Installs deps, generates the wi...",
+      "skill_file": "rn-module-add/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md",
+        "module-matrix.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 142,
+      "bundle": "dist/rn-module-add.skill"
+    },
+    {
+      "name": "rn-publishing-payments",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when preparing an Expo + RN app for store submission (metadata, screenshots, localized listings, privacy nutrition label, age rating) and integrating monetization (In-App Purchases via RevenueCat for digital goods/subscriptions; Stripe via WebView ONLY for non-digital services). Triggers on: \"su...",
+      "skill_file": "rn-publishing-payments/SKILL.md",
+      "references": [
+        "decision-tree.md",
+        "revenuecat.md",
+        "review-guidelines.md",
+        "store-assets.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 39,
+      "bundle": "dist/rn-publishing-payments.skill"
+    },
+    {
+      "name": "rn-push-notifications",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when adding push or local notifications to an Expo + RN app: requesting permissions at the right moment, registering for push (Expo push service in dev, APNs/FCM direct in prod), handling foreground + tapped + cold-start notifications, deep linking from a notification payload to a specific route...",
+      "skill_file": "rn-push-notifications/SKILL.md",
+      "references": [
+        "decision-tree.md",
+        "patterns.md",
+        "setup.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 35,
+      "bundle": "dist/rn-push-notifications.skill"
+    },
+    {
+      "name": "rn-styling",
+      "family": "mobile",
+      "role": "knowledge",
+      "description": "Use when styling React Native + Expo components: choosing between StyleSheet/NativeWind/inline, wiring NativeWind v4 from DESIGN.md tokens, handling Flexbox in RN (column-by-default, not row), safe-area insets, dark mode, responsive design with useWindowDimensions, optimized images via expo-image, p...",
+      "skill_file": "rn-styling/SKILL.md",
+      "references": [
+        "concepts.md",
+        "decision-tree.md",
+        "nativewind-setup.md",
+        "patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 38,
+      "bundle": "dist/rn-styling.skill"
+    },
+    {
+      "name": "rn-write-tests",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused ...",
+      "skill_file": "rn-write-tests/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md",
+        "jest-setup.md",
+        "maestro-setup.md",
+        "rntl-patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 119,
+      "bundle": "dist/rn-write-tests.skill"
+    },
+    {
+      "name": "design-md-to-app",
+      "family": "web",
+      "role": "operative",
+      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. Supports three UI libraries: shadcn/ui (Tailwind + copy-...",
+      "skill_file": "design-md-to-app/SKILL.md",
+      "references": [
+        "anti-slop-fallbacks.md",
+        "base-ui-mapping.md",
+        "contracts.md",
+        "library-choice.md",
+        "mui-mapping.md",
+        "shadcn-mapping.md",
+        "showcase-template.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "build_registry.py",
+        "parse_design_md.py"
+      ],
+      "skill_md_lines": 1030,
+      "bundle": "dist/design-md-to-app.skill"
+    },
+    {
+      "name": "figma-to-design-md",
+      "family": "web",
+      "role": "operative",
+      "description": "Use when the user provides a Figma URL and wants to export/extract/generate design tokens, colors, typography, or system documentation into DESIGN.md format—a portable, AI-readable design standard. Includes requests like \"crea il design.md\", \"estrai i token\", \"portare il design fuori da figma\", \"des...",
+      "skill_file": "figma-to-design-md/SKILL.md",
+      "references": [
+        "contracts.md",
+        "example.md",
+        "figma-api.md",
+        "figma-manual.md",
+        "figma-mcp.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "figma_api_fetch.py",
+        "quantize_palette.py"
+      ],
+      "skill_md_lines": 199,
+      "bundle": "dist/figma-to-design-md.skill"
+    },
+    {
+      "name": "image-to-design-md",
+      "family": "web",
+      "role": "operative",
+      "description": "Generate a DESIGN.md (Google design.md spec) from 1+ raster images — PNG / JPG screenshots, mockups, Pinterest pins, Dribbble shots, competitor app captures. Extracts palette via k-means, identifies typography + components via vision-LLM, infers layout / radius / spacing, synthesizes a spec-complian...",
+      "skill_file": "image-to-design-md/SKILL.md",
+      "references": [
+        "contracts.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "aggregate_palettes.py",
+        "quantize_palette.py"
+      ],
+      "skill_md_lines": 176,
+      "bundle": "dist/image-to-design-md.skill"
+    },
+    {
+      "name": "module-add",
+      "family": "web",
+      "role": "operative",
+      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to inst...",
+      "skill_file": "module-add/SKILL.md",
+      "references": [
+        "contracts.md",
+        "module-auth.md",
+        "module-ci.md",
+        "module-db.md",
+        "module-email.md",
+        "module-motion.md",
+        "module-payments.md",
+        "module-stubs.md",
+        "module-test.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 129,
+      "bundle": "dist/module-add.skill"
+    },
+    {
+      "name": "screenshot-to-page",
+      "family": "web",
+      "role": "operative",
+      "description": "Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project's DESIGN.md tokens and the existing UI library (shadcn or MUI). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.workflow/meta.json`...",
+      "skill_file": "screenshot-to-page/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [
+        "visual_diff.py"
+      ],
+      "skill_md_lines": 243,
+      "bundle": "dist/screenshot-to-page.skill"
+    },
+    {
+      "name": "write-tests",
+      "family": "web",
+      "role": "operative",
+      "description": "Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query). Reads the project's wired test framework from `.workflow/meta.json#stack.test`, follows the mocking patterns already present in `vitest.setup.ts` and any sibling test file...",
+      "skill_file": "write-tests/SKILL.md",
+      "references": [
+        "contracts.md",
+        "test-component.md",
+        "test-page-e2e.md",
+        "test-query.md",
+        "test-server-action.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 160,
+      "bundle": "dist/write-tests.skill"
+    }
+  ]
+}
