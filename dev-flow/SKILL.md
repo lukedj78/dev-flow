@@ -32,7 +32,7 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 When `meta.json#stack.framework == "expo-rn"`:
 - `prd_drafted` or `design_extracted` → invoke `rn-bootstrap`
-- `scaffolded` or `page_generated` or `module-added` → invoke `rn-add-screen` (UI) or `rn-module-add` (backend/infra) or `rn-write-tests` (tests)
+- `scaffolded` or `page_generated` or `module_added` → invoke `rn-add-screen` (UI) or `rn-module-add` (backend/infra) or `rn-write-tests` (tests)
 - `feature_complete` → invoke `rn-eas-deploy`
 - `deployed` → maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes
 
@@ -78,7 +78,7 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `design_extracted` | `design-md-to-app` (this is the natural next step — DESIGN.md exists, time to scaffold). |
 | `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; iterate. |
 | `page_generated` | `module-add` or more `screenshot-to-page` runs. |
-| `module-added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. For `expo-rn` stack, also `rn-eas-deploy` once feature-complete. |
+| `module_added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. For `expo-rn` stack, also `rn-eas-deploy` once feature-complete. |
 | `feature_complete` | (mobile only — `expo-rn` stack) → `rn-eas-deploy` to build, submit, and ship to App Store + Play Store. |
 | `deployed` | (mobile only) maintenance loop: more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`, telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
@@ -99,7 +99,7 @@ After the specialist returns, **read `meta.json` again** to confirm the phase ad
 
 ### Step 4 — Loop
 
-Most projects need multiple specialists in sequence. The orchestrator's job is to keep going: after one specialist finishes, immediately re-evaluate state and propose the next step. Keep looping until the user says "stop" or `phase` reaches `module-added` and the user has nothing more to add.
+Most projects need multiple specialists in sequence. The orchestrator's job is to keep going: after one specialist finishes, immediately re-evaluate state and propose the next step. Keep looping until the user says "stop" or `phase` reaches `module_added` and the user has nothing more to add.
 
 ## Stack decisions
 

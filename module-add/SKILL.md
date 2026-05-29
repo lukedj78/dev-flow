@@ -37,7 +37,7 @@ This skill follows the dev-flow contract — see `references/contracts.md`. Key 
 - Reads `<root>/.workflow/meta.json#stack` to honor existing choices.
 - Modifies `<project-root>/` (installs deps, writes config, writes one example route or function).
 - Updates `meta.json#stack` to record the module's tech choice (e.g., `stack.auth = "better-auth"`).
-- Sets `phase = "module-added"` (only if current phase is earlier in the enum).
+- Sets `phase = "module_added"` (only if current phase is earlier in the enum).
 - **Idempotent**: re-running the same module check whether it's already wired and skips/updates instead of duplicating.
 
 ## Workflow
@@ -82,7 +82,7 @@ After install + config:
 ### Step 5 — Update state and report
 
 Update `.workflow/meta.json`:
-- if current phase is earlier than `module-added`, set `phase = "module-added"`. (Phase is monotonic — running `module-add` multiple times keeps the phase, just appends to history.)
+- if current phase is earlier than `module_added`, set `phase = "module_added"`. (Phase is monotonic — running `module-add` multiple times keeps the phase, just appends to history.)
 - record the chosen tech: `stack.<module> = "<tech>"`.
 - bump `updated_at`.
 - append history:
@@ -93,7 +93,7 @@ Update `.workflow/meta.json`:
     "inputs": {"module": "auth", "tech": "better-auth"},
     "outputs": ["lib/auth.ts", "lib/auth-client.ts", "app/api/auth/[...all]/route.ts", "app/sign-in/page.tsx", ".env.local.example"],
     "phase_before": "<prev>",
-    "phase_after": "module-added"
+    "phase_after": "module_added"
   }
   ```
 

@@ -12,7 +12,7 @@ The unit of work is **deliberately small** because tests rot when they're auto-g
 ## When this skill applies
 
 - The user names a source file: "scrivi i test per `lib/server/clienti.ts`", "test per `app/checkout/page.tsx`", "e2e per /scadenze".
-- The orchestrator routes here from `module-added` (test infrastructure exists) when the user wants per-feature coverage.
+- The orchestrator routes here from `module_added` (test infrastructure exists) when the user wants per-feature coverage.
 - The project has a wired test stack — `meta.json#stack.test` is set, OR `vitest.config.ts` + `playwright.config.ts` exist at the root.
 
 ## Contract
@@ -32,7 +32,7 @@ This skill follows the dev-flow contract — see `references/contracts.md`. Key 
 Read `<project-root>/.workflow/meta.json`:
 
 - `stack.test` must be set (e.g., `"vitest+playwright"`). If `null`, stop and tell the user: *"Test infrastructure not wired. Run `module-add test` first, then come back."*
-- `phase` should be `module-added` or later. If earlier, the project might not have anything testable yet — warn and ask whether to proceed.
+- `phase` should be `module_added` or later. If earlier, the project might not have anything testable yet — warn and ask whether to proceed.
 
 If `stack.test` is unset but `vitest.config.ts` exists at the project root, the user installed Vitest manually outside the contract. Proceed, but log this in the user-facing summary so they can re-run `module-add test` to formalize.
 

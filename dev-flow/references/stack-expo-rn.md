@@ -37,7 +37,7 @@ The `stack` object follows the existing contract (see `contracts.md`). `framewor
 | Phase | Skill |
 |---|---|
 | `prd_drafted` or `design_extracted` | `rn-bootstrap` |
-| `scaffolded` or `page_generated` or `module-added` | `rn-add-screen` (UI), `rn-write-tests` (tests), `rn-module-add` (auth/db/storage/realtime/push/payments) |
+| `scaffolded` or `page_generated` or `module_added` | `rn-add-screen` (UI), `rn-write-tests` (tests), `rn-module-add` (auth/db/storage/realtime/push/payments) |
 | `feature_complete` | `rn-eas-deploy` |
 | `deployed` | maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes |
 

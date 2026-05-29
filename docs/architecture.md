@@ -40,7 +40,7 @@ A dev-flow project is a **standard codebase root** with a `.workflow/` overlay:
   "project_name": "Wisely",
   "created_at": "2026-04-25T17:00:00Z",
   "updated_at": "2026-04-25T18:00:00Z",
-  "phase": "module-added",
+  "phase": "module_added",
   "stack": {
     "framework": "next",
     "ui": "shadcn",
@@ -93,7 +93,7 @@ The `phase` field tracks the project's progress through the pipeline. **Monotoni
 | `design_extracted` | `figma-to-design-md` / `image-to-design-md` / manual import | `design-md-to-app` |
 | `scaffolded` | `design-md-to-app` | `screenshot-to-page`, `module-add` |
 | `page_generated` | `screenshot-to-page` | `module-add`, more `screenshot-to-page` |
-| `module-added` | `module-add` | iterate (no terminal state) |
+| `module_added` | `module-add` | iterate (no terminal state) |
 
 If a skill encounters an unknown phase value, it must NOT crash — it logs a warning and treats it as `empty` for routing purposes. New phases can be added; old skills will simply skip them.
 
@@ -119,7 +119,7 @@ Use `null` (not `"none"`) for "not decided yet".
   "inputs": { "module": "auth", "tech": "better-auth" },
   "outputs": ["lib/auth.ts", "lib/auth-client.ts", "app/api/auth/[...all]/route.ts"],
   "phase_before": "scaffolded",
-  "phase_after": "module-added"
+  "phase_after": "module_added"
 }
 ```
 

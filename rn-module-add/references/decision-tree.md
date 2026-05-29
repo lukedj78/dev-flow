@@ -45,7 +45,7 @@ Behavior:
 - The `lib/supabase.ts` client is already there (from auth).
 - The skill ONLY adds `lib/queries/` templates and sets `stack.db = "supabase"`.
 - No duplicate install, no duplicate file.
-- Phase remains "module-added".
+- Phase remains "module_added".
 ```
 
 ## Q5: What if I want to SWAP a provider mid-project?
