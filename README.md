@@ -1,7 +1,7 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **24 skills (9 web + 15 mobile)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **27 skills (9 web + 15 mobile + 3 monorepo)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 
 ```
                       ┌────────────────────────┐
@@ -37,7 +37,7 @@
 
 The skills are **interchangeable consumers** of the contract. Tomorrow you could rewrite any of them in TypeScript, swap one out for a Cursor-flavored variant, or extend with your own — as long as they read `meta.json` and respect the phase semantics, they compose.
 
-**Two stacks today, one contract.** The web stack ships Next.js + shadcn/ui apps; the mobile stack ships Expo + React Native + NativeWind apps with EAS publishing to the App Store + Play Store. `dev-flow` (the orchestrator) reads `meta.json#stack.framework` and routes to the correct family — `prd-from-idea` and `prd-to-tasks` are stack-agnostic and used by both.
+**Three stacks today, one contract.** The web stack ships Next.js (or Astro/Vite) + shadcn/Base UI/MUI apps; the mobile stack ships Expo + React Native + NativeWind apps with EAS publishing to the App Store + Play Store; the **monorepo** stack ships both in one turborepo (with `apps/web/` + `apps/mobile/` + shared `packages/`). `dev-flow` (the orchestrator) reads `meta.json#stack.framework` and routes to the correct family — `prd-from-idea` and `prd-to-tasks` are stack-agnostic and used by all three.
 
 ---
 
@@ -650,9 +650,9 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 
 ---
 
-## The 24 skills, in detail
+## The 27 skills, in detail
 
-> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — both stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`. `dev-flow` reads that key and routes.
+> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -850,6 +850,44 @@ The 15 mobile skills mirror the web stack philosophy: opinionated defaults, idem
 Typical timeline: 12–16 hours of focused work from PRD to live submission.
 
 **Single-source canonical reference**: [`dev-flow/references/stack-expo-rn.md`](./dev-flow/references/stack-expo-rn.md) — what `stack.framework="expo-rn"` means, which skill for which phase, what keys live under `meta.json#stack`, which web skills are NEVER invoked on this stack (`design-md-to-app`, `module-add`, `screenshot-to-page`, etc. are web-only).
+
+### Monorepo stack (turborepo: web + mobile + shared packages)
+
+The 3 monorepo skills compose a single repo where both a Next.js web app AND an Expo + RN mobile app live side-by-side, sharing types, design tokens, and the backend client. Activated by answering "both / monorepo" at the target-platform question in `prd-from-idea` (sets `meta.json#stack.framework="monorepo"`).
+
+**Stack opinions baked in**:
+
+- **pnpm workspaces + turborepo** (only — no yarn/nx/lerna).
+- **One `.workflow/`** in repo root, shared by both apps (one PRD, one DESIGN.md).
+- **3 mandatory packages**: `packages/shared/` (types + Zod + business logic), `packages/design/` (DESIGN.md → Tailwind + NativeWind presets), `packages/api/` (backend client + queries).
+- **No cross-platform UI library** — web uses shadcn/Base UI/MUI, mobile uses NativeWind. Components stay platform-specific.
+- **Backend shared, payment split**: auth/db/storage shared via `packages/api/`; web payments via Stripe, mobile via RevenueCat (Apple 3.1.1 mandate).
+- **Deploy split**: web on Vercel, mobile on EAS — two pipelines in parallel.
+
+**The 3 monorepo skills**:
+
+| Skill | When it triggers |
+|---|---|
+| `monorepo-bootstrap` | Phase `prd_drafted` + `stack.framework="monorepo"`. Scaffolds root configs (pnpm-workspace.yaml, turbo.json, tsconfig.base.json), invokes `design-md-to-app` in `apps/web/`, invokes `rn-bootstrap` in `apps/mobile/`, generates the 3 shared package skeletons, patches Metro config for the workspace topology. Idempotent. |
+| `monorepo-add-shared-package` | "Estrai questa logica in shared", "crea un package @<slug>/forms condiviso". Creates a new package OR extracts files from an app into an existing/new shared package, updates path aliases in `tsconfig.base.json`, adds the package as `workspace:*` to both apps. Two modes: create-empty and extract-from-app. |
+| `monorepo-sync-types` | "Rigenera i tipi da Supabase", "sync DB schema". Provider-aware: Supabase → `supabase gen types typescript`, tRPC → TS inference re-export, Firebase → manual + Zod runtime validation, custom REST → Zod/OpenAPI/manual. Always writes into `packages/shared/src/types/`. |
+
+**Use case — idea to two-platform launch**:
+
+```
+1. paste idea → prd-from-idea ("target: both/monorepo") → stack.framework="monorepo"
+                + stack.monorepo.web.ui="shadcn" + stack.monorepo.mobile.ui="nativewind"
+2. dev-flow → monorepo-bootstrap → root configs + apps/web + apps/mobile + packages/
+3. module-add db --supabase → installs in packages/api/, both apps consume @<slug>/api
+4. monorepo-sync-types → packages/shared/src/types/database.ts generated
+5. screenshot-to-page (web) + rn-add-screen (mobile) → screens for both
+6. rn-module-add payments revenuecat (apps/mobile/) + module-add payments stripe (apps/web/)
+7. monorepo-add-shared-package forms → shared form validators between apps
+8. setup-deploy → Vercel for apps/web/; rn-eas-deploy → EAS for apps/mobile/
+9. (live!) one PRD, one DESIGN, two apps in production, shared backend + types.
+```
+
+**Single-source canonical reference**: [`dev-flow/references/stack-monorepo.md`](./dev-flow/references/stack-monorepo.md) — what `stack.framework="monorepo"` means, the full `stack.monorepo` object shape, phase routing including the new `monorepo_initialized` phase, monorepo-aware patches required across the 24 other skills.
 
 ---
 

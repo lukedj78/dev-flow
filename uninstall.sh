@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Remove all 24 dev-flow skills (9 web + 15 mobile) from the chosen runtime's
-# skills directory. Restores `*.bak` backups created by install.sh, if present.
+# Remove all 27 dev-flow skills (9 web + 15 mobile + 3 monorepo) from the chosen
+# runtime's skills directory. Restores `*.bak` backups created by install.sh,
+# if present.
 #
 # Usage:
 #   ./uninstall.sh                              # defaults to claude
@@ -60,6 +61,11 @@ SKILLS=(
   rn-publishing-payments
   rn-module-add
   rn-eas-deploy
+
+  # Monorepo stack (web + mobile shared)
+  monorepo-bootstrap
+  monorepo-add-shared-package
+  monorepo-sync-types
 )
 
 echo "Uninstalling ${#SKILLS[@]} dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"

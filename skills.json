@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-29T20:26:19Z",
+  "generated_at": "2026-05-29T21:02:03Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 24,
+  "skill_count": 27,
   "families": {
     "core": [
       "dev-flow",
@@ -14,6 +14,9 @@
       "figma-to-design-md",
       "image-to-design-md",
       "module-add",
+      "monorepo-add-shared-package",
+      "monorepo-bootstrap",
+      "monorepo-sync-types",
       "screenshot-to-page",
       "write-tests"
     ],
@@ -44,7 +47,8 @@
       "skill_file": "dev-flow/SKILL.md",
       "references": [
         "contracts.md",
-        "stack-expo-rn.md"
+        "stack-expo-rn.md",
+        "stack-monorepo.md"
       ],
       "scripts": [
         "check_drift.py",
@@ -52,7 +56,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 161,
+      "skill_md_lines": 169,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -65,7 +69,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 185,
+      "skill_md_lines": 207,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -254,7 +258,7 @@
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 142,
+      "skill_md_lines": 154,
       "bundle": "dist/rn-module-add.skill"
     },
     {
@@ -400,8 +404,60 @@
         "module-test.md"
       ],
       "scripts": [],
-      "skill_md_lines": 129,
+      "skill_md_lines": 139,
       "bundle": "dist/module-add.skill"
+    },
+    {
+      "name": "monorepo-add-shared-package",
+      "family": "web",
+      "role": "operative",
+      "description": "Extract logic from apps/web/ or apps/mobile/ into a new or existing shared package under packages/ in a turborepo monorepo, OR create a fresh empty shared package skeleton. Reads .workflow/meta.json with stack.framework=\"monorepo\". Adds the package to pnpm-workspace.yaml (already covered by the wild...",
+      "skill_file": "monorepo-add-shared-package/SKILL.md",
+      "references": [
+        "contracts.md",
+        "patterns.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 130,
+      "bundle": "dist/monorepo-add-shared-package.skill"
+    },
+    {
+      "name": "monorepo-bootstrap",
+      "family": "web",
+      "role": "operative",
+      "description": "Scaffold a turborepo monorepo containing both a Next.js web app AND an Expo + RN mobile app, with shared packages (types, design tokens, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework=\"monorepo\" and phase in {prd_drafted, design_extracted}. Produces...",
+      "skill_file": "monorepo-bootstrap/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md",
+        "patterns.md",
+        "post-bootstrap-checklist.md",
+        "structure.md"
+      ],
+      "scripts": [
+        "init-monorepo.sh",
+        "scaffold-mobile.sh",
+        "scaffold-web.sh",
+        "verify.ts"
+      ],
+      "skill_md_lines": 173,
+      "bundle": "dist/monorepo-bootstrap.skill"
+    },
+    {
+      "name": "monorepo-sync-types",
+      "family": "web",
+      "role": "operative",
+      "description": "Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), tRPC (via inference from the server router import), and custom REST (via a manual o...",
+      "skill_file": "monorepo-sync-types/SKILL.md",
+      "references": [
+        "contracts.md",
+        "decision-tree.md"
+      ],
+      "scripts": [
+        "sync-supabase.sh"
+      ],
+      "skill_md_lines": 154,
+      "bundle": "dist/monorepo-sync-types.skill"
     },
     {
       "name": "screenshot-to-page",
