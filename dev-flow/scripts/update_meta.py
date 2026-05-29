@@ -54,8 +54,17 @@ PHASES = [
     "design_extracted",
     "scaffolded",
     "page_generated",
-    "module-added",
+    "module_added",
+    # Mobile-only (stack.framework == "expo-rn") progression beyond module_added
+    "feature_complete",
+    "deployed",
 ]
+
+# Backwards-compatibility: accept the old kebab-case spelling. set-phase
+# will normalize "module-added" to "module_added" on write.
+PHASE_ALIASES = {
+    "module-added": "module_added",
+}
 
 
 def now_iso() -> str:
@@ -149,25 +158,29 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     meta_path, meta = load_meta(root)
 
-    if args.phase not in PHASES:
+    # Normalize aliases (e.g. legacy kebab "module-added" → "module_added")
+    requested = PHASE_ALIASES.get(args.phase, args.phase)
+
+    if requested not in PHASES:
         sys.stderr.write(f"Unknown phase: {args.phase!r}\n")
         sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
         return 1
 
-    current = meta.get("phase", "empty")
+    current_raw = meta.get("phase", "empty")
+    current = PHASE_ALIASES.get(current_raw, current_raw)
     cur_idx = PHASES.index(current) if current in PHASES else -1
-    new_idx = PHASES.index(args.phase)
+    new_idx = PHASES.index(requested)
 
     if new_idx < cur_idx and not args.allow_regress:
         sys.stderr.write(
-            f"Phase regression refused: current={current!r} → requested={args.phase!r}\n"
+            f"Phase regression refused: current={current!r} → requested={requested!r}\n"
             f"Use --allow-regress only if you know what you're doing (e.g., manual reset).\n"
         )
         return 1
 
-    meta["phase"] = args.phase
+    meta["phase"] = requested
     save_meta(meta_path, meta)
-    print(f"phase: {current} → {args.phase}")
+    print(f"phase: {current_raw} → {requested}")
     return 0
 
 
@@ -197,12 +210,15 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         "phase_after": args.phase_after,
     })
 
-    if args.phase_after and args.phase_after in PHASES:
-        cur = meta.get("phase", "empty")
-        cur_idx = PHASES.index(cur) if cur in PHASES else -1
-        new_idx = PHASES.index(args.phase_after)
-        if new_idx >= cur_idx:
-            meta["phase"] = args.phase_after
+    if args.phase_after:
+        phase_after = PHASE_ALIASES.get(args.phase_after, args.phase_after)
+        if phase_after in PHASES:
+            cur_raw = meta.get("phase", "empty")
+            cur = PHASE_ALIASES.get(cur_raw, cur_raw)
+            cur_idx = PHASES.index(cur) if cur in PHASES else -1
+            new_idx = PHASES.index(phase_after)
+            if new_idx >= cur_idx:
+                meta["phase"] = phase_after
 
     save_meta(meta_path, meta)
     print(f"history += {{ skill: {args.skill}, phase_after: {args.phase_after} }}")
