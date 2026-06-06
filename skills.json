@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-06T12:59:26Z",
+  "generated_at": "2026-06-06T13:43:25Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 29,
   "families": {
@@ -71,7 +71,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 227,
+      "skill_md_lines": 235,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -345,7 +345,7 @@
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
-      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. Supports three UI libraries: shadcn/ui (Tailwind + copy-...",
+      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Rou...",
       "skill_file": "design-md-to-app/SKILL.md",
       "references": [
         "anti-slop-fallbacks.md",
@@ -361,7 +361,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1048,
+      "skill_md_lines": 1089,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
