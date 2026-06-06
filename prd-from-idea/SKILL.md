@@ -65,16 +65,36 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
 
    For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
 
+### Route groups deduction (web + monorepo)
+
+For `framework ∈ {next, monorepo}`, deduce which Next.js route groups to scaffold from Q1-Q5 answers. Write the array in `meta.json#stack.route_groups`:
+
+| PRD indicators | route_groups value |
+|---|---|
+| SaaS with public landing + login + dashboard (B2B/B2C) | `["(marketing)", "(auth)", "(app)"]` |
+| Internal tool / back-office (only authenticated users) | `["(auth)", "(app)"]` |
+| Marketing site / blog only (no app) | `["(marketing)"]` |
+| Documentation site (flat, no groups) | `[]` |
+
+For mobile (`framework="expo-rn"`), the equivalent deduction also writes `route_groups`:
+
+| PRD indicators | route_groups value |
+|---|---|
+| Consumer app (with login + tabs nav) | `["(auth)", "(app)", "(tabs)"]` |
+| App with login but no tabs (single screen flow) | `["(auth)", "(app)"]` |
+
+The user can override at any time by saying "add (marketing) group" etc. — the scaffold skill will create the group.
+
 ### Writing the stack into meta.json
 
 Depending on Q6, write to `meta.json` immediately:
 
 ```json
 // framework="next" (web only)
-"stack": { "framework": "next", "ui": "<shadcn|base-ui|mui>", "auth": null, "db": null, ... }
+"stack": { "framework": "next", "ui": "<shadcn|base-ui|mui>", "route_groups": ["(marketing)", "(auth)", "(app)"], "auth": null, "db": null, ... }
 
 // framework="expo-rn" (mobile only)
-"stack": { "framework": "expo-rn", "ui": "nativewind", "auth": null, "db": null, ... }
+"stack": { "framework": "expo-rn", "ui": "nativewind", "route_groups": ["(auth)", "(app)", "(tabs)"], "auth": null, "db": null, ... }
 
 // framework="monorepo"
 "stack": {

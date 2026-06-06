@@ -142,8 +142,22 @@ Captures user choices that downstream skills need. Keys:
 - `storage` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
 - `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
 - `push` (mobile, optional): `"expo-notifications"` | `null`
+- `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.
 
-Use `null` (not `"none"`) when not yet decided.
+Use `null` (not `"none"`) when not yet decided. For `route_groups`, an empty array `[]` means "no route groups, flat routing".
+
+## Folder structure conventions
+
+Skills that scaffold a codebase (`design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`) MUST generate the canonical folder structure documented in `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`. Key rules:
+
+- **Co-location via `_components/`**: page-private components live in `app/<route>/_components/`. The underscore prefix is Next.js convention for non-routable folders.
+- **Shared components by domain**: cross-route-group shared business components live in `components/shared/<dominio>/<Component>.tsx`. The domain folder name is the business domain (post/, user/, billing/), never generic ("shared"/"common"/"global").
+- **UI primitives separate**: shadcn/Base UI/MUI primitives live in `components/ui/`. Never mixed with business components.
+- **Theme system explicit**: ThemeProvider + ModeToggle live in `components/theme/`, NOT loose in `components/`.
+- **No `src/` directory**: code lives at project root, alongside config files. Aligned with Vercel commerce, Cal.com, and shadcn templates.
+- **Route groups opt-in via `route_groups`**: scaffold only the route groups listed in `stack.route_groups`. Never create empty `(marketing)/` for a project that doesn't need it.
+- **Rule of Three for promotion**: components stay at the lowest level until used 3+ times. The `promote-component` skill handles the move + import updates.
+- **Cross-platform sharing (monorepo)**: only types, Zod schemas, and pure logic in `packages/shared/`. NEVER JSX. Web and mobile UI are separate (each app has its own `components/`).
 
 ## File-format conventions
 
