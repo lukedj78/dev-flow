@@ -115,6 +115,16 @@ python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
 
 The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
 
+## Folder structure rules (canonical)
+
+When generating a new screen + its components, respect the canonical structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+
+- **Default**: components for the new screen go in `app/<route>/_components/<Name>.tsx` (L0 page-private).
+- **Route group detection**: if scaffolding under `app/(app)/(tabs)/feed/`, components live in `app/(app)/(tabs)/feed/_components/`.
+- **Never flat `components/`**: never put a new screen-specific component directly in `components/`.
+- **Promotion via `promote-component`**: when the same component pattern appears 3+ times, call the dedicated skill to lift to L1 or L2 with import rewriting.
+- **`components/shared/<dominio>/`** for L2: domain-based naming only (no "shared", "common", "misc").
+
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — modules "Components and APIs" + "Style and Design" (paid, distilled).

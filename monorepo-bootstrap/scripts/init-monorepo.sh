@@ -89,10 +89,20 @@ EOF
   echo "  ✓ package.json"
 fi
 
-# 4. tsconfig.base.json
-if [[ ! -f tsconfig.base.json ]]; then
-  cat > tsconfig.base.json <<EOF
+# 4. packages/typescript-config/ (Turborepo official pattern — no tsconfig.base in root)
+if [[ ! -d packages/typescript-config ]]; then
+  mkdir -p packages/typescript-config
+  cat > packages/typescript-config/package.json <<EOF
 {
+  "name": "@${SLUG}/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "files": ["base.json", "nextjs.json", "react-native.json"]
+}
+EOF
+  cat > packages/typescript-config/base.json <<EOF
+{
+  "\$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -112,7 +122,69 @@ if [[ ! -f tsconfig.base.json ]]; then
   }
 }
 EOF
-  echo "  ✓ tsconfig.base.json"
+  cat > packages/typescript-config/nextjs.json <<EOF
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "incremental": true,
+    "noEmit": true
+  }
+}
+EOF
+  cat > packages/typescript-config/react-native.json <<EOF
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "moduleResolution": "Node",
+    "lib": ["ESNext"],
+    "noEmit": true
+  }
+}
+EOF
+  echo "  ✓ packages/typescript-config/ (base + nextjs + react-native presets)"
+fi
+
+# 5. packages/eslint-config/ (Turborepo official pattern)
+if [[ ! -d packages/eslint-config ]]; then
+  mkdir -p packages/eslint-config
+  cat > packages/eslint-config/package.json <<EOF
+{
+  "name": "@${SLUG}/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "base.js",
+  "files": ["base.js", "nextjs.js", "react-native.js"]
+}
+EOF
+  cat > packages/eslint-config/base.js <<'EOF'
+// Shared ESLint config — extend in apps/<name>/eslint.config.mjs
+module.exports = {
+  extends: ["eslint:recommended"],
+  rules: {
+    "no-unused-vars": "warn",
+    "no-console": ["warn", { allow: ["warn", "error"] }],
+  },
+};
+EOF
+  cat > packages/eslint-config/nextjs.js <<'EOF'
+const base = require("./base");
+module.exports = {
+  ...base,
+  extends: [...base.extends, "next/core-web-vitals", "next/typescript"],
+};
+EOF
+  cat > packages/eslint-config/react-native.js <<'EOF'
+const base = require("./base");
+module.exports = {
+  ...base,
+  extends: [...base.extends, "@react-native/eslint-config"],
+};
+EOF
+  echo "  ✓ packages/eslint-config/ (base + nextjs + react-native presets)"
 fi
 
 # 5. .gitignore

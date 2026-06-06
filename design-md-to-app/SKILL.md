@@ -205,42 +205,60 @@ When in doubt: open `components/ui/<primitive>.tsx` and read its API. If the API
 
 Once `add --all` lands the shadcn primitives, the project has too many "where does this go?" decisions waiting to happen. **Pin the convention now**, before writing application code, so every subsequent skill (and human) knows where to put things.
 
-The Next.js App Router 2026 convention this skill enforces:
+The Next.js App Router 2026 convention this skill enforces (canonical spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
 
 | Path | What lives here |
 |---|---|
+| `app/<route>/_components/` | **L0 page-private**: sections unique to ONE page. `_` prefix is Next.js privacy marker. Default for every new component. |
+| `app/(group)/_components/` | **L1 route-group shared**: components used by 2+ pages within the same route group (`(marketing)`, `(auth)`, `(app)`). Includes layout shells like AppShell, AppSidebar, AppHeader. |
+| `components/shared/<dominio>/<Component>.tsx` | **L2 globally shared**: components used by pages of multiple route groups. Domain folder name reflects business (`post/`, `user/`, `billing/`), never generic ("shared"/"common"). |
 | `components/ui/` | shadcn primitives. **Untouched** after `add --all` except for `cva` variant customization per DESIGN.md `components` block. |
-| `components/<group>/` (root) | **Cross-route shared**: layout shells (`app-shell`, `site-top-nav`, `wordmark-footer`), brand components, business components reused on 2+ routes. Group by domain when the count grows: `components/site/`, `components/marketing/`, `components/forms/`. |
-| `app/<route>/_components/` | **Page-scoped**: sections unique to ONE route, NOT reused. The `_` prefix is a Next.js privacy marker — Next does not turn `_components` into a route. |
-| `lib/server/<domain>.ts` | Server actions for a domain (`practices.ts`, `clients.ts`, `deadlines.ts`). Always start with `"use server";`. |
-| `lib/queries/<domain>.ts` | Server-side data **reads** (separate from actions for clarity). Async functions called from RSC. |
+| `components/theme/` | ThemeProvider, ModeToggle, useThemeColor — explicit theme system folder. |
+| `lib/server/<domain>.ts` | Server actions per domain (`practices.ts`, `clients.ts`). Always `"use server";`. |
+| `lib/queries/<domain>.ts` | Server-side data reads called from RSC. |
 | `lib/db/` | Drizzle (or equivalent) schema + connection — owned by `module-add db`. |
-| `lib/auth.ts` + `lib/auth-client.ts` | better-auth — owned by `module-add auth`. |
-| `lib/utils.ts` | Pure utilities (`cn()`, formatters, date helpers). |
-| `hooks/` | Custom React hooks shared cross-route (`useDebounce`, `useOptimistic` wrappers, etc.). |
+| `lib/auth/` | better-auth client + helpers — owned by `module-add auth`. |
+| `lib/utils.ts` | Pure utilities (`cn()`, formatters). |
+| `hooks/` | Custom React hooks shared cross-route (useDebounce, useMediaQuery). |
+
+**Rule of Three for promotion** (canonical):
+1. New component → `app/<route>/_components/` (L0).
+2. Second use in another page → COPY the file (tolerated duplicate at L0).
+3. Third use → promote to L1 if same group, L2 if different groups. The `promote-component` skill automates this.
 
 **Key rules**:
 
-- **Don't put cross-route shared components inside `app/_components/`**. The `_` is a routing concern, not a "shared" marker. If a component is used on 2+ routes, it goes in `components/<group>/`.
-- **Don't put server actions inside `app/`**. They belong in `lib/server/<domain>.ts` so they can be imported from any route or component without circular imports.
-- **One file per business domain in `lib/server/`** — `practices.ts` not `practice-actions.ts`. The `lib/server/` folder is the namespace; don't repeat it in the filename.
-- **`components/` first, then a group**. A new project starts with `components/site/` (layout shells); add `components/forms/`, `components/marketing/`, etc. as you grow. Never have flat 30+ files under `components/`.
+- **Default L0 always**: every new component starts in the page's `_components/`. Do not pre-emptively put something in `components/shared/`.
+- **`components/shared/` is L2 only**: it holds components used across multiple route groups. Lower-level shared (within a single group) lives in `app/(group)/_components/`.
+- **No generic naming**: never name a folder under `components/shared/` "shared", "common", "global", "misc". Use the business domain (post/, user/, billing/, auth/).
+- **No cross-group imports**: a page in `(app)/` MUST NOT import from `(marketing)/_components/`. If it needs to, promote the component to L2 (`components/shared/`).
+- **Server actions in lib/**: `"use server"` files belong in `lib/server/<domain>.ts`, not under `app/`.
 
-When `screenshot-to-page` builds a new route and notices it's reusing a component from another route, **promote** it: move from `app/<route>/_components/` to `components/<group>/`, update imports.
+When `screenshot-to-page` builds a new route and notices it's reusing a component from another route, it suggests calling `promote-component` to move it up the hierarchy with automated import rewriting.
 
-When this skill scaffolds the project, **create at least the folder skeleton**:
+When this skill scaffolds the project, the folder skeleton mirrors the canonical structure:
 
 ```
+app/
+├── (route_groups from meta.json#stack.route_groups)/
+│   ├── _components/          # L1 group-shared (created empty)
+│   ├── layout.tsx
+│   └── (pages with their own _components/ as added)
+├── api/
+├── layout.tsx                # root: HTML + ThemeProvider wrap
+└── globals.css               # CSS variables + Tailwind directives
+
 components/
-├── site/         # contains: app-shell.tsx, site-top-nav.tsx, wordmark-footer.tsx,
-│                 #           theme-provider.tsx, mode-toggle.tsx, nav-item.tsx,
-│                 #           dashboard-card.tsx (if dashboard exists), placeholder-page.tsx
-└── ui/           # populated by `shadcn add --all`
+├── ui/                       # populated by `shadcn add --all`
+├── theme/                    # ThemeProvider, ModeToggle (scaffolded)
+└── shared/                   # empty initially; populated by promote-component
+
 lib/
-├── server/       # empty initially, populated by Step 4.6 stub + by feature work
-├── queries/      # empty initially
-└── utils.ts      # populated by `shadcn init`
-hooks/            # empty initially
+├── server/                   # empty initially
+├── queries/                  # empty initially
+└── utils.ts                  # populated by `shadcn init`
+
+hooks/                        # empty initially
 ```
 
 ### Step 4.5 — Generate placeholder routes for declared navigation
@@ -496,7 +514,7 @@ A reference implementation lives at `references/mode-toggle.template.tsx` — co
 In `app/layout.tsx`:
 
 ```tsx
-import { ThemeProvider } from "@/components/site/theme-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 <html lang="..." suppressHydrationWarning>
   <body>
@@ -695,14 +713,14 @@ export default function Showcase() {
 
 The site-shell has two components, both **mandatory** and both written by this skill alongside `/showcase`:
 
-**`<SiteTopNav>`** at `components/site/site-top-nav.tsx`:
+**`<SiteTopNav>`** at `components/shared/site/site-top-nav.tsx`:
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 h-14 flex items-center gap-8`.
 - Brand on the left: small logo box (`size-7 rounded-md bg-primary text-surface`) with the project initial + project name in `text-[14px] font-semibold`.
 - Nav links in the middle: 4–6 links to the project's main routes (`/`, `/showcase`, plus 2–4 product routes), `text-[14px] text-on-surface-variant hover:text-on-surface`.
 - Right side: a secondary text link (e.g., `Accedi` / `Sign in`) + the project's primary CTA as a small `<Button>` ("Nuova pratica" / "Reserve" / "Deploy").
 - Background `bg-surface` with `border-b border-outline`.
 
-**`<SiteFooter>`** at `components/site/site-footer.tsx` (or `wordmark-footer.tsx` if the wordmark variant is chosen — see below):
+**`<SiteFooter>`** at `components/shared/site/site-footer.tsx` (or `wordmark-footer.tsx` if the wordmark variant is chosen — see below):
 
 The footer **must be DESIGN.md-faithful**. Hardcoding the same wordmark template for every project is a contract violation — Mastercard-style design systems describe a 4-column link grid with a conversational H2; minimal portfolio designs may want a one-line footer; editorial brands use the giant wordmark. **Read the DESIGN.md before writing the footer.**
 

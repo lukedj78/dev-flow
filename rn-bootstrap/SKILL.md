@@ -92,6 +92,42 @@ python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
 
 The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
 
+## Folder structure rules (canonical)
+
+This skill scaffolds the canonical RN structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+
+```
+app/
+├── (auth)/                 # opt-in based on stack.route_groups
+│   ├── _components/
+│   ├── _layout.tsx
+│   └── sign-in.tsx
+├── (app)/
+│   ├── _components/        # TabBar, AppHeader, AuthGuard
+│   ├── _layout.tsx         # redirect to (auth) if !session
+│   ├── (tabs)/             # opt-in based on stack.route_groups
+│   │   ├── _components/
+│   │   ├── _layout.tsx
+│   │   ├── feed/
+│   │   └── profile/
+│   └── settings.tsx
+└── _layout.tsx             # root: GestureHandlerRootView + ThemeProvider
+
+components/
+├── ui/                     # NativeWind primitives
+├── theme/                  # ThemeProvider, useThemeColor
+└── shared/                 # L2 per dominio (created empty)
+
+lib/                        # api, supabase, secure-store, utils
+store/                      # Zustand cross-feature (auth-store, app-preferences)
+hooks/                      # RN-specific (useColorScheme, useKeyboard)
+assets/                     # images/, fonts/
+```
+
+Read `meta.json#stack.route_groups` to decide which route groups to scaffold. Empty array → flat routing (rare for mobile).
+
+Components follow Rule of Three for promotion (L0 → L1 → L2). See `rn-add-screen` for screen-level details.
+
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — free lessons 5-6 (Creating Your First App, Project Structure).

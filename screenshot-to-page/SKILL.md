@@ -241,3 +241,14 @@ Tell the user:
 - **Don't over-componentize.** A simple landing page in one `page.tsx` is fine. Don't split into 12 files just to "follow best practices" if there's no reuse.
 - **Prefer plain JSX over abstractions.** Server actions, complex hooks, custom contexts are out of scope here — they belong to the feature implementation step, not to the visual scaffolding.
 - **One screenshot, one route, one run.** If the user wants 4 routes, the orchestrator (or the user) invokes this skill 4 times. Don't try to do them in one shot.
+
+
+## Folder structure rules (canonical)
+
+When generating a route + components, follow the canonical structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+
+- **Default for new components**: `app/<route>/_components/<Name>.tsx` (L0 page-private).
+- **Detect route group from path**: if the route is under `app/(app)/dashboard/`, components go in `app/(app)/dashboard/_components/`.
+- **Never `components/site/`**: that folder no longer exists. Cross-route shared components live in `components/shared/<dominio>/`.
+- **Promotion on detect**: when this skill notices a repeated pattern from another route, suggest calling `promote-component` to lift it to L1 (group `_components/`) or L2 (`components/shared/<dominio>/`).
+- **Co-location for compound components**: a compound (e.g. `<Card>` + `<Card.Header>`) lives in a single file until ~250 lines, then becomes a folder with `index.ts` barrel.

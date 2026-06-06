@@ -137,3 +137,15 @@ Some modules depend on others. If the user runs them out of order, the skill mus
 - `deploy` should be last — it reads the configured stack and produces deploy config.
 
 When dependencies are missing, **ask, don't block silently.** "I see you're trying to add auth but there's no database yet. Want me to set up `db` (Neon + Drizzle) first, then come back to auth?"
+
+
+## Folder structure rules (canonical)
+
+When this skill wires a module, respect the canonical folder structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+
+- **`auth` module**: UI components (sign-in form, sign-up form) go in `app/(auth)/_components/`. Auth client + helpers go in `lib/auth/`. The `<AuthGuard>` redirect lives in `app/(app)/layout.tsx`.
+- **`db` module**: client + schema in `lib/db/`. No components written by this module.
+- **`payments` module**: client wiring in `lib/payments/`. UI (paywall, checkout button) suggested in `app/(app)/<context>/_components/` or page-specific. Pricing comparison table eventually promotes to `components/shared/billing/PricingTable.tsx`.
+- **`storage` module**: client in `lib/storage/`. Upload UI co-located with the page that uses it.
+- **`email` module**: server-side only; no components.
+- **`deploy` module**: config files at project root only.

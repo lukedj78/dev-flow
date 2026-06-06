@@ -1,6 +1,6 @@
 ---
 name: monorepo-bootstrap
-description: 'Scaffold a turborepo monorepo containing both a Next.js web app AND an Expo + RN mobile app, with shared packages (types, design tokens, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework="monorepo" and phase in {prd_drafted, design_extracted}. Produces: root package.json + pnpm-workspace.yaml + turbo.json + tsconfig.base.json; apps/web/ scaffolded via design-md-to-app; apps/mobile/ scaffolded via rn-bootstrap; packages/shared/ + packages/design/ + packages/api/ skeletons. Always idempotent. Use when dev-flow routes here from prd_drafted+monorepo, or the user says "scaffolda il monorepo", "create a turborepo with web + mobile", "bootstrap il monorepo da PRD + DESIGN.md". Not for: scaffolding only web (use design-md-to-app), scaffolding only mobile (use rn-bootstrap), adding modules after scaffold (use module-add or rn-module-add).'
+description: 'Scaffold a turborepo monorepo containing both a Next.js web app AND an Expo + RN mobile app, with shared packages (types, design tokens, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework="monorepo" and phase in {prd_drafted, design_extracted}. Produces: root package.json + pnpm-workspace.yaml + turbo.json + packages/typescript-config + packages/eslint-config; apps/web/ scaffolded via design-md-to-app; apps/mobile/ scaffolded via rn-bootstrap; packages/shared/ + packages/design/ + packages/api/ skeletons. Always idempotent. Use when dev-flow routes here from prd_drafted+monorepo, or the user says "scaffolda il monorepo", "create a turborepo with web + mobile", "bootstrap il monorepo da PRD + DESIGN.md". Not for: scaffolding only web (use design-md-to-app), scaffolding only mobile (use rn-bootstrap), adding modules after scaffold (use module-add or rn-module-add).'
 ---
 
 # monorepo-bootstrap — scaffold a turborepo monorepo
@@ -50,7 +50,7 @@ Run `scripts/init-monorepo.sh <project-root> <project-slug>`:
 - Writes `pnpm-workspace.yaml` listing `apps/*` and `packages/*`.
 - Writes `turbo.json` with the pipeline definition (build/dev/lint/test/typecheck).
 - Writes root `package.json` with name `@<project-slug>/root`, scripts that proxy to turbo.
-- Writes `tsconfig.base.json` with strict mode + path aliases for `@<project-slug>/*`.
+- Writes `packages/typescript-config/` with `base.json` (path aliases, strict mode), `nextjs.json`, `react-native.json` preset extensions. Also writes `packages/eslint-config/`. **No `tsconfig.base.json` in repo root** — Turborepo official pattern.
 - Creates empty dirs: `apps/web/`, `apps/mobile/`, `packages/shared/`, `packages/design/`, `packages/api/`.
 
 Update `meta.json`:
@@ -66,7 +66,7 @@ Generate `packages/design/`:
 - `src/tailwind-preset.ts` — exports a Tailwind preset (web v3.4 / v4 compatible) consuming the tokens.
 - `src/nativewind-preset.ts` — exports a NativeWind preset (Tailwind 3.4 syntax, mobile-compatible).
 - `package.json` with name `@<project-slug>/design`, exports `./tokens`, `./tailwind`, `./nativewind`.
-- `tsconfig.json` extending `../../tsconfig.base.json`.
+- `tsconfig.json` extending `@<slug>/typescript-config/<preset>.json` (e.g., `nextjs.json` for apps/web, `react-native.json` for apps/mobile).
 
 This package is published as `workspace:*` to both apps.
 
@@ -146,7 +146,7 @@ If git repo: commit with `chore: scaffold monorepo (web + mobile + shared packag
 - ❌ Generate Tailwind config in `apps/web/` without the `@<project-slug>/design/tailwind` preset — design tokens won't reach the web app.
 - ❌ Generate `tailwind.config.js` in `apps/mobile/` without the nativewind preset — same problem mirrored.
 - ❌ Install backend client (supabase-js, tRPC) at root — must live in `packages/api/`, consumed via workspace protocol.
-- ❌ Skip the `tsconfig.base.json` path aliases — apps won't find shared packages without them.
+- ❌ Add `tsconfig.base.json` in repo root — Turborepo recommends per-package configs that extend a shared package (`packages/typescript-config`). Don't centralize in root.
 - ❌ Use `framework="monorepo"` on a project that already has scaffolded code (mid-project switch) — this skill is for fresh projects only.
 
 ## Updating meta.json (recommended pattern)

@@ -148,6 +148,19 @@ python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
 
 The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
 
+## Folder structure rules (canonical)
+
+When wiring a module for RN/Expo, respect the canonical structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+
+- **`auth` module**: client (`supabase.ts` / `firebase.ts`) → `lib/`. Secure-store wrapper → `lib/secure-store.ts`. Auth store → `store/auth-store.ts`. UI (SignInForm, SignUpForm) → `app/(auth)/_components/`.
+- **`db` module**: client wiring co-located with auth (`lib/`). Query hooks → `app/<route>/_components/use<X>.ts` initially, promoted to `components/shared/<dominio>/hooks/` as they spread.
+- **`storage` module**: client in `lib/storage.ts`. Image-picker UI co-located with the screen.
+- **`realtime` module**: subscriptions wired in screens or in `store/` if cross-feature.
+- **`push` module**: `lib/push.ts` + handlers in `app/_layout.tsx`.
+- **`payments` module**: client in `lib/purchases.ts`. Paywall UI in `app/(app)/paywall/_components/`. Pro gating hook → `hooks/use-pro.ts`.
+
+For monorepo (`stack.framework="monorepo"`): backend client (auth/db/storage/realtime) goes in `packages/api/` and is consumed via `@<slug>/api/*` workspace import.
+
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — Backend Basics + Supabase + Publishing/Payments modules (paid).
