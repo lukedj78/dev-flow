@@ -1,6 +1,6 @@
 ---
 name: design-md-to-app
-description: 'Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. Supports three UI libraries: shadcn/ui (Tailwind + copy-pasted source), Base UI (Tailwind + headless library, no CLI overhead), and MUI (runtime themed, Material-flavored). Integrates with the dev-flow contract: when a `.workflow/` exists, reads `meta.json#stack`, writes the app at the project root (alongside `.workflow/`), and bumps phase to `scaffolded`. Use whenever the user has a DESIGN.md and wants to scaffold an app, set up a theme, customize shadcn/Base UI/MUI from these tokens, or "use this DESIGN.md to start an app". Trigger on "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI", "crea l''app dal DESIGN.md", "init shadcn con questo DESIGN.md". Always ask shadcn vs Base UI vs MUI (with a suggestion) before generating, unless `meta.json#stack.ui` already specifies one. Not for: scaffolding mobile apps (use rn-bootstrap for Expo + RN), writing PRDs (use prd-from-idea), or generating individual pages after the scaffold exists (use screenshot-to-page).'
+description: 'Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Router or pre-16 explicitly refused). Supports three UI libraries: shadcn/ui (Tailwind + copy-pasted source), Base UI (Tailwind + headless library, no CLI overhead), and MUI (runtime themed, Material-flavored). Supports two form libraries: **TanStack Form + Zod (default, recommended)** or react-hook-form (opt-in). Integrates with the dev-flow contract: when a `.workflow/` exists, reads `meta.json#stack`, writes the app at the project root (alongside `.workflow/`), and bumps phase to `scaffolded`. Use whenever the user has a DESIGN.md and wants to scaffold an app, set up a theme, customize shadcn/Base UI/MUI from these tokens, or "use this DESIGN.md to start an app". Trigger on "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI", "crea l''app dal DESIGN.md", "init shadcn con questo DESIGN.md". Always ask shadcn vs Base UI vs MUI (with a suggestion) before generating, unless `meta.json#stack.ui` already specifies one. Always defaults to Next.js 16 + App Router for the framework. Not for: scaffolding mobile apps (use rn-bootstrap for Expo + RN), writing PRDs (use prd-from-idea), or generating individual pages after the scaffold exists (use screenshot-to-page).'
 ---
 
 ## Dev-flow contract
@@ -1046,3 +1046,44 @@ font-family: var(--font-display), Inter, ui-sans-serif, system-ui, -apple-system
 - Don't silently overwrite an existing `theme.ts` / `globals.css`.
 - Don't skip the visual verification step. Token files passing TypeScript means nothing if buttons render the wrong color. If no browser tool is available, **say so explicitly** in the hand-off — never imply you've verified when you haven't.
 - Don't run `/showcase` generation, `next dev`, dependency installs, or `create-next-app` in **theme-only** mode. The point of that mode is a small, reviewable diff.
+
+
+## Companion skills (Next.js 16 App Router)
+
+When scaffolding a Next.js project, recommend installing 3 companion skills from `lusentis/next-skills` (already validated by us — see analysis 2026-06-06). They provide enforcement layers for:
+
+- **`nextjs-forms`** — TanStack Form + Zod + shadcn `Field` toolkit (or react-hook-form equivalent if `stack.forms="react-hook-form"`). Bans `useState` for field values, auto-save, inline toast, raw `useForm`.
+- **`nextjs-data-fetching`** — Read in Server Components, mutate via Server Actions. Bans `useEffect+fetch` in client components.
+- **`nextjs-usestate`** — Bans `useState` for URL state, server data, form values, derived state. Also bans Zustand/Jotai/Redux for App Router (App Router primitives + URL `searchParams` + cookies + Server Components are the answer).
+
+Install via:
+```bash
+npx skills add lusentis/next-skills --skill nextjs-forms -a claude-code -g -y
+npx skills add lusentis/next-skills --skill nextjs-data-fetching -a claude-code -g -y
+npx skills add lusentis/next-skills --skill nextjs-usestate -a claude-code -g -y
+```
+
+After scaffolding, suggest the user install these so the orchestrator loads them automatically when working on the new project.
+
+## Next.js 16 + App Router — canonical
+
+This skill scaffolds **Next.js 16 with App Router** as the canonical default. It refuses to:
+
+- Generate Pages Router (`pages/` directory) projects.
+- Apply to existing projects pinned to Next.js 15 or earlier.
+- Mix App Router and Pages Router in the same scaffold.
+
+If the user explicitly requests Pages Router or older Next, the skill stops and explains: "The dev-flow web skills target Next.js 16 App Router. For Pages Router, this skill does not apply — you'll need a different setup."
+
+Write `meta.json#stack.nextjs_version = "16"` at scaffold time.
+
+## Form library — TanStack Form vs react-hook-form
+
+Read `meta.json#stack.forms`:
+
+- `"tanstack-form"` (default): scaffold `lib/forms/` with the TanStack Form toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`). Pattern from `nextjs-forms` skill. Install deps: `@tanstack/react-form`, `zod` >= 4.
+- `"react-hook-form"` (opt-in): scaffold `lib/forms/` with the RHF equivalent (`useEditForm`, `useCreateForm` wrapping `useForm` + `useFormContext` from `react-hook-form`, plus the same `FormField` / `FormActions` / `mapFormError` surface so consumers don't see a difference). Install deps: `react-hook-form`, `@hookform/resolvers`, `zod` >= 4.
+
+Both share: explicit Save button gated by `isDirty && canSubmit` (edit) or `canSubmit` (create), Zod schema as validator, error mapping via `mapFormError`, no auto-save, no save-on-blur. The `nextjs-forms` skill loads automatically once the project is scaffolded.
+
+When `null`, ask the user which to install — default to TanStack Form.

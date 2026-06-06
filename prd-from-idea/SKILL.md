@@ -65,6 +65,14 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
 
    For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
 
+8. **(Web only OR monorepo: ask for the web side)** **Which form library — TanStack Form (default, recommended) or react-hook-form?** Map to `meta.json#stack.forms` (web stack) or `meta.json#stack.monorepo.web.forms` (monorepo):
+   - "tanstack" / "tanstack-form" / no answer / "default" → `"tanstack-form"` (recommended — aligned with the `nextjs-forms` skill from `lusentis/next-skills`, dirty tracking + baseline reset built-in, Zod-native validators).
+   - "rhf" / "react-hook-form" / "I know rhf better" → `"react-hook-form"` (supported, but the team must own the equivalent `lib/forms/` toolkit that wraps useEditForm/useCreateForm semantics).
+
+   Skip Q8 for mobile-only projects — RN forms use a different ecosystem (controlled state via React Hook Form-native or vanilla, no consensus toolkit yet).
+
+   **For Next.js projects (web only or web side of monorepo)**, also write `stack.nextjs_version = "16"` (App Router canonical). The dev-flow web skills target Next.js 16 + App Router exclusively — they refuse to apply to Pages Router or Next.js 15.
+
 ### Route groups deduction (web + monorepo)
 
 For `framework ∈ {next, monorepo}`, deduce which Next.js route groups to scaffold from Q1-Q5 answers. Write the array in `meta.json#stack.route_groups`:

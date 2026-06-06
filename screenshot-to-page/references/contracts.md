@@ -143,6 +143,8 @@ Captures user choices that downstream skills need. Keys:
 - `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
 - `push` (mobile, optional): `"expo-notifications"` | `null`
 - `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.
+- `forms` (web/monorepo, optional): `"tanstack-form"` | `"react-hook-form"` | `null`. The form-handling library. Defaults to `"tanstack-form"` for new Next.js 16 App Router projects (aligned with `nextjs-forms` skill from `lusentis/next-skills`). `"react-hook-form"` is supported for legacy projects or teams with strong preference. Written by `prd-from-idea` Q8 or set at scaffold time by `design-md-to-app`.
+- `nextjs_version` (web only, optional): `"16"` | string. The Next.js major version. **Canonical default for new projects = `"16"`** (App Router, RSC, async `searchParams`, `use(promise)`, `revalidatePath`, `revalidateTag`). Pages Router (`pages/` dir) is explicitly NOT supported by the dev-flow skill set — use only App Router. If an existing project is Pages Router or pre-16, the web skills refuse to apply.
 
 Use `null` (not `"none"`) when not yet decided. For `route_groups`, an empty array `[]` means "no route groups, flat routing".
 
