@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-06T13:58:13Z",
+  "generated_at": "2026-06-06T14:59:43Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 32,
   "families": {
@@ -61,7 +61,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 169,
+      "skill_md_lines": 181,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -351,6 +351,8 @@
       "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter/tab/range state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component genuinely needs server data, and Route Handlers + SWR/React Query only as a last resort (polling / ...",
       "skill_file": "data-fetching/SKILL.md",
       "references": [
+        "anti-patterns.md",
+        "audit-recipe.md",
         "contracts.md"
       ],
       "scripts": [],
@@ -408,9 +410,15 @@
       "description": "Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. ...",
       "skill_file": "forms/SKILL.md",
       "references": [
-        "contracts.md"
+        "audit-recipe.md",
+        "contracts.md",
+        "form-actions.md",
+        "toolkit-rhf.md",
+        "toolkit-tanstack.md"
       ],
-      "scripts": [],
+      "scripts": [
+        "scaffold_lib_forms.py"
+      ],
       "skill_md_lines": 377,
       "bundle": "dist/forms.skill"
     },
@@ -543,6 +551,7 @@
       "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use a query library for server state, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `...",
       "skill_file": "state-discipline/SKILL.md",
       "references": [
+        "audit-recipe.md",
         "contracts.md"
       ],
       "scripts": [],

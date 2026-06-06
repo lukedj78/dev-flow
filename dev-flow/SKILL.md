@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`. Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
+description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`, `forms`, `data-fetching`, `state-discipline`. Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
 ---
 
 # dev-flow — workflow orchestrator
@@ -84,8 +84,8 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `prd_drafted` | `prd-to-tasks` if user wants explicit task breakdown; OR `figma-to-design-md` if user has a Figma; OR `image-to-design-md` if user has 1+ raster images (PNG/JPG screenshots, mockups, Pinterest pins); OR jump to `design-md-to-app` if simple project + DESIGN.md will be hand-written. |
 | `tasks_split` | `figma-to-design-md` or `image-to-design-md` or `design-md-to-app`. |
 | `design_extracted` | `design-md-to-app` (this is the natural next step — DESIGN.md exists, time to scaffold). |
-| `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; iterate. |
-| `page_generated` | `module-add` or more `screenshot-to-page` runs. |
+| `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; `forms` for any form-building request; iterate. |
+| `page_generated` | `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
 | `module_added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. For `expo-rn` stack, also `rn-eas-deploy` once feature-complete. |
 | `feature_complete` | (mobile only — `expo-rn` stack) → `rn-eas-deploy` to build, submit, and ship to App Store + Play Store. |
 | `deployed` | (mobile only) maintenance loop: more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`, telemetry monitoring. |
@@ -129,6 +129,18 @@ When transitioning out of `prd_drafted` and into scaffolding, the user has to ch
 Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
 
 For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
+
+## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
+
+Three sibling skills live alongside the phase-driven flow above. They do **not** bump `phase` and they apply only to `stack.framework ∈ {"next", "monorepo"}` + `stack.nextjs_version = "16"`. Invoke them when the trigger fires, regardless of current `phase`:
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `forms` | User mentions "form", "edit panel", "create dialog", "settings page", "save button" — OR you're about to write a form, `useState` for field values, raw `useForm`, hand-rolled dirty tracking, inline `toast` on submit | Routes through `lib/forms/` shared toolkit. Scaffolds it on first run via `forms/scripts/scaffold_lib_forms.py` (reads `stack.forms` = `"tanstack-form"` or `"react-hook-form"`). Refuses if Pages Router or pre-16. |
+| `data-fetching` | User is about to add `useEffect` to fetch, convert a page to `"use client"` for filter state, add a `"use server"` `getX`/`listX`/`findX`, or pastes `useState + useEffect + fetch` | Walks the 4-rung ladder: Server Component → URL `searchParams` → `Promise<T>` + `use()` + `<Suspense>` → Route Handler + SWR (last resort). Bans Server Actions for reads. |
+| `state-discipline` | User pastes `useState + useEffect`, reaches for `useState` to mirror a prop, derives a value via `useEffect + setState`, or asks "should I `useState` here?" | Walks the 8-rung ladder: derive → URL → lift → query lib → event handler → `key` reset → `useMountEffect` → honest `useState`. Bans bare `useEffect`. |
+
+All three append a `history` entry per run (no phase bump) and have `audit-recipe.md` references for "audit my codebase against X" requests. When in doubt about whether to call them: if `stack.framework` is web-shaped and the conversation touches forms / reads / `useEffect` / `useState`, route there.
 
 ## What dev-flow does NOT do
 
