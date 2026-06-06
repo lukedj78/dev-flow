@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""scan_promotion.py — scan a project for promotion candidates per Rule of Three
+
+Walks the codebase, finds every component under app/**/_components/, counts
+imports across the codebase, and reports a table of promotion candidates.
+
+Usage:
+    python3 scan_promotion.py <project-root>
+
+Reads .workflow/meta.json to detect framework (next/expo-rn/monorepo).
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+
+def read_meta(root: Path) -> dict:
+    p = root / ".workflow" / "meta.json"
+    if not p.exists():
+        return {"stack": {"framework": "next"}}
+    return json.loads(p.read_text())
+
+
+def find_components(scan_root: Path) -> list[tuple[str, Path]]:
+    results = []
+    for comp_dir in scan_root.glob("app/**/_components"):
+        for tsx in comp_dir.glob("*.tsx"):
+            results.append((tsx.stem, tsx))
+    return results
+
+
+def detect_level(file_path: Path, scan_root: Path) -> str:
+    rel = file_path.relative_to(scan_root)
+    parts = rel.parts
+    if len(parts) >= 4 and parts[-2] == "_components":
+        depth = len(parts) - 3
+        if depth == 1 and parts[1].startswith("("):
+            return "L1"
+    return "L0"
+
+
+def count_imports(component_name: str, scan_root: Path) -> set:
+    importers = set()
+    pattern = re.compile(r'from\s+["\'][^"\']*' + re.escape(component_name) + r'["\']')
+    candidates = list(scan_root.glob("app/**/*.tsx")) + list(scan_root.glob("components/**/*.tsx"))
+    for tsx in candidates:
+        try:
+            text = tsx.read_text()
+        except Exception:
+            continue
+        if pattern.search(text):
+            importers.add(tsx)
+    return importers
+
+
+def detect_route_group(file_path: Path, scan_root: Path) -> str | None:
+    rel = file_path.relative_to(scan_root)
+    for part in rel.parts:
+        if part.startswith("(") and part.endswith(")"):
+            return part
+    return None
+
+
+def suggest_promotion(comp_name: str, importers: set, scan_root: Path) -> str:
+    n = len(importers)
+    if n <= 1:
+        return "OK — stays"
+    if n == 2:
+        return "Wait the 3rd use (tolerated duplicate)"
+    groups = set()
+    for imp in importers:
+        g = detect_route_group(imp, scan_root)
+        if g:
+            groups.add(g)
+    if len(groups) <= 1:
+        if groups:
+            return "Promote to L1 - app/" + list(groups)[0] + "/_components/" + comp_name + ".tsx"
+        return "Promote to L1 (no specific group)"
+    return "Promote to L2 - components/shared/<dominio>/" + comp_name + ".tsx"
+
+
+def scan_one_root(scan_root: Path, label: str) -> None:
+    print()
+    print("## Promotion candidates in " + label)
+    print()
+    components = find_components(scan_root)
+    if not components:
+        print("(no _components/ folders found)")
+        return
+
+    by_name = {}
+    for name, path in components:
+        by_name.setdefault(name, []).append(path)
+
+    rows = []
+    for name in sorted(by_name.keys()):
+        paths = by_name[name]
+        source = paths[0]
+        importers = count_imports(name, scan_root)
+        level = detect_level(source, scan_root)
+        if len(paths) > 1:
+            level = "L0 (x" + str(len(paths)) + " duplicates)"
+        suggestion = suggest_promotion(name, importers, scan_root)
+        rows.append((name, len(importers), level, suggestion))
+
+    print("| Component | Usages | Current level | Suggestion |")
+    print("|---|---|---|---|")
+    for row in rows:
+        print("| `" + row[0] + "` | " + str(row[1]) + " | " + row[2] + " | " + row[3] + " |")
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        print("Usage: scan_promotion.py <project-root>", file=sys.stderr)
+        return 1
+    project_root = Path(sys.argv[1]).resolve()
+    if not project_root.exists():
+        print("Project root not found: " + str(project_root), file=sys.stderr)
+        return 1
+
+    meta = read_meta(project_root)
+    framework = meta.get("stack", {}).get("framework", "next")
+
+    print("# Promotion scan - " + project_root.name)
+    print()
+    print("Framework: `" + framework + "`")
+
+    if framework == "monorepo":
+        web = project_root / "apps" / "web"
+        mobile = project_root / "apps" / "mobile"
+        if web.exists():
+            scan_one_root(web, "apps/web (web)")
+        if mobile.exists():
+            scan_one_root(mobile, "apps/mobile (mobile)")
+    else:
+        scan_one_root(project_root, framework)
+
+    print()
+    print("## Next step")
+    print()
+    print("To promote: `python3 promote.py <project-root> <ComponentName> [--target L1|L2] [--domain <dominio>]`")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
