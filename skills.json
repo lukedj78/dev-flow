@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-29T21:02:03Z",
+  "generated_at": "2026-06-06T12:59:26Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 27,
+  "skill_count": 29,
   "families": {
     "core": [
       "dev-flow",
@@ -10,6 +10,7 @@
       "prd-to-tasks"
     ],
     "web": [
+      "composition-patterns-guide",
       "design-md-to-app",
       "figma-to-design-md",
       "image-to-design-md",
@@ -17,6 +18,7 @@
       "monorepo-add-shared-package",
       "monorepo-bootstrap",
       "monorepo-sync-types",
+      "promote-component",
       "screenshot-to-page",
       "write-tests"
     ],
@@ -69,7 +71,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 207,
+      "skill_md_lines": 227,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -97,7 +99,7 @@
         "screen-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 121,
+      "skill_md_lines": 131,
       "bundle": "dist/rn-add-screen.skill"
     },
     {
@@ -150,7 +152,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 99,
+      "skill_md_lines": 135,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {
@@ -258,7 +260,7 @@
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 154,
+      "skill_md_lines": 167,
       "bundle": "dist/rn-module-add.skill"
     },
     {
@@ -326,6 +328,20 @@
       "bundle": "dist/rn-write-tests.skill"
     },
     {
+      "name": "composition-patterns-guide",
+      "family": "web",
+      "role": "operative",
+      "description": "Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules adapted to our web + RN stack: avoid boolean props (use composition or explici...",
+      "skill_file": "composition-patterns-guide/SKILL.md",
+      "references": [
+        "colocation-rules.md",
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 218,
+      "bundle": "dist/composition-patterns-guide.skill"
+    },
+    {
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
@@ -345,7 +361,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1030,
+      "skill_md_lines": 1048,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -404,7 +420,7 @@
         "module-test.md"
       ],
       "scripts": [],
-      "skill_md_lines": 139,
+      "skill_md_lines": 151,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -460,6 +476,23 @@
       "bundle": "dist/monorepo-sync-types.skill"
     },
     {
+      "name": "promote-component",
+      "family": "web",
+      "role": "operative",
+      "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: (1) \"scan candidates\" — analyzes the entire codebase, counts usages of every component under app/**/_components/, and reports a table of promotion candidates with the Rule ...",
+      "skill_file": "promote-component/SKILL.md",
+      "references": [
+        "colocation-rules.md",
+        "contracts.md"
+      ],
+      "scripts": [
+        "promote.py",
+        "scan_promotion.py"
+      ],
+      "skill_md_lines": 175,
+      "bundle": "dist/promote-component.skill"
+    },
+    {
       "name": "screenshot-to-page",
       "family": "web",
       "role": "operative",
@@ -471,7 +504,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 243,
+      "skill_md_lines": 254,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {

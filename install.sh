@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install all 27 dev-flow skills (9 web + 15 mobile + 3 monorepo) + a
+# Install all 29 dev-flow skills (9 web + 15 mobile + 3 monorepo + 2 refactor) + a
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
@@ -169,6 +169,10 @@ SKILLS=(
   monorepo-bootstrap
   monorepo-add-shared-package
   monorepo-sync-types
+
+  # Refactor & composition skills
+  promote-component
+  composition-patterns-guide
 )
 
 echo "Installing ${#SKILLS[@]} dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"

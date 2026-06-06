@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove all 27 dev-flow skills (9 web + 15 mobile + 3 monorepo) from the chosen
+# Remove all 29 dev-flow skills (9 web + 15 mobile + 3 monorepo + 2 refactor) from the chosen
 # runtime's skills directory. Restores `*.bak` backups created by install.sh,
 # if present.
 #
@@ -66,6 +66,10 @@ SKILLS=(
   monorepo-bootstrap
   monorepo-add-shared-package
   monorepo-sync-types
+
+  # Refactor & composition skills
+  promote-component
+  composition-patterns-guide
 )
 
 echo "Uninstalling ${#SKILLS[@]} dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"

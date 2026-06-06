@@ -1,7 +1,7 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **27 skills (9 web + 15 mobile + 3 monorepo)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **29 skills (9 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 
 ```
                       ┌────────────────────────┐
@@ -650,9 +650,9 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 
 ---
 
-## The 27 skills, in detail
+## The 29 skills, in detail
 
-> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. `dev-flow` reads that key and routes.
+> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -888,6 +888,27 @@ The 3 monorepo skills compose a single repo where both a Next.js web app AND an 
 ```
 
 **Single-source canonical reference**: [`dev-flow/references/stack-monorepo.md`](./dev-flow/references/stack-monorepo.md) — what `stack.framework="monorepo"` means, the full `stack.monorepo` object shape, phase routing including the new `monorepo_initialized` phase, monorepo-aware patches required across the 24 other skills.
+
+---
+
+### Refactor skills (stack-agnostic)
+
+Two skills that work across all three stacks (web, mobile, monorepo), focused on **keeping component architecture clean as projects grow**:
+
+| Skill | When it triggers |
+|---|---|
+| `promote-component` | "Scan promotion candidates" / "Promovi PostCard". Implements the **Rule of Three** (Sandi Metz "The Wrong Abstraction"): components stay at L0 until the 3rd use, then promote to L1 (`app/(group)/_components/`) or L2 (`components/shared/<dominio>/`). Two modes: scan (analyze codebase + report markdown table) and promote (move file + rewrite all imports + tsc verify + atomic commit). Monorepo-aware. |
+| `composition-patterns-guide` | "Refactor this component" / "too many boolean props" / "compound component". Codifies the **7 Vercel composition-patterns rules** (avoid boolean prop proliferation, compound components with shared context, context interface `{state, actions, meta}`, lift state into providers, children over render props, explicit variants, React 19 no-forwardRef) plus our colocation rules. Knowledge skill — provides the thinking framework. |
+
+The canonical model for shared components is the **3-level hierarchy** documented in `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`:
+
+```
+L0  app/<route>/_components/<Name>.tsx       page-private (default)
+L1  app/(group)/_components/<Name>.tsx       route-group shared
+L2  components/shared/<dominio>/<Name>.tsx   globally shared
+```
+
+Plus 2 special folders that don't follow promotion: `components/ui/` (shadcn/Base UI/MUI primitives) and `components/theme/` (ThemeProvider, ModeToggle).
 
 ---
 
