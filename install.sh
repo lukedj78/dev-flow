@@ -140,13 +140,16 @@ SKILLS=(
   prd-from-idea
   prd-to-tasks
 
-  # Web stack (Next.js + shadcn)
+  # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md
   image-to-design-md
   design-md-to-app
   screenshot-to-page
   module-add
   write-tests
+  forms
+  data-fetching
+  state-discipline
 
   # Mobile stack (Expo + React Native)
   rn-fundamentals

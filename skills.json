@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-06T13:43:25Z",
+  "generated_at": "2026-06-06T13:58:13Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 29,
+  "skill_count": 32,
   "families": {
     "core": [
       "dev-flow",
@@ -11,8 +11,10 @@
     ],
     "web": [
       "composition-patterns-guide",
+      "data-fetching",
       "design-md-to-app",
       "figma-to-design-md",
+      "forms",
       "image-to-design-md",
       "module-add",
       "monorepo-add-shared-package",
@@ -20,6 +22,7 @@
       "monorepo-sync-types",
       "promote-component",
       "screenshot-to-page",
+      "state-discipline",
       "write-tests"
     ],
     "mobile": [
@@ -342,6 +345,19 @@
       "bundle": "dist/composition-patterns-guide.skill"
     },
     {
+      "name": "data-fetching",
+      "family": "web",
+      "role": "operative",
+      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter/tab/range state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component genuinely needs server data, and Route Handlers + SWR/React Query only as a last resort (polling / ...",
+      "skill_file": "data-fetching/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 287,
+      "bundle": "dist/data-fetching.skill"
+    },
+    {
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
@@ -361,7 +377,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1089,
+      "skill_md_lines": 1084,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -384,6 +400,19 @@
       ],
       "skill_md_lines": 199,
       "bundle": "dist/figma-to-design-md.skill"
+    },
+    {
+      "name": "forms",
+      "family": "web",
+      "role": "operative",
+      "description": "Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. ...",
+      "skill_file": "forms/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 377,
+      "bundle": "dist/forms.skill"
     },
     {
       "name": "image-to-design-md",
@@ -506,6 +535,19 @@
       ],
       "skill_md_lines": 254,
       "bundle": "dist/screenshot-to-page.skill"
+    },
+    {
+      "name": "state-discipline",
+      "family": "web",
+      "role": "operative",
+      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use a query library for server state, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `...",
+      "skill_file": "state-discipline/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 366,
+      "bundle": "dist/state-discipline.skill"
     },
     {
       "name": "write-tests",

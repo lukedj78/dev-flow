@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove all 29 dev-flow skills (9 web + 15 mobile + 3 monorepo + 2 refactor) from the chosen
+# Remove all 32 dev-flow skills (12 web + 15 mobile + 3 monorepo + 2 refactor) from the chosen
 # runtime's skills directory. Restores `*.bak` backups created by install.sh,
 # if present.
 #
@@ -44,6 +44,9 @@ SKILLS=(
   screenshot-to-page
   module-add
   write-tests
+  forms
+  data-fetching
+  state-discipline
 
   # Mobile stack
   rn-fundamentals

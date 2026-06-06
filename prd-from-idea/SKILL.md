@@ -66,8 +66,8 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
    For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
 
 8. **(Web only OR monorepo: ask for the web side)** **Which form library — TanStack Form (default, recommended) or react-hook-form?** Map to `meta.json#stack.forms` (web stack) or `meta.json#stack.monorepo.web.forms` (monorepo):
-   - "tanstack" / "tanstack-form" / no answer / "default" → `"tanstack-form"` (recommended — aligned with the `nextjs-forms` skill from `lusentis/next-skills`, dirty tracking + baseline reset built-in, Zod-native validators).
-   - "rhf" / "react-hook-form" / "I know rhf better" → `"react-hook-form"` (supported, but the team must own the equivalent `lib/forms/` toolkit that wraps useEditForm/useCreateForm semantics).
+   - "tanstack" / "tanstack-form" / no answer / "default" → `"tanstack-form"` (recommended — the `forms` skill scaffolds `lib/forms/` on top of `@tanstack/react-form` with dirty tracking + baseline reset built-in + Zod-native validators).
+   - "rhf" / "react-hook-form" / "I know rhf better" → `"react-hook-form"` (the `forms` skill scaffolds the same `lib/forms/` surface — `useEditForm` / `useCreateForm` / `FormProvider` / `FormField` / `FormActions` / `mapFormError` — but built on `react-hook-form` + `@hookform/resolvers/zod` underneath). Consumer code is identical.
 
    Skip Q8 for mobile-only projects — RN forms use a different ecosystem (controlled state via React Hook Form-native or vanilla, no consensus toolkit yet).
 

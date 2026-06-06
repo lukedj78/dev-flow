@@ -1,7 +1,7 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **29 skills (9 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **32 skills (12 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 
 ```
                       ┌────────────────────────┐
@@ -650,9 +650,9 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 
 ---
 
-## The 29 skills, in detail
+## The 32 skills, in detail
 
-> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 9 web-stack skills assume `meta.json#stack.framework="next"`; the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 12 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -790,6 +790,69 @@ The skill is **idempotent**: re-running `module-add db` on a project that alread
 **Prerequisite**: `module-add test` has been run (Vitest + Playwright are wired). If not, the skill stops and routes there. **Idempotent**: existing test files are never silently overwritten — the user is asked whether to regenerate, append missing cases, or abort.
 
 **What it does NOT do**: install test packages, run a full suite, fix failing tests. A failing test is a signal — the skill surfaces it, the user decides whether to fix the test or the source.
+
+### `forms` — one toolkit for every form (Next.js 16 App Router)
+
+**Input**: a form to scaffold or edit (edit panel, create dialog, settings page).
+**Output**: a Client Component leaf that goes through `lib/forms/` — `useEditForm` / `useCreateForm` + `<FormProvider>` + `<FormField>` + `<FormActions>` + `mapFormError` — with explicit Save button gated by dirty + valid state, baseline reset on success, AbortController, and discriminated-union error mapping.
+
+**Two library backends, identical consumer code**, picked at scaffold via `meta.json#stack.forms`:
+- `"tanstack-form"` (default, recommended) — `@tanstack/react-form` + Zod v4 underneath.
+- `"react-hook-form"` (opt-in) — `react-hook-form` + `@hookform/resolvers/zod` underneath.
+
+Hook names, render layer, error contract, and dirty semantics are identical across both. The choice is invisible to consumers — only `lib/forms/` knows which library it wraps. The skill **refuses to apply** if `stack.framework ∉ {"next", "monorepo"}` or `stack.nextjs_version != "16"`.
+
+**Bans** (lint + skill-enforced): `useState` for field values, raw `useForm` outside `lib/forms/`, auto-save / save-on-blur / debounce, inline `toast.success`/`toast.error` from form components, hand-rolled dirty tracking, `<form onSubmit>` that calls `fetch` directly.
+
+**Audit mode**: "audit my codebase against the forms skill" runs 10 ripgrep checks (A–J), produces a severity-sorted report, offers fixes in order (toolkit first, mixed-library second, raw `useForm` + inline toasts third, missing dirty-gating fourth, etc.).
+
+Derived from `lusentis/next-skills/nextjs-forms` (MIT) — see `forms/SKILL.md` Sources section.
+
+### `data-fetching` — read in Server Components, mutate via Server Actions
+
+**Input**: a data read in a Next.js 16 App Router app.
+**Output**: the read landed in the correct place per the four-rung ladder:
+1. **Async Server Component** (default, ~90% of cases) — `await listX()` at the top.
+2. **URL `searchParams`** — filter / tab / range state moves to the URL; page stays a Server Component.
+3. **`Promise<T>` + `use()` + `<Suspense>`** — when a Client Component genuinely needs server data as props at mount (charting libs, third-party widgets).
+4. **Route Handler + SWR / React Query** — last resort, narrow scope: polling, focus refetch, third-party-mutated data.
+
+Server Actions are for **mutations only** — never reads. After mutating, call `revalidatePath` / `revalidateTag` / `refresh()` and let the Server Component re-render. Never `useState + useEffect + fetch` in a Client Component. Never `useEffect` driving a Server Action call.
+
+**Why**: Server Actions are queued sequentially. Reading via action in `useEffect` costs SSR, streaming, request deduping, caching, parallelism — and produces no error to warn you. The bug is silent.
+
+**Refuses to apply** if `stack.framework ∉ {"next", "monorepo"}` or `stack.nextjs_version != "16"` (Pages Router has a different mental model entirely).
+
+**Audit mode**: 7 violation kinds (A–G), greps for each, severity-sorted report, fix order with toolkit-first prioritization.
+
+Derived from `lusentis/next-skills/nextjs-data-fetching` (MIT).
+
+### `state-discipline` — eight-rung ladder before reaching for `useState`
+
+**Input**: a `useState + useEffect` pair, a bare `useEffect`, or a "should I `useState` here?" question.
+**Output**: refactor applied at the right rung of an 8-step ladder:
+1. **Derive** during render (don't store-and-sync).
+2. **URL state** for shareable / back-button-correct state.
+3. **Lift** state to the nearest common parent (don't mirror).
+4. **Server state** belongs on the server (route to `data-fetching`) — or in a query library if it must be client.
+5. **Side effect after user click** → event handler, not `useEffect`.
+6. **Reset on identity change** → `key={prop}`, not `useEffect`.
+7. **One-time external sync** (DOM API, third-party widget, focus management) → `useMountEffect` (project's explicit-intent escape hatch with a single localized `eslint-disable`).
+8. **Honest local UI state** (hover, dropdown-open, animation flag) → `useState` is fine. Move on.
+
+**Bans bare `useEffect`** via lint:
+```json
+{ "selector": "CallExpression[callee.name='useEffect']",
+  "message": "Bare useEffect is banned. Use useMountEffect or walk the ladder." }
+```
+
+Covers also `useOptimistic` (over hand-rolled optimistic UI), `useTransition` (non-blocking heavy updates), `key`-based reset, and the explicit `useMountEffect` helper.
+
+**Refuses to apply** outside Next.js 16 / App Router. The principles transfer to other React 19 setups, but the URL/Server-Component rungs do not.
+
+**Audit mode**: 8 violation kinds (A–H), report with prioritized fix order.
+
+Derived from `lusentis/next-skills/nextjs-usestate` (MIT) — renamed `state-discipline` because the rules cover all state-shaped decisions, not only `useState`.
 
 ### Mobile stack (Expo + React Native)
 

@@ -1050,20 +1050,15 @@ font-family: var(--font-display), Inter, ui-sans-serif, system-ui, -apple-system
 
 ## Companion skills (Next.js 16 App Router)
 
-When scaffolding a Next.js project, recommend installing 3 companion skills from `lusentis/next-skills` (already validated by us — see analysis 2026-06-06). They provide enforcement layers for:
+When scaffolding a Next.js project, the dev-flow set ships three sibling skills that the orchestrator loads automatically alongside `design-md-to-app`:
 
-- **`nextjs-forms`** — TanStack Form + Zod + shadcn `Field` toolkit (or react-hook-form equivalent if `stack.forms="react-hook-form"`). Bans `useState` for field values, auto-save, inline toast, raw `useForm`.
-- **`nextjs-data-fetching`** — Read in Server Components, mutate via Server Actions. Bans `useEffect+fetch` in client components.
-- **`nextjs-usestate`** — Bans `useState` for URL state, server data, form values, derived state. Also bans Zustand/Jotai/Redux for App Router (App Router primitives + URL `searchParams` + cookies + Server Components are the answer).
+- **`forms`** — `lib/forms/` shared toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`) on top of either TanStack Form + Zod (default) or react-hook-form + Zod (opt-in via `meta.json#stack.forms`). Consumer code is identical; backend swap is invisible. Bans `useState` for field values, auto-save, inline `toast`, raw `useForm`.
+- **`data-fetching`** — Read in async Server Components, mutate via Server Actions + `revalidatePath`/`revalidateTag`. Bans `useEffect`+fetch / `useState`+`useEffect`+`getX` in Client Components. Walks the migration ladder: Server Component → URL `searchParams` → `Promise<T>` + `use()` + `<Suspense>` → Route Handler + SWR (last resort).
+- **`state-discipline`** — Eight-rung ladder for "should I `useState` here?". Derive, URL, lift, query lib, event handler, `key` to reset, `useMountEffect` for one-time external sync, then `useState`. Bans bare `useEffect` (lint-enforced).
 
-Install via:
-```bash
-npx skills add lusentis/next-skills --skill nextjs-forms -a claude-code -g -y
-npx skills add lusentis/next-skills --skill nextjs-data-fetching -a claude-code -g -y
-npx skills add lusentis/next-skills --skill nextjs-usestate -a claude-code -g -y
-```
+The three are installed by `./install.sh` together with `design-md-to-app` — no extra step. Their source lives in this repo at `forms/`, `data-fetching/`, `state-discipline/`. They are adapted (with attribution) from `lusentis/next-skills` and tailored to the dev-flow contract (`meta.json#stack` reads + history append + refusal on framework/version mismatch).
 
-After scaffolding, suggest the user install these so the orchestrator loads them automatically when working on the new project.
+Earlier drafts of this skill recommended installing the originals via `npx skills add lusentis/next-skills …` — that recommendation is **superseded**. Use the in-tree versions.
 
 ## Next.js 16 + App Router — canonical
 
@@ -1081,9 +1076,9 @@ Write `meta.json#stack.nextjs_version = "16"` at scaffold time.
 
 Read `meta.json#stack.forms`:
 
-- `"tanstack-form"` (default): scaffold `lib/forms/` with the TanStack Form toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`). Pattern from `nextjs-forms` skill. Install deps: `@tanstack/react-form`, `zod` >= 4.
-- `"react-hook-form"` (opt-in): scaffold `lib/forms/` with the RHF equivalent (`useEditForm`, `useCreateForm` wrapping `useForm` + `useFormContext` from `react-hook-form`, plus the same `FormField` / `FormActions` / `mapFormError` surface so consumers don't see a difference). Install deps: `react-hook-form`, `@hookform/resolvers`, `zod` >= 4.
+- `"tanstack-form"` (default): scaffold `lib/forms/` with the TanStack Form toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`). Install deps: `@tanstack/react-form`, `zod` >= 4.
+- `"react-hook-form"` (opt-in): scaffold `lib/forms/` with the RHF equivalent (same hook + component names; `useForm` + `useFormContext` + `Controller` from `react-hook-form` underneath, plus the same `FormField` / `FormActions` / `mapFormError` surface so consumers don't see a difference). Install deps: `react-hook-form`, `@hookform/resolvers`, `zod` >= 4.
 
-Both share: explicit Save button gated by `isDirty && canSubmit` (edit) or `canSubmit` (create), Zod schema as validator, error mapping via `mapFormError`, no auto-save, no save-on-blur. The `nextjs-forms` skill loads automatically once the project is scaffolded.
+Both share: explicit Save button gated by `isDirty && canSubmit` (edit) or `canSubmit` (create), Zod schema as validator, error mapping via `mapFormError`, no auto-save, no save-on-blur. The `forms` sibling skill (in-tree) owns the full toolkit + audit recipe — `design-md-to-app` only scaffolds the initial wiring at project bootstrap; subsequent form work routes through `forms`.
 
 When `null`, ask the user which to install — default to TanStack Form.
