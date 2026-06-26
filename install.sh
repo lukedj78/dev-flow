@@ -151,6 +151,9 @@ SKILLS=(
   data-fetching
   state-discipline
 
+  # Agent engine (eve — Vercel filesystem-first agent framework)
+  eve-agent
+
   # Mobile stack (Expo + React Native)
   rn-fundamentals
   rn-styling
