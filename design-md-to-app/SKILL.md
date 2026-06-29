@@ -84,9 +84,11 @@ Ask the user once: **shadcn/ui, Base UI, or MUI?** Offer a recommendation based 
 - Heavy Material Icons / Material Design heritage → **MUI**.
 - Best accessibility track record without Material visuals → **Base UI** (same MUI team, headless).
 
+**If they pick shadcn, ask the follow-up: Radix or Base UI primitives?** (`shadcn create --base radix|base`). shadcn CLI v4 builds on either, with the same component API and blocks in both variants. Default **Radix** (broadest component coverage today); pick **Base UI** for the MUI-team a11y track record or when migrating from MUI. Record as `stack.ui_base`. This is distinct from picking standalone Base UI (`stack.ui = "base-ui"`, no shadcn CLI) — see `references/library-choice.md`. Then confirm the rest of the shadcn create params (`base_color`, `icon_library`, `css_variables`, `rtl`) — defaults are fine and DESIGN.md overrides the visual ones.
+
 Mapping skill choice → `meta.json#stack.ui` → `references/<lib>-mapping.md`:
-- "shadcn" → `references/shadcn-mapping.md`
-- "base-ui" → `references/base-ui-mapping.md`
+- "shadcn" → `references/shadcn-mapping.md` (+ `stack.ui_base` = radix|base)
+- "base-ui" → `references/base-ui-mapping.md` (standalone Base UI, no shadcn CLI)
 - "mui" → `references/mui-mapping.md`
 
 State the suggestion with a one-line rationale ("Suggerisco Base UI perché vuoi l'aesthetics flessibile di shadcn ma senza la source-maintenance del CLI"), then accept whatever the user picks. After picking, load the matching `<lib>-mapping.md` and follow it for installation, theming, and component wiring.
@@ -128,6 +130,8 @@ If overwriting any existing theme/config (`globals.css`, `tailwind.config.*`, `t
 Read the relevant mapping reference and follow it:
 
 - shadcn → `references/shadcn-mapping.md` — **note**: in dev-flow mode, the recommended path is the **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
+  - **Pass the create parameters from `meta.json#stack`** (shadcn CLI v4): `--base ${stack.ui_base ?? "radix"}` (Radix vs Base UI primitives), `--base-color ${stack.base_color ?? "neutral"}`, `${stack.css_variables === false ? "--no-css-variables" : "--css-variables"}`, and `--rtl` when `stack.rtl`. The DESIGN.md tokens (via `registry.json`) override base color / theme / fonts, so those flags are only the starting scaffold. **`--base` is NOT overridden by DESIGN.md** — it picks the primitive engine, so honor `stack.ui_base` exactly. If `stack.ui_base` is unset, ask before scaffolding (don't silently default to Radix on a fresh project).
+  - Every shadcn block/component exists in both Radix and Base UI variants; once `--base` is set, `shadcn add` pulls the matching variant automatically.
 - MUI → `references/mui-mapping.md`
 
 Each reference describes:

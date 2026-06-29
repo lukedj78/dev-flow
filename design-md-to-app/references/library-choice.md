@@ -47,6 +47,28 @@ Pick MUI when the DESIGN.md shows any of:
 - **Built-in component breadth matters more than visual distinctiveness**: the user wants "professional, gets out of the way" rather than "make it look unique."
 - **The user already uses MUI in adjacent projects** and wants consistency.
 
+## If shadcn: Radix vs Base UI primitives (`--base`)
+
+shadcn CLI v4 builds its components on **either Radix UI or Base UI** primitives. After the user picks shadcn, ask the follow-up and record it as `stack.ui_base` (`"radix"` | `"base"`). The component API and the blocks (login, sidebar, dashboard, …) are identical across both — only the underlying primitive library changes, and `shadcn add` pulls the matching variant.
+
+- **Radix** (default): broadest component coverage today, the long-standing shadcn base. Pick it unless there's a reason not to.
+- **Base UI**: the MUI team's headless primitives — best-in-class a11y, and the natural choice when **migrating from MUI** or when accessibility rigor is a hard requirement. Some niche primitives may lag Radix; check coverage for anything exotic in the DESIGN.md.
+
+How to phrase it:
+
+> Hai scelto shadcn. Lo costruiamo su **Radix** (default, copertura più ampia) o su **Base UI** (a11y del team MUI, ideale se vieni da MUI)? I componenti e i blocchi sono identici nei due casi.
+
+### Don't confuse the two "Base UI" options
+
+There are two distinct ways "Base UI" appears, and they are NOT the same:
+
+| Choice | meta.json | What you get |
+|---|---|---|
+| **shadcn on Base UI** | `ui="shadcn"` + `ui_base="base"` | shadcn's component set + blocks + owned source, on Base UI primitives. **Usually the better way** to get "shadcn philosophy on Base UI". |
+| **Standalone Base UI** | `ui="base-ui"` | Headless Base UI library, no shadcn CLI, you import primitives directly (`@base-ui-components/react`). Pick only when the user explicitly wants no shadcn CLI / `components.json`. |
+
+When a user says "I want Base UI", clarify which they mean — most people who like shadcn but want Base UI primitives want the **first** option now.
+
 ## When it's a coin flip
 
 If the DESIGN.md is moderately custom + moderately broad:

@@ -135,7 +135,13 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 Captures user choices that downstream skills need. Keys:
 
 - `framework`: `"next"` | `"vite-react"` | `"remix"` | `"astro"` | `"sveltekit"` | `"expo-rn"` | `"monorepo"` (planned) | string
-- `ui`: `"shadcn"` | `"base-ui"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string
+- `ui`: `"shadcn"` | `"base-ui"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string. **Note**: `"base-ui"` here means *standalone* Base UI (headless library, no shadcn CLI). With shadcn CLI v4 you can also run shadcn **on top of** Base UI — that is `ui="shadcn"` + `ui_base="base"` (below), and is usually the better way to get "shadcn philosophy on Base UI" because you keep the shadcn component set + blocks.
+- `ui_base` (web, only when `ui="shadcn"`): `"radix"` | `"base"`. The primitive library shadcn builds on (`shadcn create --base`). Default `"radix"`. Every shadcn block/component ships in both variants; `shadcn add` pulls the matching one.
+- `base_color` (web, only when `ui="shadcn"`): `"neutral"` | `"gray"` | `"zinc"` | `"stone"` | `"slate"`. The shadcn base color. Default `"neutral"`. In dev-flow mode the **DESIGN.md tokens override** the actual palette — this is only the scaffold starting point.
+- `ui_theme` (web, only when `ui="shadcn"`): `"vega"` | `"nova"` | `"maia"` | `"lyra"` | `"mira"` | `null`. The shadcn create starting theme. Default `null` (plain). DESIGN.md tokens override.
+- `icon_library` (web): `"lucide"` | `"radix-icons"` | `"tabler"` | string. Default `"lucide"`.
+- `css_variables` (web): `true` | `false`. shadcn `--css-variables`. Default `true` (required for token-driven theming from DESIGN.md).
+- `rtl` (web, optional): `true` | `false`. shadcn `--rtl` (right-to-left support). Default `false`.
 - `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase"` | `"supabase-auth"` | `"firebase"` | `"custom-rest"` | `"trpc"` | `null`
 - `db`: `"neon-drizzle"` | `"supabase"` | `"firebase"` | `"planetscale-prisma"` | `"custom-rest"` | `"trpc"` | `null`
 - `payments`: `"stripe"` | `"lemon-squeezy"` | `"revenuecat"` (mobile IAP) | `null`

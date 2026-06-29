@@ -130,6 +130,25 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 **Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`; this adds an `apps/agent` (eve) surface and promotes the project to a monorepo. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
 
+### shadcn create parameters (only when `ui = "shadcn"`)
+
+shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI. **Ask the structural ones explicitly; default the design ones (DESIGN.md overrides them).**
+
+| Parameter | Stack key | Ask? | Values / default |
+|---|---|---|---|
+| **Primitive base** | `ui_base` | **Yes — always ask** | `radix` (default) \| `base` (Base UI). This is the Radix-vs-Base-UI choice. |
+| Template / framework | (uses `stack.framework`) | already chosen | next \| vite \| start \| react-router \| laravel \| astro |
+| Base color | `base_color` | default, confirm | neutral (default) \| gray \| zinc \| stone \| slate — **DESIGN.md tokens override** |
+| Starting theme | `ui_theme` | default | vega \| nova \| maia \| lyra \| mira \| null — **DESIGN.md tokens override** |
+| Icon library | `icon_library` | default, confirm | lucide (default) \| radix-icons \| tabler |
+| CSS variables | `css_variables` | default | `true` (default — required for token theming) |
+| RTL | `rtl` | ask if i18n/RTL relevant | `false` (default) |
+| Monorepo | (uses `stack.framework="monorepo"`) | already chosen | — |
+
+Frame it as one extra question, not seven: **"shadcn su Radix o su Base UI?"** (`ui_base`), then confirm the smart defaults (`base color neutral`, `lucide`, `css-variables on`) in one line — the visual ones come from DESIGN.md anyway. Only ask RTL when the project is RTL/multilingual.
+
+> `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
+
 For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
 
 ## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
