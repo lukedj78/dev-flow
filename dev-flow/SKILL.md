@@ -132,20 +132,20 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 ### shadcn create parameters (only when `ui = "shadcn"`)
 
-shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI. **Ask the structural ones explicitly; default the design ones (DESIGN.md overrides them).**
+shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI. **Hybrid policy: explicitly ask only the parameters that matter and that DESIGN.md does NOT own; leave the visual ones to DESIGN.md without asking.**
 
 | Parameter | Stack key | Ask? | Values / default |
 |---|---|---|---|
-| **Primitive base** | `ui_base` | **Yes — always ask** | `radix` (default) \| `base` (Base UI). This is the Radix-vs-Base-UI choice. |
+| **Primitive base** | `ui_base` | **ASK** | `radix` (default) \| `base` (Base UI). The Radix-vs-Base-UI choice — DESIGN.md does NOT override it. |
+| Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler |
+| RTL | `rtl` | **ASK only if i18n/RTL relevant** | `false` (default) |
 | Template / framework | (uses `stack.framework`) | already chosen | next \| vite \| start \| react-router \| laravel \| astro |
-| Base color | `base_color` | default, confirm | neutral (default) \| gray \| zinc \| stone \| slate — **DESIGN.md tokens override** |
-| Starting theme | `ui_theme` | default | vega \| nova \| maia \| lyra \| mira \| null — **DESIGN.md tokens override** |
-| Icon library | `icon_library` | default, confirm | lucide (default) \| radix-icons \| tabler |
-| CSS variables | `css_variables` | default | `true` (default — required for token theming) |
-| RTL | `rtl` | ask if i18n/RTL relevant | `false` (default) |
+| Base color | `base_color` | **don't ask** — DESIGN.md owns it | scaffold default `neutral`; DESIGN.md tokens are the real palette |
+| Starting theme | `ui_theme` | **don't ask** — DESIGN.md owns it | default `null`; DESIGN.md tokens override |
+| CSS variables | `css_variables` | **don't ask** | stays `true` (required for token theming) |
 | Monorepo | (uses `stack.framework="monorepo"`) | already chosen | — |
 
-Frame it as one extra question, not seven: **"shadcn su Radix o su Base UI?"** (`ui_base`), then confirm the smart defaults (`base color neutral`, `lucide`, `css-variables on`) in one line — the visual ones come from DESIGN.md anyway. Only ask RTL when the project is RTL/multilingual.
+So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Radix o Base UI?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
 
 > `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
 
