@@ -16,7 +16,7 @@
               │                                   │
               ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
               │                                   │
-              │   WEB FAMILY (9 skills)            MOBILE FAMILY (15 skills)
+              │   WEB FAMILY (13 skills)           MOBILE FAMILY (15 skills)
               │                                   │
    ┌──────────┼──────────┐               ┌────────┼─────────┐
    │          │          │               │        │         │
@@ -82,7 +82,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies the 8 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies all 33 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -111,16 +111,16 @@ This works with the same `gh auth` you already use to clone private repos.
 
 #### Option D — drag-and-drop the `.skill` files
 
-The `dist/` folder contains all 8 packaged `.skill` archives. Drag them into your Claude Code window one at a time — useful when you don't have shell access on the target machine.
+The `dist/` folder contains packaged `.skill` archives. Drag them into your Claude Code window one at a time — useful when you don't have shell access on the target machine. (`dist/` is regenerated periodically; the newest skills — e.g. `eve-agent` — may ship source-only until repackaged, so prefer `install.sh` for the full set.)
 
 #### Verify
 
 ```bash
-ls ~/.claude/skills/ | grep -E "dev-flow|prd-|figma-|image-|design-|screenshot-|module-"
-# Should print 8 entries. Restart Claude Code if you don't see them in /skills.
+ls ~/.claude/skills/ | wc -l
+# Should print 33. Restart Claude Code if you don't see them in /skills.
 ```
 
-The 8 skills are:
+The **core happy-path** skills (the web flow most projects start with):
 
 | Skill | What it does |
 |---|---|
@@ -133,6 +133,8 @@ The 8 skills are:
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
 | `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
+
+`install.sh` installs **all 33 skills**, not just these. Beyond the core flow above: the web discipline skills (`forms`, `data-fetching`, `state-discipline`), the agent engine (`eve-agent`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 15 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 33 skills, in detail](#the-33-skills-in-detail).
 
 ### 2. Create a project
 
@@ -970,7 +972,7 @@ The 3 monorepo skills compose a single repo where both a Next.js web app AND an 
 9. (live!) one PRD, one DESIGN, two apps in production, shared backend + types.
 ```
 
-**Single-source canonical reference**: [`dev-flow/references/stack-monorepo.md`](./dev-flow/references/stack-monorepo.md) — what `stack.framework="monorepo"` means, the full `stack.monorepo` object shape, phase routing including the new `monorepo_initialized` phase, monorepo-aware patches required across the 24 other skills.
+**Single-source canonical reference**: [`dev-flow/references/stack-monorepo.md`](./dev-flow/references/stack-monorepo.md) — what `stack.framework="monorepo"` means, the full `stack.monorepo` object shape, phase routing including the new `monorepo_initialized` phase, monorepo-aware patches required across the other skills.
 
 ---
 
