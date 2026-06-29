@@ -73,6 +73,27 @@ If the user invokes `module-add` for one of these and the full reference doesn't
 
 ---
 
+## `module-realtime` — Vercel Functions WebSockets
+
+**What**: app-level realtime over **Vercel Functions WebSockets** — multi-user chat, presence, collaborative cursors. Requires **Fluid compute** (default for projects created after 2025-04-23) and the WebSockets permission on the project.
+
+**Shape** (Next.js has no native WS API → use the workaround):
+- Route `app/api/ws/route.ts` exporting `GET` that returns `experimental_upgradeWebSocket((ws) => { ws.on('message', …) })` from `@vercel/functions`.
+- Client: a plain `WebSocket('wss://…/api/ws')` with reconnect/backoff (connections close at the function's max duration).
+
+**Packages**: `@vercel/functions` (Next.js workaround); `ws` / `socket.io` for non-Next Node servers.
+
+**State**: instances are **not** sticky and a reconnect may hit a different instance / deployment → store rooms, presence, counters, pub/sub in an **external store** (e.g. Redis), never in memory.
+
+**Architecture decision (the important one)** — **do NOT use this for agent streaming.** An eve agent already streams its responses (NDJSON via `useEveAgent`); reaching for raw WebSockets there just reinvents it. Use `module-realtime` only for genuine **user-to-user / collaborative** realtime that the agent doesn't own. (If you ever need an eve channel over WS, `defineChannel` has `WS()` helpers and eve-on-Nitro supports it on Vercel — niche.)
+
+**Caveats to document when implementing**:
+- API is `experimental_upgradeWebSocket` — expect changes; pin `@vercel/functions`.
+- Connection drops at function max-duration → client reconnect with backoff is mandatory.
+- Upgrade requests pass through routing/firewall/rate-limits; rate-limit the upgrade path.
+
+---
+
 ## When to implement these
 
 Implement on demand: the first time a user says "module-add storage" or "module-add deploy". Don't preemptively implement all of them — references that go stale (e.g., Stripe API version drift, UploadThing SDK changes) hurt more than the missing variant. Implement the variant fully — including the install templates and reference UI — when the user asks for it.

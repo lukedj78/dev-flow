@@ -21,6 +21,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `storage` | UploadThing | `references/module-stubs.md` | 🚧 planned — contributions welcome |
 | `deploy` | Vercel | `references/module-stubs.md` | 🚧 planned — contributions welcome |
 | `voice` | AI Gateway realtime (`@ai-sdk/gateway` + `experimental_useRealtime`) | `references/module-stubs.md` | 🚧 planned — experimental API |
+| `realtime` | Vercel Functions WebSockets (`experimental_upgradeWebSocket`) | `references/module-stubs.md` | 🚧 planned — experimental API |
 
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
 
