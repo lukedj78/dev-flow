@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-26T20:13:19Z",
+  "generated_at": "2026-06-29T18:35:08Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 33,
   "families": {
@@ -476,7 +476,7 @@
         "module-test.md"
       ],
       "scripts": [],
-      "skill_md_lines": 151,
+      "skill_md_lines": 152,
       "bundle": "dist/module-add.skill"
     },
     {

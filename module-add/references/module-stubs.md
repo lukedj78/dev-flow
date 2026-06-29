@@ -50,6 +50,29 @@ If the user invokes `module-add` for one of these and the full reference doesn't
 
 ---
 
+## `module-voice` — realtime voice over AI Gateway
+
+**What**: a realtime voice surface (speech in / speech out) for a Next.js app, on the **Vercel AI Gateway** audio modalities. Mints an ephemeral token server-side, connects over WebSocket client-side, renders a mic/transcript UI.
+
+**Packages**: `@ai-sdk/gateway` (AI SDK 7), `@ai-sdk/react` (hook `experimental_useRealtime`).
+
+**Models** (launch set, OpenAI/xAI only): `openai/gpt-realtime-2` (realtime), `openai/whisper-1` (STT), `xai/grok-tts` (TTS).
+
+**Shape**:
+- Server route `app/api/realtime/token/route.ts` → `gateway.experimental_realtime.getToken({ model })`. Never expose the gateway key client-side.
+- Client component: `experimental_useRealtime({ api: { token: '/api/realtime/token' } })`, `connect()`, `startAudioCapture(stream)`, connection states via the `state-discipline` skill.
+
+**Env vars**: `AI_GATEWAY_API_KEY`.
+
+**Architecture decision (the important one)** — when the project also has an eve agent (`stack.agent="eve"`), **the agent is the brain and voice is just an I/O channel**: STT → eve agent (durable, your tools) → TTS. Do **not** let `gpt-realtime-2` run its own tool-calling loop *and* eve's loop — two control loops compete and fragment the logic. Pick one brain. Use the realtime speech-to-speech model as the primary loop only for low-latency, low-logic conversational products.
+
+**Caveats to document when implementing**:
+- The API is `experimental_*` (AI SDK 7) — expect breaking changes; pin versions.
+- Launch providers are OpenAI/xAI only; check current model availability before wiring.
+- Token endpoint must be rate-limited and auth-gated (it mints billable sessions).
+
+---
+
 ## When to implement these
 
 Implement on demand: the first time a user says "module-add storage" or "module-add deploy". Don't preemptively implement all of them — references that go stale (e.g., Stripe API version drift, UploadThing SDK changes) hurt more than the missing variant. Implement the variant fully — including the install templates and reference UI — when the user asks for it.

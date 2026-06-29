@@ -55,6 +55,11 @@ surface. Platform channels read secrets from env vars (`DISCORD_*`, `GITHUB_*`, 
 `SLACK_*` env vars). Most need a one-time out-of-band registration (Discord command PUT,
 Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`, Slack `--triggers`).
 
+A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
+`module-add voice` stub) should treat the agent as the brain and voice as an I/O channel
+(STT → agent → TTS) — never run the speech-to-speech model's own tool loop *and* eve's
+durable loop in parallel; two control loops compete and fragment the logic.
+
 ## Connection — `agent/connections/<service>.ts`
 
 Auth + access to an external service via **MCP** or **OpenAPI**. The filename is the
