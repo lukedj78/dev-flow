@@ -1,5 +1,14 @@
 # DESIGN.md → Base UI mapping
 
+> **Scope: the STANDALONE Base UI path** (`meta.json#stack.ui = "base-ui"`) — Base UI as a
+> plain library, **no shadcn CLI, no `components.json`, no owned source**. This is NOT the
+> same as running shadcn *on* Base UI primitives. If the user wants shadcn's component set +
+> blocks built on Base UI, that is `ui = "shadcn"` + `ui_base = "base"` → use
+> `shadcn-mapping.md`, not this file. Since shadcn CLI v4 added a Base UI base, most people
+> who say "I want Base UI" actually want that; this standalone path is now the **narrower
+> niche** for users who explicitly want a library-only setup with no CLI overhead. See
+> `library-choice.md` for the disambiguation.
+
 Base UI is the unstyled component library from the MUI team (formerly known as Base UI / MUI Base, relaunched as standalone in 2025). It ships **headless, accessible primitives** — you bring the styling, like Radix Primitives, but with a different API and a more focused component set.
 
 **When to pick Base UI over shadcn vs MUI**:

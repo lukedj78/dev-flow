@@ -38,7 +38,7 @@ When `stack.framework="monorepo"`, the full `stack` object looks like:
 |---|---|
 | `prd_drafted` or `design_extracted` | `monorepo-bootstrap` (scaffolds root + apps + packages) |
 | `monorepo_initialized` (new phase, mid-bootstrap) | `monorepo-bootstrap` continues by invoking `design-md-to-app` in `apps/web/` and `rn-bootstrap` in `apps/mobile/` |
-| `scaffolded` | `screenshot-to-page` (operates in `apps/web/`), `rn-add-screen` (operates in `apps/mobile/`), `monorepo-add-shared-package`, `monorepo-sync-types` |
+| `scaffolded` | `screenshot-to-page` (operates in `apps/web/`), `rn-add-screen` (operates in `apps/mobile/`), `eve-agent` (operates in `apps/agent/` — optional agent engine, see below), `monorepo-add-shared-package`, `monorepo-sync-types` |
 | `page_generated` | `module-add` (web side) or `rn-module-add` (mobile side) — both check `stack.framework="monorepo"` and operate in the right sub-folder |
 | `module_added` | iterative: more screens, more modules, more shared packages |
 | `feature_complete` | (mobile side) `rn-eas-deploy`; (web side) Vercel deploy via `setup-deploy` |
@@ -124,6 +124,17 @@ After `monorepo-bootstrap`:
    → web side: setup-deploy (Vercel)
    → phase: feature_complete → deployed
 ```
+
+## Agent engine (eve) — optional third app
+
+A monorepo can include an optional **`apps/agent/`** — an **eve** agent (Vercel's filesystem-first agent framework) that acts as the AI engine behind the web app. It is an **optional product component** (a scope decision, opted into at analysis time or later on demand), owned exclusively by the **`eve-agent`** skill, and it sits **outside** the `phase` line:
+
+- `eve-agent` reads/writes `meta.json#stack.agent` (`null`/unset → scaffold mode; `"eve"` → capability mode) and appends to `history`, but does **not** bump `phase` — the agent has its own open-ended capability cadence (often Linear-driven), distinct from the web app's linear build.
+- `apps/web` consumes the agent via eve's official Next.js integration (`withEve()` + `useEveAgent()`), and they share the wire contract through `packages/types` (re-exported eve session/event types) — not by importing the agent as a library.
+- The agent deploys to Vercel via `eve deploy`; its model calls bill through the Vercel AI Gateway.
+- No other skill writes inside `apps/agent/`; `eve-agent` does not write `apps/web/` or `apps/mobile/`.
+
+When the user asks for an "agent engine / AI core / agent backend" or names "eve", route to `eve-agent` regardless of `phase`. See the `eve-agent` skill's `references/eve-conventions.md` for the full contract.
 
 ## Decision rules
 

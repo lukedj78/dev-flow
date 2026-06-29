@@ -48,6 +48,9 @@ SKILLS=(
   data-fetching
   state-discipline
 
+  # Agent engine (eve)
+  eve-agent
+
   # Mobile stack
   rn-fundamentals
   rn-styling

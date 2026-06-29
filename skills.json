@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-06-06T14:59:43Z",
+  "generated_at": "2026-06-29T19:55:54Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 32,
+  "skill_count": 33,
   "families": {
     "core": [
       "dev-flow",
@@ -13,6 +13,7 @@
       "composition-patterns-guide",
       "data-fetching",
       "design-md-to-app",
+      "eve-agent",
       "figma-to-design-md",
       "forms",
       "image-to-design-md",
@@ -61,7 +62,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 181,
+      "skill_md_lines": 224,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -379,8 +380,26 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1084,
+      "skill_md_lines": 1116,
       "bundle": "dist/design-md-to-app.skill"
+    },
+    {
+      "name": "eve-agent",
+      "family": "web",
+      "role": "operative",
+      "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app. Use this skill whenever the user wants to create, set up, or initialize an eve agent; add a tool, skill, channel, connection, schedule, subagent, or hook to an eve agen...",
+      "skill_file": "eve-agent/SKILL.md",
+      "references": [
+        "eve-capabilities.md",
+        "eve-conventions.md",
+        "eve-scaffold.md",
+        "eve-web-integration.md"
+      ],
+      "scripts": [
+        "check_eve_state.py"
+      ],
+      "skill_md_lines": 136,
+      "bundle": "dist/eve-agent.skill"
     },
     {
       "name": "figma-to-design-md",
@@ -453,11 +472,13 @@
         "module-email.md",
         "module-motion.md",
         "module-payments.md",
+        "module-realtime.md",
         "module-stubs.md",
-        "module-test.md"
+        "module-test.md",
+        "module-voice.md"
       ],
       "scripts": [],
-      "skill_md_lines": 151,
+      "skill_md_lines": 153,
       "bundle": "dist/module-add.skill"
     },
     {

@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`, `forms`, `data-fetching`, `state-discipline`. Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
+description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`, `forms`, `data-fetching`, `state-discipline`, `eve-agent` (the eve agent engine behind the app). Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
 ---
 
 # dev-flow — workflow orchestrator
@@ -40,9 +40,9 @@ When `meta.json#stack.framework == "expo-rn"`:
 When `meta.json#stack.framework == "monorepo"`:
 - `prd_drafted` or `design_extracted` → invoke `monorepo-bootstrap`
 - `monorepo_initialized` (new phase, mid-bootstrap) → `monorepo-bootstrap` continues (invokes `design-md-to-app` in `apps/web/` then `rn-bootstrap` in `apps/mobile/`)
-- `scaffolded` or `page_generated` or `module_added` → web side: `screenshot-to-page` / `module-add` (operate in `apps/web/`). Mobile side: `rn-add-screen` / `rn-module-add` (operate in `apps/mobile/`). Cross-cutting: `monorepo-add-shared-package`, `monorepo-sync-types`
-- `feature_complete` → web: `setup-deploy` (Vercel). Mobile: `rn-eas-deploy`. Run both.
-- `deployed` → maintenance loop on both sides
+- `scaffolded` or `page_generated` or `module_added` → web side: `screenshot-to-page` / `module-add` (operate in `apps/web/`). Mobile side: `rn-add-screen` / `rn-module-add` (operate in `apps/mobile/`). Agent side: `eve-agent` (operates in `apps/agent/` — see the agent-engine track below). Cross-cutting: `monorepo-add-shared-package`, `monorepo-sync-types`
+- `feature_complete` → web: `setup-deploy` (Vercel). Mobile: `rn-eas-deploy`. Agent: `eve-agent` ships via `eve deploy` (Vercel). Run all that apply.
+- `deployed` → maintenance loop on all sides
 
 If a stack value is not recognized, refuse and ask the user which stack to use. NEVER silently fall back to Next.js when `stack.framework` is set explicitly to something else.
 
@@ -65,7 +65,7 @@ If `<root>/.workflow/` does not exist, create it and write a minimal `meta.json`
   "phase": "empty",
   "stack": {
     "framework": null, "ui": null, "auth": null, "db": null,
-    "payments": null, "deploy": null
+    "payments": null, "deploy": null, "agent": null
   },
   "history": []
 }
@@ -128,6 +128,35 @@ When transitioning out of `prd_drafted` and into scaffolding, the user has to ch
 
 Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
 
+**Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`; this adds an `apps/agent` (eve) surface and promotes the project to a monorepo. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
+
+### shadcn create parameters (only when `ui = "shadcn"`)
+
+shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI.
+
+**First, offer the preset path.** Ask once: *"Hai un preset shadcn da ui.shadcn.com/create? (incolla il codice, es. `b5owWMfJ8l`)"*. A preset packs the whole shadcn visual system — style, base color, theme, icons, fonts, radius — into one code, made to hand off to agents.
+- **If yes** → set `stack.shadcn_preset = <code>`. The preset owns the visual layer: **don't** ask base color / theme / icons, and the scaffold will pass `--preset` and skip the DESIGN.md token install for visuals. Still ask `ui_base` (the preset may not encode Radix-vs-Base-UI). You can `shadcn preset decode <code>` to show the user what it contains.
+- **If no** → DESIGN.md-first path with the hybrid asking below.
+
+**Hybrid policy (no-preset path): explicitly ask only the parameters that matter and that DESIGN.md does NOT own; leave the visual ones to DESIGN.md without asking.**
+
+| Parameter | Stack key | Ask? | Values / default |
+|---|---|---|---|
+| **Primitive base** | `ui_base` | **ASK** | `radix` (default) \| `base` (Base UI). The Radix-vs-Base-UI choice — DESIGN.md does NOT override it. |
+| Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler |
+| RTL | `rtl` | **ASK only if i18n/RTL relevant** | `false` (default) |
+| Template / framework | (uses `stack.framework`) | already chosen | next \| vite \| start \| react-router \| laravel \| astro |
+| Base color | `base_color` | **don't ask** — DESIGN.md owns it | scaffold default `neutral`; DESIGN.md tokens are the real palette |
+| Starting theme | `ui_theme` | **don't ask** — DESIGN.md owns it | default `null`; DESIGN.md tokens override |
+| CSS variables | `css_variables` | **don't ask** | stays `true` (required for token theming) |
+| Monorepo | (uses `stack.framework="monorepo"`) | already chosen | — |
+
+So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Radix o Base UI?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
+
+Just before scaffolding, `design-md-to-app` prints a **recap of the full resolved shadcn create config and asks for confirmation** (its Step 4 confirmation gate) — including the values derived from DESIGN.md — so nothing is scaffolded on assumed config.
+
+> `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
+
 For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
 
 ## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
@@ -142,10 +171,24 @@ Three sibling skills live alongside the phase-driven flow above. They do **not**
 
 All three append a `history` entry per run (no phase bump) and have `audit-recipe.md` references for "audit my codebase against X" requests. When in doubt about whether to call them: if `stack.framework` is web-shaped and the conversation touches forms / reads / `useEffect` / `useState`, route there.
 
+## Agent engine (eve) — an optional, on-demand component
+
+`eve-agent` is **not** a discipline skill and **not** a phase stage. It is an **optional product component** — a scope decision, like "does this product take payments?". The user opts in, and from then on the project has an `apps/agent` surface (an **eve** agent — Vercel's filesystem-first agent framework) that the web app consumes as its AI engine. It is the agent counterpart to `design-md-to-app` + `module-add`: where those build/grow the Next.js app, `eve-agent` builds/grows `apps/agent`.
+
+There are **two moments** to opt in:
+
+1. **At analysis time** — during the stack/scope decision (see "Stack decisions" below), ask once: *"Does this product need an AI agent engine (eve)?"* If yes, set `meta.json#stack.agent = "eve"`. This promotes the project to a monorepo (`apps/web` + `apps/agent` + `packages/types`) if it isn't one already.
+2. **Later, on demand** — the user says "add an agent / agent backend / AI core" or names "eve". Same effect: flip `stack.agent` to `"eve"` and bring in `eve-agent`.
+
+Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaffold mode** if `apps/agent` doesn't exist yet (sets up the engine once), **Capability mode** if it does (add one tool / skill / channel / connection / schedule / subagent / hook / eval, idempotently).
+
+Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns `apps/agent/` exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app at `packages/types` (re-exported eve session/event types) and the `withEve()` proxy in `apps/web`. eve's model calls bill through the Vercel AI Gateway, separate from the build tooling.
+
 ## What dev-flow does NOT do
 
 - **Doesn't do specialist work itself.** No PRD writing, no DESIGN.md generation, no scaffolding. If you find yourself doing actual work (other than reading state and routing), stop — call the right specialist.
 - **Doesn't edit `app/`.** That's owned by `design-md-to-app` and friends.
+- **Doesn't edit `apps/agent/`.** That's owned exclusively by `eve-agent`.
 - **Doesn't make stack decisions silently.** Always ask the user, even if a default is obvious.
 - **Doesn't skip phases.** If the user tries to jump from `empty` straight to `design-md-to-app`, gently push back: at minimum `PROJECT.md` should exist so the design-to-app skill knows the brand voice.
 

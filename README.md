@@ -1,7 +1,9 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **32 skills (12 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **33 skills (13 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+>
+> The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 
 ```
                       ┌────────────────────────┐
@@ -129,7 +131,7 @@ The 8 skills are:
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
-| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `storage` / `deploy` modules |
+| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 
 ### 2. Create a project
@@ -647,12 +649,14 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
+- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 33 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
+- 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 
 ---
 
-## The 32 skills, in detail
+## The 33 skills, in detail
 
-> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 12 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 13 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -734,6 +738,7 @@ The skill is explicit about confidence: every guess is flagged in the prose. A 1
 
 - Framework installed (Next.js + Tailwind v4 by default; Vite + React, Remix, Astro variants supported via `references/<framework>-<ui>.md`).
 - shadcn/ui via the **token-first registry approach**: emits `<root>/registry.json` from DESIGN.md, runs `pnpm dlx shadcn@latest init ./registry.json --yes`, then `pnpm dlx shadcn@latest add --all --yes`. Every primitive lands in `components/ui/` pre-themed.
+- **shadcn CLI v4 awareness**: picks the primitive base via `stack.ui_base` (`radix` default | `base` for Base UI — `shadcn create --base`), plus icon library / CSS variables / RTL. If you built a config on [ui.shadcn.com/create](https://ui.shadcn.com/create), pass the **preset code** as `stack.shadcn_preset` and the skill scaffolds with `--preset` instead of the DESIGN.md token install (preset XOR DESIGN.md-tokens). A **confirmation gate** prints the full resolved config and waits for your OK before scaffolding.
 - **Theme system**: `next-themes` + `<ThemeProvider>` + a `<ModeToggle>` button with a global `D` keyboard shortcut (excluded when typing in inputs).
 - **Folder skeleton**: `components/<group>/` for cross-route shared, `app/<route>/_components/` for page-scoped, `lib/server/<domain>.ts` for server actions, `lib/queries/<domain>.ts` for reads, `hooks/`.
 - **Site-shell components**: `SiteTopNav`, `WordmarkFooter`, `MarketingShell` for public pages; `AppShell` for authenticated routes; `Eyebrow` helper.
@@ -768,6 +773,8 @@ The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs
 | `test` | Vitest + Testing Library + Playwright | ✅ shipped |
 | `ci` | husky + lint-staged + GitHub Actions | ✅ shipped |
 | `motion` | Motion (rebranded framer-motion) + opinionated wrappers (FadeIn, StaggerList, MagneticButton) | ✅ shipped |
+| `voice` | Realtime voice over the Vercel AI Gateway (`@ai-sdk/gateway` + `experimental_useRealtime`); STT → agent → TTS topology | ✅ shipped (experimental API) |
+| `realtime` | App-level WebSockets (Vercel Functions `experimental_upgradeWebSocket`); presence / chat / collab, external store for shared state | ✅ shipped (experimental API) |
 | `storage` | UploadThing / S3 | 🚧 planned |
 | `deploy` | Vercel / Fly / Cloudflare Pages | 🚧 planned |
 
@@ -790,6 +797,19 @@ The skill is **idempotent**: re-running `module-add db` on a project that alread
 **Prerequisite**: `module-add test` has been run (Vitest + Playwright are wired). If not, the skill stops and routes there. **Idempotent**: existing test files are never silently overwritten — the user is asked whether to regenerate, append missing cases, or abort.
 
 **What it does NOT do**: install test packages, run a full suite, fix failing tests. A failing test is a signal — the skill surfaces it, the user decides whether to fix the test or the source.
+
+### `eve-agent` — scaffold + grow the AI agent engine (`apps/agent`)
+
+**Input**: a monorepo with `stack.agent = "eve"` (opted into at stack-decision time, or added on demand).
+**Output**: an [eve](https://eve.dev) agent at `apps/agent` (Vercel's filesystem-first agent framework) that the web app consumes as its engine — or one new capability added to an existing agent.
+
+The agent counterpart to `design-md-to-app` + `module-add`: where those build/grow the Next.js app, `eve-agent` builds/grows the agent. **Two modes**, one logical operation per run (idempotent):
+- **Scaffold mode** (no `apps/agent` yet): `agent.ts` + `instructions.md`, the default HTTP channel, a baseline eval, and `packages/types` (re-exported eve session/event types). The web app consumes it via the official `withEve()` + `useEveAgent()` integration.
+- **Capability mode** (agent exists): add ONE file — a tool (`agent/tools/<name>.ts`), skill, channel, connection (MCP/OpenAPI), schedule, subagent, or hook — plus its eval.
+
+**The one rule**: never guess the eve API — the source of truth is the bundled docs at `node_modules/eve/docs/`. Non-idempotent tools (payments, deletes, external writes) are approval-gated, because eve replays durable steps. It sits **outside** the `phase` line (its own capability cadence, often Linear-driven), recording only `stack.agent` + `history`. References: `eve-conventions.md`, `eve-scaffold.md`, `eve-capabilities.md`, `eve-web-integration.md`; script `check_eve_state.py`.
+
+> Voice and realtime pair naturally: `module-add voice` puts a voice surface **over** the eve agent (STT → agent → TTS — eve stays the brain, voice is I/O), and `module-add realtime` covers user-to-user realtime that the agent doesn't own. Never run two competing control loops.
 
 ### `forms` — one toolkit for every form (Next.js 16 App Router)
 
@@ -1106,7 +1126,7 @@ The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 # sibling cross-references, installer coverage)
 python3 scripts/lint_skills.py
 
-# Regenerate skills.json (the machine-readable registry of all 24 skills)
+# Regenerate skills.json (the machine-readable registry of all 33 skills)
 python3 scripts/build_skills_registry.py
 
 # Check for npm version drift in the RN/Expo stack-defaults pin set
