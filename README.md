@@ -129,7 +129,7 @@ The 8 skills are:
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
-| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `storage` / `deploy` modules |
+| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 
 ### 2. Create a project

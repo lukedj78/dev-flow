@@ -50,50 +50,6 @@ If the user invokes `module-add` for one of these and the full reference doesn't
 
 ---
 
-## `module-voice` — realtime voice over AI Gateway
-
-**What**: a realtime voice surface (speech in / speech out) for a Next.js app, on the **Vercel AI Gateway** audio modalities. Mints an ephemeral token server-side, connects over WebSocket client-side, renders a mic/transcript UI.
-
-**Packages**: `@ai-sdk/gateway` (AI SDK 7), `@ai-sdk/react` (hook `experimental_useRealtime`).
-
-**Models** (launch set, OpenAI/xAI only): `openai/gpt-realtime-2` (realtime), `openai/whisper-1` (STT), `xai/grok-tts` (TTS).
-
-**Shape**:
-- Server route `app/api/realtime/token/route.ts` → `gateway.experimental_realtime.getToken({ model })`. Never expose the gateway key client-side.
-- Client component: `experimental_useRealtime({ api: { token: '/api/realtime/token' } })`, `connect()`, `startAudioCapture(stream)`, connection states via the `state-discipline` skill.
-
-**Env vars**: `AI_GATEWAY_API_KEY`.
-
-**Architecture decision (the important one)** — when the project also has an eve agent (`stack.agent="eve"`), **the agent is the brain and voice is just an I/O channel**: STT → eve agent (durable, your tools) → TTS. Do **not** let `gpt-realtime-2` run its own tool-calling loop *and* eve's loop — two control loops compete and fragment the logic. Pick one brain. Use the realtime speech-to-speech model as the primary loop only for low-latency, low-logic conversational products.
-
-**Caveats to document when implementing**:
-- The API is `experimental_*` (AI SDK 7) — expect breaking changes; pin versions.
-- Launch providers are OpenAI/xAI only; check current model availability before wiring.
-- Token endpoint must be rate-limited and auth-gated (it mints billable sessions).
-
----
-
-## `module-realtime` — Vercel Functions WebSockets
-
-**What**: app-level realtime over **Vercel Functions WebSockets** — multi-user chat, presence, collaborative cursors. Requires **Fluid compute** (default for projects created after 2025-04-23) and the WebSockets permission on the project.
-
-**Shape** (Next.js has no native WS API → use the workaround):
-- Route `app/api/ws/route.ts` exporting `GET` that returns `experimental_upgradeWebSocket((ws) => { ws.on('message', …) })` from `@vercel/functions`.
-- Client: a plain `WebSocket('wss://…/api/ws')` with reconnect/backoff (connections close at the function's max duration).
-
-**Packages**: `@vercel/functions` (Next.js workaround); `ws` / `socket.io` for non-Next Node servers.
-
-**State**: instances are **not** sticky and a reconnect may hit a different instance / deployment → store rooms, presence, counters, pub/sub in an **external store** (e.g. Redis), never in memory.
-
-**Architecture decision (the important one)** — **do NOT use this for agent streaming.** An eve agent already streams its responses (NDJSON via `useEveAgent`); reaching for raw WebSockets there just reinvents it. Use `module-realtime` only for genuine **user-to-user / collaborative** realtime that the agent doesn't own. (If you ever need an eve channel over WS, `defineChannel` has `WS()` helpers and eve-on-Nitro supports it on Vercel — niche.)
-
-**Caveats to document when implementing**:
-- API is `experimental_upgradeWebSocket` — expect changes; pin `@vercel/functions`.
-- Connection drops at function max-duration → client reconnect with backoff is mandatory.
-- Upgrade requests pass through routing/firewall/rate-limits; rate-limit the upgrade path.
-
----
-
 ## When to implement these
 
 Implement on demand: the first time a user says "module-add storage" or "module-add deploy". Don't preemptively implement all of them — references that go stale (e.g., Stripe API version drift, UploadThing SDK changes) hurt more than the missing variant. Implement the variant fully — including the install templates and reference UI — when the user asks for it.
