@@ -149,11 +149,15 @@ Confermi, o vuoi cambiare qualcosa?
 Resolve each value from `meta.json#stack` (with the documented defaults). On "cambia X",
 update `meta.json#stack` and re-print the recap. Only after explicit confirmation, proceed.
 For MUI / standalone Base UI, print the equivalent lighter recap (library, framework, base
-color source) and confirm the same way. **Never scaffold on assumed config.**
+color source) and confirm the same way. **Never scaffold on assumed config.** When
+`stack.shadcn_preset` is set, run `pnpm dlx shadcn@latest preset decode <code>` and show the
+decoded config in the recap (so the user confirms what the preset carries).
 
 Read the relevant mapping reference and follow it:
 
-- shadcn → `references/shadcn-mapping.md` — **note**: in dev-flow mode, the recommended path is the **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
+- shadcn → `references/shadcn-mapping.md`. **Two visual-config paths — they are mutually exclusive:**
+  - **A) Preset path** (when `stack.shadcn_preset` is set): the preset owns the visual layer. Scaffold with `pnpm dlx shadcn@latest init --preset ${stack.shadcn_preset} --template ${framework} --base ${stack.ui_base ?? "radix"} --yes`, then `pnpm dlx shadcn@latest add --all --yes`. **Skip `build_registry.py` / the `registry.json` token install** — the preset already encodes colors/theme/fonts/icons/radius. (Helpers: `preset decode` to inspect, `preset url`/`preset open` to view in browser.)
+  - **B) DESIGN.md-first path** (default, no preset): the recommended **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
   - **Pass the create parameters from `meta.json#stack`** (shadcn CLI v4): `--base ${stack.ui_base ?? "radix"}` (Radix vs Base UI primitives), `--base-color ${stack.base_color ?? "neutral"}`, `${stack.css_variables === false ? "--no-css-variables" : "--css-variables"}`, and `--rtl` when `stack.rtl`. The DESIGN.md tokens (via `registry.json`) override base color / theme / fonts, so those flags are only the starting scaffold. **`--base` is NOT overridden by DESIGN.md** — it picks the primitive engine, so honor `stack.ui_base` exactly. If `stack.ui_base` is unset, ask before scaffolding (don't silently default to Radix on a fresh project).
   - Every shadcn block/component exists in both Radix and Base UI variants; once `--base` is set, `shadcn add` pulls the matching variant automatically.
 - MUI → `references/mui-mapping.md`

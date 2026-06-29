@@ -132,7 +132,13 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 ### shadcn create parameters (only when `ui = "shadcn"`)
 
-shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI. **Hybrid policy: explicitly ask only the parameters that matter and that DESIGN.md does NOT own; leave the visual ones to DESIGN.md without asking.**
+shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI.
+
+**First, offer the preset path.** Ask once: *"Hai un preset shadcn da ui.shadcn.com/create? (incolla il codice, es. `b5owWMfJ8l`)"*. A preset packs the whole shadcn visual system — style, base color, theme, icons, fonts, radius — into one code, made to hand off to agents.
+- **If yes** → set `stack.shadcn_preset = <code>`. The preset owns the visual layer: **don't** ask base color / theme / icons, and the scaffold will pass `--preset` and skip the DESIGN.md token install for visuals. Still ask `ui_base` (the preset may not encode Radix-vs-Base-UI). You can `shadcn preset decode <code>` to show the user what it contains.
+- **If no** → DESIGN.md-first path with the hybrid asking below.
+
+**Hybrid policy (no-preset path): explicitly ask only the parameters that matter and that DESIGN.md does NOT own; leave the visual ones to DESIGN.md without asking.**
 
 | Parameter | Stack key | Ask? | Values / default |
 |---|---|---|---|
