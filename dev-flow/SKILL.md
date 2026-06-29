@@ -147,6 +147,8 @@ shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the 
 
 So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Radix o Base UI?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
 
+Just before scaffolding, `design-md-to-app` prints a **recap of the full resolved shadcn create config and asks for confirmation** (its Step 4 confirmation gate) — including the values derived from DESIGN.md — so nothing is scaffolded on assumed config.
+
 > `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
 
 For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.

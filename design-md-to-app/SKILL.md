@@ -127,6 +127,30 @@ If overwriting any existing theme/config (`globals.css`, `tailwind.config.*`, `t
 
 ### Step 4 — Apply the chosen mapping
 
+**Confirmation gate (BLOCKING — do this before scaffolding).** Before running any
+`shadcn create` / install command, print a recap of the **full resolved configuration** and
+**wait for the user to confirm or adjust**. Do not scaffold until they say go. Show every
+value that will be passed to the CLI, including the ones derived from DESIGN.md (so the user
+sees them even though they weren't prompted):
+
+```
+Sto per scaffoldare con shadcn create. Configurazione:
+  • framework      : next (App Router)        ← stack.framework
+  • base (primitivi): base  (Base UI)          ← stack.ui_base
+  • base color      : neutral                  ← stack.base_color (poi sovrascritto dai token DESIGN.md)
+  • theme           : (dai token DESIGN.md)    ← stack.ui_theme
+  • icone           : lucide                   ← stack.icon_library
+  • css variables   : on                       ← stack.css_variables
+  • rtl             : no                        ← stack.rtl
+  • monorepo        : no                        ← stack.framework
+Confermi, o vuoi cambiare qualcosa?
+```
+
+Resolve each value from `meta.json#stack` (with the documented defaults). On "cambia X",
+update `meta.json#stack` and re-print the recap. Only after explicit confirmation, proceed.
+For MUI / standalone Base UI, print the equivalent lighter recap (library, framework, base
+color source) and confirm the same way. **Never scaffold on assumed config.**
+
 Read the relevant mapping reference and follow it:
 
 - shadcn → `references/shadcn-mapping.md` — **note**: in dev-flow mode, the recommended path is the **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
