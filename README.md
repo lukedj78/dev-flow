@@ -1131,6 +1131,11 @@ python3 scripts/lint_skills.py
 # Regenerate skills.json (the machine-readable registry of all 33 skills)
 python3 scripts/build_skills_registry.py
 
+# Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
+# after editing any SKILL.md / references / scripts / assets)
+python3 scripts/build_skill_bundles.py          # all 33
+python3 scripts/build_skill_bundles.py dev-flow # or just one
+
 # Check for npm version drift in the RN/Expo stack-defaults pin set
 ./scripts/refresh-stack-defaults.sh          # dry-run, print diff
 ./scripts/refresh-stack-defaults.sh --apply  # rewrite the stack-defaults.md files
