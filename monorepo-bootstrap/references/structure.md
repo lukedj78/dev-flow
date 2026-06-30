@@ -272,5 +272,5 @@ Tokens flow from `DESIGN.md` → `packages/design/src/tokens.ts` → both Tailwi
 ## What's NOT in the layout
 
 - No `apps/admin/`, `apps/marketing/`, `apps/docs/`. v1 = exactly 1 web + 1 mobile.
-- No `packages/ui/`. Cross-platform UI is YAGNI (Tamagui adds complexity; few projects benefit).
+- No `packages/ui/` **for web + mobile monorepos** — cross-platform UI is YAGNI (Tamagui adds complexity; few projects benefit), so shadcn components stay in `apps/web/components/ui/` and only tokens are shared via `packages/design/`. **Exception — web-centric monorepos** (web-only, web + agent, multiple web apps with no NativeWind side): use shadcn's official `packages/ui` (`@workspace/ui`) shared-component layout instead; see `decision-tree.md` → "The `packages/ui` rule".
 - No `tooling/` package. ESLint/Prettier configs live in each app for simplicity.

@@ -57,12 +57,19 @@ Mandatory (created by monorepo-bootstrap):
 - packages/api/   — backend client + queries (filled later by module-add)
 
 Optional, add later via monorepo-add-shared-package:
-- packages/ui/ — IF you genuinely need cross-platform UI (rare — Tamagui)
+- packages/ui/ — see the UI-package rule below
 - packages/config-eslint/ — IF you want shared lint configs
 - packages/config-tsconfig/ — IF tsconfig.base.json isn't enough
 
 Don't create packages "just in case". Make one when there's a real need.
 ```
+
+### The `packages/ui` rule (shadcn shared components)
+
+Whether `packages/ui` exists depends on whether the monorepo has a **NativeWind (mobile) side**:
+
+- **Web + mobile** (`stack.monorepo.mobile` present): keep the default — shadcn components live in `apps/web/components/ui/`, only *tokens* are shared via `packages/design/`. Components can't cross the React-DOM / React-Native boundary, so a shared component package only helps with cross-platform UI (Tamagui) — rare/YAGNI.
+- **Web-centric, no NativeWind consumer** (web-only, **web + agent**, or multiple web apps): use shadcn's **official monorepo layout** — `packages/ui` IS the shared component package (`@workspace/ui`), holding the primitives + `src/styles/globals.css` (DESIGN.md tokens), consumed by `apps/web`. This is canonical shadcn (<https://ui.shadcn.com/docs/monorepo>); `design-md-to-app` scaffolds it via `shadcn init --monorepo` (see `design-md-to-app/references/shadcn-mapping.md` → "Monorepo (shared `packages/ui`)"). Here `packages/design` is redundant — tokens live in `packages/ui/src/styles/globals.css`.
 
 ## Q5: What if I change the UI library for the web side after bootstrap?
 

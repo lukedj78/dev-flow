@@ -75,6 +75,46 @@ pnpm dlx shadcn@latest add --all --yes
 
 Wrap `<Outlet />` in your `<ThemeProvider>` inside `app/root.tsx` if you want dark/light toggling.
 
+### Monorepo (shared `packages/ui` — the official shadcn layout)
+
+**When `meta.json#stack.framework == "monorepo"` and `stack.ui == "shadcn"`, do NOT run `--no-monorepo` and do NOT dump components into `apps/web/components/ui/`.** Use shadcn's official monorepo structure instead: the components live in a shared **`packages/ui`** package imported as **`@workspace/ui`**, and `apps/web` consumes them.
+
+> **Why a branch.** dev-flow's default monorepo (see `monorepo-bootstrap`) keeps shadcn components in `apps/web/components/ui/` and shares only *tokens* via `packages/design/`. That model exists for **web + mobile** monorepos, where components can't be shared across React DOM and React Native anyway (mobile uses NativeWind), so only tokens are shareable. **For a web-centric monorepo with no NativeWind consumer** — web-only, **web + agent**, or multiple web apps — that rationale doesn't hold, and the canonical shadcn `packages/ui` (`@workspace/ui`) layout is correct: it's the official path, it lets multiple web surfaces share one component set, and `shadcn add` knows how to target it. Pick this branch whenever the monorepo has no mobile/NativeWind side.
+
+Official layout (per <https://ui.shadcn.com/docs/monorepo>):
+
+```
+apps/web/
+├── components.json          # ui alias → "@workspace/ui/components", utils → "@workspace/ui/lib/utils"
+├── components/              # app-specific blocks only (not primitives)
+└── package.json             # depends on "@workspace/ui": "workspace:*"
+
+packages/ui/
+├── components.json          # ui alias → "@workspace/ui/components" (install target = local)
+├── src/
+│   ├── components/          # shadcn primitives land HERE (add --all)
+│   ├── hooks/
+│   ├── lib/utils.ts
+│   └── styles/globals.css   # @theme inline + DESIGN.md token vars live HERE
+└── package.json             # name "@workspace/ui" (or "@<slug>/ui")
+```
+
+Scaffold it with the monorepo flow (verify flags against `pnpm dlx shadcn@latest init --help`):
+
+```bash
+# from the monorepo root — uses the next-monorepo template
+pnpm dlx shadcn@latest init --monorepo --base <radix|base> -d
+# then add primitives FROM apps/web; the CLI routes them into packages/ui
+cd apps/web && pnpm dlx shadcn@latest add --all --yes
+```
+
+Rules specific to this branch:
+- **Both** `components.json` files must share identical `style`, `iconLibrary`, `baseColor`. For Tailwind v4, leave the `tailwind.config` empty in `components.json`.
+- DESIGN.md tokens (the `@theme inline {}` + `:root`/`.dark` vars) go in **`packages/ui/src/styles/globals.css`**, which `apps/web/app/globals.css` imports. Don't duplicate the palette in the app.
+- Imports become `import { Button } from "@workspace/ui/components/button"` (not `@/components/ui/button`).
+- The web app's `next.config` must `transpilePackages: ["@workspace/ui"]` (or the `@<slug>/ui` name).
+- The "library primitive priority" and folder-convention rules below still apply; just read primitives from `@workspace/ui/components/*` instead of `components/ui/*`.
+
 ### About the `init` and `add` commands
 
 The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or interactive "Style: New York / Default" prompt anymore.** Current flags:
@@ -82,7 +122,7 @@ The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or intera
 - `init --defaults` — equivalent to `--template=next --preset=base-nova`. Use for new projects.
 - `init --template <next|vite|react-router|laravel|astro|start>` — pick framework explicitly.
 - `init --base <radix|base>` — choose the underlying primitive library. Default `base` (uses `@base-ui/react`).
-- `init --no-monorepo` — skip the monorepo prompt.
+- `init --no-monorepo` — skip the monorepo prompt. **Single-app projects only.** In a `stack.framework == "monorepo"` project use `--monorepo` instead (see the "Monorepo (shared `packages/ui`)" section above) — `--no-monorepo` there produces the non-canonical layout that dumps primitives into `apps/web/components/ui/`.
 - `init --css-variables` / `--no-css-variables` — opt in/out of CSS variable theming. Default: yes.
 - `add --all --yes` — install every component non-interactively. **This is the default in this skill** because the workflow is "customize all primitives per DESIGN.md".
 
