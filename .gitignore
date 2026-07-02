@@ -28,3 +28,13 @@ __pycache__/
 .playwright-mcp/
 ios/Pods/
 android/.gradle/
+
+# Local tool config / plugin cache
+.claude/
+.superpowers/
+
+# Test screenshots in repo root (not source)
+/*.png
+
+# Skill bundles generated in root — official bundles live in dist/*.skill
+/*.skill
