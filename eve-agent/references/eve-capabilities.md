@@ -34,6 +34,24 @@ export default defineTool({
   what the model sees vs what channels receive.
 * Override a built-in tool by re-importing from `eve/tools/defaults`; disable via `disableTool()`.
 
+### Prebuilt toolsets (don't hand-write what a preset already gives)
+
+Before hand-writing many tools for a well-known service, check for a **prebuilt toolset** — a
+single file in `agent/tools/` that exposes a whole family of tools. The first is **GitHub
+Tools**: `createGithubTools` from `@github-tools/sdk/eve` ([VERIFY] against the installed
+package). One file covers pull requests, code review, issues, commits, and repo management:
+
+```ts
+// agent/tools/github.ts
+import { createGithubTools } from "@github-tools/sdk/eve";
+export default createGithubTools({ preset: "maintainer" });
+```
+
+Five presets scope the surface — `code-review`, `issue-triage`, `repo-explorer`, `ci-ops`,
+`maintainer` — usable alone or merged. **Safe by default**: write tools (`mergePullRequest`)
+require approval; read tools (`listPullRequestFiles`, `getCommit`) trim what the model sees.
+Prefer a toolset + preset over reinventing per-tool files for that service.
+
 ## Skill — `agent/skills/<name>.md`
 
 An on-demand procedure the framework-owned `load_skill` tool pulls into the active turn when

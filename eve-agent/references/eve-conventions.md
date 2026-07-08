@@ -129,6 +129,24 @@ bundler does not capture `execute: someFn` and it fails on replay.
   Nitro scheduled-task runner if schedules exist, and a real authenticator replacing
   `vercelOidc()`.
 
+## Observability — inspecting deployed runs
+
+Deployed on Vercel, every eve project gets an **Agent Runs** tab (trigger, duration, token
+usage per session) automatically. To debug from the terminal or from a coding agent, use the
+`vercel agent-runs` CLI (needs `npm i -g vercel@latest`):
+
+```bash
+vercel agent-runs projects              # projects with runs
+vercel agent-runs list                  # recent runs for a project
+vercel agent-runs inspect <runId>       # metadata, lifecycle, usage, subagents
+vercel agent-runs trace <runId>         # turns, messages, reasoning, tokens (markdown when piped)
+```
+
+Add `--json` for programmatic output. The same four operations exist as Vercel MCP tools
+(`list_agent_run_projects`, `list_agent_runs`, `get_agent_run`, `get_agent_run_trace`) via
+`npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
+human. ([VERIFY] against current Vercel CLI/MCP.)
+
 ## Workspace seeding
 
 Only two sources reach the sandbox `/workspace`: `agent/skills/` → `/workspace/skills/…`,
