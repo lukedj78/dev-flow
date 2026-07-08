@@ -18,6 +18,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineInstructions` | `eve/instructions` |
 | `defineDynamic` | `eve/tools` · `eve/skills` · `eve/instructions` |
 | `defineChannel` + route verbs `GET/POST/PUT/PATCH/DELETE/WS` | `eve/channels` |
+| `chatSdkChannel` (messaging surfaces via adapters) | `eve/channels/chat-sdk` |
 | `defineMcpClientConnection`, `defineOpenAPIConnection` | `eve/connections` |
 | `defineHook` | `eve/hooks` |
 | `defineSchedule` | `eve/schedules` |

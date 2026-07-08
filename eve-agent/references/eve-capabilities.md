@@ -60,6 +60,38 @@ A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web
 (STT → agent → TTS) — never run the speech-to-speech model's own tool loop *and* eve's
 durable loop in parallel; two control loops compete and fragment the logic.
 
+### Chat SDK channel — messaging surfaces via adapters
+
+For **messaging platforms** (Facebook Messenger, WhatsApp, email via Resend, Liveblocks, and
+any surface with an adapter), use the **Chat SDK channel** instead of a bespoke `defineChannel`.
+It's `chatSdkChannel()` from `eve/channels/chat-sdk`, in a channel file named after the surface
+(e.g. `agent/channels/resend.ts`). One channel reaches many platforms through pluggable adapters:
+
+```ts
+// agent/channels/resend.ts   ([VERIFY] names against installed eve/@chat-adapter versions)
+import { chatSdkChannel } from "eve/channels/chat-sdk";
+import { stateMemory } from "@chat-adapter/state-memory";
+import { resendAdapter } from "@resend/chat-sdk-adapter";
+
+export default chatSdkChannel({
+  adapters: [resendAdapter({ /* creds from env */ })],
+  state: stateMemory(),
+  handler: (bot) => {
+    // register handlers on `bot` like a standalone Chat SDK app, then route to the agent:
+    bot.on("message", async (message, { send, thread }) => {
+      await send(message.text, { thread });
+    });
+  },
+});
+```
+
+It gives you out of the box: a **webhook route per adapter**, typing indicators + automatic
+reply posting, **HITL input requests rendered as cards with buttons**, **thread persistence
+across sessions**, and in-conversation error reporting. Adapter creds go in env vars;
+`@chat-adapter/state-memory` is the default (swap for a durable store in production). Use this
+for reach across chat platforms; keep the default HTTP channel (`agent/channels/eve.ts`) for
+the Next.js web app via `withEve()`/`useEveAgent()`.
+
 ## Connection — `agent/connections/<service>.ts`
 
 Auth + access to an external service via **MCP** or **OpenAPI**. The filename is the
