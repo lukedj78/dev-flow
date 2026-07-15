@@ -29,7 +29,10 @@ export default defineTool({
 * `execute` runs in the **trusted app runtime** — read secrets from `process.env` here; the
   model only sees the returned value.
 * **Idempotency:** an interrupted step re-runs. Any non-idempotent side effect must be made
-  idempotent or gated with `approval: always()` / `once()` from `eve/tools/approval`.
+  idempotent or gated with `approval: always()` / `once()` from `eve/tools/approval` — or a
+  **custom policy** `({ session, toolName, toolInput, … }) => "user-approval" |
+  "not-applicable" | "approved" | "denied"` when the decision depends on input or caller
+  (threshold amounts, cross-tenant guards). See eve-conventions.md for the full shape.
 * Optional: `outputSchema` (return typing / task mode), `toModelOutput(output)` to project
   what the model sees vs what channels receive.
 * Override a built-in tool by re-importing from `eve/tools/defaults`; disable via `disableTool()`.
@@ -68,10 +71,31 @@ A new entrypoint. Run `eve channels add <kind>` (kinds: `web`, `slack`, `discord
 The file stem is the channel id and the channel is the module's **default export**
 (`defineChannel` from `eve/channels` for custom ones). The default HTTP channel
 (`agent/channels/eve.ts`) already exists from scaffold — only add a channel for another
-surface. Platform channels read secrets from env vars (`DISCORD_*`, `GITHUB_*`, `LINEAR_*`,
-`MICROSOFT_*`, `TELEGRAM_*`, `TWILIO_*`); **Slack is the exception** (Vercel Connect, no
-`SLACK_*` env vars). Most need a one-time out-of-band registration (Discord command PUT,
-Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`, Slack `--triggers`).
+surface. Platform channels read secrets from env vars (`DISCORD_*`, `LINEAR_*`, `MICROSOFT_*`,
+`TELEGRAM_*`, `TWILIO_*`); **Slack and GitHub go through Vercel Connect** (no `SLACK_*` env
+vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` from
+`@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
+Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`).
+
+Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
+
+```ts
+// agent/channels/slack.ts   (scaffolded by `eve channels add slack`)
+import { connectSlackCredentials } from "@vercel/connect/eve";
+import { slackChannel } from "eve/channels/slack";
+export default slackChannel({ credentials: connectSlackCredentials("slack/<agent-name>") });
+```
+
+```bash
+vercel connect create slack --triggers                                  # provision + enable Event Subscriptions
+vercel connect attach <uid> --triggers --trigger-path /eve/v1/slack --yes   # point triggers at eve's route
+```
+
+Gotchas: `--triggers` is needed on BOTH create (connector) and attach (destination) — a bot
+that appears in Slack but never replies is almost always missing one of the two; the trigger
+path must be `/eve/v1/slack`, not Connect's default `/slack`; re-running `create` installs a
+duplicate Slack app. Slack delivers over the public internet, so it cannot be tested on
+localhost — deploy first, then smoke-test with `eve dev <url>`.
 
 A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
 `module-add voice` stub) should treat the agent as the brain and voice as an I/O channel

@@ -12,7 +12,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 |---|---|
 | `defineAgent`, `defineRemoteAgent` | `eve` |
 | `defineTool`, `disableTool`, `ExperimentalWorkflow` | `eve/tools` |
-| approval policies `always` / `once` / `never` | `eve/tools/approval` |
+| approval policies `always` / `once` / `never` (+ `Approval`/`ApprovalContext`/`ApprovalStatus` types) | `eve/tools/approval` (types also on `eve/tools`) |
 | built-in tool defaults (`bash`, `readFile`, …) | `eve/tools/defaults` |
 | `defineSkill` | `eve/skills` |
 | `defineInstructions` | `eve/instructions` |
@@ -23,7 +23,10 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineHook` | `eve/hooks` |
 | `defineSchedule` | `eve/schedules` |
 | `defineState` | `eve/context` |
-| `defineSandbox` + backends `vercel()`/`docker()`/… | `eve/sandbox` |
+| `defineSandbox` + backends `defaultBackend()`/`vercel()`/`docker()`/… | `eve/sandbox` |
+| channel authenticators `localDev`/`vercelOidc`/`placeholderAuth` | `eve/channels/auth` |
+| `slackChannel` (+ per-platform channels) | `eve/channels/slack` (etc.) |
+| Connect credentials `connectSlackCredentials`/`connectGitHubCredentials` | `@vercel/connect/eve` |
 | `defineInstrumentation` | `eve/instrumentation` |
 | `defineEval`, `defineEvalConfig` | `eve/evals` |
 | value matchers `includes`/`equals`/`matches`/`similarity`/`satisfies` | `eve/evals/expect` |
@@ -67,6 +70,25 @@ export default defineTool({
   async execute(input, ctx) { /* … */ },
 });
 ```
+
+`approval` also accepts a **custom policy** when the decision depends on the input or the
+caller. It receives the session context plus `{ toolName, toolInput, approvedTools, callId }`
+and returns `"user-approval"` (pause for a person), `"not-applicable"` (continue),
+or `"approved"`/`"denied"` (decide automatically; use `{ type, reason }` to tell the model
+why). Booleans are the legacy predicate shape and still work. Guard `toolInput` — it can be
+undefined:
+
+```ts
+approval: ({ session, toolInput }) => {
+  if (toolInput?.tenantId !== session.auth.current?.attributes.tenantId) return "denied";
+  return (toolInput?.amount ?? 0) > 1000 ? "user-approval" : "not-applicable";
+},
+```
+
+Markdown schedules dispatch turns as the app principal (`authenticator: "app"`,
+`principalId: "eve:app"`, `principalType: "runtime"`) — match all three in a policy to skip
+approval for automated turns while still prompting humans (then pair with idempotency keys,
+since skipped approval means a replayed step can re-fire the side effect).
 
 HITL surfaces as `input.requested` / `authorization.required` stream events; the run parks
 durably at `session.waiting` and resumes when the client answers via `inputResponses` keyed
@@ -124,7 +146,16 @@ bundler does not capture `execute: someFn` and it fails on replay.
   `/.well-known/workflow/`.
 * Model credentials via env: `AI_GATEWAY_API_KEY` (gateway) or a provider key
   (`ANTHROPIC_API_KEY`, …) plus the matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. Default scaffold model: `anthropic/claude-sonnet-4.6`.
+* Prereqs: **Node ≥ 24** and npm. Default scaffold model: `anthropic/claude-sonnet-5`; the
+  `model` field also accepts `defineDynamic({ fallback, … })` for per-session model choice.
+* Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
+  Standard Schema / plain JSON Schema object. Relative imports need `.js` extensions
+  (`module: NodeNext`). ([VERIFY] against the installed version.)
+* `eve dev <url>` connects the TUI to a **deployed** agent — use it to smoke-test after
+  deploy. Plain `vercel deploy` may need `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1` to recognize
+  eve as a framework ([VERIFY]; `eve deploy` sets it itself).
+* For multi-tenant work read `node_modules/eve/docs/patterns/` — `multi-tenant-auth`,
+  `multi-tenant-approvals`, `multi-tenant-memory`, `dynamic-scheduling` are canonical recipes.
 * Self-host: `eve build` + `PORT=3000 eve start --host 0.0.0.0`, persistent `.workflow-data`,
   Nitro scheduled-task runner if schedules exist, and a real authenticator replacing
   `vercelOidc()`.

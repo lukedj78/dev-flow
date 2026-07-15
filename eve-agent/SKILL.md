@@ -21,7 +21,7 @@ Scaffold and manage an eve agent — Vercel's filesystem-first agent framework, 
 
 ## The one rule that matters most
 
-**Never guess the eve API.** The source of truth is the bundled docs. Once eve is installed, its full documentation lives at `node_modules/eve/docs/`, and the live docs are at <https://eve.dev/docs>. Read the relevant doc there and run `npx eve --help` (or `eve info`) BEFORE scaffolding or before adding any capability. eve is young and its surface can change between versions; this skill encodes the workflow and conventions, not a frozen copy of the API. If anything in this skill disagrees with the installed docs, the installed docs win.
+**Never guess the eve API.** The source of truth is the bundled docs. Once eve is installed, its full documentation lives at `node_modules/eve/docs/`, and the live docs are at <https://eve.dev/docs>. Read the relevant doc there and run `npx eve --help` (or `eve info`) BEFORE scaffolding or before adding any capability. (Vercel's own official `eve` skill — `npx skills add vercel/eve --skill eve` — consists of exactly this rule and nothing else: read `node_modules/eve/docs/README.md` first.) eve is young and its surface can change between versions; this skill encodes the workflow and conventions, not a frozen copy of the API. If anything in this skill disagrees with the installed docs, the installed docs win.
 
 `references/eve-conventions.md` carries the cross-cutting rules that apply to every mode — the per-capability **import map**, identity-by-path, the durability/idempotency contract, the security model, fail-closed auth, and deploy/monorepo wiring. Read it before scaffolding or adding a capability.
 
@@ -84,7 +84,7 @@ Follow `references/eve-scaffold.md` for the full procedure. In short:
 
 1. Read `node_modules/eve/docs/` (install eve first if needed) and run `eve info` / `npx eve --help` to confirm the current init flow and folder layout.
 2. Initialize the agent inside `apps/agent` (`npx eve@latest init apps/agent`, or `eve init .` from within it). Keep the default HTTP channel (`agent/channels/eve.ts`) — that is what the web app consumes. The Next.js app provides the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
-3. Pin the model in `agent/agent.ts` (the eve scaffold default is `anthropic/claude-sonnet-4.6` via the Vercel AI Gateway) and write a real `agent/instructions.md`. Document the model choice in a comment.
+3. Pin the model in `agent/agent.ts` (the eve scaffold default is `anthropic/claude-sonnet-5` via the Vercel AI Gateway; the model can also be `defineDynamic` with a `fallback`) and write a real `agent/instructions.md`. Document the model choice in a comment.
 4. Set the channel auth in `agent/channels/eve.ts`: `localDev()` for development, a real authenticator (`vercelOidc()` / `jwtHmac()` / `httpBasic()`) for production. eve **fails closed** in prod — browser traffic is rejected unless an authenticator accepts it.
 5. Add at least one baseline eval in `evals/` (sibling of `agent/`) so `eve eval` has a gate to enforce in CI.
 6. Wire `apps/agent` into the pnpm workspace and `turbo.json` pipelines (`dev`, `build`, `lint`, `typecheck`, plus an `eval` task that runs `eve eval`).

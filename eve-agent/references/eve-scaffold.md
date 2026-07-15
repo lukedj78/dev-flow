@@ -38,7 +38,7 @@ deploy rules referenced throughout.
 
 ## 3. Pin the model and write instructions
 
-* Set the model explicitly in `agent/agent.ts` rather than relying on an implicit default, so the choice is reviewable in Git. The eve scaffold default is `anthropic/claude-sonnet-4.6`, routed through the Vercel AI Gateway; keep it unless the user asked for something specific. Document the choice in a comment.
+* Set the model explicitly in `agent/agent.ts` rather than relying on an implicit default, so the choice is reviewable in Git. The eve scaffold default is `anthropic/claude-sonnet-5`, routed through the Vercel AI Gateway; keep it unless the user asked for something specific. Document the choice in a comment.
 * Write a real `agent/instructions.md` (system prompt) that states the agent's purpose and boundaries — the baseline eval will assert against it.
 
 ## 4. Set the channel auth (fail closed)
