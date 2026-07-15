@@ -24,6 +24,11 @@ export default defineTool({
 ```
 
 * `inputSchema` is required (Zod / any Standard Schema / a plain JSON Schema object).
+* **Return plain JSON.** The runtime rejects non-JSON-serializable tool outputs at call
+  time ("returned a non-JSON-serializable result") — returning raw ORM rows (Drizzle rows
+  carry `Date` objects) fails on real runs while passing typecheck and mock evals. Project
+  to plain objects (dates → ISO strings) in a shared `lib/` helper so every copy of the
+  tool gets the fix.
 * `ctx` gives `ctx.session` (id, turn, `auth.current`/`auth.initiator`, `parent`),
   `ctx.getSandbox()`, `ctx.getSkill(id)`.
 * `execute` runs in the **trusted app runtime** — read secrets from `process.env` here; the
@@ -169,6 +174,20 @@ export default defineSchedule({
 `eve dev` does **not** fire schedules on cadence; trigger manually in dev via
 `POST /eve/v1/dev/schedules/<name>`. On Vercel they become Cron Jobs; self-hosted needs the
 Nitro task runner under `eve start`.
+
+Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard way:
+
+* A markdown schedule runs as the bare app principal — in a multi-tenant agent whose tools
+  require a tenant id, it can't call anything. Use the handler form: enumerate tenants in
+  code, then `receive(channel, { message, target, auth })` one session per tenant with the
+  tenant id stamped onto `auth.attributes` (eve's "dynamic scheduling" pattern).
+* **The default eve HTTP channel does not implement `receive()`** — it cannot be a handoff
+  target. Author a minimal internal channel (`defineChannel` with a `receive` hook that
+  calls `send(message, { auth, mode: "task", continuationToken: <fresh unique> })`).
+* **Give that channel at least one (inert) route.** `receive()` resolves its target by
+  module reference, falling back to a route fingerprint — and a channel with `routes: []`
+  has no fingerprint, so cross-bundle module duplication makes it unresolvable at runtime
+  ("channel is not registered in this agent's channels/").
 
 ## Subagent — local dir or remote
 
