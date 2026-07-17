@@ -117,6 +117,20 @@ What you get for free — and therefore must NOT re-implement: autoscroll that y
 the user, the scroll-to-bottom button, edge scroll-fade, virtualization hooks. **Deleting
 a hand-rolled `useRef`+`scrollTop=scrollHeight`+`overflow-y-auto` is the point.**
 
+**Field-verified gotcha — the scroller needs a BOUNDED-HEIGHT ancestor.** `MessageScroller`
+scrolls internally only if every ancestor up to the viewport is height-constrained; if any
+is `min-h-*` / auto-growing, the chat grows the whole page instead and the scroller "does
+nothing" (no error, jump-to-bottom button never appears). The chain must be: an app-shell
+region pinned to the viewport (`h-svh overflow-hidden` on the shadcn `SidebarInset`, header
+`shrink-0`, content `min-h-0 flex-1`) → the chat page `flex h-full min-h-0 flex-col` → the
+`MessageScroller` `min-h-0 flex-1`. The default shadcn `SidebarInset` is `min-h-svh` (grows)
+— override it to `h-svh` for any route that hosts an internally-scrolling surface.
+
+**Avatar gotcha.** `MessageAvatar` ships `self-end` — on a tall assistant message the avatar
+floats at the *bottom* of the row, detached from its header. Override with `self-start` so it
+sits at the top next to `MessageHeader`. Size it small (`size-7`) and style on-brand from the
+DESIGN.md (a rounded-md square often reads better than the default circle in a dense theme).
+
 Bubble variants map to your theme tokens (`secondary`, `muted`, `tinted`, `ghost`,
 `outline`, `destructive`); `ghost` = borderless flowing text (ideal for assistant turns
 paired with typeset). `align="start|end"` on both `Message` and `Bubble`.
