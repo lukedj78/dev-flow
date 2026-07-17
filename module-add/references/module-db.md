@@ -54,12 +54,55 @@ export default defineConfig({
 
 ### `lib/db/index.ts`
 
+**Recommended: driver-switch by URL** (field-verified). One client that picks the driver
+from `DATABASE_URL`: Neon over HTTP in prod/preview, node-postgres for a local Postgres,
+and **embedded PGlite when no URL is set** — so `pnpm dev` and CI run with zero infra and
+the *same* Drizzle schema, and prod is a one-env-var swap. This removes the "manually swap
+neon-http for node-postgres" caveat entirely. `pg`/`pglite` are `require`d lazily so
+serverless bundlers (and eve/nitro) don't trace them into the Neon build.
+
+```typescript
+import { drizzle as drizzleNeon, type NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { createRequire } from "node:module";
+import * as schema from "./schema";
+
+const nodeRequire = createRequire(import.meta.url);
+export type Database = NeonHttpDatabase<typeof schema>;
+
+export function createDb(url?: string): Database {
+  if (url && /neon\.tech/.test(url)) return drizzleNeon(neon(url), { schema });
+  if (url) {
+    const { Pool } = nodeRequire("pg") as typeof import("pg");
+    const { drizzle } = nodeRequire("drizzle-orm/node-postgres") as typeof import("drizzle-orm/node-postgres");
+    return drizzle(new Pool({ connectionString: url, max: 4 }), { schema }) as unknown as Database;
+  }
+  const { PGlite } = nodeRequire("@electric-sql/pglite") as typeof import("@electric-sql/pglite");
+  const { drizzle } = nodeRequire("drizzle-orm/pglite") as typeof import("drizzle-orm/pglite");
+  const { resolve } = nodeRequire("node:path") as typeof import("node:path");
+  return drizzle(new PGlite(process.env.PGLITE_DATA_DIR ?? resolve(process.cwd(), ".data/pglite")), { schema }) as unknown as Database;
+}
+
+// HMR-safe singleton (Next re-evaluates modules; PGlite is single-process).
+const g = globalThis as unknown as { __db?: Database };
+export function getDb(): Database { return (g.__db ??= createDb(process.env.DATABASE_URL)); }
+```
+
+Add dev deps for the fallback branches: `pnpm add -D @electric-sql/pglite pg @types/pg`.
+**Gotcha (Turbopack):** never build the PGlite dataDir with `new URL(..., import.meta.url)`
+(Turbopack treats it as a build-time asset and fails) — use `resolve(process.cwd(), …)`,
+and add `serverExternalPackages: ["@electric-sql/pglite", "pg"]` to `next.config.ts` so the
+WASM/native drivers aren't bundled. **Multi-process dev (e.g. Next + a separate agent):**
+PGlite is single-process — either point both at one Neon dev branch, or expose PGlite over
+the Postgres wire protocol with `@electric-sql/pglite-socket` (`PGLiteSocketServer`,
+`maxConnections ≥ 2`) and set `DATABASE_URL=postgresql://…@127.0.0.1:5434/postgres`.
+
+**Simpler alternative** (Neon-only — fine when you always have a Neon URL, incl. dev):
+
 ```typescript
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle({ client: sql });
+export const db = drizzle({ client: neon(process.env.DATABASE_URL!) });
 ```
 
 ### `lib/db/schema.ts`
@@ -171,6 +214,6 @@ This pushes the schema to the connected Neon DB. The user runs this after they'v
 
 ## Known caveats
 
-- Neon's serverless driver works only over HTTP, not TCP. For local dev with a different Postgres (e.g., Docker), the user has to swap `neon-http` for `node-postgres` in `lib/db/index.ts`. Note this in the report.
+- Neon's serverless driver works only over HTTP, not TCP. The **driver-switch `lib/db/index.ts`** above handles this automatically (node-postgres for a local TCP Postgres, PGlite when no URL) — prefer it over the Neon-only version precisely to avoid a manual swap. If you used the simpler Neon-only client, local dev against Docker Postgres needs the manual `neon-http` → `node-postgres` swap.
 - Drizzle's `drizzle-kit push` is destructive on column drops. For production, the user should switch to `drizzle-kit generate` + `drizzle-kit migrate` workflow. Mention this in the report — `push` is fine for dev only.
 - The `posts` example table is throwaway — invite the user to replace it once their schema starts taking shape.

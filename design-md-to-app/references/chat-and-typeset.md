@@ -18,31 +18,89 @@ pnpm dlx shadcn@latest add message-scroller message bubble attachment marker
 pnpm add @shadcn/react           # peer of message-scroller (the scroll engine)
 ```
 
-The registry items: `message-scroller`, `message`, `bubble`, `attachment`, `marker`,
-plus two CSS utilities that ship with `shadcn/tailwind.css` in new projects —
-`scroll-fade` (edge fades) and `shimmer` (text shimmer). Composition:
+The five registry families — **use them all** where the data has the shape for it; each is
+a set of composable parts, not one tag:
+
+| Family | Parts | Renders |
+|---|---|---|
+| `message-scroller` | `MessageScrollerProvider` · `MessageScroller` · `Viewport` · `Content` · `Item` · `Button` | anchored turns, streamed replies, thread restore, prepended history, jump-to-message, scroll controls, visibility |
+| `message` | `Message` · `MessageAvatar` · `MessageHeader` · `MessageContent` · `MessageFooter` · `MessageGroup` | the row: avatar, alignment, header, content, footer, grouping |
+| `bubble` | `Bubble` · `BubbleContent` · `BubbleGroup` · `BubbleReactions` | the surface: variants, alignment, reactions, links, buttons |
+| `attachment` | `Attachment` · `AttachmentGroup` · `AttachmentMedia` · `AttachmentContent` · `AttachmentTitle` · `AttachmentDescription` · `AttachmentActions` · `AttachmentAction` · `AttachmentTrigger` | files & images: media, metadata, upload state, actions, full-card trigger |
+| `marker` | `Marker` · `MarkerIcon` · `MarkerContent` (variants `default`/`separator`/`border`) | status updates, system notes, labeled separators |
+
+Render `MessageAvatar` **always**, `Attachment` **whenever a message has file parts**
+(AI-SDK `FileUIPart`: `{ type:"file", url, mediaType, filename? }`), `Marker` for the
+working/system state. Don't drop parts of the anatomy just because the first version didn't
+need them — that's the gap this reference exists to close.
+
+They reference CSS utilities — `scroll-fade-b`, `shimmer`, `scrollbar-thin`,
+`scrollbar-gutter-stable`, `scrollbar-none` — that are **NOT guaranteed to be in your
+`globals.css`** (they ship in fresh 2026 inits, but an older or hand-tokenized
+`globals.css` won't have them, and the component renders unstyled/broken with no error).
+**Field-verified gotcha:** after `shadcn add`, grep `globals.css` for `scroll-fade` — if
+missing, add these Tailwind v4 `@utility` blocks (they consume your theme tokens):
+
+```css
+@utility scrollbar-thin { scrollbar-width: thin;
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-thumb { background-color: var(--border); border-radius: 9999px; }
+  &::-webkit-scrollbar-track { background: transparent; } }
+@utility scrollbar-none { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+@utility scrollbar-gutter-stable { scrollbar-gutter: stable; }
+@utility scroll-fade-b { mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent 100%); }
+@keyframes ui-shimmer { 100% { transform: translateX(100%); } }
+@utility shimmer { position: relative; overflow: hidden;
+  &::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--foreground) 8%, transparent), transparent);
+    animation: ui-shimmer 1.5s infinite; } }
+```
+
+Composition — the **full anatomy** (avatar + attachments included). Wrap it in ONE reusable
+presentational component (e.g. `components/shared/chat/agent-conversation.tsx`) taking
+`messages` + `isBusy`; keep the chat containers thin (they own the data hook + prefill), and
+every chat in the app renders through it — the anatomy lives in exactly one place:
 
 ```tsx
 <MessageScrollerProvider>
   <MessageScroller className="min-h-0 flex-1">
     <MessageScrollerViewport>
       <MessageScrollerContent>
-        {messages.map((m, i) => (
-          <MessageScrollerItem key={m.id} scrollAnchor={i === messages.length - 1}>
-            <Message align={m.role === "user" ? "end" : "start"}>
-              <MessageContent>
-                <MessageHeader>{m.role === "user" ? "You" : "Assistant"}</MessageHeader>
-                <Bubble variant={m.role === "user" ? "secondary" : "ghost"} align={...}>
-                  <BubbleContent>
-                    {m.role === "user"
-                      ? <span className="whitespace-pre-wrap">{text}</span>
-                      : <AgentMarkdown compact>{text}</AgentMarkdown>}
-                  </BubbleContent>
-                </Bubble>
-              </MessageContent>
-            </Message>
-          </MessageScrollerItem>
-        ))}
+        {messages.map((m, i) => {
+          const files = m.parts.filter((p) => p.type === "file")
+          const isUser = m.role === "user"
+          return (
+            <MessageScrollerItem key={m.id} scrollAnchor={i === messages.length - 1}>
+              <Message align={isUser ? "end" : "start"}>
+                <MessageAvatar>{isUser ? <User/> : <Bot/>}</MessageAvatar>
+                <MessageContent>
+                  <MessageHeader>{isUser ? "You" : "Assistant"}</MessageHeader>
+                  {text && (
+                    <Bubble variant={isUser ? "secondary" : "ghost"} align={isUser ? "end" : "start"}>
+                      <BubbleContent>
+                        {isUser
+                          ? <span className="whitespace-pre-wrap">{text}</span>
+                          : <AgentMarkdown compact>{text}</AgentMarkdown>}
+                      </BubbleContent>
+                    </Bubble>
+                  )}
+                  {files.length > 0 && (
+                    <AttachmentGroup>
+                      {files.map((f) => (
+                        <Attachment key={f.url}>
+                          <AttachmentMedia variant={f.mediaType.startsWith("image/") ? "image" : "icon"}>
+                            {f.mediaType.startsWith("image/") ? <img src={f.url} alt={f.filename ?? ""}/> : <FileText/>}
+                          </AttachmentMedia>
+                          <AttachmentContent><AttachmentTitle>{f.filename ?? f.mediaType}</AttachmentTitle></AttachmentContent>
+                        </Attachment>
+                      ))}
+                    </AttachmentGroup>
+                  )}
+                </MessageContent>
+              </Message>
+            </MessageScrollerItem>
+          )
+        })}
         {isBusy && (
           <MessageScrollerItem>
             <Marker><MarkerContent className="shimmer">Working…</MarkerContent></Marker>
@@ -74,6 +132,35 @@ mono font — don't ship the generic defaults). Create context variants as neede
 (`.typeset-chat` tighter for bubbles, `.typeset-docs` roomier for a docs page).
 
 Wrap rendered content: `<div className="typeset">{renderedHtml}</div>`.
+
+**Canonical structure (field-verified — copy this into `globals.css`, then retune colors
+to DESIGN.md).** Two non-obvious details that matter: use `:where(...)` so the rules have
+**zero specificity** (Tailwind utilities always win), and apply **only `margin-block-start`**
+(never `margin-block-end`) so streaming markdown doesn't reflow as blocks append. Opt out
+with `.not-typeset`.
+
+```css
+.typeset {
+  --typeset-font-body: inherit; --typeset-font-heading: var(--font-heading, inherit);
+  --typeset-font-mono: var(--font-mono, ui-monospace, monospace);
+  --typeset-size: 1em; --typeset-leading: 1.75; --typeset-flow: 1.25em;
+  font-size: var(--typeset-size); line-height: var(--typeset-leading); font-family: var(--typeset-font-body);
+}
+.typeset :where(h1,h2,h3,h4,h5,h6):not(.not-typeset) { font-family: var(--typeset-font-heading); font-weight: 600; line-height: 1.25; margin-block-start: var(--typeset-flow); }
+.typeset :where(p,ul,ol,blockquote,table,pre,hr):not(.not-typeset) { margin-block-start: var(--typeset-flow); }
+.typeset :where(ul,ol):not(.not-typeset) { padding-inline-start: 1.5em; }
+.typeset :where(ul):not(.not-typeset) { list-style: disc; }
+.typeset :where(ol):not(.not-typeset) { list-style: decimal; }
+.typeset :where(a):not(.not-typeset) { text-decoration: underline; text-underline-offset: 2px; }
+.typeset :where(code):not(.not-typeset) { font-family: var(--typeset-font-mono); font-size: .875em; background: var(--muted); padding: .125em .375em; border-radius: var(--radius-sm); }
+.typeset :where(pre):not(.not-typeset) { font-family: var(--typeset-font-mono); background: var(--muted); padding: 1em; border-radius: var(--radius-lg); overflow-x: auto; }
+.typeset :where(pre code):not(.not-typeset) { background: transparent; padding: 0; }
+.typeset :where(table):not(.not-typeset) { width: 100%; border-collapse: collapse; font-size: .9em; }
+.typeset :where(th,td):not(.not-typeset) { border: 1px solid var(--border); padding: .5em .75em; text-align: start; }
+.typeset :where(> *:first-child):not(.not-typeset) { margin-block-start: 0; }
+.typeset-chat { --typeset-flow: 1em; --typeset-leading: 1.6; }
+.typeset-docs { --typeset-size: 15px; --typeset-flow: 1.5em; }
+```
 
 ## 3. The catch — typeset needs a RENDERER
 
@@ -117,3 +204,16 @@ notes). Never render agent markdown as `whitespace-pre-wrap` plain text — it's
 - ❌ Copying the primitives into `apps/web/components/ui/` in a monorepo — they belong in
   the shared `packages/ui` (`@workspace/ui`), imported by every app.
 - ❌ Re-styling typeset per-page with ad-hoc Tailwind — add a `.typeset-<context>` variant instead.
+- ❌ Using only `MessageScroller` + `Bubble` and skipping `MessageAvatar` / `Attachment` /
+  `Marker` — that's a partial anatomy. Use the whole kit where the data supports it.
+
+## Prototyping a chat before a backend exists — `createChat`
+
+`@shadcn/helpers` (npm, subpaths `./ai-sdk` + `./tanstack-ai`) exports **`createChat`** — a
+builder for **scripted, fake** conversations:
+`createChat().user("…").sleep(800).assistant(({ writer }) => { writer.reasoning("…"); writer.tool("getX",{…}).sleep(1200).output({…}); writer.text("…") })`.
+Use it to drive a **demo/showcase** chat — a landing-page "watch the agent work" section,
+Storybook, a test — through the SAME primitives above, with no tokens and no backend. It is
+NOT a source of generic utilities (`cn`, hooks — see `shadcn-mapping.md`); it is the
+demo-data counterpart to the chat components. In a real app the messages come from the
+backend hook (`useChat`, `useEveAgent`, …), not `createChat`.
