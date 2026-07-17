@@ -80,6 +80,18 @@ HITL: on `input.requested` / `authorization.required`, pause the composer and an
 `inputResponses` keyed by `requestId`. Reconnect to a live stream with the `SessionState`
 cursor (`sessionId` + `streamIndex`) rather than restarting it.
 
+## The chat UI itself — use the shadcn chat primitives, not hand-rolled divs
+
+`useEveAgent()` gives you the data (`data.messages`, `status`, `send`); it does NOT dictate
+the UI. Build that UI with the **official shadcn chat components** (`MessageScroller` /
+`Message` / `Bubble` / `Marker`, Jun 2026) — you get autoscroll, a scroll-to-bottom button
+and scroll-fade for free instead of a hand-rolled `useRef`+`scrollTop`. The agent emits
+**markdown**, so render assistant turns through `streamdown` wrapped in `.typeset`
+(shadcn/typeset, Jul 2026) — never `whitespace-pre-wrap`, which leaves `**bold**` and lists
+literal. Use `<Marker className="shimmer">` for the "agent is working" state, not a spinner.
+Full recipe: `design-md-to-app/references/chat-and-typeset.md`. In a monorepo the primitives
+live in the shared `packages/ui` (`@workspace/ui`), imported by `apps/web`.
+
 ## The underlying HTTP contract (non-Next clients / debugging only)
 
 `withEve()` proxies to eve's stable HTTP API. You normally never call it directly from the

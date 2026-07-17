@@ -90,6 +90,8 @@ For each component you identified in Step 2, decide:
 - **Compose primitives** if no exact match (e.g., a "stat card" = `Card` + headline typography + body).
 - **Hand-roll a small custom component** only if necessary, and only if it'll be reusable. One-off custom JSX in the page file is fine for unique sections.
 
+**Chat / conversation / rendered-markdown surfaces are NOT hand-rolled.** If the screenshot shows a chat, an AI console, a support inbox, a comment thread — or any surface rendering markdown/AI output — compose the official shadcn chat primitives (`MessageScroller` / `Message` / `Bubble` / `Marker`, Jun 2026) + `.typeset` (Jul 2026) + `streamdown`. Follow `design-md-to-app/references/chat-and-typeset.md`. Never build chat with `div` bubbles + manual autoscroll, and never render model markdown as `whitespace-pre-wrap` (bold/lists/code leak as literal syntax).
+
 For each color/spacing/radius decision, **reference the token by name**. Don't hardcode hex codes — use `bg-primary`, `text-on-surface-variant`, `rounded-md` (shadcn) or theme values (MUI). If the screenshot shows a color that's not in DESIGN.md, **ask the user before adding** — it's either an oversight in DESIGN.md or a one-off photo color that shouldn't become a token.
 
 ### Step 5 — Write the route + extracted components

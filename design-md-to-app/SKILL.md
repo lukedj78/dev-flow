@@ -155,6 +155,7 @@ decoded config in the recap (so the user confirms what the preset carries).
 
 Read the relevant mapping reference and follow it:
 
+- Any conversational surface or rendered markdown → `references/chat-and-typeset.md` (shadcn chat components + typeset + streamdown, the standard — never hand-roll chat or render model markdown as plain text).
 - shadcn → `references/shadcn-mapping.md`. **Monorepo first:** if `meta.json#stack.framework == "monorepo"` and the monorepo is web-centric (no NativeWind/mobile side — e.g. web-only or web + agent), follow that reference's **"Monorepo (shared `packages/ui`)"** section: scaffold with `shadcn init --monorepo` so primitives land in a shared `packages/ui` (`@workspace/ui`), NOT in `apps/web/components/ui/`. The single-app flow below (and `--no-monorepo`) is for non-monorepo projects (or the web+mobile case where components stay app-local). **Two visual-config paths — they are mutually exclusive:**
   - **A) Preset path** (when `stack.shadcn_preset` is set): the preset owns the visual layer. Scaffold with `pnpm dlx shadcn@latest init --preset ${stack.shadcn_preset} --template ${framework} --base ${stack.ui_base ?? "radix"} --yes`, then `pnpm dlx shadcn@latest add --all --yes`. **Skip `build_registry.py` / the `registry.json` token install** — the preset already encodes colors/theme/fonts/icons/radius. (Helpers: `preset decode` to inspect, `preset url`/`preset open` to view in browser.)
   - **B) DESIGN.md-first path** (default, no preset): the recommended **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
@@ -191,6 +192,8 @@ Before authoring **any** component beyond the simplest (Eyebrow, simple text wra
 | Hamburger drawer (mobile nav) | `Sheet` | Slide-in animation, focus management, swipe close |
 | Autocomplete / type-ahead | `Combobox` (Command + Popover) | Async search, keyboard nav, fuzzy match |
 | Command palette / cmd+k | `Command` (CMDK) | Categorized search, keyboard, animations |
+| **Chat / conversation / AI console / support inbox** | `MessageScroller` + `Message` + `Bubble` + `Marker` (shadcn chat, Jun 2026) | Autoscroll that yields to the user, scroll-to-bottom button, edge scroll-fade, virtualization — see `references/chat-and-typeset.md` |
+| **Rendered markdown / AI output / rich description** | `.typeset` (shadcn/typeset, Jul 2026) + `streamdown` | Consistent typography on rendered markdown; `whitespace-pre-wrap` on model output leaves `**bold**` literal — see `references/chat-and-typeset.md` |
 | Date range picker | `Calendar` + `Popover` | Locale-aware, keyboard nav, range selection |
 | Tabs (route-driven or panel) | `Tabs` | ARIA roles, keyboard nav, animations |
 | Sheet / slide-out panel | `Sheet` | Right/left/top/bottom variants |
