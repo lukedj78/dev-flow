@@ -115,6 +115,28 @@ Rules specific to this branch:
 - The web app's `next.config` must `transpilePackages: ["@workspace/ui"]` (or the `@<slug>/ui` name).
 - The "library primitive priority" and folder-convention rules below still apply; just read primitives from `@workspace/ui/components/*` instead of `components/ui/*`.
 
+### Helpers — single source of truth (mandatory)
+
+Generic helpers (`cn`, hooks like `use-mobile`, DOM/React utilities) live in **exactly one
+place** and every consumer imports from there — never copy an implementation into an app:
+
+- **Monorepo (`packages/ui`)**: `@workspace/ui/lib/utils` (`cn`) and `@workspace/ui/src/hooks/*`.
+  The `components.json` aliases already point there; `shadcn add` may still drop a hook into
+  `apps/web/hooks/` (CLI quirk) — if the same hook exists in `packages/ui/src/hooks/`, the
+  app-side copy is dead code: delete it.
+- **Single app**: `lib/utils.ts` (`cn`) + `hooks/` — the shadcn defaults.
+- **App-specific utilities** (formatters, domain helpers, slugify…) stay in the app's
+  `lib/utils.ts` or a domain module — they are NOT generic helpers and don't move.
+
+> ⚠ **`@shadcn/helpers` is NOT a generic-utils package.** The npm package `@shadcn/helpers`
+> (official, shadcn, published 2026-07) exports ONLY AI-chat mock builders — `createChat`
+> from `@shadcn/helpers/ai-sdk` and `@shadcn/helpers/tanstack-ai` (scripted user/assistant
+> turns, simulated reasoning/tool calls/streaming with `sleep`). Use it to prototype chat
+> UIs or build showcase demos **before a real backend exists**. It does NOT export `cn`,
+> `composeRefs`, `useControllableState` or any DOM/React utility — never "migrate" generic
+> helpers to it, and never install it for that purpose. Verify with `npm view @shadcn/helpers`
+> if in doubt (the package is young; its surface may grow).
+
 ### About the `init` and `add` commands
 
 The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or interactive "Style: New York / Default" prompt anymore.** Current flags:
