@@ -176,6 +176,31 @@ with `.not-typeset`.
 .typeset-docs { --typeset-size: 15px; --typeset-flow: 1.5em; }
 ```
 
+### Sending attachments (the composer side)
+
+The `attachment` family renders **inbound** files; to let the user **send** them, wire the
+composer: a file `<input hidden>` behind a `Paperclip` button, pending files previewed as
+`Attachment` chips (with `AttachmentAction` to remove), and on submit build the send payload.
+Keep this in ONE shared `ChatComposer` that both/all chats use.
+
+For AI-SDK / eve, `send({ message })` accepts `UserContent = string | Array<TextPart |
+ImagePart | FilePart>`. Read each file with `FileReader.readAsDataURL` and send the file part
+as **the full data URL string** in `data`:
+
+```ts
+{ type: "file", data: file_dataURL, mediaType: file.type, filename: file.name }
+```
+
+**Field-verified, both directions matter:** send the *full data URL* (`data:<mime>;base64,…`),
+NOT the stripped raw base64 — with eve/AI-Gateway the raw-base64 form is silently NOT
+forwarded to the model as an image (the model replies "no image"), while the data URL works
+(the model sees it). Cap size (~8MB) and treat inline data URLs as the *groundwork* form —
+fine for images and small files; for large/persistent files, upload to blob storage and send
+the remote URL instead. `FilePart.data` also accepts a bare `URL` for that case.
+
+Import the `UserContent` type from `ai` (add `ai` as a direct dep if the app doesn't have it;
+it's usually already transitive via the agent SDK).
+
 ## 3. The catch — typeset needs a RENDERER
 
 typeset styles **rendered** markdown. Feeding it a raw markdown string with
