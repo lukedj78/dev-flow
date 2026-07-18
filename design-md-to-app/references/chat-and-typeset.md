@@ -117,22 +117,30 @@ What you get for free — and therefore must NOT re-implement: autoscroll that y
 the user, the scroll-to-bottom button, edge scroll-fade, virtualization hooks. **Deleting
 a hand-rolled `useRef`+`scrollTop=scrollHeight`+`overflow-y-auto` is the point.**
 
+**Keep `MessageScrollerButton`** — it is *the* scroll-to-bottom affordance and it stays
+active during streaming (it sets `data-active` from the scrollable state, `inert` +
+`tabIndex={-1}` when at the bottom). Don't remove it in favor of a custom pill; the two
+serve different jobs.
+
 **The scroller hooks** (from `@shadcn/react/message-scroller`, re-exported by the ui
-component) turn the primitive from "a box that scrolls" into something aware of the reader —
-call them from a child *inside* the Provider:
+component) let you *track the reader's position*, complementing the button — call them from a
+child *inside* the Provider, and give each `MessageScrollerItem` a `messageId` (visibility
+only tracks rows that have one). This is the docs' **"Tracking the Reader's Position"**
+pattern — don't reinvent it as a "new messages" pill (that's not what the primitive models):
 
-- `useMessageScrollerVisibility()` → `{ currentAnchorId, visibleMessageIds }`. Pass
-  `messageId={m.id}` to each `MessageScrollerItem` so it populates. Use it for a semantic
-  affordance: a "New messages ↓" pill shown only when the newest message is off-screen
-  (`!visibleMessageIds.includes(lastId)`) — richer than the generic arrow because it says
-  *why* it's there. It also drives a "you're reading history" header state or an unread badge.
+- `useMessageScrollerVisibility()` → `{ currentAnchorId, visibleMessageIds }`.
+  `currentAnchorId` answers **"where am I"** — the current anchored turn, and it *stays set
+  after that anchor scrolls above the viewport*. `visibleMessageIds` answers **"what's on
+  screen"**, in document order. Canonical use (per the docs): a **table-of-contents / jump
+  menu that highlights the current anchored turn**, or a lightweight "you're reading an
+  earlier message" hint shown only when `currentAnchorId !== lastMessageId`.
 - `useMessageScroller()` → `{ scrollToEnd, scrollToMessage, scrollToStart }` — imperative
-  scroll; wire `scrollToEnd({ behavior: "smooth" })` to that pill's click.
+  scroll; e.g. wire `scrollToEnd({ behavior: "smooth" })` to that hint's click.
 - `useMessageScrollerScrollable()` → `{ start, end }` — whether more content exists in each
-  direction (what the built-in `MessageScrollerButton` consumes).
+  direction (what `MessageScrollerButton` consumes internally).
 
-Prefer a visibility-driven pill over the bare `MessageScrollerButton` when you want the
-affordance to carry meaning; keep the plain button when a generic jump-to-bottom is enough.
+So: `MessageScrollerButton` for jump-to-bottom (always), **plus** a visibility-driven
+position indicator when you want the reader to know they've scrolled into history.
 
 **Field-verified gotcha — the scroller needs a BOUNDED-HEIGHT ancestor.** `MessageScroller`
 scrolls internally only if every ancestor up to the viewport is height-constrained; if any
