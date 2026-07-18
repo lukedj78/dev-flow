@@ -117,6 +117,23 @@ What you get for free — and therefore must NOT re-implement: autoscroll that y
 the user, the scroll-to-bottom button, edge scroll-fade, virtualization hooks. **Deleting
 a hand-rolled `useRef`+`scrollTop=scrollHeight`+`overflow-y-auto` is the point.**
 
+**The scroller hooks** (from `@shadcn/react/message-scroller`, re-exported by the ui
+component) turn the primitive from "a box that scrolls" into something aware of the reader —
+call them from a child *inside* the Provider:
+
+- `useMessageScrollerVisibility()` → `{ currentAnchorId, visibleMessageIds }`. Pass
+  `messageId={m.id}` to each `MessageScrollerItem` so it populates. Use it for a semantic
+  affordance: a "New messages ↓" pill shown only when the newest message is off-screen
+  (`!visibleMessageIds.includes(lastId)`) — richer than the generic arrow because it says
+  *why* it's there. It also drives a "you're reading history" header state or an unread badge.
+- `useMessageScroller()` → `{ scrollToEnd, scrollToMessage, scrollToStart }` — imperative
+  scroll; wire `scrollToEnd({ behavior: "smooth" })` to that pill's click.
+- `useMessageScrollerScrollable()` → `{ start, end }` — whether more content exists in each
+  direction (what the built-in `MessageScrollerButton` consumes).
+
+Prefer a visibility-driven pill over the bare `MessageScrollerButton` when you want the
+affordance to carry meaning; keep the plain button when a generic jump-to-bottom is enough.
+
 **Field-verified gotcha — the scroller needs a BOUNDED-HEIGHT ancestor.** `MessageScroller`
 scrolls internally only if every ancestor up to the viewport is height-constrained; if any
 is `min-h-*` / auto-growing, the chat grows the whole page instead and the scroller "does
