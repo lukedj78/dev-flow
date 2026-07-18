@@ -133,7 +133,12 @@ pattern — don't reinvent it as a "new messages" pill (that's not what the prim
   after that anchor scrolls above the viewport*. `visibleMessageIds` answers **"what's on
   screen"**, in document order. Canonical use (per the docs): a **table-of-contents / jump
   menu that highlights the current anchored turn**, or a lightweight "you're reading an
-  earlier message" hint shown only when `currentAnchorId !== lastMessageId`.
+  earlier message" hint shown only when `currentAnchorId !== <the LAST turn's anchor id>`.
+  **Critical, field-verified:** `currentAnchorId` only changes if you mark each *turn* as an
+  anchor — the docs anchor the **user message** (`scrollAnchor={message.role === "user"}`),
+  NOT just the last item. If you anchor only the last row, `currentAnchorId` is stuck on it
+  and the hint never fires. So: `scrollAnchor={isUser}`, and compare `currentAnchorId` to the
+  *last user message's id* (the last turn), not to the last message overall.
 - `useMessageScroller()` → `{ scrollToEnd, scrollToMessage, scrollToStart }` — imperative
   scroll; e.g. wire `scrollToEnd({ behavior: "smooth" })` to that hint's click.
 - `useMessageScrollerScrollable()` → `{ start, end }` — whether more content exists in each
