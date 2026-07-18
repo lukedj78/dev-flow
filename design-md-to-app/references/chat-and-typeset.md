@@ -126,26 +126,71 @@ serve different jobs.
 component) let you *track the reader's position*, complementing the button — call them from a
 child *inside* the Provider, and give each `MessageScrollerItem` a `messageId` (visibility
 only tracks rows that have one). This is the docs' **"Tracking the Reader's Position"**
-pattern — don't reinvent it as a "new messages" pill (that's not what the primitive models):
+pattern. **The canonical shape is a Transcript Outline — a side minimap, NOT a chip/hint.**
+Field lesson: a "you're reading history · back to latest" chip is what you build when you
+*haven't* read the demo — it was explicitly rejected as "ugly and pointless." The demo
+(`message-scroller#tracking-the-readers-position`) is a vertical **outline of dashes, one per
+turn**, that visually marks where you are as you scroll, and lets you jump:
 
 - `useMessageScrollerVisibility()` → `{ currentAnchorId, visibleMessageIds }`.
   `currentAnchorId` answers **"where am I"** — the current anchored turn, and it *stays set
   after that anchor scrolls above the viewport*. `visibleMessageIds` answers **"what's on
-  screen"**, in document order. Canonical use (per the docs): a **table-of-contents / jump
-  menu that highlights the current anchored turn**, or a lightweight "you're reading an
-  earlier message" hint shown only when `currentAnchorId !== <the LAST turn's anchor id>`.
-  **Critical, field-verified:** `currentAnchorId` only changes if you mark each *turn* as an
-  anchor — the docs anchor the **user message** (`scrollAnchor={message.role === "user"}`),
-  NOT just the last item. If you anchor only the last row, `currentAnchorId` is stuck on it
-  and the hint never fires. So: `scrollAnchor={isUser}`, and compare `currentAnchorId` to the
-  *last user message's id* (the last turn), not to the last message overall.
+  screen"**, in document order.
 - `useMessageScroller()` → `{ scrollToEnd, scrollToMessage, scrollToStart }` — imperative
-  scroll; e.g. wire `scrollToEnd({ behavior: "smooth" })` to that hint's click.
+  scroll; the outline wires `scrollToMessage(id, { align: "start", behavior: "smooth" })`.
 - `useMessageScrollerScrollable()` → `{ start, end }` — whether more content exists in each
   direction (what `MessageScrollerButton` consumes internally).
 
-So: `MessageScrollerButton` for jump-to-bottom (always), **plus** a visibility-driven
-position indicator when you want the reader to know they've scrolled into history.
+**The Transcript Outline (verbatim from the demo, field-verified in-browser):** one anchor
+per **user turn**, rendered as a `HoverCard` whose trigger is a column of tiny dashes (one
+per turn) — the current turn's dash lights up via `data-current={turn.id === currentAnchorId}`.
+Hover opens the list of turns (trimmed text, ~42 chars); clicking one calls
+`scrollToMessage`. As you scroll (or after a jump), `currentAnchorId` moves and the lit dash
++ `aria-current="location"` row track it. Only render it with ≥2 turns.
+
+```tsx
+function TranscriptOutline({ turns }: { turns: { id: string; label: string }[] }) {
+  const { scrollToMessage } = useMessageScroller()
+  const { currentAnchorId } = useMessageScrollerVisibility()
+  if (turns.length < 2) return null
+  return (
+    <div className="absolute top-1/2 right-2 z-10 -translate-y-1/2">
+      <HoverCard>
+        <HoverCardTrigger render={
+          <button type="button" aria-label="Open transcript outline"
+            className="flex w-4 flex-col items-center gap-1 rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+            {turns.map((t) => (
+              <span key={t.id} data-current={t.id === currentAnchorId}
+                className="h-0.5 w-4 rounded-full bg-muted-foreground/40 transition-colors data-[current=true]:bg-primary" />
+            ))}
+          </button>
+        } />
+        <HoverCardContent align="center" side="left" sideOffset={8} className="flex w-64 flex-col gap-0.5 p-1">
+          {turns.map((t) => (
+            <button key={t.id} type="button"
+              aria-current={t.id === currentAnchorId ? "location" : undefined}
+              onClick={() => scrollToMessage(t.id, { align: "start", behavior: "smooth" })}
+              className="flex min-h-7 items-center rounded-lg px-2 py-1.5 text-left text-sm outline-none hover:bg-accent aria-[current=location]:bg-primary/15">
+              <span className="line-clamp-1 min-w-0">{t.label}</span>
+            </button>
+          ))}
+        </HoverCardContent>
+      </HoverCard>
+    </div>
+  )
+}
+```
+
+**Critical, field-verified:** `currentAnchorId` only changes if you mark each *turn* as an
+anchor — the docs anchor the **user message** (`scrollAnchor={message.role === "user"}`), NOT
+just the last item. If you anchor only the last row, `currentAnchorId` is stuck on it and the
+lit dash never moves. So: `scrollAnchor={isUser}`, and build `turns` from the user messages.
+Position the outline *inside* `MessageScroller` (its positioning context) on the right edge —
+the demo hangs it outside the card (`-right-12`), but in a width-constrained chat panel that
+clips, so pin it `absolute right-2` within the scroller instead.
+
+So: `MessageScrollerButton` for jump-to-bottom (always), **plus** the Transcript Outline as
+the visibility-driven position tracker. Both, not either.
 
 **Field-verified gotcha — the scroller needs a BOUNDED-HEIGHT ancestor.** `MessageScroller`
 scrolls internally only if every ancestor up to the viewport is height-constrained; if any
