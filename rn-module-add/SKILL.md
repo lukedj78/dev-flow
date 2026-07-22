@@ -131,7 +131,7 @@ If git repo: `git add` the new files + `git commit -m "feat(<module>): wire <pro
 - ❌ Hardcode secrets in `lib/*.ts` — read from `process.env.EXPO_PUBLIC_*`.
 - ❌ Generate wiring without running `tsc --noEmit` — broken project shipped to user.
 - ❌ Add a module that requires a new dev build without printing the "rebuild required" reminder.
-- ❌ Use `npm install` without `--legacy-peer-deps` — fails on Expo SDK 54 (see `rn-bootstrap` lessons-learned).
+- ❌ Use `npm install` without `--legacy-peer-deps` — fails on unsupported/older Expo SDK versions due to peer-range mismatches (see `rn-bootstrap` lessons-learned).
 
 ## Updating meta.json (recommended pattern)
 
