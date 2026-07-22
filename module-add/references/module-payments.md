@@ -210,6 +210,8 @@ async function getStripeCustomerId(_userId: string): Promise<string | null> {
 
 ### `app/billing/page.tsx` (reference UI)
 
+The import below assumes `stack.ui = "shadcn"` (the default). Read `meta.json#stack.ui` before writing this file: for `"mui"` swap in MUI's `Button`; for `"base-ui"` (standalone Base UI) or `"coss"` (Coss/UI) the button still comes from `components/ui/button` or `@coss/ui` respectively — same import shape as shadcn, different source package, so match whichever registry the project already uses rather than assuming shadcn's default path.
+
 ```tsx
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

@@ -136,6 +136,8 @@ Some modules depend on others. If the user runs them out of order, the skill mus
 - `test` is independent — best run after `db` so server-action smoke tests have a schema to mock against, but works without it.
 - `ci` is mostly independent — works best after `test` (so CI has tests to run) but writes a workflow that gracefully skips test steps when none exist.
 - `motion` is fully independent — pure UI concern, no backend dependency. Run only when a project genuinely needs JS-driven motion (gestures, magnetic hover, shared-element transitions); for plain reveal-on-scroll, `tw-animate-css` (already installed via shadcn) is enough and lighter.
+- `voice` requires `auth` when the voice session needs to be scoped to a signed-in user (most products); independent only for anonymous/demo voice agents — ask before skipping auth.
+- `realtime` is mostly independent (a raw WebSocket channel doesn't need auth to exist), but requires `auth` the moment messages are scoped per-user/per-room — ask the same way as `voice`.
 - `deploy` should be last — it reads the configured stack and produces deploy config.
 
 When dependencies are missing, **ask, don't block silently.** "I see you're trying to add auth but there's no database yet. Want me to set up `db` (Neon + Drizzle) first, then come back to auth?"
@@ -150,4 +152,6 @@ When this skill wires a module, respect the canonical folder structure (spec: `d
 - **`payments` module**: client wiring in `lib/payments/`. UI (paywall, checkout button) suggested in `app/(app)/<context>/_components/` or page-specific. Pricing comparison table eventually promotes to `components/shared/billing/PricingTable.tsx`.
 - **`storage` module**: client in `lib/storage/`. Upload UI co-located with the page that uses it.
 - **`email` module**: server-side only; no components.
+- **`voice` module**: client component in `components/voice/` (e.g., `components/voice/voice-agent.tsx`). No `lib/` wiring beyond the AI Gateway client already covered by whatever LLM setup the project has.
+- **`realtime` module**: client hook in `lib/realtime/` (e.g., `lib/realtime/use-socket.ts`). UI that consumes the hook is co-located with the page/component that uses it, same as any other hook consumer.
 - **`deploy` module**: config files at project root only.
