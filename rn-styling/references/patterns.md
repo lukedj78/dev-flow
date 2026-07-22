@@ -70,8 +70,9 @@
 - ✅ `FlashList` for any list > 20 items or unknown length:
   ```tsx
   import { FlashList } from '@shopify/flash-list';
-  <FlashList data={items} renderItem={({ item }) => <Row item={item} />} estimatedItemSize={64} />
+  <FlashList data={items} renderItem={({ item }) => <Row item={item} />} />
   ```
+  FlashList v2 auto-sizes items — no `estimatedItemSize` needed (that prop was required in v1, now deprecated).
 
 ### DON'T
 
