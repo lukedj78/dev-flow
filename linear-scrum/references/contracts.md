@@ -105,6 +105,26 @@ Skills update this via `dev-flow/scripts/update_meta.py record-artifact …`. Th
 
 The `artifacts` field is the foundation for resumability and drift detection: re-running a skill is safe if all its inputs are fresh; necessary if any are stale.
 
+### `linear` and `scrum` fields (optional, owned by `linear-scrum`)
+
+Present once a project is taken into Linear. Written only by the `linear-scrum` skill; other skills must not touch them.
+
+```json
+"linear": {
+  "team_id": "…", "team_name": "…", "project_id": "…", "url": "…",
+  "issue_map": { "<task_key>": "LUC-123" },
+  "last_synced_at": "<ISO-8601 UTC>"
+},
+"scrum": {
+  "cadence_weeks": 2, "estimate_scale": "fibonacci", "velocity_target": null,
+  "states": { "backlog": "Backlog", "todo": "Todo", "in_progress": "In Progress",
+              "in_review": "In Review", "done": "Done", "blocked_label": "blocked" },
+  "labels": { "web": "frontend", "agent": "agent-eve", "scaffold": "setup" }
+}
+```
+
+`issue_map` keys are `task_key()` digests of `tasks.md` lines (see `linear-scrum/scripts/task_key.py`) so re-syncing never duplicates issues. Linear is the source of truth for status/ordering/estimates after Setup; `tasks.md` stays the append-only intake for new work.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.

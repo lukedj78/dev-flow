@@ -8,10 +8,11 @@ How each `linear-scrum` operation maps to Linear MCP tools. **Verify names/param
 | List / find project | `list_projects` | Adopt mode discovery. |
 | Create / link project | `save_project` | One per dev-flow project. Capture id + url. |
 | Create milestone | `save_milestone` | Map epics from `tasks.md`. |
-| Create issue | `save_issue` | Pass title, description, estimate, labels, project, milestone. `[VERIFY]` that `estimate` is accepted (needs the team estimate scale enabled). |
+| Create issue | `save_issue` | Pass title, description, estimate, labels, project, milestone, `cycle`, `state`. `estimate` (numeric Fibonacci point) **works** when the team has an estimate scale enabled — verified. |
 | List issues | `list_issues` | Status/velocity pull; duplicate check in DoD. |
 | Issue statuses | `list_issue_statuses` | Confirms the state names in `scrum-model.md`. |
-| Cycles | `list_cycles` | Check/create the active sprint. `[VERIFY]` whether cycles are creatable via MCP or must be enabled in Linear settings first. |
+| Issue labels | `list_issue_labels` / `create_issue_label` | **Discover the workspace taxonomy and map onto it** (see `scrum-model.md`); don't assume `area:*`/`type:*`. Create a label only when nothing matches. |
+| Cycles | `list_cycles` | **List only — cycles are NOT creatable via this MCP.** Enable "Cycles" + create the sprint in Linear team settings once; then attach issues via `save_issue`'s `cycle` field. |
 | Comment | `save_comment` | Optional: post the sprint report as a project comment (still also to chat). |
 
 ## Idempotency

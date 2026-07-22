@@ -50,6 +50,7 @@ def ensure_scrum(meta: dict, *, cadence_weeks: int = 2,
     s.setdefault("estimate_scale", estimate_scale)
     s.setdefault("velocity_target", None)
     s.setdefault("states", dict(DEFAULT_STATES))
+    s.setdefault("labels", {})   # bucket -> workspace label, discovered at Setup
     meta["scrum"] = s
     return meta
 
