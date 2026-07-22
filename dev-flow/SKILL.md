@@ -186,7 +186,7 @@ There are **two moments** to opt in:
 
 Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaffold mode** if `apps/agent` doesn't exist yet (sets up the engine once), **Capability mode** if it does (add one tool / skill / channel / connection / schedule / subagent / hook / eval, idempotently).
 
-Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns `apps/agent/` exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app at `packages/types` (re-exported eve session/event types) and the `withEve()` proxy in `apps/web`. eve's model calls bill through the Vercel AI Gateway, separate from the build tooling.
+Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns `apps/agent/` exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app at `packages/types` (re-exported eve session/event types) and the `withEve()` proxy in `apps/web`. eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
 
 ## What dev-flow does NOT do
 
