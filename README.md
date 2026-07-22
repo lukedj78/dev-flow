@@ -127,6 +127,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | **`dev-flow`** | The orchestrator — reads `.workflow/meta.json` and proposes what to do next |
 | `prd-from-idea` | Idea paragraph → `PROJECT.md` + `PRD.md` |
 | `prd-to-tasks` | `PRD.md` → `tasks.md` (importable into beads / Linear / GitHub Issues) |
+| `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
 | `figma-to-design-md` | Figma URL → `DESIGN.md` (Google design.md spec) + screenshots |
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
@@ -707,6 +708,13 @@ phase=deployed         → (expo-rn only) maintenance loop: rn-add-screen for ne
 **Output**: `.workflow/tasks.md` with 1 task per `- [ ]` checkbox. Compatible with **beads**, **GitHub Issues import**, **Linear CSV**, **ralph-tui**.
 
 **Sizing**: each task ≈ 2–8 hours of focused work. If a task is bigger, the skill splits it. If smaller, it merges with a sibling. Output ≤ ~15 tasks for an MVP.
+
+### `linear-scrum` — Linear + agile scrum for a dev-flow project
+
+**Input**: `.workflow/meta.json` (+ `.workflow/tasks.md` for first setup) and a connected Linear MCP.
+**Output**: a Linear Project with issues (estimates, `area:web`/`area:agent` labels, milestones) and cycles, plus the `linear`/`scrum` blocks in `meta.json`. Linear is treated as the source of truth: sync only pushes new tasks, pulls status/velocity, plans the active sprint up to the velocity target, and reports — it never bumps `phase`.
+
+**Modes**: Setup (new project), Adopt (existing Linear project), Sync (ongoing — push new tasks, pull status/velocity, plan sprint, report).
 
 ### `figma-to-design-md` — Figma → DESIGN.md
 

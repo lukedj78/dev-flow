@@ -139,6 +139,7 @@ SKILLS=(
   dev-flow
   prd-from-idea
   prd-to-tasks
+  linear-scrum
 
   # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md
@@ -153,6 +154,7 @@ SKILLS=(
 
   # Agent engine (eve — Vercel filesystem-first agent framework)
   eve-agent
+  eve-registry-porting
 
   # Mobile stack (Expo + React Native)
   rn-fundamentals
