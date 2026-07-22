@@ -45,6 +45,8 @@ A compound component (`<Card>` + `<Card.Header>` + `<Card.Body>`) lives **as one
 
 ## Cross-platform (monorepo) — separate rule
 
+**Delegate to `monorepo-add-shared-package` when the promotion is cross-platform.** This skill's script (`promote-component`) only moves files between the intra-app L0/L1/L2 levels above — it does not create or wire a `packages/` workspace. If the 3rd use crosses `apps/web` and `apps/mobile` (not just route groups within one app) and what's shared is types, Zod schemas, pure functions, or data hooks, stop here and hand off to `monorepo-add-shared-package` to scaffold/extend the `packages/shared/` workspace; come back to `promote-component` only for the per-platform UI rewrite that still needs L0/L1/L2 placement in each app.
+
 `packages/shared/` accepts ONLY:
 - Types (TS interfaces, type aliases)
 - Zod schemas / validators
