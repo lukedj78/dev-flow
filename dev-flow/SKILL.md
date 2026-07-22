@@ -159,6 +159,8 @@ Just before scaffolding, `design-md-to-app` prints a **recap of the full resolve
 
 > `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
 
+**`ui = "coss"` (Coss/UI — the Cal.com design system).** A fourth UI choice inside the shadcn/Base-UI family: Coss/UI is installed through the shadcn CLI's `@coss/*` registry, is built on Base UI, and ships CSS-variable tokens **with the same names as shadcn/ui**, so the DESIGN.md → tokens pipeline works unchanged. When the user picks Coss (`stack.ui = "coss"`, implies `ui_base = "base"`), route to the **`coss-ui`** skill, which owns the Coss-specific install/add and token reconciliation; `design-md-to-app` still owns the generic scaffold. It is a deliberate choice with two caveats — **Tailwind CSS v4 required** and a **mixed MIT/AGPLv3 license** — so don't default to it; offer it when the user wants the Cal.com aesthetic/DX or an AI-first Base-UI kit. See `coss-ui/SKILL.md`.
+
 For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
 
 ## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
