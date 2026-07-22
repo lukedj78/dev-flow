@@ -131,6 +131,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `figma-to-design-md` | Figma URL → `DESIGN.md` (Google design.md spec) + screenshots |
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
+| `coss-ui` | Coss/UI (Cal.com design system on Base UI) via the shadcn `@coss/*` registry — Init/Add modes, DESIGN.md token reconciliation; requires Tailwind v4, mixed MIT/AGPLv3 license |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
 | `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |

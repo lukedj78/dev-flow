@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-22T17:12:36Z",
+  "generated_at": "2026-07-22T19:56:25Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 35,
+  "skill_count": 36,
   "families": {
     "core": [
       "dev-flow",
@@ -11,6 +11,7 @@
     ],
     "web": [
       "composition-patterns-guide",
+      "coss-ui",
       "data-fetching",
       "design-md-to-app",
       "eve-agent",
@@ -64,7 +65,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 226,
+      "skill_md_lines": 228,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -348,6 +349,25 @@
       "bundle": "dist/composition-patterns-guide.skill"
     },
     {
+      "name": "coss-ui",
+      "family": "web",
+      "role": "operative",
+      "description": "Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4, installed through the shadcn CLI via the namespaced `@coss/*` registry (copy-paste-and-own source). Two modes: Init (scaffold a new/empty project with `shadcn init @coss/style` —...",
+      "skill_file": "coss-ui/SKILL.md",
+      "references": [
+        "contracts.md",
+        "coss-registry.md",
+        "deps-and-license.md",
+        "design-md-reconciliation.md"
+      ],
+      "scripts": [
+        "check_coss_state.py",
+        "test_check_coss_state.py"
+      ],
+      "skill_md_lines": 84,
+      "bundle": "dist/coss-ui.skill"
+    },
+    {
       "name": "data-fetching",
       "family": "web",
       "role": "operative",
@@ -383,7 +403,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1119,
+      "skill_md_lines": 1122,
       "bundle": "dist/design-md-to-app.skill"
     },
     {

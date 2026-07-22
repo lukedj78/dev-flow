@@ -42,6 +42,7 @@ SKILLS=(
   figma-to-design-md
   image-to-design-md
   design-md-to-app
+  coss-ui
   screenshot-to-page
   module-add
   write-tests

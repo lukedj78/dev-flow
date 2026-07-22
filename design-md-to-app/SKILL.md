@@ -75,7 +75,7 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 
 ### Step 2 — Pick the library
 
-Ask the user once: **shadcn/ui, Base UI, or MUI?** Offer a recommendation based on `references/library-choice.md`. Common heuristics:
+Ask the user once: **shadcn/ui, Base UI, MUI, or Coss/UI?** Offer a recommendation based on `references/library-choice.md`. Common heuristics:
 
 - Highly custom visual identity (glassmorphism, brutalist, editorial, distinctive shapes) + user wants to edit source → **shadcn**.
 - Same custom-Tailwind philosophy as shadcn but the user prefers a library they can `pnpm update` (no CLI / `components.json` overhead) → **Base UI**.
@@ -86,10 +86,13 @@ Ask the user once: **shadcn/ui, Base UI, or MUI?** Offer a recommendation based 
 
 **If they pick shadcn, ask the follow-up: Radix or Base UI primitives?** (`shadcn create --base radix|base`). shadcn CLI v4 builds on either, with the same component API and blocks in both variants. Default **Radix** (broadest component coverage today); pick **Base UI** for the MUI-team a11y track record or when migrating from MUI. Record as `stack.ui_base`. This is distinct from picking standalone Base UI (`stack.ui = "base-ui"`, no shadcn CLI) — see `references/library-choice.md`. **Hybrid asking** (per dev-flow): also ask `icon_library` (lucide default), and `rtl` only when the project is multilingual/RTL. **Don't** ask base color / theme — the DESIGN.md tokens own the visual layer; `css_variables` stays `true`.
 
+- Wants the **Cal.com design system** / an AI-first, MCP-friendly copy-paste kit on Base UI, and Tailwind v4 is acceptable → **Coss/UI** (`stack.ui = "coss"`) — hand off to the `coss-ui` skill.
+
 Mapping skill choice → `meta.json#stack.ui` → `references/<lib>-mapping.md`:
 - "shadcn" → `references/shadcn-mapping.md` (+ `stack.ui_base` = radix|base)
 - "base-ui" → `references/base-ui-mapping.md` (standalone Base UI, no shadcn CLI)
 - "mui" → `references/mui-mapping.md`
+- "coss" → **hand off to `coss-ui/SKILL.md`** (Coss/UI — Cal.com DS on Base UI via the shadcn `@coss/*` registry; `ui_base = "base"`; requires **Tailwind v4**; mixed **MIT/AGPLv3** license). Coss's tokens are shadcn CSS vars, so DESIGN.md overrides apply as in the shadcn path.
 
 State the suggestion with a one-line rationale ("Suggerisco Base UI perché vuoi l'aesthetics flessibile di shadcn ma senza la source-maintenance del CLI"), then accept whatever the user picks. After picking, load the matching `<lib>-mapping.md` and follow it for installation, theming, and component wiring.
 
