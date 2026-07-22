@@ -16,11 +16,13 @@ The `cosscom/coss` repo uses a **mixed license**:
 
 Implication: the primitives you copy into your app from the MIT parts are safe for proprietary use. But **AGPLv3 is strong copyleft** — if any code sourced from the AGPL parts ends up in a product you distribute or run as a network service, the AGPL obligations (source disclosure) attach. 
 
-**This skill surfaces the split; it does not give legal advice.** For an OSS or internal project this is usually a non-issue. For a closed-source SaaS, confirm that everything you pull comes from the MIT-licensed component source before adopting Coss. `[VERIFY]` the current license mapping against the repo `LICENSE` files — it can change.
+This MIT/AGPLv3 split was confirmed live 2026-07 against the repo `LICENSE` files — re-check if it changes, since license terms can be revised.
+
+**This skill surfaces the split; it does not give legal advice.** For an OSS or internal project this is usually a non-issue. For a closed-source SaaS, confirm that everything you pull comes from the MIT-licensed component source before adopting Coss.
 
 ## When Coss is the right pick
 
-- The user wants the **Cal.com aesthetic/DX** or an **AI-first, MCP-friendly** copy-paste kit.
+- The user wants the **Cal.com aesthetic/DX** or an **AI-first-branded** copy-paste kit (note: no official MCP server is documented — see `coss-registry.md`).
 - A **Base UI** foundation is desired (MUI-team accessibility, headless).
 - Tailwind v4 is in play (or acceptable to adopt).
 

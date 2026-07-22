@@ -4,7 +4,7 @@ How Coss/UI is installed through the **shadcn CLI**. **Verify every command and 
 
 ## The model
 
-Coss is **copy-paste-and-own**: *"instead of installing a package, you get the source code."* You pull TSX source into your repo via the shadcn CLI (or copy it by hand, or pull it over MCP into Claude Code / Cursor). It ships three tiers:
+Coss is **copy-paste-and-own**: *"instead of installing a package, you get the source code."* You pull TSX source into your repo via the shadcn CLI, or copy it by hand. It ships three tiers:
 
 - **primitives / atoms** — the 60+ base components (Button, Dialog, Combobox, Table, …), built on `@base-ui/react`.
 - **particles** — ~500 pre-built variations/compositions.
@@ -28,7 +28,7 @@ Coss is **copy-paste-and-own**: *"instead of installing a package, you get the s
 `@coss/*` is a **shadcn CLI v4 namespaced registry** reference. For `add @coss/<name>` to resolve on an existing project, the `@coss` namespace must be known to the CLI — typically via a `registries` entry in `components.json`:
 
 ```jsonc
-// components.json  — [VERIFY] exact URL/shape against the live docs
+// components.json — registry base URL confirmed 2026-07 (re-check if it changes); exact config below still [VERIFY]
 {
   "registries": {
     "@coss": "https://coss.com/ui/r/{name}.json"
@@ -36,11 +36,11 @@ Coss is **copy-paste-and-own**: *"instead of installing a package, you get the s
 }
 ```
 
-`init @coss/style` on a fresh project is expected to set this up for you. `[VERIFY]` the exact registry base URL (`https://coss.com/ui/r/...` was **not** confirmed offline) and whether the namespace is auto-registered vs. needs the manual `components.json` entry above.
+The registry base URL `https://coss.com/ui/r/{name}.json` was confirmed live 2026-07 — ri-controlla se cambia. `init @coss/style` on a fresh project is expected to set this up for you. `[VERIFY]` the exact `components.json#registries` shape above and whether the namespace is auto-registered vs. needs the manual entry.
 
-## MCP option (AI-first)
+## AI-first claim
 
-Coss is "built for developers and AI": components can be pulled **over MCP** directly into Claude Code / Cursor. If a Coss MCP server is connected in the session, prefer it for discovery + insertion (it hands you the current source without guessing commands). `[VERIFY]` the MCP server URL/config against the live docs — it was not confirmed offline.
+Coss markets itself as "built for developers and AI" and ships an `npx skills add cosscom/coss` agent-skills installer, but no official MCP server for Claude Code/Cursor is documented — do not assume one exists or instruct users to "pull components over MCP".
 
 ## Prereqs
 

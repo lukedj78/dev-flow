@@ -78,7 +78,7 @@ Goal: add ONE thing — a primitive set, a component, or particles — idempoten
 
 ## Reference files
 
-- `references/coss-registry.md` — exact `@coss/*` commands, the namespaced-registry mechanism, components vs particles vs atoms, MCP option.
+- `references/coss-registry.md` — exact `@coss/*` commands, the namespaced-registry mechanism, components vs particles vs atoms, AI-first claim (no official MCP server documented).
 - `references/design-md-reconciliation.md` — Coss tokens = shadcn CSS vars; how DESIGN.md overrides them; tie-in to `design-md-to-app`'s `registry.json` install.
 - `references/deps-and-license.md` — Tailwind v4, `@base-ui/react`, the MIT/AGPLv3 split, when Coss is the right/wrong pick.
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored copy).
