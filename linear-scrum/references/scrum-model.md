@@ -4,6 +4,7 @@ The conventions `linear-scrum` applies. Depth = **structure + planning + reports
 
 ## Cadence
 - Default **2-week** cycles (`meta.json#scrum.cadence_weeks`). One Linear cycle = one sprint.
+- **Cycles are created in Linear**, not by this skill: the MCP only *lists* cycles (`list_cycles`), it cannot create them. Enable "Cycles" in the team settings once and create the sprint there; issues then attach to it via `save_issue`'s `cycle` field.
 
 ## Estimates
 - **Fibonacci** story points (1, 2, 3, 5, 8, 13). Map a task's `Estimated: <2-8h>` hint to the nearest point (≤2h→1, ~half-day→2, day→3, 2-3 days→5, ~week→8, more→13, and split if >13).
@@ -20,7 +21,13 @@ The conventions `linear-scrum` applies. Depth = **structure + planning + reports
 ## Velocity report (to chat)
 For the active/last cycle report: committed points, completed points, carry-over, blocked issues (by label), and the rolling velocity (last 3 cycles). No file is written.
 
-## Labels
-- `area:web` / `area:agent` — deduced from `meta.json#stack` and each task's `*(addressed by …)*` owner.
-- `type:scaffold` — setup/foundation tasks owned by another skill.
-- `blocked` — the stand-in for a Blocked state.
+## Labels — discover, don't assume
+Every workspace has its own label taxonomy. **Do not hardcode `area:web` / `type:scaffold`.** At Setup, call `list_issue_labels` and map three conceptual buckets onto whatever labels already exist, recording the result in `meta.json#scrum.labels`:
+
+| Bucket | Meaning | Example match in the current workspace |
+|---|---|---|
+| `web` | web/frontend work | `frontend` |
+| `agent` | eve agent work | `agent-eve` |
+| `scaffold` | setup/foundation owned by another skill | `setup` |
+
+Derive `web` vs `agent` from `meta.json#stack` and each task's `*(addressed by …)*` owner. Create a new label only when no reasonable existing one matches. The `blocked` label is the stand-in for the missing Blocked state (`meta.json#scrum.states.blocked_label`); create it if absent.

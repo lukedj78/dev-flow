@@ -118,7 +118,8 @@ Present once a project is taken into Linear. Written only by the `linear-scrum` 
 "scrum": {
   "cadence_weeks": 2, "estimate_scale": "fibonacci", "velocity_target": null,
   "states": { "backlog": "Backlog", "todo": "Todo", "in_progress": "In Progress",
-              "in_review": "In Review", "done": "Done", "blocked_label": "blocked" }
+              "in_review": "In Review", "done": "Done", "blocked_label": "blocked" },
+  "labels": { "web": "frontend", "agent": "agent-eve", "scaffold": "setup" }
 }
 ```
 

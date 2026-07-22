@@ -47,6 +47,13 @@ class TestMetaLinear(unittest.TestCase):
         self.assertEqual(m["scrum"]["cadence_weeks"], 2)
         self.assertEqual(m["scrum"]["estimate_scale"], "fibonacci")
         self.assertEqual(m["scrum"]["states"]["blocked_label"], "blocked")
+        self.assertEqual(m["scrum"]["labels"], {})
+
+    def test_ensure_scrum_preserves_discovered_labels(self):
+        m = ensure_scrum(self.base())
+        m["scrum"]["labels"] = {"web": "frontend"}   # filled at Setup
+        m2 = ensure_scrum(m)
+        self.assertEqual(m2["scrum"]["labels"], {"web": "frontend"})
 
     def test_ensure_scrum_is_idempotent(self):
         m = ensure_scrum(self.base())

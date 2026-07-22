@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-22T16:42:47Z",
+  "generated_at": "2026-07-22T17:12:36Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 35,
   "families": {
@@ -488,7 +488,7 @@
         "task_key.py",
         "test_scripts.py"
       ],
-      "skill_md_lines": 75,
+      "skill_md_lines": 77,
       "bundle": "dist/linear-scrum.skill"
     },
     {

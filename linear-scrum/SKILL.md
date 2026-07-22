@@ -27,14 +27,16 @@ Do **one** logical operation per invocation, then stop. Every mode is idempotent
 ## Setup mode (new project)
 
 1. `list_teams` → resolve the team (single team today: `Lucadigerlando`). One dev-flow project = one **Linear Project** under that team, never a new team.
-2. Ensure scrum config on the team: **cycles enabled** and a **Fibonacci estimate scale**. If the MCP cannot toggle these, stop and ask the user to enable "Cycles" + estimates once in Linear, then re-run. `[VERIFY]` against the installed MCP whether these are settable.
+2. Ensure scrum config on the team:
+   - **Estimates** — verified working: `save_issue` accepts a Fibonacci `estimate` (numeric point value) when the team has an estimate scale enabled.
+   - **Cycles** — the MCP can only *list* cycles (`list_cycles`), **not create** them. Ask the user to enable "Cycles" in Linear team settings once and create the first cycle there, then continue; issues are attached to an existing cycle via `save_issue`'s `cycle` field.
 3. Create/link the Linear Project (`save_project`); capture its id + url.
 4. Push `tasks.md` → issues (`save_issue`), one per `- [ ]` task:
    - **estimate**: from the task's `Estimated:` hint mapped to the nearest Fibonacci point; for tasks with no hint, **batch-prompt once** (list them, ask for points in one message) and default to unestimated if skipped.
-   - **labels**: `area:web` / `area:agent` (from `meta.json#stack` + the task's `*(addressed by …)*` tag), plus `type:scaffold` for setup tasks.
+   - **labels**: **discover, don't assume.** Call `list_issue_labels` and map the conceptual buckets — web / agent / scaffold — onto the workspace's own labels (e.g. this workspace uses `frontend` / `agent-eve` / `setup`, not `area:*`). Derive web-vs-agent from `meta.json#stack` + the task's `*(addressed by …)*` tag; record the resolved mapping in `meta.json#scrum.labels`. Create a label only if no reasonable match exists.
    - **milestone**: map epics/milestones via `save_milestone` when `tasks.md` groups by epic.
    - record each `task_key(line) → issue identifier` for the next step.
-5. Create the first cycle (`list_cycles` to check, then create; 2-week cadence).
+5. Attach issues to the active cycle if one exists (`list_cycles`; the cycle itself is created in Linear per step 2 — 2-week cadence). If none exists yet, leave the issues in the backlog and note it.
 6. Persist state:
    ```bash
    python3 scripts/meta_linear.py <root>/.workflow/meta.json upsert-linear \
