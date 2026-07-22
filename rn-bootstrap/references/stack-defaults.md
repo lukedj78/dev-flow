@@ -8,20 +8,20 @@ When bootstrapping a new RN/Expo app via `rn-bootstrap`, install these exact maj
 
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
-| `expo` | `^55.0.24` | Expo SDK | Latest stable. New Architecture ON by default. |
-| `react-native` | `0.85.3` | RN core | Bumped by Expo SDK — DO NOT override manually. |
-| `react` | `19.2.6` | React | Bumped by Expo SDK — DO NOT override manually. |
-| `typescript` | `^6.0.3` | TS | Template `blank-typescript` brings a compatible version. |
-| `expo-router` | `^55.0.14` | File-based routing | Mandatory for all apps in this set. |
-| `nativewind` | `^4.2.4` | Tailwind for RN | Major 4 only. |
+| `expo` | `^57.0.8` | Expo SDK | Latest stable. New Architecture ON by default. |
+| `react-native` | `0.86.0` | RN core | Bumped by Expo SDK — DO NOT override manually. |
+| `react` | `19.2.8` | React | Bumped by Expo SDK — DO NOT override manually. |
+| `typescript` | `^7.0.2` | TS | Template `blank-typescript` brings a compatible version. |
+| `expo-router` | `^57.0.8` | File-based routing | Mandatory for all apps in this set. |
+| `nativewind` | `^4.2.6` | Tailwind for RN | Major 4 only. |
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
-| `zustand` | `^5.0.13` | Global state | Default for non-trivial global state. |
-| `@tanstack/react-query` | `^5.100.10` | Data fetching | Major 5 only. |
-| `react-native-reanimated` | `^4.3.1` | Animations | Required by Expo Router for native stack animations. |
-| `react-native-gesture-handler` | `^2.31.2` | Gestures | Required by Expo Router. |
-| `react-native-safe-area-context` | `^5.7.0` | Safe area | Required for all root screens. |
-| `expo-image` | `^55.0.10` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
-| `@shopify/flash-list` | `^2.3.1` | Performant lists | Replaces `FlatList` for long lists. |
+| `zustand` | `^5.0.14` | Global state | Default for non-trivial global state. |
+| `@tanstack/react-query` | `^5.101.4` | Data fetching | Major 5 only. |
+| `react-native-reanimated` | `^4.5.3` | Animations | Required by Expo Router for native stack animations. |
+| `react-native-gesture-handler` | `^3.1.0` | Gestures | Required by Expo Router. |
+| `react-native-safe-area-context` | `^5.8.0` | Safe area | Required for all root screens. |
+| `expo-image` | `^57.0.1` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
+| `@shopify/flash-list` | `^2.3.2` | Performant lists | Replaces `FlatList` for long lists. |
 
 ## Engine / runtime defaults
 

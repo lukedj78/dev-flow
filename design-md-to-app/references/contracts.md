@@ -53,7 +53,8 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
     "auth": "better-auth",
     "db": "neon-drizzle",
     "payments": null,
-    "deploy": "vercel"
+    "deploy": "vercel",
+    "agent": null
   },
   "artifacts": {
     ".workflow/DESIGN.md": {
@@ -104,6 +105,26 @@ Skills update this via `dev-flow/scripts/update_meta.py record-artifact …`. Th
 
 The `artifacts` field is the foundation for resumability and drift detection: re-running a skill is safe if all its inputs are fresh; necessary if any are stale.
 
+### `linear` and `scrum` fields (optional, owned by `linear-scrum`)
+
+Present once a project is taken into Linear. Written only by the `linear-scrum` skill; other skills must not touch them.
+
+```json
+"linear": {
+  "team_id": "…", "team_name": "…", "project_id": "…", "url": "…",
+  "issue_map": { "<task_key>": "LUC-123" },
+  "last_synced_at": "<ISO-8601 UTC>"
+},
+"scrum": {
+  "cadence_weeks": 2, "estimate_scale": "fibonacci", "velocity_target": null,
+  "states": { "backlog": "Backlog", "todo": "Todo", "in_progress": "In Progress",
+              "in_review": "In Review", "done": "Done", "blocked_label": "blocked" },
+  "labels": { "web": "frontend", "agent": "agent-eve", "scaffold": "setup" }
+}
+```
+
+`issue_map` keys are `task_key()` digests of `tasks.md` lines (see `linear-scrum/scripts/task_key.py`) so re-syncing never duplicates issues. Linear is the source of truth for status/ordering/estimates after Setup; `tasks.md` stays the append-only intake for new work.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.
@@ -134,7 +155,7 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 Captures user choices that downstream skills need. Keys:
 
 - `framework`: `"next"` | `"vite-react"` | `"remix"` | `"astro"` | `"sveltekit"` | `"expo-rn"` | `"monorepo"` (planned) | string
-- `ui`: `"shadcn"` | `"base-ui"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string. **Note**: `"base-ui"` here means *standalone* Base UI (headless library, no shadcn CLI). With shadcn CLI v4 you can also run shadcn **on top of** Base UI — that is `ui="shadcn"` + `ui_base="base"` (below), and is usually the better way to get "shadcn philosophy on Base UI" because you keep the shadcn component set + blocks.
+- `ui`: `"shadcn"` | `"base-ui"` | `"coss"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string. **Note**: `"base-ui"` here means *standalone* Base UI (headless library, no shadcn CLI). With shadcn CLI v4 you can also run shadcn **on top of** Base UI — that is `ui="shadcn"` + `ui_base="base"` (below), and is usually the better way to get "shadcn philosophy on Base UI" because you keep the shadcn component set + blocks. `"coss"` = **Coss/UI** (the Cal.com design system on Base UI, installed via the shadcn `@coss/*` registry; implies `ui_base="base"`, requires Tailwind v4) — owned by the `coss-ui` skill.
 - `ui_base` (web, only when `ui="shadcn"`): `"radix"` | `"base"`. The primitive library shadcn builds on (`shadcn create --base`). Default `"radix"`. Every shadcn block/component ships in both variants; `shadcn add` pulls the matching one.
 - `shadcn_preset` (web, optional, only when `ui="shadcn"`): a **shadcn preset code** (short string, e.g. `"b5owWMfJ8l"`) built on <https://ui.shadcn.com/create>. Encodes style, base color, theme, chart palette, icon library, fonts (body/heading), and radius — the whole shadcn visual system in one token, designed to hand off to coding agents. When set, the **preset is the source of truth for the shadcn visual layer** (passed as `--preset`), and the DESIGN.md token-first install (`registry.json`) is **skipped** for the visual layer — preset XOR DESIGN.md-tokens, never both. `null`/unset → DESIGN.md-first (default). Decode/inspect with `shadcn preset decode <code>`; `ui_base` is still set separately (the preset may not encode the primitive base).
 - `base_color` (web, only when `ui="shadcn"`): `"neutral"` | `"gray"` | `"zinc"` | `"stone"` | `"slate"`. The shadcn base color. Default `"neutral"`. In dev-flow mode the **DESIGN.md tokens override** the actual palette — this is only the scaffold starting point.
@@ -151,6 +172,7 @@ Captures user choices that downstream skills need. Keys:
 - `push` (mobile, optional): `"expo-notifications"` | `null`
 - `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.
 - `forms` (web/monorepo, optional): `"tanstack-form"` | `"react-hook-form"` | `null`. The form-handling library. Defaults to `"tanstack-form"` for new Next.js 16 App Router projects (aligned with `nextjs-forms` skill from `lusentis/next-skills`). `"react-hook-form"` is supported for legacy projects or teams with strong preference. Written by `prd-from-idea` Q8 or set at scaffold time by `design-md-to-app`.
+- `agent` (optional): `"eve"` | `null`. An **optional product component** — the agent engine wired into `apps/agent/`, owned exclusively by the `eve-agent` skill. Opted into at stack-decision time or later on demand (not a pipeline phase). `null`/unset → no agent (or `eve-agent` will scaffold one when opted in); `"eve"` → an eve agent exists and `eve-agent` runs in capability mode. Setting it to `"eve"` implies a monorepo (`apps/web` + `apps/agent`). `eve-agent` writes this key and appends to `history` but does **not** bump `phase` — the agent has its own capability cadence, separate from the web app's linear build.
 - `nextjs_version` (web only, optional): `"16"` | string. The Next.js major version. **Canonical default for new projects = `"16"`** (App Router, RSC, async `searchParams`, `use(promise)`, `revalidatePath`, `revalidateTag`). Pages Router (`pages/` dir) is explicitly NOT supported by the dev-flow skill set — use only App Router. If an existing project is Pages Router or pre-16, the web skills refuse to apply.
 
 Use `null` (not `"none"`) when not yet decided. For `route_groups`, an empty array `[]` means "no route groups, flat routing".
