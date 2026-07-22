@@ -181,6 +181,14 @@ Same for `use()` instead of `useContext()`:
 const ctx = use(MyContext); // React 19+, supports conditional reads
 ```
 
+## Server/Client Component boundary (App Router)
+
+Composition decisions above interact with the Server/Client split — get this wrong and a compound component either forces the whole tree client-side or fails to render at all:
+
+- **A compound's root/provider is a Client Component the moment it needs `useState`/context for shared state** (Rule 4/5) — mark it `"use client"`. That does **not** force its subcomponents client-side too: a Server Component can still be passed as `children` into a Client Component's slot (e.g., `<ClientProvider>{await ServerFetchedContent()}</ClientProvider>` composed from a parent Server Component) — React keeps the Server-rendered subtree server-rendered even though the wrapping provider is a Client Component.
+- **Don't add `"use client"` to a compound component just because one subcomponent needs interactivity.** Push the directive down to the smallest leaf that actually needs it (the button, the toggle), not up to the compound root — this preserves rung-1 colocation and avoids client-bundling the whole component for one `onClick`.
+- **`children`-over-render-props (Rule 6) is also the standard way to keep a Server Component inside a Client Component's layout**: the Client Component (e.g., a `<Tabs>` shell needing `useState` for the active tab) renders `{children}` it received from a Server Component parent, rather than importing and rendering Server-fetched content itself (a Client Component cannot `import` and render a Server Component directly — only receive one as a prop/children from above).
+
 ## Our colocation rules (briefly — full spec in `references/colocation-rules.md`)
 
 | Level | Path | Use case |

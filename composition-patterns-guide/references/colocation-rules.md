@@ -1,8 +1,8 @@
 > Sources: docs/superpowers/specs/2026-06-06-folder-structure-refactor.md (canonical spec)
 
-# Colocation rules (full spec)
+# Colocation rules (condensed)
 
-(Identical content to `promote-component/references/colocation-rules.md` — kept in sync between the two skills.)
+This is a **condensed summary** for quick reference while reasoning about composition — it is not kept byte-for-byte in sync with `promote-component/references/colocation-rules.md`. The **canonical, authoritative version** (with the Anti-patterns list, the cross-platform `monorepo-add-shared-package` hand-off, and the full decision tree) lives in `promote-component/references/colocation-rules.md`. When in doubt, or when actually executing a promotion, read that file — this one is a mental-model refresher, not a spec.
 
 ## 3 levels intra-app
 
