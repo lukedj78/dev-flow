@@ -13,7 +13,7 @@ Read `references/contracts.md` for the `.workflow/` contract, `references/scrum-
 
 - A **Linear MCP must be connected** in the session. Confirm with `list_teams` before any write. For the headless server loop use the API-key path in `docs/loop-engineering.md` instead — this skill is the interactive counterpart.
 - `.workflow/meta.json` exists (dev-flow project). If not, tell the user and stop.
-- `.workflow/tasks.md` exists for Setup mode (run `prd-to-tasks` first otherwise).
+- `.workflow/tasks.md` exists for Setup mode (run `prd-to-tasks` first otherwise). **Coupled format**: `scripts/task_key.py` derives its dedup key from the `- [ ] **<Title>** — <body>` line shape produced by `prd-to-tasks`, splitting on the em-dash (` — `) to isolate the title — if `tasks.md` was hand-edited to use a different separator, dedup breaks and Setup/Sync can create duplicate issues.
 
 ## Read state, then pick a mode
 
