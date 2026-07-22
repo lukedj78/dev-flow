@@ -29,18 +29,38 @@ What is the user paying for?
 ## Q2: I have a digital product but I want to avoid the 30% fee. Options?
 
 ```
-└── There is NO clean workaround. Apple enforces this aggressively.
+Since May 1, 2025 (Epic v. Apple injunction), the US App Store storefront has a
+real, concrete option:
 
-Limited options:
-- "Reader app" exemption: if your app is purely a consumer of content the user
-  paid for elsewhere (Netflix, Spotify, Kindle), you can omit purchase UI in
-  the app and let users sign in to access. NO purchase prompts.
-- External link entitlement (iOS 17.4+, EU-only or US recent ruling): some apps
-  can link to a web purchase. Strict rules; consult Apple's docs.
-- Web app + thin native shell: if your native app is "incidental" you have more
-  flexibility. But Apple may reject if the native app exists primarily for IAP avoidance.
+- US "one-link" rule: on the US storefront, apps may include a link/button to an
+  external website to complete purchase — NO special entitlement required, NO
+  Apple-mandated friction/warning screen, and it doesn't have to be limited to
+  "reader" content. This is now a first-class way to route payment outside IAP
+  and skip the 30% cut for US users. Practical notes:
+  - Still applies only to the US storefront — other regions do NOT get this by
+    default.
+  - Apple can still take a reduced commission on purchases initiated via these
+    links within a defined window (check current guideline 3.1.1/3.1.3 text —
+    Apple has adjusted commission terms alongside the ruling).
+  - You still need standard web checkout (Stripe, etc.) and your own receipt/
+    entitlement plumbing — Apple's IAP receipt validation doesn't cover these.
 
-Spend energy on a great IAP UX, not on dodging the fee. The 70% is usually fine.
+- Outside the US (EU, rest of world): the older, stricter mechanisms still apply:
+  - "Reader app" exemption: if your app is purely a consumer of content the user
+    paid for elsewhere (Netflix, Spotify, Kindle), you can omit purchase UI in
+    the app and let users sign in to access. NO purchase prompts.
+  - External link entitlement (iOS 17.4+, EU DMA-driven): apps in the EU can
+    apply for an entitlement to link to a web purchase, subject to Apple's
+    Core Technology Fee / commission terms. Strict rules; consult Apple's docs.
+  - Web app + thin native shell: if your native app is "incidental" you have more
+    flexibility. But Apple may reject if the native app exists primarily for IAP
+    avoidance.
+
+If most of your revenue is US-based, evaluate the one-link route seriously —
+it is no longer a rare edge case. If you have meaningful EU/international
+revenue too, you'll likely run a hybrid: IAP by default, one-link/entitlement
+where the storefront allows it. Verify current terms against Apple's live
+guidelines before shipping — this area keeps evolving post-ruling.
 ```
 
 ## Q3: RevenueCat or raw `react-native-iap`?
@@ -84,8 +104,11 @@ Stripe via WebView OR Stripe RN SDK:
   Use `WebBrowser.openAuthSessionAsync` from `expo-web-browser` for a clean dismiss.
 - Native SDK gives more control (Apple Pay, custom flow) — heavier integration.
 
-Either way: confirm with Apple's "external payment" rules. Even for non-digital,
-Apple sometimes objects.
+Either way: confirm with Apple's current "external payment" rules (see Q2 for
+the US one-link rule, which is broader than this B2B/non-digital case anyway
+since digital goods here were never subject to IAP under 3.1.1). Even for
+non-digital, Apple sometimes objects if the flow looks like it's dodging IAP
+for something that should have been a digital good.
 ```
 
 ## Q6: First store submission — what do I prep?

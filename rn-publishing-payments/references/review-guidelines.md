@@ -21,8 +21,8 @@ The full Apple guidelines are 30+ pages. This file lists the points you'll most 
 - Different content per locale that materially changes the app's purpose → reject.
 
 ### 3.1.1 — In-App Purchase
-- Selling digital goods or subscriptions WITHOUT IAP → reject + ban risk.
-- No "Restore Purchases" button on paywall → reject.
+- Selling digital goods or subscriptions WITHOUT IAP → reject + ban risk — EXCEPT on the US storefront, where since May 1, 2025 (Epic v. Apple injunction) apps may link/button out to external web checkout for digital goods with no entitlement and no Apple-mandated friction screen (see `decision-tree.md` Q2). This is a real, supported path on US builds, not a loophole to hide.
+- No "Restore Purchases" button on paywall → reject (still applies when you offer IAP at all; if you route entirely through the US external-link path for a given SKU, restore semantics move to your own backend).
 - Misleading subscription terms (unclear price, unclear trial end) → reject.
 
 ### 4.0 — Design
@@ -54,7 +54,7 @@ The full Apple guidelines are 30+ pages. This file lists the points you'll most 
 - Data safety form doesn't match what your SDKs collect → reject + warning.
 
 ### Policy: Target API level
-- Apps must target the latest Android API level − 1 (e.g. API 34 in 2024, API 35 in 2025). Expo SDK 55 handles this — verify after each SDK bump.
+- Google Play requires targeting a recent Android API level (rolling requirement, roughly the current major − 1 each year — e.g. API 35 in 2025, API 36 by August 31, 2026 for new/updated apps). Check the current deadline at Play Console's target API level policy page before submitting. The Expo SDK you're on handles the underlying `targetSdkVersion` — verify after each SDK bump.
 
 ### Policy: User data
 - Sending personal data over HTTP (not HTTPS) → reject.
