@@ -126,3 +126,4 @@ This keeps eve's durable session + tools as the single source of truth; voice is
 - **Two-brains trap**: with an eve agent present, voice is I/O, not a second agent loop (see top).
 - **Billing**: realtime audio bills through the Vercel AI Gateway, separate from any Claude Code tooling — and audio sessions are not cheap; gate the token endpoint.
 - **Secure context**: mic + secure WS need HTTPS; won't work on plain `http://` except `localhost`.
+- **Service tiers don't apply here**: the AI Gateway `serviceTier` (`priority`/`flex`/`default`, via `providerOptions.gateway`) is a *text-generation* control (OpenAI/Gemini `generateText`/`streamText`). It is **not** a knob on the realtime speech surface — don't try to pass it through `getToken`. Tune realtime latency at the model/voice level instead. Ref: <https://vercel.com/changelog/service-tiers-now-available-on-ai-gateway>.
