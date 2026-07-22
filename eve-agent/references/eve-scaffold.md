@@ -74,6 +74,7 @@ deploy rules referenced throughout.
 
 ## 7. Shared types package
 
+* If `packages/types` does not yet exist in the monorepo, do not assume it or hand-roll it here — invoke **`monorepo-add-shared-package`** to create the package skeleton (package.json, tsconfig, exports map) following the monorepo's conventions, then populate it as below. This keeps the package consistent with every other `packages/*` in the workspace instead of a one-off.
 * Create or update `packages/types` so it **re-exports eve's** session request shape and stream-event union (see `eve-web-integration.md`). Both `apps/web` and `apps/agent` import from here so the contract is single-sourced — do not redefine a parallel set of types.
 
 ## 8. Verify (Definition of Done)

@@ -88,7 +88,7 @@ Follow `references/eve-scaffold.md` for the full procedure. In short:
 4. Set the channel auth in `agent/channels/eve.ts`: `localDev()` for development, a real authenticator (`vercelOidc()` / `jwtHmac()` / `httpBasic()`) for production. eve **fails closed** in prod — browser traffic is rejected unless an authenticator accepts it.
 5. Add at least one baseline eval in `evals/` (sibling of `agent/`) so `eve eval` has a gate to enforce in CI.
 6. Wire `apps/agent` into the pnpm workspace and `turbo.json` pipelines (`dev`, `build`, `lint`, `typecheck`, plus an `eval` task that runs `eve eval`).
-7. Create / update `packages/types` so it **re-exports eve's** session request + stream-event types — do not hand-roll a parallel contract (see `references/eve-web-integration.md`).
+7. Create / update `packages/types` so it **re-exports eve's** session request + stream-event types — do not hand-roll a parallel contract (see `references/eve-web-integration.md`). If `packages/types` doesn't exist yet, don't assume it — create it first via **`monorepo-add-shared-package`**, then populate it.
 8. Verify: `eve info` resolves the app, `pnpm --filter agent lint typecheck build` and `eve eval` exit 0, and a real HTTP round-trip returns a non-empty response. Document the exact commands you used.
 9. Update `.workflow/meta.json`: set `stack.agent = "eve"` and append a `history` entry (`{ "skill": "eve-agent", "action": "scaffold", "ran_at": "<ISO8601>" }`).
 
