@@ -1,11 +1,11 @@
 ---
 name: screenshot-to-page
-description: 'Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project''s DESIGN.md tokens and the existing UI library (shadcn or MUI). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.workflow/meta.json` for tokens and stack, then writes the route into the codebase at the project root. Use when the user says "fai questa pagina dallo screenshot", "build the home page from this image", "/journal route from this PNG", "convert this mockup to code", or the orchestrator routes here from phase `scaffolded` with unmapped screenshots present. Not for: scaffolding the app from scratch (use `design-md-to-app`), extracting tokens from Figma (use `figma-to-design-md`), or wiring backend modules (use `module-add`).'
+description: 'Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project''s DESIGN.md tokens and the existing UI library (shadcn, Base UI, MUI, or Coss). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.workflow/meta.json` for tokens and stack, then writes the route into the codebase at the project root. Use when the user says "fai questa pagina dallo screenshot", "build the home page from this image", "/journal route from this PNG", "convert this mockup to code", or the orchestrator routes here from phase `scaffolded` with unmapped screenshots present. Not for: scaffolding the app from scratch (use `design-md-to-app`), extracting tokens from Figma (use `figma-to-design-md`), or wiring backend modules (use `module-add`).'
 ---
 
 # screenshot-to-page — screenshot → working route
 
-This skill takes one screenshot and one route-name from the user, and produces a working page in the existing scaffolded app. The route renders close to the visual reference, uses **only** components and tokens already defined by the project's design system, and is reachable in `npm run dev`.
+This skill takes one screenshot and one route-name from the user, and produces a working page in the existing scaffolded app. The route renders close to the visual reference, uses **only** components and tokens already defined by the project's design system, and is reachable in `pnpm dev`.
 
 ## What this skill targets
 
@@ -84,9 +84,15 @@ State the plan to the user briefly: *"Estraggo `ArticleCard` (4 occorrenze nella
 
 ### Step 4 — Map to the design system
 
+Read `.workflow/meta.json#stack.ui` to know which UI library the project already uses — don't guess or mix libraries into an existing app.
+
 For each component you identified in Step 2, decide:
 
-- **Use an existing primitive** (e.g., shadcn's `Button`, `Card`, MUI's `Card`, `Stack`). Prefer this.
+- **Use an existing primitive** first. Prefer this over hand-rolling. What "existing primitive" means depends on `stack.ui`:
+  - `"shadcn"` — copy-pasted source in `components/ui/` (e.g. `Button`, `Card`). Import from `@/components/ui/<name>`.
+  - `"mui"` — runtime-themed components from `@mui/material` (e.g. `Card`, `Stack`).
+  - `"base-ui"` (standalone Base UI, no shadcn CLI, no `components/ui/` folder) — import headless primitives directly from `@base-ui-components/react` (e.g. `@base-ui-components/react/dialog`) and style them with the project's Tailwind classes/tokens. There is no pre-styled component to fetch — the styling is part of what you write.
+  - `"coss"` — primitives live in `components/ui/` just like shadcn, but originate from the `@coss/*` registry (Cal.com design system on Base UI). Treat them exactly like shadcn primitives for import purposes (`@/components/ui/<name>`); if a needed component/particle hasn't been pulled into `components/ui/` yet, **hand off to the `coss-ui` skill** to fetch it via `pnpm dlx shadcn@latest add @coss/<name>` rather than hand-rolling it here.
 - **Compose primitives** if no exact match (e.g., a "stat card" = `Card` + headline typography + body).
 - **Hand-roll a small custom component** only if necessary, and only if it'll be reusable. One-off custom JSX in the page file is fine for unique sections.
 
@@ -160,8 +166,8 @@ State the chosen mode in your hand-off message: "Iterated in `structure-first` m
 1. **Build & start dev server**:
    ```bash
    cd <project-root>
-   npm run build       # catch syntax/type errors before launching
-   npm run dev &       # background dev server
+   pnpm build       # catch syntax/type errors before launching
+   pnpm dev &       # background dev server
    ```
    If build fails, fix the most likely cause once. If it still fails, stop and tell the user — don't loop on a broken build.
 
