@@ -49,7 +49,6 @@ export default function PostsScreen() {
       <FlashList
         data={data ?? []}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={72}
         refreshing={isRefetching}
         onRefresh={refetch}
         renderItem={({ item }) => (
@@ -65,6 +64,8 @@ export default function PostsScreen() {
   );
 }
 ```
+
+FlashList v2 auto-sizes items — no `estimatedItemSize` prop needed (that was required in v1, now deprecated).
 
 ## 2. Detail screen (typed search params + query)
 
@@ -252,10 +253,10 @@ Then any screen at `app/(app)/...` is protected. The screen file itself contains
 
 ## When you need to pull out a component
 
-If the screen has > ~120 lines or contains a sub-piece that would be reused, extract to `components/`:
+If the screen has > ~120 lines or contains a sub-piece that would be reused, extract to the route's page-private folder — never to a flat `components/` (see SKILL.md "Folder structure rules"):
 
 ```
-components/
+app/posts/_components/
 ├── PostCard.tsx
 ├── EmptyState.tsx
 └── LoadingScreen.tsx
