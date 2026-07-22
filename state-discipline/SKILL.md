@@ -193,6 +193,8 @@ function ProfileForm({ userId }: { userId: string }) {
 
 The child gets fresh state on every `userId` change. No effect, no race.
 
+**Want to keep the state instead of resetting it?** `key` always throws the subtree away. If the goal is the opposite — hide a tab/panel but keep its scroll position, form draft, or component state alive for when it's shown again — reach for `<Activity>` instead of `key`. See "`<Activity>` — hide without resetting" below.
+
 ### 7. One-time external sync → `useMountEffect`
 
 For unavoidable mount-only side effects (DOM API, third-party widget init, focus management), use `useMountEffect` — a thin wrapper around `useEffect(fn, [])` with explicit intent:
@@ -218,6 +220,28 @@ export function FocusOnMount() {
 ```
 
 The `eslint-disable` lives in **one** place. Every consumer site is grep-able by `useMountEffect`.
+
+**Cleaner alternative when the effect reads fresh props/state: `useEffectEvent`.** `useMountEffect`'s `eslint-disable` is a blunt instrument — it silences the exhaustive-deps check for the whole effect body, so if the effect also needs to *read* a prop or piece of state without re-firing when that value changes, there's no clean way to say so. `useEffectEvent` (from `react`) solves exactly this: it wraps the part of the effect that must always see the latest values but must never itself be a reactive dependency.
+
+```tsx
+"use client";
+import { useEffect, useEffectEvent } from "react";
+
+export function ChatRoom({ roomId, theme }: { roomId: string; theme: string }) {
+  const onConnected = useEffectEvent(() => {
+    showNotification("Connected!", theme); // always reads the LATEST theme
+  });
+
+  useEffect(() => {
+    const connection = createConnection(roomId);
+    connection.on("connected", () => onConnected());
+    connection.connect();
+    return () => connection.disconnect();
+  }, [roomId]); // theme is NOT a dependency — onConnected reads it fresh, no re-connect on theme change
+}
+```
+
+Use `useMountEffect` for genuinely mount-only, no-fresh-reads side effects (focus on mount, one-shot third-party init). Reach for `useEffectEvent` when the effect must stay subscribed/connected across renders but a piece of its logic needs to read current props/state without becoming a re-run trigger. `[VERIFY]` — confirm `useEffectEvent` is stable (not `experimental_useEffectEvent`) in the project's exact React version before relying on the non-prefixed import; it stabilized around React 19.2.
 
 ### 8. Honest `useState` — the last 10%
 
@@ -283,6 +307,54 @@ export function HeavyTabs() {
 ```
 
 For URL-state transitions, wrap the `router.replace` call in `startTransition` — `pending` becomes the loading state.
+
+## `useActionState` — where it lands relative to the ladder
+
+`useActionState` (React 19) is neither a new rung nor a replacement for any of the 8 — it's the primitive for **pending/error state of a single Server Action invocation** when the full `forms` toolkit (Zod schema, dirty/valid gating, baseline reset) is overkill: a one-button action (archive, delete, resend-invite, like), not a multi-field form.
+
+```tsx
+"use client";
+import { useActionState } from "react";
+import { archiveClient } from "@/lib/server/clienti";
+
+export function ArchiveButton({ id }: { id: number }) {
+  const [state, formAction, isPending] = useActionState(archiveClient, { ok: true });
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="id" value={id} />
+      <button disabled={isPending}>{isPending ? "Archiving…" : "Archive"}</button>
+      {!state.ok && <p className="text-error">{state.error}</p>}
+    </form>
+  );
+}
+```
+
+- **Multi-field form with validation, dirty tracking, Save-button gating?** That's the `forms` skill's job — `useActionState` alone doesn't give you field-level dirty/valid state.
+- **Single action, no fields (or hidden-only fields), just need pending + the action's returned result?** `useActionState` is the honest, minimal answer — don't hand-roll `useState` + `useTransition` + manual error bookkeeping to reinvent it (that's rung-8-gone-wrong: a `useState` that's really re-implementing a framework primitive).
+- Don't reach for `useOptimistic` here unless the button also needs an instant UI flip before the action resolves — the two compose (`useOptimistic` for the instant flip, `useActionState` for the pending/error of the underlying action).
+
+## `<Activity>` — hide without resetting (alternative to `key`)
+
+`key` (rung 6) is for **resetting** state when identity changes — React throws the old subtree away and mounts a fresh one. `<Activity>` (React 19.2) is for the opposite need: **hide a subtree from the screen while keeping its state, DOM, and effects' cleanup alive**, so switching back doesn't lose scroll position, an in-progress form draft, or an expensive-to-rebuild tree (an inactive chat tab, an offscreen wizard step, a background route in a tab-like UI).
+
+```tsx
+import { Activity } from "react";
+
+function Tabs({ activeTab }: { activeTab: "chat" | "settings" }) {
+  return (
+    <>
+      <Activity mode={activeTab === "chat" ? "visible" : "hidden"}>
+        <ChatPanel />
+      </Activity>
+      <Activity mode={activeTab === "settings" ? "visible" : "hidden"}>
+        <SettingsPanel />
+      </Activity>
+    </>
+  );
+}
+```
+
+Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says "my draft disappeared when I switched tabs and came back," that's a `key`-shaped reset where `<Activity>` was needed. `[VERIFY]` — confirm `<Activity>` is available (not behind an experimental/canary flag) in the project's exact React version; it stabilized around React 19.2.
 
 ## Red flags / rationalizations
 
@@ -360,6 +432,9 @@ Derived from the `nextjs-usestate` skill from **[lusentis/next-skills](https://g
 - React docs (`useOptimistic`): <https://react.dev/reference/react/useOptimistic>
 - React docs (`useTransition`): <https://react.dev/reference/react/useTransition>
 - React docs (`key`): <https://react.dev/learn/preserving-and-resetting-state>
+- React docs (`useActionState`): <https://react.dev/reference/react/useActionState>
+- React docs (`useEffectEvent`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/useEffectEvent>
+- React docs (`<Activity>`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/Activity>
 
 ## When in doubt
 
