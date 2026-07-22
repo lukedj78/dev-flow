@@ -36,6 +36,7 @@ SKILLS=(
   dev-flow
   prd-from-idea
   prd-to-tasks
+  linear-scrum
 
   # Web stack
   figma-to-design-md
@@ -50,6 +51,7 @@ SKILLS=(
 
   # Agent engine (eve)
   eve-agent
+  eve-registry-porting
 
   # Mobile stack
   rn-fundamentals

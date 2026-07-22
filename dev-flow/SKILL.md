@@ -82,7 +82,7 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `empty` | `prd-from-idea` (capture idea + draft PRD). If the user already has a Figma URL handy, can also detour via `figma-to-design-md` first — but PRD usually comes first for clarity. |
 | `idea_captured` | `prd-from-idea` (expand `PROJECT.md` into a `PRD.md`). |
 | `prd_drafted` | `prd-to-tasks` if user wants explicit task breakdown; OR `figma-to-design-md` if user has a Figma; OR `image-to-design-md` if user has 1+ raster images (PNG/JPG screenshots, mockups, Pinterest pins); OR jump to `design-md-to-app` if simple project + DESIGN.md will be hand-written. |
-| `tasks_split` | `figma-to-design-md` or `image-to-design-md` or `design-md-to-app`. |
+| `tasks_split` | **Propose `linear-scrum` (Setup)** to take the project into Linear + set up scrum (default, skip only on explicit opt-out); then `figma-to-design-md` or `image-to-design-md` or `design-md-to-app`. |
 | `design_extracted` | `design-md-to-app` (this is the natural next step — DESIGN.md exists, time to scaffold). |
 | `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; `forms` for any form-building request; iterate. |
 | `page_generated` | `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
@@ -90,6 +90,8 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `feature_complete` | (mobile only — `expo-rn` stack) → `rn-eas-deploy` to build, submit, and ship to App Store + Play Store. |
 | `deployed` | (mobile only) maintenance loop: more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`, telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
+
+**Project-management policy (Linear + scrum).** Every project is run in **Linear with agile scrum** unless the user explicitly opts out. When `tasks.md` exists (phase `tasks_split`, or `prd_drafted` once tasks are generated), propose `linear-scrum` **Setup**. `linear-scrum` is also a **horizontal capability** — invoke it any time for **Sync** (push new tasks, plan the sprint, report velocity), regardless of `phase`. It records `meta.json#linear` + `#scrum` and appends `history`, but never bumps `phase` and never gates progression. For an existing project already partly in Linear, `linear-scrum` **Adopt** backfills the link.
 
 The orchestrator must propose, not impose. After deciding, **tell the user the proposed next step in one sentence**, and ask for confirmation before invoking. Example: *"You're at `design_extracted` (DESIGN.md + 6 screenshots in place). I propose running `design-md-to-app` to scaffold a Next.js + shadcn project. OK to proceed, or do you want to add modules / change stack first?"*
 

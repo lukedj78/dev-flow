@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-08T20:07:50Z",
+  "generated_at": "2026-07-22T16:42:47Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 33,
+  "skill_count": 35,
   "families": {
     "core": [
       "dev-flow",
@@ -14,9 +14,11 @@
       "data-fetching",
       "design-md-to-app",
       "eve-agent",
+      "eve-registry-porting",
       "figma-to-design-md",
       "forms",
       "image-to-design-md",
+      "linear-scrum",
       "module-add",
       "monorepo-add-shared-package",
       "monorepo-bootstrap",
@@ -62,7 +64,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 224,
+      "skill_md_lines": 226,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -369,6 +371,7 @@
       "references": [
         "anti-slop-fallbacks.md",
         "base-ui-mapping.md",
+        "chat-and-typeset.md",
         "contracts.md",
         "library-choice.md",
         "mui-mapping.md",
@@ -380,7 +383,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1116,
+      "skill_md_lines": 1119,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -400,6 +403,17 @@
       ],
       "skill_md_lines": 136,
       "bundle": "dist/eve-agent.skill"
+    },
+    {
+      "name": "eve-registry-porting",
+      "family": "web",
+      "role": "operative",
+      "description": "Port a component (tool, connection, or skill) from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the \"shadcn for agents\" registries — into a multi-tenant eve app WITHOUT adopting the registry's standalone-agent runtime model. Use when the user wants to \"install / u...",
+      "skill_file": "eve-registry-porting/SKILL.md",
+      "references": [],
+      "scripts": [],
+      "skill_md_lines": 122,
+      "bundle": "dist/eve-registry-porting.skill"
     },
     {
       "name": "figma-to-design-md",
@@ -457,6 +471,25 @@
       ],
       "skill_md_lines": 176,
       "bundle": "dist/image-to-design-md.skill"
+    },
+    {
+      "name": "linear-scrum",
+      "family": "web",
+      "role": "operative",
+      "description": "Take a dev-flow project into Linear and run it with agile scrum. Creates/links a Linear Project under the workspace team, pushes `.workflow/tasks.md` into issues (story-point estimates, `area:web`/`area:agent` labels, milestones), sets up cycles/sprints (2-week cadence), and keeps Linear as the sour...",
+      "skill_file": "linear-scrum/SKILL.md",
+      "references": [
+        "contracts.md",
+        "linear-mcp.md",
+        "scrum-model.md"
+      ],
+      "scripts": [
+        "meta_linear.py",
+        "task_key.py",
+        "test_scripts.py"
+      ],
+      "skill_md_lines": 75,
+      "bundle": "dist/linear-scrum.skill"
     },
     {
       "name": "module-add",
@@ -562,7 +595,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 254,
+      "skill_md_lines": 256,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
