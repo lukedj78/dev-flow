@@ -41,6 +41,9 @@ vi.mock("@/lib/db", () => ({ db: mockDb }));
 
 // 4. IMPORT the action AFTER the mocks. ESM hoists `vi.mock` but importing
 //    the action before declaring mocks risks subtle race conditions.
+//    Also import the mocked auth helper itself — `vi.mocked(getCurrentUserId)`
+//    below needs the binding in scope, not just the module mock.
+import { getCurrentUserId } from "@/lib/auth-server";
 import { createClient, updateClient, archiveClient } from "@/lib/server/clienti";
 
 beforeEach(() => {

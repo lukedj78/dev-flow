@@ -147,6 +147,105 @@ it("renders correctly inside ThemeProvider", () => {
 });
 ```
 
+### Components that use TanStack Query (`useQuery` / `useMutation`)
+
+Don't mock `@tanstack/react-query` itself — mock the fetcher/query-fn boundary (the server action or `fetch` call the query wraps) and render the component inside a real `QueryClientProvider`. A fresh `QueryClient` per test avoids cross-test cache bleed, and disabling retries keeps failing-query tests fast instead of waiting out the retry backoff.
+
+```typescript
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { listClients } from "@/lib/queries/clienti";
+import { ClientList } from "../client-list";
+
+vi.mock("@/lib/queries/clienti", () => ({
+  listClients: vi.fn(),
+}));
+
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+}
+
+describe("ClientList", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders rows once the query resolves", async () => {
+    vi.mocked(listClients).mockResolvedValueOnce([{ id: 1, name: "Mario Rossi" }]);
+    renderWithClient(<ClientList />);
+
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
+  });
+
+  it("shows an error state when the query rejects", async () => {
+    vi.mocked(listClients).mockRejectedValueOnce(new Error("network error"));
+    renderWithClient(<ClientList />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/error/i);
+  });
+});
+```
+
+For a hook in isolation (no component), use `renderHook` from `@testing-library/react` with the same `QueryClientProvider` wrapper:
+
+```typescript
+import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useClients } from "@/lib/hooks/use-clients";
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+it("returns the client list once loaded", async () => {
+  const { result } = renderHook(() => useClients(), { wrapper });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data).toHaveLength(1);
+});
+```
+
+Mutations (`useMutation`) follow the same shape — mock the server action the mutation calls, assert `isPending` while the promise is unresolved, then assert the success/error branch and (if the component calls it) that `queryClient.invalidateQueries` fired.
+
+### Components that use TanStack Form (Save gated by dirty + valid)
+
+Forms built with the `forms` toolkit expose a Save button that's disabled unless the form is **both dirty and valid** (see the `forms` skill). Test that gate directly rather than testing TanStack Form's internals:
+
+```typescript
+it("keeps Save disabled until the form is dirty and valid", async () => {
+  const user = userEvent.setup();
+  render(<ClientEditForm client={{ id: 1, name: "Mario Rossi" }} />);
+
+  const save = screen.getByRole("button", { name: /save/i });
+  expect(save).toBeDisabled(); // pristine — not dirty yet
+
+  await user.clear(screen.getByLabelText(/name/i));
+  expect(save).toBeDisabled(); // dirty but invalid (empty required field)
+
+  await user.type(screen.getByLabelText(/name/i), "Mario Bianchi");
+  expect(save).toBeEnabled(); // dirty AND valid
+});
+
+it("resets to a disabled Save (new baseline) after a successful save", async () => {
+  const user = userEvent.setup();
+  render(<ClientEditForm client={{ id: 1, name: "Mario Rossi" }} />);
+
+  await user.type(screen.getByLabelText(/name/i), " Jr.");
+  await user.click(screen.getByRole("button", { name: /save/i }));
+
+  expect(await screen.findByRole("button", { name: /save/i })).toBeDisabled();
+});
+```
+
+Don't assert on TanStack Form's internal field state or Zod's parsing — assert on the **Save button's disabled state** and the post-save baseline reset, which is the actual contract the `forms` toolkit promises.
+
 ## Mocking `next/navigation` per-test
 
 The global mock in `vitest.setup.ts` returns a default. To override:
