@@ -1,6 +1,6 @@
 ---
 name: monorepo-sync-types
-description: 'Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), tRPC (via inference from the server router import), and custom REST (via a manual or zod-derived schema). Reads .workflow/meta.json with stack.framework="monorepo" and stack.{auth,db} populated. Use when "rigenera i tipi da Supabase", "sync DB schema to packages/shared/types", "il backend è cambiato, aggiorna i tipi", "sync types from tRPC". Not for: creating shared packages from scratch (use monorepo-add-shared-package), wiring the backend client itself (use module-add or rn-module-add).'
+description: 'Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), neon-drizzle (via drizzle-kit introspect/pull + InferSelectModel/InferInsertModel re-exports — the default DB stack), tRPC (via inference from the server router import), and custom REST (via a manual or zod-derived schema). Reads .workflow/meta.json with stack.framework="monorepo" and stack.{auth,db} populated. Use when "rigenera i tipi da Supabase", "sync DB schema to packages/shared/types", "il backend è cambiato, aggiorna i tipi", "sync types from tRPC", "sync Drizzle types after a schema change". Not for: creating shared packages from scratch (use monorepo-add-shared-package), wiring the backend client itself (use module-add or rn-module-add).'
 ---
 
 # monorepo-sync-types — regenerate + propagate backend types across the monorepo
@@ -11,6 +11,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"monorepo"`.
 - Reads `meta.json#stack.db` and `stack.auth` to determine the source of truth:
   - `"supabase"` → run `supabase gen types typescript` against the linked project.
+  - `"neon-drizzle"` → introspect/pull via `drizzle-kit` and re-export `InferSelectModel`/`InferInsertModel` from the Drizzle schema (this is the default DB for most projects — see `module-add/references/module-db.md`).
   - `"trpc"` → re-import the server router type and re-export it.
   - `"firebase"` → no auto-gen, but normalize fixed types from Firestore rules (limited).
   - `"custom-rest"` → ask the user where the schema lives (Zod / OpenAPI / TS source).
@@ -69,6 +70,32 @@ export const supabase = createClient<Database>(
 
 Both web and mobile apps now import `supabase` from `@<slug>/api/client` and get full type safety: `supabase.from('posts').select(...)` is fully typed.
 
+#### neon-drizzle
+
+This is the default DB stack for most projects (see `module-add/references/module-db.md`). Drizzle's schema file is already the source of truth for types — there's no separate "gen types" command — so syncing means two things: (1) make sure the schema file matches the live DB, and (2) re-export row types to `packages/shared/`.
+
+1. If drift with the live database is suspected (someone ran DDL outside Drizzle, or this is the first sync), refresh the schema from the database:
+   ```bash
+   npx drizzle-kit pull
+   ```
+   This introspects the Neon database and (re)writes the schema file. Confirm the target path against `module-add/references/module-db.md` — by default `apps/web/lib/db/schema.ts`.
+2. Re-export typed rows via `InferSelectModel` / `InferInsertModel` (from `drizzle-orm`) into `packages/shared/src/types/db.ts`:
+   ```ts
+   import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+   import { users, posts } from '../../../../apps/web/lib/db/schema'; // adjust relative path to the real schema location
+
+   export type User = InferSelectModel<typeof users>;
+   export type NewUser = InferInsertModel<typeof users>;
+   export type Post = InferSelectModel<typeof posts>;
+   export type NewPost = InferInsertModel<typeof posts>;
+   ```
+3. Add to `packages/shared/src/index.ts`:
+   ```ts
+   export * from './types/db';
+   ```
+
+If the schema file was hand-edited to add tables/columns that haven't reached the database yet, don't `pull` (it would overwrite the new columns) — instead run the migration first (`drizzle-kit generate` + `drizzle-kit migrate`; `drizzle-kit push` is dev-only and destructive on column drops, per `module-add/references/module-db.md`), then re-export types from the now-current schema.
+
 #### tRPC
 
 The types flow automatically via TS inference — no gen step. The skill verifies the wiring is correct:
@@ -117,7 +144,7 @@ If types changed in ways that broke existing code, report each error — the use
 {
   "stack_config": {
     "types_last_synced_at": "<iso>",
-    "types_source": "supabase" // or "trpc" / "firebase" / "custom-rest"
+    "types_source": "supabase" // or "neon-drizzle" / "trpc" / "firebase" / "custom-rest"
   },
   "history": [
     ...,
