@@ -7,18 +7,30 @@
 ```
 Will the same product ship to BOTH a web admin/dashboard AND a consumer mobile app
 that share business logic, backend, and design tokens?
-├── YES                              → monorepo. The skill set fits this.
-├── NO — only web                    → framework="next" (or astro/vite-react). 
-│                                      No monorepo, no skill set needed.
+├── YES                              → monorepo, topology="web-mobile". The skill set fits this
+│                                      as its primary case (apps/web + apps/mobile).
+├── NO — but there's an eve agent    → monorepo, topology="web-agent" (apps/web + apps/agent,
+│   engine behind the web app          no mobile). Still worth the turborepo/shared-package
+│                                      scaffolding — see "The packages/ui rule" below.
+├── NO — only web, no mobile/agent   → usually framework="next" (or astro/vite-react), no
+│                                      monorepo. BUT you can still opt into
+│                                      monorepo/topology="web-only" if you specifically want
+│                                      the turborepo tooling + a shared-package layout (e.g.
+│                                      anticipating a second web app or an agent later).
+│                                      Don't do this "just in case" — see the wrong reasons below.
 ├── NO — only mobile                 → framework="expo-rn". Same — no monorepo.
 └── KIND OF — web admin + landing    → could be a monorepo (apps/admin + apps/marketing)
-                                       BUT v1 of this skill set only supports 1 web + 1 mobile.
+                                       BUT v1 of this skill set only supports 1 web app (plus,
+                                       depending on topology, 1 mobile app or 1 agent — never both
+                                       admin+marketing as two separate web apps).
                                        If you genuinely need 2 web apps, fork the skill or wait for v2.
 ```
 
+`monorepo-bootstrap` Step 1 detects or asks which of these three topologies (`web-mobile` / `web-agent` / `web-only`) applies and records it in `meta.json#stack.monorepo.topology` — every later step (packages/design vs packages/ui, whether `rn-bootstrap` runs) branches on it.
+
 The wrong reasons to pick monorepo:
 - "I want to share types between frontend and backend" — that's possible without monorepo (npm publish private packages, or git submodules) but a monorepo is the cleanest.
-- "I want to use turborepo for caching" — turborepo works with non-monorepo too (single app). The skill set assumes web + mobile.
+- "I want to use turborepo for caching" — turborepo works with non-monorepo too (single app). Don't reach for `topology="web-only"` just for this; it's meant for projects that genuinely anticipate a second app (mobile or agent) or a multi-web-app future.
 
 ## Q2: pnpm or yarn or npm?
 

@@ -118,6 +118,9 @@ packages:
 {
   "name": "@<slug>/root",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "turbo dev",
     "dev:web": "pnpm --filter @<slug>/web dev",
@@ -134,6 +137,8 @@ packages:
   "packageManager": "pnpm@9.0.0"
 }
 ```
+
+`engines.node >= 24` is required because eve (the agent engine wired via the `eve-agent` skill, used in the `"web-agent"` topology and optionally added later to any topology) requires Node ≥ 24. Setting it at the monorepo root keeps the constraint visible even for topologies that don't have an agent yet.
 
 ### `tsconfig.base.json` (path aliases)
 ```json
