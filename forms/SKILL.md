@@ -1,6 +1,6 @@
 ---
 name: forms
-description: 'Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. Supports two underlying form libraries chosen at project scaffold time: **TanStack Form + Zod** (default, recommended) or **react-hook-form + Zod** (opt-in alternative). Use when the user says "form", "edit panel", "create dialog", "settings page", "save button", "dirty state", or when they reach for `useState` to hold field values, raw `useForm`, hand-rolled dirty tracking, or inline `toast.success/error` on submit. Refuses to apply if `meta.json#stack.framework != "next"` (or monorepo web side) or `stack.nextjs_version != "16"` — Pages Router and pre-16 are out of scope. Not for: React Native forms (RN uses a different ecosystem — refer to RN-side tooling), search boxes that only filter without persisting (no backend write = not a form), reads of data to populate a form (use `data-fetching`), or React state that is not bound to form fields (use `state-discipline`).'
+description: 'Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. Supports two equally-supported underlying form libraries: **TanStack Form + Zod** (default when no preference is set) or **react-hook-form + Zod** (auto-detected and used as-is when already present in the project). Use when the user says "form", "edit panel", "create dialog", "settings page", "save button", "dirty state", or when they reach for `useState` to hold field values, raw `useForm`, hand-rolled dirty tracking, or inline `toast.success/error` on submit. Refuses to apply if `meta.json#stack.framework != "next"` (or monorepo web side) or `stack.nextjs_version != "16"` — Pages Router and pre-16 are out of scope. Not for: React Native forms (RN uses a different ecosystem — refer to RN-side tooling), search boxes that only filter without persisting (no backend write = not a form), reads of data to populate a form (use `data-fetching`), or React state that is not bound to form fields (use `state-discipline`).'
 ---
 
 # forms — one toolkit, dirty-gated Save, shared error mapping
@@ -20,7 +20,7 @@ The codebase exposes **one** shared toolkit at `lib/forms/` regardless of which 
 
 This skill follows the dev-flow contract — see `references/contracts.md` (vendored copy). Key facts:
 
-- Reads `meta.json#stack.framework`, `stack.nextjs_version`, `stack.forms`, `stack.ui`. For `framework = "monorepo"`, reads the equivalent keys under `stack.monorepo.web`.
+- Reads `meta.json#stack.framework`, `stack.nextjs_version`, `stack.forms`, `stack.ui`. For `framework = "monorepo"`, reads the equivalent keys under `stack.monorepo.web`. `stack.forms` picks the state library ([selection logic](#selection-logic--decide-once-up-front)); `stack.ui` picks the rendering primitives ([branching table](#rendering-primitives--stackui)) — the two are independent and both must be resolved before writing code.
 - **Refuses to apply** if any of these is true:
   - `stack.framework ∉ {"next", "monorepo"}` — non-Next.js targets are out of scope (RN forms use a different ecosystem; refer the user to the React Native form patterns).
   - `stack.nextjs_version != "16"` — Next.js 15 and earlier have different `searchParams`, no `use(promise)` baseline, no `revalidatePath/revalidateTag` defaults. Refuse to apply rather than silently guess.
@@ -46,16 +46,57 @@ Both share the `<FormProvider>` + `<FormField>` rendering layer, the same Zod sc
 
 ## Library branching — `stack.forms`
 
-The two libraries (TanStack Form + Zod, react-hook-form + Zod) produce **identical consumer code**. Only the toolkit implementation differs.
+The two libraries (TanStack Form + Zod, react-hook-form + Zod) are **equally supported** by this skill and produce **identical consumer code**. Only the toolkit implementation differs — neither is a second-class citizen.
 
 | `meta.json#stack.forms` | Hooks | Schema validator | Library docs |
 |---|---|---|---|
-| `"tanstack-form"` *(default for new projects)* | `useEditForm` + `useCreateForm` wrap `useForm` from `@tanstack/react-form` | Pass schema to `validators: { onChange, onBlur }` | https://tanstack.com/form/latest |
-| `"react-hook-form"` *(opt-in for teams with strong preference)* | Same hook names; wrap `useForm` from `react-hook-form` with `zodResolver` | `zodResolver(schema)` from `@hookform/resolvers/zod` | https://react-hook-form.com |
+| `"tanstack-form"` *(default when nothing else indicates a preference)* | `useEditForm` + `useCreateForm` wrap `useForm` from `@tanstack/react-form` | Pass schema to `validators: { onChange, onBlur }` | https://tanstack.com/form/latest |
+| `"react-hook-form"` *(fully supported; auto-detected when already present)* | Same hook names; wrap `useForm` from `react-hook-form` with `zodResolver` | `zodResolver(schema)` from `@hookform/resolvers/zod` | https://react-hook-form.com |
 
 The consumer of `useEditForm` / `useCreateForm` never imports the underlying library. They get a typed hook with `state.isDirty`, `state.isSubmitting`, `state.canSubmit`, `handleSubmit()`, `reset(value?)`, `Subscribe(...)`, and a `<form.Field>` (TanStack) or `<form.Field>` (RHF wrapper) equivalent for raw escape-hatch usage.
 
+### Selection logic — decide once, up front
+
+Every time this skill runs, resolve `stack.forms` **before** touching any form code, in this order:
+
+1. **`meta.json#stack.forms` is already set** (`"tanstack-form"` or `"react-hook-form"`) → use it. Never override silently, even if the codebase looks mixed — flag drift instead (see violation A in [Audit mode](#audit-mode)).
+2. **Unset → auto-detect from the project.** Check, in order:
+   - `react-hook-form` (or `@hookform/resolvers`) present in `package.json#dependencies` / `devDependencies`, **or** existing `import { useForm } from "react-hook-form"` / `<Controller>` usage found in the codebase → the project has already standardized on **react-hook-form**. Set `stack.forms = "react-hook-form"` and proceed.
+   - `@tanstack/react-form` present in `package.json`, **or** existing `import { useForm } from "@tanstack/react-form"` usage found → the project has already standardized on **TanStack Form**. Set `stack.forms = "tanstack-form"` and proceed.
+3. **Ambiguous (both detected) or absent (neither detected, greenfield project) → ask the user once.** State the default (`"tanstack-form"`) and name the alternative; write whichever answer to `meta.json#stack.forms` before scaffolding anything. Do not guess silently in either direction — greenfield with no stated preference is the *only* case where defaulting without asking is acceptable, and even then, say out loud which one you're about to use.
+
+Write the resolved value to `meta.json#stack.forms` immediately (Step 1 of the [Workflow](#workflow)) so every subsequent run of this skill — and every other dev-flow skill — reads the same answer.
+
+## Rendering primitives — `stack.ui`
+
+`stack.forms` picks the state-management library; `stack.ui` (a separate, orthogonal `meta.json` key) picks what `<FormField>` and `<FormActions>` actually render. **All code samples in this skill assume `stack.ui = "shadcn"`** (`Field` / `FieldLabel` / `FieldError` / `Button`) — that assumption must be made explicit, not silently carried over to a project that picked something else.
+
+| `meta.json#stack.ui` | `<FormField>` renders | `<FormActions>` renders | Notes |
+|---|---|---|---|
+| `"shadcn"` / `"base-ui"` *(default; every example above)* | shadcn `Field` + `FieldLabel` + `FieldError` (see `references/toolkit-tanstack.md` / `references/toolkit-rhf.md`) | shadcn `Button` | `"base-ui"` here still means shadcn's component set on the Base UI primitive layer — the `Field` API is the same. |
+| `"mui"` | MUI `TextField` (or `FormControl` + `InputLabel` + `FormHelperText` for non-text inputs) wired to the **same field API** the hook exposes (`value`, `setValue`, `onBlur`, `touched`, `isValid`, `errors`) | MUI `Button` / `LoadingButton`, gated on the same `canSubmit`/`isDirty` booleans | The dirty + valid gating logic lives in the hook (`useEditForm`/`useCreateForm`), not in `<FormField>` — swapping shadcn primitives for MUI ones changes zero business logic. Example: `<TextField error={touched && !isValid} helperText={touched && errors[0]} label={label} value={value} onChange={(e) => setValue(e.target.value)} onBlur={onBlur} />`. |
+| anything else (Chakra, Radix vanilla, …) | Not covered by this skill's reference implementations | — | Refuse to silently invent a mapping. Either ask the user which primitives to wire (then treat the result as a project-specific `FormField`/`FormActions` implementation, still behind the same hook contract), or use the raw [escape hatch](#escape-hatch--raw-library-field) until the project has one. |
+
+When scaffolding (`scripts/scaffold_lib_forms.py`) or hand-writing `lib/forms/FormField.tsx` for a `stack.ui = "mui"` project, keep the render-prop shape identical to the shadcn version — only the JSX inside changes.
+
 ## Edit form pattern (manual save, dirty-gated)
+
+The `save` callback calls a **Server Action** from `lib/actions/<entity>.actions.ts` — never the service layer directly. Per the `data-fetching` skill's contract, `lib/services/` is server-only code with no `"use server"` directive; a Client Component cannot import it. The Server Action re-validates with the same Zod schema, calls the service, and revalidates:
+
+```ts
+// lib/actions/projects.actions.ts
+"use server";
+import { revalidatePath } from "next/cache";
+import { projectsService } from "@/lib/services/projects.service";
+import { ProjectSchema, type Project } from "@/lib/types/project";
+
+export async function updateProjectAction(id: string, value: Project) {
+  const parsed = ProjectSchema.parse(value);
+  const saved = await projectsService.update(id, parsed);
+  revalidatePath(`/projects/${id}`);
+  return saved;
+}
+```
 
 ```tsx
 "use client";
@@ -69,15 +110,14 @@ import {
   FormProvider,
   useEditForm,
 } from "@/lib/forms";
-import { projectsService } from "@/lib/services/projects.service";
+import { updateProjectAction } from "@/lib/actions/projects.actions";
 import { type Project, ProjectSchema } from "@/lib/types/project";
 
 export function ProjectEditPanel({ project }: { project: Project }) {
   const form = useEditForm<Project>({
     schema: ProjectSchema,
     defaultValues: project,
-    save: (value, { signal }) =>
-      projectsService.update(project.id, value, { signal }),
+    save: (value) => updateProjectAction(project.id, value),
   });
 
   return (
@@ -128,7 +168,7 @@ export function ProjectEditPanel({ project }: { project: Project }) {
 - **Dirty tracking** — drives `state.isDirty` from a deep-equal compare of current values vs the current baseline (initial `defaultValues` on mount, then the most-recently-saved value).
 - **Submit gating** — exposes `state.canSubmit = isValid && isDirty && !isSubmitting`. `<FormActions>` reads it via `form.Subscribe`.
 - **Baseline reset on success** — after the `save` callback resolves, calls `form.reset(savedValue)` so the new clean state is the saved value. Editing back to the just-saved value should leave `isDirty === false`.
-- **AbortController** on submit — if the user re-submits while a save is in flight, the in-flight one is aborted.
+- **AbortController** on submit — if the user re-submits while a save is in flight, the hook ignores the earlier call's resolution once a newer one starts. **Note**: `save`/`submit` is passed `{ signal }` for parity with a raw service call, but a Server Action **cannot accept an `AbortSignal` as an argument** — it isn't a serializable value across the server boundary and passing it will throw. When `save` wraps a Server Action (the normal case), ignore the second parameter; the hook's own bookkeeping still guards against acting on a stale response.
 - **Error mapping** — thrown errors flow through `mapFormError`. The `save` callback **must throw on failure** — never catch.
 - **Optional success/error toast** — owned by `mapFormError`; not by form components.
 
@@ -136,9 +176,29 @@ export function ProjectEditPanel({ project }: { project: Project }) {
 
 - The `<form onSubmit>` wrapper that calls `form.handleSubmit()`.
 - Wiring `aria-invalid` on inputs.
-- Passing `{ signal }` straight through to the service method.
+- Calling the entity's **Server Action** from `save`/`submit` — never the service layer, which is server-only (see `data-fetching` skill).
 
 ## Create form pattern
+
+Same rule: `submit` calls a Server Action, not the service directly.
+
+```ts
+// lib/actions/projects.actions.ts
+"use server";
+import { revalidatePath } from "next/cache";
+import { projectsService } from "@/lib/services/projects.service";
+import {
+  type ProjectCreateInput,
+  ProjectCreateInputSchema,
+} from "@/lib/types/project";
+
+export async function createProjectAction(value: ProjectCreateInput) {
+  const parsed = ProjectCreateInputSchema.parse(value);
+  const created = await projectsService.create(parsed);
+  revalidatePath("/projects");
+  return created;
+}
+```
 
 ```tsx
 "use client";
@@ -150,7 +210,7 @@ import {
   FormProvider,
   useCreateForm,
 } from "@/lib/forms";
-import { projectsService } from "@/lib/services/projects.service";
+import { createProjectAction } from "@/lib/actions/projects.actions";
 import {
   type ProjectCreateInput,
   ProjectCreateInputSchema,
@@ -164,7 +224,7 @@ export function CreateProjectForm({
   const form = useCreateForm<ProjectCreateInput, { id: string }>({
     schema: ProjectCreateInputSchema,
     defaultValues: { name: "", description: "" },
-    submit: (value, { signal }) => projectsService.create(value, { signal }),
+    submit: (value) => createProjectAction(value),
     onSuccess: (created) => onCreated(created.id),
   });
 
@@ -204,7 +264,7 @@ For custom layout (Cancel between Reset and Save, dialog-footer docking, etc.) d
 Schemas live in `lib/types/<entity>.ts` and are the single source of truth for form and service layer. Use Zod v4:
 
 ```ts
-import * as z from "zod/v4";
+import * as z from "zod";
 
 export const ProjectSchema = z.object({
   id: z.string().uuid(),
@@ -269,7 +329,7 @@ If the project uses `next-intl` (or any other i18n library), all visible strings
 | "I'll show a success toast on every save." | Configure it once in `mapFormError`. Never toast from a form component. |
 | "No AbortController needed — the button is disabled while submitting." | Stale requests can still resolve out-of-order if the user resets and re-submits quickly. Leave the AbortController on. |
 | "I need per-field errors, I'll `safeParse` and `setState`." | The hook already runs the schema as validator. Errors surface via the field meta and render through `<FormField>`. |
-| "This form is in a Server Component, I'll use Server Actions." | Forms with client-side validation, dirty tracking, and reactive submit gating are inherently client-side. Mark the leaf `"use client"` and keep the parent page a Server Component. |
+| "This form needs client-side validation and dirty tracking, so I'll skip Server Actions and call the service straight from the component." | Backwards. The form component is inherently client-side (mark the leaf `"use client"`, keep the parent page a Server Component) — but `save`/`submit` still **must** call a Server Action. Services are server-only per the `data-fetching` skill; a Client Component cannot import `lib/services/` at all, with or without this skill's toolkit. |
 | "I'll inline copy this once, i18n later." | The "later" pass touches every form. Add the key now. |
 
 ## Escape hatch — raw library `<Field>`
@@ -313,11 +373,11 @@ The script reads `meta.json#stack.forms`, picks the matching template, writes th
 
 Read `.workflow/meta.json`. Branch:
 
-- `stack.framework = "next"` → check `stack.nextjs_version = "16"` (else refuse). Read `stack.forms`.
-- `stack.framework = "monorepo"` → operate on the web side; check `stack.monorepo.web.framework = "next"` and `stack.monorepo.web.nextjs_version = "16"`. Read `stack.monorepo.web.forms`.
+- `stack.framework = "next"` → check `stack.nextjs_version = "16"` (else refuse). Read `stack.forms` and `stack.ui`.
+- `stack.framework = "monorepo"` → operate on the web side; check `stack.monorepo.web.framework = "next"` and `stack.monorepo.web.nextjs_version = "16"`. Read `stack.monorepo.web.forms` and `stack.monorepo.web.ui`.
 - Anything else → refuse politely, explain why.
 
-If `stack.forms` is unset (legacy `meta.json` from before this skill existed), ask the user once: TanStack Form (default) or react-hook-form? Write the answer, then proceed.
+Resolve `stack.forms` per the [selection logic](#selection-logic--decide-once-up-front) above (read if set → auto-detect from the project → ask the user only if ambiguous or absent). Resolve `stack.ui` similarly by reading it directly; if unset, ask which UI library the project uses before writing `<FormField>`/`<FormActions>` code — do not assume shadcn. Write whatever is newly decided back to `meta.json` before proceeding.
 
 ### Step 2 — confirm prerequisites
 

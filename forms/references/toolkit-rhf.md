@@ -63,11 +63,11 @@ Manual-save hook with dirty tracking + baseline reset. RHF tracks dirty out of t
 import { useRef } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ZodTypeAny } from "zod/v4";
+import type { z } from "zod";
 import { mapFormError } from "./mapFormError";
 
 export interface UseEditFormOptions<T> {
-  schema: ZodTypeAny;
+  schema: z.ZodType;
   defaultValues: T;
   save: (value: T, ctx: { signal: AbortSignal }) => Promise<T>;
 }
@@ -120,11 +120,11 @@ Same shape, no baseline reset; on success calls `onSuccess(result)`.
 import { useRef } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ZodTypeAny } from "zod/v4";
+import type { z } from "zod";
 import { mapFormError } from "./mapFormError";
 
 export interface UseCreateFormOptions<TInput, TResult> {
-  schema: ZodTypeAny;
+  schema: z.ZodType;
   defaultValues: TInput;
   submit: (value: TInput, ctx: { signal: AbortSignal }) => Promise<TResult>;
   onSuccess?: (result: TResult) => void;

@@ -60,11 +60,11 @@ Manual-save hook with dirty tracking + baseline reset on success. The `save` cal
 ```ts
 "use client";
 import { useForm, type AnyFormApi } from "@tanstack/react-form";
-import type { ZodTypeAny } from "zod/v4";
+import type { z } from "zod";
 import { mapFormError } from "./mapFormError";
 
 export interface UseEditFormOptions<T> {
-  schema: ZodTypeAny;
+  schema: z.ZodType;
   defaultValues: T;
   save: (value: T, ctx: { signal: AbortSignal }) => Promise<T>;
 }
@@ -108,11 +108,11 @@ Same shape, no baseline reset; on success calls `onSuccess(result)`.
 ```ts
 "use client";
 import { useForm, type AnyFormApi } from "@tanstack/react-form";
-import type { ZodTypeAny } from "zod/v4";
+import type { z } from "zod";
 import { mapFormError } from "./mapFormError";
 
 export interface UseCreateFormOptions<TInput, TResult> {
-  schema: ZodTypeAny;
+  schema: z.ZodType;
   defaultValues: TInput;
   submit: (value: TInput, ctx: { signal: AbortSignal }) => Promise<TResult>;
   onSuccess?: (result: TResult) => void;
