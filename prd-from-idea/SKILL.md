@@ -57,10 +57,11 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
    - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
    - "both" / "monorepo" / "web + mobile" / "stesso prodotto su entrambi" → `stack.framework: "monorepo"`
    - "desktop" → out of scope for this skill set — refuse politely and refer the user to Tauri/Electron docs.
-7. **(Web only OR monorepo: ask for the web side)** **Which UI library — shadcn/ui, Base UI, or MUI?** Map the answer → `meta.json#stack.ui` (for `framework="next"`) or `meta.json#stack.monorepo.web.ui` (for `framework="monorepo"`):
+7. **(Web only OR monorepo: ask for the web side)** **Which UI library — shadcn/ui, Base UI, MUI, or Coss/UI?** Map the answer → `meta.json#stack.ui` (for `framework="next"`) or `meta.json#stack.monorepo.web.ui` (for `framework="monorepo"`):
    - "shadcn" / "shadcn/ui" / "i want to own the source" → `"shadcn"`
    - "base ui" / "base-ui" / "headless library no CLI" → `"base-ui"`
    - "mui" / "material ui" / "material design" / "internal tool with lots of tables" → `"mui"`
+   - "coss" / "coss/ui" / "cal.com design system" / "cal.com style" → `"coss"` (Coss/UI, the Cal.com design system built on Base UI — requires Tailwind v4)
    - No clear answer → default to `"shadcn"` (most flexible / well-trodden path), explain briefly, let the user override.
 
    For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
@@ -72,6 +73,12 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
    Skip Q8 for mobile-only projects — RN forms use a different ecosystem (controlled state via React Hook Form-native or vanilla, no consensus toolkit yet).
 
    **For Next.js projects (web only or web side of monorepo)**, also write `stack.nextjs_version = "16"` (App Router canonical). The dev-flow web skills target Next.js 16 + App Router exclusively — they refuse to apply to Pages Router or Next.js 15.
+
+9. **Does the product need an agent engine (eve)?** (does an AI agent need to take actions, orchestrate tools, run autonomously, or converse with users beyond a plain LLM call?) Map the answer → `meta.json#stack.agent`:
+   - "yes" / "it needs an AI agent" / "autonomous actions" / "tool-calling agent" → `"eve"` (the `eve-agent` skill scaffolds the agent engine; `dev-flow` routes to it alongside the frontend skills).
+   - "no" / "just a chatbot wrapper" / no clear need → `null`.
+
+   Applies regardless of framework — `eve` is a server-side engine that can sit behind web, mobile, or monorepo frontends.
 
 ### Route groups deduction (web + monorepo)
 
@@ -99,23 +106,25 @@ Depending on Q6, write to `meta.json` immediately:
 
 ```json
 // framework="next" (web only)
-"stack": { "framework": "next", "ui": "<shadcn|base-ui|mui>", "route_groups": ["(marketing)", "(auth)", "(app)"], "auth": null, "db": null, ... }
+"stack": { "framework": "next", "ui": "<shadcn|base-ui|mui|coss>", "route_groups": ["(marketing)", "(auth)", "(app)"], "auth": null, "db": null, "agent": null, ... }
 
 // framework="expo-rn" (mobile only)
-"stack": { "framework": "expo-rn", "ui": "nativewind", "route_groups": ["(auth)", "(app)", "(tabs)"], "auth": null, "db": null, ... }
+"stack": { "framework": "expo-rn", "ui": "nativewind", "route_groups": ["(auth)", "(app)", "(tabs)"], "auth": null, "db": null, "agent": null, ... }
 
 // framework="monorepo"
 "stack": {
   "framework": "monorepo",
   "monorepo": {
-    "web":    { "framework": "next",    "ui": "<shadcn|base-ui|mui>" },
+    "web":    { "framework": "next",    "ui": "<shadcn|base-ui|mui|coss>" },
     "mobile": { "framework": "expo-rn", "ui": "nativewind" }
   },
-  "auth": null, "db": null, "storage": null, "payments": null, "deploy": null
+  "auth": null, "db": null, "storage": null, "payments": null, "deploy": null, "agent": null
 }
 ```
 
-Downstream skills (`prd-to-tasks`, `dev-flow` routing, `design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`) all read `stack.framework` and branch accordingly. Other `stack.*` keys (`auth`, `db`, `payments`, `deploy`) remain `null` at this stage.
+`stack.agent` is `null` by default, or `"eve"` when Q9 is answered yes (see Q9 above).
+
+Downstream skills (`prd-to-tasks`, `dev-flow` routing, `design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`, `eve-agent`) all read `stack.framework` and branch accordingly. `eve-agent` additionally reads `stack.agent`. Other `stack.*` keys (`auth`, `db`, `payments`, `deploy`) remain `null` at this stage.
 
 For `PRD.md`, after `PROJECT.md` is in place, ask:
 
