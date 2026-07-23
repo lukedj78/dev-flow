@@ -178,6 +178,67 @@ export function ZoomableImage({ uri }: { uri: string }) {
 }
 ```
 
+## CSS Animations / Transitions API (Reanimated 4, web-style)
+
+Reanimated 4 added a CSS-style `animation` / `transition` API alongside the classic worklet API (`useSharedValue` + `useAnimatedStyle`). It's fully backward-compatible — existing worklet code keeps working unchanged; this is an additional, simpler way to express declarative animations, not a replacement.
+
+```tsx
+import Animated from "react-native-reanimated";
+import { useState } from "react";
+import { Pressable, Text } from "react-native";
+
+export function ExpandableCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Pressable onPress={() => setExpanded((v) => !v)}>
+      <Text className="font-semibold">{title}</Text>
+      <Animated.View
+        style={{
+          transition: { property: "height", duration: 250, easing: "easeInOut" },
+          height: expanded ? 200 : 0,
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+```
+
+```tsx
+// Keyframe-style animation (mounts once, no shared value needed)
+import Animated from "react-native-reanimated";
+
+<Animated.View
+  style={{
+    animationName: {
+      from: { opacity: 0, transform: [{ translateY: 20 }] },
+      to: { opacity: 1, transform: [{ translateY: 0 }] },
+    },
+    animationDuration: "300ms",
+    animationTimingFunction: "ease-out",
+  }}
+>
+  <Text>Fades and slides in on mount, no useSharedValue/useAnimatedStyle needed.</Text>
+</Animated.View>
+```
+
+### When to prefer CSS Animations/Transitions over worklets
+
+- ✅ State-driven style changes (expand/collapse, toggle on/off, theme-driven color/size) where the trigger is a plain React state change, not a continuous gesture value — `transition: { property, duration, easing }` on plain style props is less code than `useSharedValue` + `useAnimatedStyle` + `withTiming`.
+- ✅ Simple one-shot mount/unmount animations that don't need `entering`/`exiting` presets — `animationName` keyframes.
+- ✅ Porting a design spec written in CSS terms (duration, easing curve, keyframes) — maps almost 1:1.
+
+### Still use classic worklets (`useSharedValue`/`useAnimatedStyle`) for
+
+- ❌ Per-frame gesture-driven values (drag, pinch, scroll-linked) — CSS transitions animate FROM one committed style TO another; they don't drive continuous per-frame updates from a gesture.
+- ❌ Anything needing `runOnJS`, `interpolate`, or cross-shared-value coordination.
+- ❌ Existing layout animations (`FadeIn`/`FadeOut`/`Layout.springify()`) — those are a separate, already-declarative API; no need to migrate them to CSS transitions.
+
+Both APIs run on the UI thread and can be mixed in the same app/component tree without conflict.
+
 ## DON'T
 
 - ❌ `useEffect` to start an animation that should run on press — drive it from the press event directly.

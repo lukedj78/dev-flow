@@ -90,7 +90,13 @@ this is non-negotiable — registry code assumes single-tenant/global env.
       unverified packages, especially not inside a subagent.
 - [ ] **Sensitive actions gated.** A tool that acts in the world (email, shell,
       spend, open-PR) goes into the gated set + per-role grants + human approval
-      where appropriate.
+      where appropriate. For the concrete syntax/pattern — `approval: always()` /
+      `once()` from `eve/tools/approval`, custom input-dependent policies, and why
+      gating a side effect on approval is also what makes it replay-safe under
+      eve's durable-workflow re-run semantics — see
+      `eve-agent/references/eve-conventions.md` → "Durability & idempotency (the
+      rule scaffolds get wrong)". Apply that pattern directly; don't reopen
+      `eve-agent` to rediscover it.
 - [ ] **Framework hygiene.** Correct import paths (in a monorepo: `drizzle-orm`
       directly only in the agent, never in the web app); valid eve file names
       (tool files start with a letter).

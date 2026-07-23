@@ -2,18 +2,24 @@
 
 # Decision tree — animations + gestures
 
-## Q1: Reanimated or just CSS-like transitions?
+## Q1: Reanimated worklets or the CSS Animations/Transitions API?
 
 ```
 What does the animation do?
-├── Per-frame value (drag, scroll-linked, gesture)         → Reanimated, MANDATORY.
+├── Per-frame value (drag, scroll-linked, gesture)         → Worklets, MANDATORY
+│                                                            (useSharedValue + useAnimatedStyle)
 ├── Enter / exit / layout shift                             → Reanimated Layout animations
 │                                                            (FadeIn / FadeOut / SlideIn / Layout)
-├── Simple opacity/scale on press                           → Reanimated with withSpring/withTiming
+├── State-driven style change (expand/collapse, toggle,     → CSS Animations/Transitions API
+│   theme swap) — trigger is plain React state, not a         (Reanimated 4+): `transition: {...}`
+│   continuous gesture value                                  on the style, or `animationName` keyframes
+├── Simple opacity/scale on press                           → Either: worklets with withSpring/withTiming,
+│                                                            or a CSS `transition` — pick worklets if the
+│                                                            press also needs a gesture-linked value later.
 └── Already-animated by another lib (Expo Router header)    → leave it alone
 ```
 
-There is no `transition: 0.3s` CSS-equivalent in RN. All animation is JS-driven via Reanimated.
+Reanimated 4 introduced a web-style `transition: { property, duration, easing }` / `animationName` keyframes API — see `references/patterns.md` for examples. It runs on the UI thread like worklets and is fully backward-compatible, but it animates FROM one committed style TO another; it does not drive continuous per-frame gesture values, so drag/pinch/scroll-linked motion still needs classic worklets.
 
 ## Q2: `withTiming` or `withSpring`?
 
