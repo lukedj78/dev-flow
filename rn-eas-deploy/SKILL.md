@@ -27,6 +27,7 @@ See `references/contracts.md`. Key facts:
 - `rn-eas-build-submit-update/references/credentials.md` — how `eas credentials` works.
 - `rn-publishing-payments/references/review-guidelines.md` — pre-submission checklist.
 - `rn-publishing-payments/references/store-assets.md` — what assets must be ready.
+- `references/observability.md` — EAS Observe (production performance) + EAS Update Insights (OTA rollout health): what to enable before Step 7, what to read after Step 8/9, and how to turn the numbers into a hotfix/rollback decision.
 
 ## Workflow
 
@@ -92,6 +93,8 @@ Compare `app.json#expo.version` with `meta.json#last_deployed_version`:
 
 ### Step 7 — Production build
 
+Before the first production build of the app, offer to enable EAS Observe (production performance monitoring) so there is a performance baseline from the first release — see `references/observability.md`. Not required to proceed; skip if the user declines.
+
 Run `eas build --profile production --platform all --non-interactive`. Wait.
 
 ### Step 8 — Submit to stores
@@ -136,8 +139,9 @@ Commit: `release: deploy v<version> to App Store + Play Store via EAS`.
 
 - Where to view build status: https://expo.dev/accounts/.../projects/.../builds
 - Where to monitor crash reports: Sentry / Bugsnag dashboard (if configured).
+- Where to check post-release performance and OTA health: `eas observe:metrics-summary` and `eas channel:insights` — see `references/observability.md`. Run this within the first 24-48h; it's the step that closes the release → observe → decide loop, not optional monitoring theatre.
 - Reminder: review submission can take 24-48h (Apple) or hours (Google).
-- For JS-only fixes post-release: `eas update --branch <name> --channel production` — but ALWAYS smoke-test on the `preview` channel first.
+- For JS-only fixes post-release: `eas update --branch <name> --channel production` — but ALWAYS smoke-test on the `preview` channel first, then check `references/observability.md` before and after promoting.
 
 ## Common anti-patterns (NEVER do)
 
@@ -168,3 +172,4 @@ The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.
 - Course: codewithbeto.dev/rnCourse — EAS modules (paid).
 - Knowledge skills consumed (see above).
 - Official: https://docs.expo.dev/eas/, https://docs.expo.dev/submit/introduction/
+- Observability: https://docs.expo.dev/eas/observe/introduction/, `references/observability.md`
