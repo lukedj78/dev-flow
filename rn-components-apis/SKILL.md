@@ -19,6 +19,7 @@ description: 'Use when working with React Native core components (View, Text, Sc
 - "Which touchable?" → always `Pressable`. See `references/patterns.md` for the canonical button pattern.
 - "How do I open an external URL / mail / phone?" → `references/patterns.md` (Linking section)
 - "Keyboard avoidance pattern?" → `references/patterns.md` (KeyboardAvoidingView + Android quirks)
+- "None of these core components feel native enough for this screen" → these are all *RN* primitives (a JS abstraction over both platforms). For real native controls instead — SwiftUI on iOS, Jetpack Compose on Android (grouped settings sections, native picker/slider, real sheets) — that's `@expo/ui`, a different tool. See `rn-styling/references/expo-ui.md` (`[VERIFY]` against mcp.expo.dev) for the full breakdown; this skill's guidance still applies whenever you're using `View`/`Text`/`ScrollView`/etc. as-is.
 
 ## Common anti-patterns (NEVER do)
 
@@ -34,3 +35,4 @@ description: 'Use when working with React Native core components (View, Text, Sc
 - Official: https://reactnative.dev/docs/components-and-apis
 - Official: https://docs.expo.dev/versions/latest/sdk/image/
 - Official: https://shopify.github.io/flash-list/
+- Official: https://docs.expo.dev/versions/latest/sdk/ui/ (`@expo/ui` — native alternative to these components; see `rn-styling/references/expo-ui.md`)
