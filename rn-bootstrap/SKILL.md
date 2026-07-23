@@ -92,31 +92,32 @@ python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
 
 The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
 
-## Folder structure rules (canonical)
+## Folder structure rules (canonical — Expo Router hybrid)
 
-This skill scaffolds the canonical RN structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+**Non-negotiable Expo Router constraint**: `app/` is **file-based routing only**. Unlike Next.js App Router, Expo Router has no private-folder convention — there is no `_`-prefix skip rule, so every file placed under `app/` (aside from reserved names like `_layout.tsx`, `+not-found.tsx`) becomes a real route. A previous revision of this skeleton put `_components/` folders inside `app/`, copied from the Next.js convention — that was wrong for Expo (it creates ghost routes) and is corrected below. **[VERIFY]** against the installed `expo-router` version: there's an open upstream request for an underscore-skip convention; until it ships, assume `app/` has zero tolerance for non-route files.
+
+This skill scaffolds the canonical RN structure, hybrid model (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`, adapted for Expo Router):
 
 ```
-app/
+app/                        # ROUTES ONLY — no components, no hooks, no utils
 ├── (auth)/                 # opt-in based on stack.route_groups
-│   ├── _components/
 │   ├── _layout.tsx
 │   └── sign-in.tsx
 ├── (app)/
-│   ├── _components/        # TabBar, AppHeader, AuthGuard
 │   ├── _layout.tsx         # redirect to (auth) if !session
 │   ├── (tabs)/             # opt-in based on stack.route_groups
-│   │   ├── _components/
 │   │   ├── _layout.tsx
 │   │   ├── feed/
 │   │   └── profile/
 │   └── settings.tsx
 └── _layout.tsx             # root: GestureHandlerRootView + ThemeProvider
 
-components/
+components/                 # ALL non-route UI lives here, outside app/
 ├── ui/                     # NativeWind primitives
 ├── theme/                  # ThemeProvider, useThemeColor
-└── shared/                 # L2 per dominio (created empty)
+├── shared/                 # L2 per dominio (created empty)
+└── <feature>/              # L0/L1 screen-private components (e.g. components/feed/, components/profile/)
+                             # created on demand by rn-add-screen, not scaffolded empty here
 
 lib/                        # api, supabase, secure-store, utils
 store/                      # Zustand cross-feature (auth-store, app-preferences)
@@ -124,9 +125,11 @@ hooks/                      # RN-specific (useColorScheme, useKeyboard)
 assets/                     # images/, fonts/
 ```
 
+No `src/` prefix: `app/`, `components/`, `lib/` etc. stay at the project root — matches the default `create-expo-app` templates (which don't use `src/`) and keeps `rn-add-screen` / `promote-component` consistent with this scaffold.
+
 Read `meta.json#stack.route_groups` to decide which route groups to scaffold. Empty array → flat routing (rare for mobile).
 
-Components follow Rule of Three for promotion (L0 → L1 → L2). See `rn-add-screen` for screen-level details.
+Components follow Rule of Three for promotion (L0 → L1 → L2), targeting `components/<feature>/` (L0/L1) and `components/shared/<dominio>/` (L2) — **never** `app/<route>/_components/`. See `rn-add-screen` for screen-level details and `promote-component` for the promotion mechanics.
 
 ## Sources
 
