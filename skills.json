@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-22T19:56:25Z",
+  "generated_at": "2026-07-23T06:53:16Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 36,
   "families": {
@@ -78,7 +78,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 235,
+      "skill_md_lines": 244,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -91,7 +91,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 133,
+      "skill_md_lines": 135,
       "bundle": "dist/prd-to-tasks.skill"
     },
     {
@@ -331,7 +331,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 119,
+      "skill_md_lines": 118,
       "bundle": "dist/rn-write-tests.skill"
     },
     {
@@ -345,7 +345,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 218,
+      "skill_md_lines": 226,
       "bundle": "dist/composition-patterns-guide.skill"
     },
     {
@@ -379,7 +379,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 287,
+      "skill_md_lines": 344,
       "bundle": "dist/data-fetching.skill"
     },
     {
@@ -432,7 +432,7 @@
       "skill_file": "eve-registry-porting/SKILL.md",
       "references": [],
       "scripts": [],
-      "skill_md_lines": 122,
+      "skill_md_lines": 128,
       "bundle": "dist/eve-registry-porting.skill"
     },
     {
@@ -472,7 +472,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 377,
+      "skill_md_lines": 437,
       "bundle": "dist/forms.skill"
     },
     {
@@ -531,7 +531,7 @@
         "module-voice.md"
       ],
       "scripts": [],
-      "skill_md_lines": 153,
+      "skill_md_lines": 157,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -552,7 +552,7 @@
       "name": "monorepo-bootstrap",
       "family": "web",
       "role": "operative",
-      "description": "Scaffold a turborepo monorepo containing both a Next.js web app AND an Expo + RN mobile app, with shared packages (types, design tokens, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework=\"monorepo\" and phase in {prd_drafted, design_extracted}. Produces...",
+      "description": "Scaffold a turborepo monorepo, with shared packages (types, design tokens or shared UI, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework=\"monorepo\" and phase in {prd_drafted, design_extracted}. Supports three topologies, detected/asked in Step 1: web+...",
       "skill_file": "monorepo-bootstrap/SKILL.md",
       "references": [
         "contracts.md",
@@ -567,14 +567,14 @@
         "scaffold-web.sh",
         "verify.ts"
       ],
-      "skill_md_lines": 173,
+      "skill_md_lines": 202,
       "bundle": "dist/monorepo-bootstrap.skill"
     },
     {
       "name": "monorepo-sync-types",
       "family": "web",
       "role": "operative",
-      "description": "Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), tRPC (via inference from the server router import), and custom REST (via a manual o...",
+      "description": "Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), neon-drizzle (via drizzle-kit introspect/pull + InferSelectModel/InferInsertModel r...",
       "skill_file": "monorepo-sync-types/SKILL.md",
       "references": [
         "contracts.md",
@@ -583,7 +583,7 @@
       "scripts": [
         "sync-supabase.sh"
       ],
-      "skill_md_lines": 154,
+      "skill_md_lines": 181,
       "bundle": "dist/monorepo-sync-types.skill"
     },
     {
@@ -607,7 +607,7 @@
       "name": "screenshot-to-page",
       "family": "web",
       "role": "operative",
-      "description": "Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project's DESIGN.md tokens and the existing UI library (shadcn or MUI). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.workflow/meta.json`...",
+      "description": "Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project's DESIGN.md tokens and the existing UI library (shadcn, Base UI, MUI, or Coss). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.wor...",
       "skill_file": "screenshot-to-page/SKILL.md",
       "references": [
         "contracts.md"
@@ -615,7 +615,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 256,
+      "skill_md_lines": 262,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
@@ -629,7 +629,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 366,
+      "skill_md_lines": 441,
       "bundle": "dist/state-discipline.skill"
     },
     {
