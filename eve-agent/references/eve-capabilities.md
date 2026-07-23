@@ -60,6 +60,8 @@ Five presets scope the surface — `code-review`, `issue-triage`, `repo-explorer
 require approval; read tools (`listPullRequestFiles`, `getCommit`) trim what the model sees.
 Prefer a toolset + preset over reinventing per-tool files for that service.
 
+More prebuilt capabilities ship as **extensions** in the eve integrations directory (<https://eve.dev/integrations>) — GitHub Tools, **agent-browser**, **Browserbase**, **Browser Use**, **KERNEL**, **Jetty**. Install one per the **Extension** section below instead of hand-writing its tools.
+
 ## Skill — `agent/skills/<name>.md`
 
 An on-demand procedure the framework-owned `load_skill` tool pulls into the active turn when
@@ -80,7 +82,7 @@ surface. Platform channels read secrets from env vars (`DISCORD_*`, `LINEAR_*`, 
 `TELEGRAM_*`, `TWILIO_*`); **Slack and GitHub go through Vercel Connect** (no `SLACK_*` env
 vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` from
 `@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
-Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs.
+Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs. The **eve integrations directory** (<https://eve.dev/integrations>) is the full channel catalog — Google Chat, WhatsApp, X, Messenger, Resend/email, and provider-official adapters beyond the CLI kinds.
 
 Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
 
@@ -144,6 +146,8 @@ the Next.js web app via `withEve()`/`useEveAgent()`.
 Auth + access to an external service via **MCP** or **OpenAPI**. The filename is the
 connection id; tools surface to the model as `<connection>__<tool>` and are discoverable via
 the built-in `connection_search`. The model never sees the URL or credentials.
+
+**Check the eve integrations directory first** — <https://eve.dev/integrations> lists **50+ prebuilt MCP/OpenAPI connections** (Stripe, Supabase, Notion, Linear, Sentry, PostHog, Vercel, PlanetScale, Datadog, Airtable, Cloudinary, Mixpanel, Zapier, …). Adopt the official/prebuilt one over hand-authoring a `defineMcpClientConnection` / `defineOpenAPIConnection` when it exists — same ecosystem-first rule as everywhere in dev-flow.
 
 ```ts
 // MCP

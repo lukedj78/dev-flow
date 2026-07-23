@@ -140,6 +140,8 @@ Goal: add ONE capability to an existing agent, following eve's filesystem conven
 
 For each: read the matching section of `node_modules/eve/docs/` first, add the single file following the existing house style in `apps/agent`, add/extend an eval that exercises it, run the verification gate, then update `meta.json` history (`{ "skill": "eve-agent", "action": "add-<type>", "inputs": { "name": "<name>" } }`).
 
+**Ecosystem-first — don't reinvent.** Before authoring a channel, connection, or extension by hand, check the **eve integrations directory** (<https://eve.dev/integrations>): 11+ prebuilt channels, **50+ MCP/OpenAPI connections** (Stripe, Supabase, Notion, Linear, Sentry, PostHog, Vercel, PlanetScale, Airtable, Zapier…), and official **extensions** (GitHub Tools, Browserbase, Browser Use, KERNEL, Jetty). Adopt an official/prebuilt one over hand-rolling — see `references/eve-capabilities.md` (Connection / Channel / Extension).
+
 **Multi-tenant SaaS agent?** Before adding any tool, schedule, connection, or memory that touches tenant data, read `references/eve-patterns.md`. Tenant auth, per-tenant approvals, tenant-scoped long-term memory, and dynamic scheduling are **composed recipes** with one non-negotiable rule — derive tenant/user from `ctx.session.auth`, never from model input — not ad-hoc code. This is the same tenant-safety backbone `eve-registry-porting` enforces when porting.
 
 ## Definition of Done (every mode)

@@ -74,6 +74,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/patterns/{multi-tenant-auth,multi-tenant-approvals,multi-tenant-memory,dynamic-scheduling}` | `eve-patterns.md` | ✅ |
 | `/docs/reference/cli` | `eve-scaffold.md` §CLI quick reference + `eve-evals.md` (`eve eval` flags) | ↪ |
 | `/docs/reference/project-layout` | `eve-scaffold.md` + `SKILL.md` layout | ✅ |
+| `/integrations` (directory) | `eve-capabilities.md` §Connection/Channel/Extension + `SKILL.md` (ecosystem-first) — adopt prebuilt connections/channels/extensions before hand-rolling | ✅ |
 | `/docs/reference/typescript-api` | read the installed `.d.ts` / `node_modules/eve/docs/` — never mirror types | ⛔ |
 | `/docs/tutorial/*` (9-part series) | a learning tutorial, not API surface — this skill encodes the workflow, not tutorials | ⛔ |
 
