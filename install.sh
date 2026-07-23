@@ -173,6 +173,7 @@ SKILLS=(
   rn-publishing-payments
   rn-module-add
   rn-eas-deploy
+  rn-upgrade
 
   # Monorepo stack (web + mobile shared)
   monorepo-bootstrap

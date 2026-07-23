@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-23T12:39:30Z",
+  "generated_at": "2026-07-23T13:09:39Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 36,
+  "skill_count": 37,
   "families": {
     "core": [
       "dev-flow",
@@ -25,6 +25,7 @@
       "monorepo-bootstrap",
       "monorepo-sync-types",
       "promote-component",
+      "rn-upgrade",
       "screenshot-to-page",
       "state-discipline",
       "write-tests"
@@ -106,7 +107,7 @@
         "screen-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 131,
+      "skill_md_lines": 144,
       "bundle": "dist/rn-add-screen.skill"
     },
     {
@@ -120,7 +121,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 35,
+      "skill_md_lines": 37,
       "bundle": "dist/rn-animations-gestures.skill"
     },
     {
@@ -139,7 +140,7 @@
         "trpc.md"
       ],
       "scripts": [],
-      "skill_md_lines": 41,
+      "skill_md_lines": 43,
       "bundle": "dist/rn-backend.skill"
     },
     {
@@ -159,7 +160,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 135,
+      "skill_md_lines": 138,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {
@@ -173,7 +174,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 36,
+      "skill_md_lines": 38,
       "bundle": "dist/rn-components-apis.skill"
     },
     {
@@ -189,7 +190,7 @@
         "tanstack-query-setup.md"
       ],
       "scripts": [],
-      "skill_md_lines": 38,
+      "skill_md_lines": 40,
       "bundle": "dist/rn-data-fetching.skill"
     },
     {
@@ -205,7 +206,7 @@
         "workflows.md"
       ],
       "scripts": [],
-      "skill_md_lines": 37,
+      "skill_md_lines": 40,
       "bundle": "dist/rn-eas-build-submit-update.skill"
     },
     {
@@ -217,10 +218,11 @@
       "references": [
         "contracts.md",
         "decision-tree.md",
-        "deploy-checklist.md"
+        "deploy-checklist.md",
+        "observability.md"
       ],
       "scripts": [],
-      "skill_md_lines": 170,
+      "skill_md_lines": 175,
       "bundle": "dist/rn-eas-deploy.skill"
     },
     {
@@ -236,7 +238,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 33,
+      "skill_md_lines": 35,
       "bundle": "dist/rn-expo-router.skill"
     },
     {
@@ -252,7 +254,7 @@
         "stack-defaults.md"
       ],
       "scripts": [],
-      "skill_md_lines": 35,
+      "skill_md_lines": 47,
       "bundle": "dist/rn-fundamentals.skill"
     },
     {
@@ -283,7 +285,7 @@
         "store-assets.md"
       ],
       "scripts": [],
-      "skill_md_lines": 39,
+      "skill_md_lines": 41,
       "bundle": "dist/rn-publishing-payments.skill"
     },
     {
@@ -298,7 +300,7 @@
         "setup.md"
       ],
       "scripts": [],
-      "skill_md_lines": 35,
+      "skill_md_lines": 37,
       "bundle": "dist/rn-push-notifications.skill"
     },
     {
@@ -310,11 +312,12 @@
       "references": [
         "concepts.md",
         "decision-tree.md",
+        "expo-ui.md",
         "nativewind-setup.md",
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 38,
+      "skill_md_lines": 46,
       "bundle": "dist/rn-styling.skill"
     },
     {
@@ -590,7 +593,7 @@
       "name": "promote-component",
       "family": "web",
       "role": "operative",
-      "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: (1) \"scan candidates\" — analyzes the entire codebase, counts usages of every component under app/**/_components/, and reports a table of promotion candidates with the Rule ...",
+      "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: (1) \"scan candidates\" — analyzes the entire codebase, counts usages of every component under app/**/_components/ (web) or components/<feature>/ (mobile — Expo Router has no...",
       "skill_file": "promote-component/SKILL.md",
       "references": [
         "colocation-rules.md",
@@ -600,8 +603,24 @@
         "promote.py",
         "scan_promotion.py"
       ],
-      "skill_md_lines": 175,
+      "skill_md_lines": 226,
       "bundle": "dist/promote-component.skill"
+    },
+    {
+      "name": "rn-upgrade",
+      "family": "web",
+      "role": "operative",
+      "description": "Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo` and run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear `node_modules`/`.expo`/Watchman caches, and native-rebuild (`expo prebuild --clean` + `pod install` + `gradlew clean`...",
+      "skill_file": "rn-upgrade/SKILL.md",
+      "references": [
+        "beta-preview.md",
+        "breaking-changes.md",
+        "contracts.md",
+        "native-rebuild.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 177,
+      "bundle": "dist/rn-upgrade.skill"
     },
     {
       "name": "screenshot-to-page",

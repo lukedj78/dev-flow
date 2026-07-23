@@ -181,7 +181,7 @@ Use `null` (not `"none"`) when not yet decided. For `route_groups`, an empty arr
 
 Skills that scaffold a codebase (`design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`) MUST generate the canonical folder structure documented in `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`. Key rules:
 
-- **Co-location via `_components/`**: page-private components live in `app/<route>/_components/`. The underscore prefix is Next.js convention for non-routable folders.
+- **Co-location via `_components/`**: page-private components live in `app/<route>/_components/`. The underscore prefix is Next.js convention for non-routable folders. **Web only** — this applies to Next.js (`stack.framework ∈ {next, monorepo}` web side). **Expo Router (`stack.framework = "expo-rn"`) has NO private-folder convention** — every file under `app/` becomes a route, so on mobile screen-private components live in `components/<feature>/` **outside** `app/`, not in `app/<route>/_components/` (see `rn-add-screen` / `promote-component`).
 - **Shared components by domain**: cross-route-group shared business components live in `components/shared/<dominio>/<Component>.tsx`. The domain folder name is the business domain (post/, user/, billing/), never generic ("shared"/"common"/"global").
 - **UI primitives separate**: shadcn/Base UI/MUI primitives live in `components/ui/`. Never mixed with business components.
 - **Theme system explicit**: ThemeProvider + ModeToggle live in `components/theme/`, NOT loose in `components/`.
