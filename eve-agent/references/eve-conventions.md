@@ -126,6 +126,24 @@ The model already has ~12 tools with zero code: `bash`, `read_file`, `write_file
 Override a default by creating `agent/tools/<name>.ts` re-importing from `eve/tools/defaults`;
 disable one with the `disableTool()` sentinel. Don't re-implement what the harness gives you.
 
+## Sandbox backend — don't spin up a VM you don't use
+
+The sandbox only matters for tools that run **shell / file / code** work. An agent that answers
+purely from its own `defineTool` `execute` (app-runtime data, API calls) never touches the sandbox
+— so a real backend (`vercel()` / `docker()` / microsandbox VM) is pure startup cost and infra for
+nothing. In that case pin `just-bash`, which satisfies the interface without a VM or Docker:
+
+```ts
+// agent/sandbox.ts
+import { defineSandbox } from "eve/sandbox";
+import { justbash } from "eve/sandbox/just-bash";
+export default defineSandbox({ backend: justbash() });   // no VM: this agent runs no shell/code tools
+```
+
+Reach for a real backend only once a tool actually shells out or executes untrusted code; then
+apply the network policy from the Security model below. (`roprgm/worldcup-eve` uses `just-bash`
+for exactly this reason.) `[VERIFY]` the `eve/sandbox/just-bash` subpath against installed docs.
+
 ## State & per-session context
 
 `defineState("namespaced.key", () => initial)` from `eve/context` is durable **per session**,

@@ -92,6 +92,114 @@ literal. Use `<Marker className="shimmer">` for the "agent is working" state, no
 Full recipe: `design-md-to-app/references/chat-and-typeset.md`. In a monorepo the primitives
 live in the shared `packages/ui` (`@workspace/ui`), imported by `apps/web`.
 
+## Rich UI from agent output — the widget protocol
+
+When the agent should render **structured cards** (a match, a chart, a data table), don't make
+it emit HTML or JSON for the client to parse, and don't stuff the data into the model's context.
+Use the **widget protocol**: the agent writes a fenced code block whose **language is the widget
+name** and whose **body is only an identifier**; the client routes that fence to a React component
+that **fetches its own data**. This is how `roprgm/worldcup-eve` renders every card.
+
+````text
+Argentina plays Friday.
+```match
+today
+```
+````
+
+Why this beats emitting markup or data:
+
+* **Cheap, deterministic tokens.** The model outputs a name + an id, not a payload — so it can't
+  hallucinate the numbers, and short output is faster and within tighter `limits`.
+* **Fresh data, owned by the UI.** The widget self-fetches (TanStack Query), so it shows live
+  data from your API, not a snapshot frozen into the turn. Agent and UI stay decoupled.
+* **The instructions ARE the contract.** `agent/instructions.md` carries a *question → tool →
+  widget* table telling the model which fence to write; the client carries the matching renderers.
+
+Client side, route the fences with `streamdown`'s custom renderers (`plugins.renderers`), keyed by
+the widget languages. Render **nothing while `isIncomplete`** so a half-streamed fence never
+flashes, and parse the body leniently (drop a stray `team:` label, tolerate casing/spacing):
+
+```tsx
+// components/chat/rich-markdown.tsx
+import type { CustomRenderer, CustomRendererProps } from "streamdown";
+
+const WIDGET_LANGUAGES = ["match", "group", "chances", "bracket"]; // = the fence names in instructions.md
+
+function WidgetBlock({ language, code, isIncomplete }: CustomRendererProps) {
+  if (isIncomplete) return null;                 // no partial-block flash mid-stream
+  return renderWidget(language, code.trim());    // switch on language → a self-fetching <Widget/>
+}
+
+const WIDGET_RENDERERS: CustomRenderer[] = [{ language: WIDGET_LANGUAGES, component: WidgetBlock }];
+// <Markdown plugins={{ renderers: WIDGET_RENDERERS }}>{assistantText}</Markdown>
+```
+
+Keep widget components **pure presentation fed by their own query** — they take an id, fetch, and
+render; they never receive data through the agent. The seam is: model → fence name + id → your API.
+
+## Passing browser context to the agent (`prepareSend` → `clientContext` → `defineDynamic`)
+
+Per-request browser state (time zone, locale, viewport, the entity the user is looking at) reaches
+the agent through **`prepareSend`**, which merges fields into every outgoing turn. The agent reads
+them back in a **dynamic instruction** (or a tool) on `turn.started`. This is the client→agent
+bridge — distinct from `defineDynamic` reading `ctx.session.auth` (verified identity, server-side).
+
+```tsx
+// client — inject context on every send
+const agent = useEveAgent({
+  prepareSend: (input) => ({
+    ...input,
+    clientContext: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+  }),
+});
+```
+
+```ts
+// agent/instructions/time.ts — read it fresh each turn
+import { defineDynamic, defineInstructions } from "eve/instructions";
+export default defineDynamic({
+  events: {
+    "turn.started": (ctx) => defineInstructions({
+      markdown: `The user's IANA time zone is in the client context; state kickoffs in it.`,
+      // ctx exposes the turn's clientContext — [VERIFY] the exact accessor against installed docs.
+    }),
+  },
+});
+```
+
+Only send **non-sensitive** UI context this way (it is client-asserted, not verified) — never derive
+tenant/user from it. Identity stays `ctx.session.auth.current`.
+
+## Resumable chats — persist the event log, restore with `initialEvents`
+
+`useEveAgent` exposes `session` (the `SessionState` cursor) and `events` (the raw stream log).
+To make a conversation survive a reload with **no backend**, persist `events` (keyed by a chat id
+in the URL, e.g. `/chat/<id>`) and rehydrate via `initialSession` / `initialEvents`:
+
+```tsx
+const agent = useEveAgent({ initialSession: saved?.session, initialEvents: saved?.events });
+useEffect(() => {
+  if (agent.events.length)
+    save(id, { session: { ...(agent.session), streamIndex: agent.events.length }, events: agent.events });
+}, [id, agent.session, agent.events]);
+```
+
+Gotchas worldcup-eve hit (encode these):
+
+* **Pin `streamIndex` to the log length, not the live cursor.** eve's `session` cursor lags
+  mid-turn and **resets when a stream aborts** (reload, `stop()`); saving the bare cursor over a
+  good one loses resumability. Persist `streamIndex: events.length`.
+* **Before the first turn boundary there is no `sessionId`** — you can only restart from the
+  pending first message, not resume. After eve mints the cursor, mount as-is and the next `send`
+  backfills the tail.
+* **Gate reads on hydration.** The server has no restored events; reporting `messages` before
+  hydration mismatches the server-rendered markup. Return `[]` until hydrated.
+* **Detect terminal failure from the log.** A session that hits its token budget ends with a
+  `session.failed` event carrying `SESSION_TOKEN_LIMIT_REACHED`; `status`/`error` don't survive a
+  refresh but the event does — read the failure from the persisted log to keep a "limit reached"
+  state sticky.
+
 ## The underlying HTTP contract (non-Next clients / debugging only)
 
 `withEve()` proxies to eve's stable HTTP API. You normally never call it directly from the

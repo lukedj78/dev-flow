@@ -20,10 +20,15 @@ Goal: a runnable eve agent at `apps/agent`, wired into the Turborepo/pnpm monore
 See `eve-conventions.md` for the import map, durability/idempotency, security model, and
 deploy rules referenced throughout.
 
+## 0. Resolve the layout FIRST (embedded vs monorepo)
+
+Before anything, settle **where the agent lives** using SKILL.md → *Which layout? Count the consumers*. The rule: one consumer (this Next app only) → **layout A, embedded single-app** (`agent/` + `app/` at the root, one deploy); a second consumer — **mobile/React Native**, a 2nd web, or external services — → **layout B, monorepo** with an independently-deployable `apps/agent`. When `stack.framework` doesn't already settle it (`"monorepo"` → B; existing `apps/*` → B), **ask the user** whether a mobile/other client will consume the agent before you create files. The steps below are written for layout B; for layout A, read `apps/agent` as the root, scaffold `agent/` + `app/` in one project, wire `withEve(nextConfig)` with the default `eveRoot`, and **skip steps 5 and 7** (no workspace wiring, no `packages/types`).
+
 ## 1. Preconditions
 
-* **Node ≥ 24** and npm. A monorepo already exists (Turborepo + pnpm). If not, stop and ask the user to run the monorepo bootstrap first (`apps/` + `packages/` + `turbo.json` + `pnpm-workspace.yaml`).
-* `apps/agent` does not yet contain an eve agent (otherwise switch to Capability mode).
+* **Node ≥ 24** and npm.
+* **Layout B (monorepo):** a monorepo already exists (Turborepo + pnpm); if not, stop and run the monorepo bootstrap first (`apps/` + `packages/` + `turbo.json` + `pnpm-workspace.yaml`). **Layout A (embedded):** a single Next.js app exists (or scaffold it first via `design-md-to-app`) — no workspace needed.
+* The target dir (`apps/agent` for B, the project root for A) does not yet contain an eve agent (otherwise switch to Capability mode).
 
 ## 2. Initialize eve inside apps/agent
 
@@ -41,6 +46,22 @@ deploy rules referenced throughout.
 
 * Set the model explicitly in `agent/agent.ts` rather than relying on an implicit default, so the choice is reviewable in Git. The eve scaffold default is `anthropic/claude-sonnet-5`, routed through the Vercel AI Gateway; keep it unless the user asked for something specific. Document the choice in a comment.
 * **Service tiers (AI Gateway).** For an **OpenAI or Gemini** model you can trade latency/throughput/cost per request via `providerOptions: { gateway: { serviceTier: 'priority' | 'flex' | 'default' } }`: `priority` = faster at higher cost (interactive/voice paths), `flex` = cheaper at possibly higher latency (batch schedules / low-urgency subagents), `default` = baseline. It is **best-effort** — an unavailable tier silently falls back to `default` and only an *invalid* value fails the request — and the tier that actually served the request is echoed back in the provider metadata, so log it if you depend on it. At launch this covers **OpenAI and Gemini only**: with the default `anthropic/claude-sonnet-5` it is a **no-op**, so reach for it only when you've pinned an OpenAI/Gemini model. `[VERIFY]` that your installed eve version forwards `providerOptions` (from `agent/agent.ts` or per-generation) through to the Gateway before relying on this. Ref: <https://vercel.com/changelog/service-tiers-now-available-on-ai-gateway>.
+* **Per-session token budget (cost control).** Set `limits` in `agent/agent.ts` to cap spend and
+  cut off runaway loops before they bill:
+
+  ```ts
+  export default defineAgent({
+    model: "anthropic/claude-sonnet-5",   // document the choice; scaffold default via AI Gateway
+    limits: { maxInputTokensPerSession: 100_000, maxOutputTokensPerSession: 20_000 },
+  });
+  ```
+
+  When a session exhausts the budget, eve ends it with a `session.failed` stream event carrying
+  code `SESSION_TOKEN_LIMIT_REACHED` — the web client detects that to show a terminal "limit
+  reached" state (see `eve-web-integration.md` → resumable chats). Size the caps to the surface:
+  a public demo wants tight caps + the Vercel Firewall rate limit; an internal tool can run looser.
+  For a cheap non-reasoning path, worldcup-eve also pins `reasoning: "low"` with a near-zero
+  `providerOptions.anthropic.thinkingBudget`. `[VERIFY]` field names against the installed version.
 * Write a real `agent/instructions.md` (system prompt) that states the agent's purpose and boundaries — the baseline eval will assert against it.
 
 ## 4. Set the channel auth (fail closed)

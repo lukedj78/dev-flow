@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-23T08:27:28Z",
+  "generated_at": "2026-07-23T12:39:30Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 36,
   "families": {
@@ -421,7 +421,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 137,
+      "skill_md_lines": 169,
       "bundle": "dist/eve-agent.skill"
     },
     {

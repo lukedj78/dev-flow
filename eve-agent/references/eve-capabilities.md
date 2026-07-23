@@ -217,6 +217,33 @@ Events include `session.started`, `turn.completed`, `message.completed`, `action
 and `*`. Handlers run after each event is durably recorded — use for audit logging, metrics,
 persisting sessions to your own DB. Not a place for behavior the model should invoke (use a tool).
 
+**Observability sink (external), the way worldcup-eve does it** — `turn.completed` + `session.failed`
+posting to an external store. Two rules learned the hard way:
+
+* **`await` the request.** The workflow runtime **suspends once the handler resolves**, so a
+  dangling (un-awaited) `fetch` never completes. Since the user's reply is already delivered by
+  then, awaiting adds no visible latency.
+* **Observability must never fail a turn.** No-op when the sink's env vars are unset, bound the
+  request with `AbortSignal.timeout(...)`, and swallow errors to a `console.warn` — never throw.
+
+```ts
+export default defineHook({
+  events: { "turn.completed": notifyObs, "session.failed": notifyObs },
+});
+async function notifyObs(_event: unknown, ctx: HookContext) {
+  const { OBS_URL, OBS_TOKEN } = process.env;
+  if (!OBS_URL || !OBS_TOKEN) return;                       // no-op unless configured
+  try {
+    await fetch(OBS_URL, { method: "POST", signal: AbortSignal.timeout(15_000),
+      headers: { authorization: `Bearer ${OBS_TOKEN}` },
+      body: JSON.stringify({ sessionIds: [ctx.session.id] }) });
+  } catch (e) { console.warn("[obs]", e); }                 // never fail the turn
+}
+```
+
+(For deployed runs you also get Vercel's Agent Runs tab + `vercel agent-runs` CLI for free — see
+eve-conventions.md → Observability. Use a custom sink only when you need the data in your own store.)
+
 ## Eval — `evals/<...>.eval.ts` (sibling of `agent/`)
 
 ```ts

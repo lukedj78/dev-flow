@@ -27,9 +27,25 @@ Scaffold and manage an eve agent — Vercel's filesystem-first agent framework, 
 
 **The second rule:** eve runs every turn as a **durable workflow**, and an interrupted step **re-runs** on resume. So any tool with a non-idempotent side effect (payment, delete, email, external write) MUST be made idempotent or **approval-gated** (`approval: always()`/`once()` from `eve/tools/approval`). eve's defaults are permissive — do not rely on model behavior to prevent sensitive or irreversible actions.
 
-## Where the agent lives (monorepo contract)
+## Where the agent lives (two layouts — pick one)
 
-This skill assumes a monorepo (Turborepo + pnpm), not a single app at the root:
+The agent is the engine; the web app consumes it through eve's **official** Next.js integration — the `withEve()` wrapper mounts eve's routes same-origin and the `useEveAgent()` hook drives a session from the browser (see `references/eve-web-integration.md`). The web app never imports the agent's internals as a library, and never hand-rolls the HTTP/NDJSON plumbing that eve already provides. That boundary is the same in both layouts below.
+
+**A — Embedded single-app (simplest; one deploy).** The eve agent and the Next.js app live in **one** project, `agent/` and `app/` as sibling folders at the root. `withEve(nextConfig)` with the default `eveRoot` mounts the agent into the same Next process — one `vercel deploy`, no cross-package types, no workspace wiring. This is the layout of Vercel's own [`roprgm/worldcup-eve`](https://github.com/roprgm/worldcup-eve) reference and of dev-flow's **Studio**. Prefer it when the agent exists only to power this one app.
+
+```
+<project-root>/
+├─ .workflow/            # dev-flow metadata (if a dev-flow project)
+├─ agent/                # eve agent — tools/, instructions.md, channels/, schedules/, hooks/, sandbox.ts, lib/
+├─ app/                  # Next.js App Router — the product UI
+├─ components/           # incl. the widget renderers the agent's output drives
+├─ lib/                  # domain logic shared by BOTH agent tools and web routes
+└─ next.config.ts        # withEve(nextConfig)
+```
+
+Here `packages/types` doesn't exist — the app imports eve's types directly (`eve/react`, `eve/client`), and one `lib/` is shared by tool `execute` and web code alike. Skip every monorepo/`packages/types` step below.
+
+**B — Monorepo (Turborepo + pnpm).** Separate `apps/web` + `apps/agent`, with a shared `packages/types`. Prefer it when the agent is independently deployable, serves more than one surface, or the repo is already a monorepo.
 
 ```
 <project-root>/
@@ -41,7 +57,22 @@ This skill assumes a monorepo (Turborepo + pnpm), not a single app at the root:
    └─ types/             # re-exports eve's session/event types so web + agent share one contract
 ```
 
-The agent is the engine. The web app consumes it through eve's **official** Next.js integration — the `withEve()` wrapper mounts eve's routes same-origin and the `useEveAgent()` hook drives a session from the browser (see `references/eve-web-integration.md`). The web app never imports the agent's internals as a library, and never hand-rolls the HTTP/NDJSON plumbing that eve already provides. Keep that boundary clean.
+The `EVE_NEXT_PRODUCTION_ORIGIN` env var (see `references/eve-web-integration.md`) lets even layout A's agent deploy separately later without touching client code — so starting embedded is not a one-way door. The rest of this skill is written for layout B (the fuller case); when you're in layout A, read `apps/agent/` as the root `agent/`, drop the `pnpm --filter agent` prefix, and skip the `packages/types` wiring.
+
+### Which layout? Count the consumers (ask before scaffolding)
+
+**The deciding factor is how many clients consume the agent, not aesthetics.** `withEve()` embeds the agent in the Next runtime and gives same-origin access **only to that web app's browser**. A **React Native / mobile** client is *always* cross-origin — there is no same-origin in a native app; every call hits a remote host. So the moment a second consumer exists, embedding the agent in the web app makes that client inherit the web's deploy, uptime, and scaling (the web becomes the mobile's server), plus hand-managed CORS/auth. An agent with **≥2 consumers is a service**, and belongs in its own independently-deployable `apps/agent` (layout B), with `packages/types` single-sourcing the eve contract that both `apps/web` and `apps/mobile` import.
+
+Decide like this — and when the signal is ambiguous, **ask the user, do not assume**:
+
+| Signal (in this order) | Layout |
+|---|---|
+| `.workflow/meta.json#stack.framework == "monorepo"`, or an `apps/mobile` / `apps/*` web already exists | **B** — monorepo already serves web + mobile; add the agent as `apps/agent`. No need to ask. |
+| Framework is a single `next` app AND the user confirms the agent serves **only** this app | **A** — embedded single-app |
+| Single `next` app but mobile/RN, a 2nd web, or external services are planned | **B** — start monorepo now; migrating later (`EVE_NEXT_PRODUCTION_ORIGIN`) is possible but avoidable |
+| No `.workflow/`, or intent unclear | **Ask:** *"Will this eve agent serve only this Next.js app, or also a mobile/React Native app (or other clients)? One consumer → embedded single-app; more than one → monorepo with the agent as its own deployable app."* |
+
+A mobile client consumes the agent over plain HTTP — `useEveAgent({ host, auth })` pointed at the agent's origin, or the `eve/client` typed client — never through `withEve()` (that wrapper is Next-only). Same durable HTTP contract, different transport; see `references/eve-web-integration.md`. `[VERIFY]` RN client specifics against the installed eve version.
 
 ## The eve project layout (verify against the docs)
 
@@ -73,6 +104,7 @@ apps/agent/
 3. Choose the mode:
    * `stack.agent` unset / no `apps/agent` → **Scaffold mode** (set the agent up once).
    * agent already present → **Capability mode** (add a tool / skill / channel / connection / schedule / subagent / hook / eval, idempotently).
+4. **In Scaffold mode, resolve the layout first** using the *Which layout?* table above — check `stack.framework` / existing `apps/*`, and **ask the user about other consumers (mobile/RN, a 2nd web, external services) when it's ambiguous** before creating any files. The layout (embedded A vs monorepo B) changes where the agent goes and whether `packages/types` is wired, so it must be settled before scaffolding, not after.
 
 **Do exactly one logical operation per invocation, then stop.** Like `module-add`, this skill is idempotent: re-running an add that already exists detects it and skips.
 
@@ -127,10 +159,10 @@ pnpm --filter agent eval      # runs `eve eval`
 
 ## Reference files
 
-* `references/eve-conventions.md` — cross-cutting rules: import map, identity-by-path, durability/idempotency, security model, fail-closed auth, deploy/monorepo wiring, built-in tools.
-* `references/eve-scaffold.md` — full scaffold procedure + monorepo wiring.
-* `references/eve-capabilities.md` — adding tools / skills / channels / connections / schedules / subagents / hooks.
-* `references/eve-web-integration.md` — the official `withEve()` + `useEveAgent()` integration and the shared types package.
+* `references/eve-conventions.md` — cross-cutting rules: import map, identity-by-path, durability/idempotency, security model, fail-closed auth, sandbox-backend choice (just-bash vs VM), deploy/monorepo wiring, built-in tools.
+* `references/eve-scaffold.md` — full scaffold procedure + monorepo wiring + per-session token limits.
+* `references/eve-capabilities.md` — adding tools / skills / channels / connections / schedules / subagents / hooks (incl. the external observability-sink hook pattern).
+* `references/eve-web-integration.md` — the official `withEve()` + `useEveAgent()` integration, the shared types package, the **widget protocol** (rich UI from agent output), the `prepareSend`→`clientContext`→`defineDynamic` bridge, and resumable chats from a persisted event log.
 
 ## Bundled scripts
 
