@@ -5,6 +5,8 @@ description: 'Use to connect an Expo + RN app to a backend (auth, database, stor
 
 # rn-backend — provider-agnostic backend integration for RN/Expo
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 5 rules (non-negotiable, regardless of provider)
 
 1. **Tokens in `expo-secure-store`**, never `AsyncStorage` or plain in-memory. Tokens are bearer credentials — they go in Keychain (iOS) / Keystore (Android) encrypted at rest.
