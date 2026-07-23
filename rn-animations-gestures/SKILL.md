@@ -5,6 +5,8 @@ description: 'Use when adding animations or gestures to a React Native + Expo ap
 
 # rn-animations-gestures — guardrail for animations + gestures in RN/Expo
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 5 rules (non-negotiable)
 
 1. **Reanimated 4 is the default**. Never the legacy `Animated` API from `react-native` for new code. Reanimated 4 also ships a web-style CSS Animations/Transitions API (`transition: {...}`, `animationName` keyframes) as a backward-compatible ADDITION to worklets — good for state-driven style changes, not a replacement for `useSharedValue`/`useAnimatedStyle` on gesture-driven motion (see `references/patterns.md`).
