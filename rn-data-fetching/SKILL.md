@@ -5,6 +5,8 @@ description: 'Use when fetching data from APIs in React Native: choosing between
 
 # rn-data-fetching — guardrail for data fetching in React Native + Expo
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 5 rules (non-negotiable)
 
 1. **TanStack Query is the default** for any data that comes from the network. `fetch + useEffect` is acceptable ONLY in didactic examples or for one-off bootstrap calls (e.g. reading a config at app start).
