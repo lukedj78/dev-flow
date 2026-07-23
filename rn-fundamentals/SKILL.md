@@ -10,9 +10,21 @@ This skill is the prerequisite read for any RN/Expo work. It sets the four non-n
 ## The 4 non-negotiables
 
 1. **Expo managed workflow** is the default. Bare workflow / `react-native init` only if there is a documented native dependency Expo cannot wrap.
-2. **Latest stable Expo SDK** at bootstrap time, with **New Architecture ON** (`newArchEnabled: true` in `app.json`). Hermes is the default JS engine — leave it on.
-3. **TypeScript** is mandatory. Template `blank-typescript`. `tsconfig.json` extends `expo/tsconfig.base`.
-4. **npm** is the package manager (matches Expo defaults and `npx create-expo-app`). No Yarn, no pnpm in this set.
+2. **Latest stable Expo SDK** `[VERIFY]` at bootstrap time, with **New Architecture ON** (`newArchEnabled: true` in `app.json` `[VERIFY]` — this key/location can move between SDKs). Hermes is the default JS engine — leave it on.
+3. **TypeScript** is mandatory. Template `blank-typescript` `[VERIFY]`. `tsconfig.json` extends `expo/tsconfig.base` `[VERIFY]`.
+4. **npm** is the package manager (matches Expo defaults and `npx create-expo-app` `[VERIFY]`). No Yarn, no pnpm in this set.
+
+## Source of truth (Expo)
+
+This skill set (rn-fundamentals + its 6 siblings: rn-data-fetching, rn-expo-router, rn-backend, rn-push-notifications, rn-publishing-payments, rn-animations-gestures) encodes the **workflow and opinionated stack choices** — Expo managed, New Architecture on, TanStack Query, Reanimated 4, and so on. It is NOT a frozen copy of the Expo/RN API, and it goes stale every time a new SDK ships.
+
+For anything sensitive to the current Expo SDK — exact API shapes, CLI commands and flags, config-plugin options, deprecations, EAS behavior — do not trust this skill's wording blindly. In priority order, the authoritative source is:
+
+1. **Live Expo docs** — https://docs.expo.dev/ (always current for the installed SDK).
+2. **Expo MCP server** — `https://mcp.expo.dev/mcp` — live docs/CLI/EAS reference exposed as MCP tools. **If it is connected in this session, prefer it** over anything written across this skill set for current-version details.
+3. **Official `expo/skills`** — installable as a Claude Code plugin, or via `npx skills add expo/skills` — maintained by Expo directly against the SDK release cadence.
+
+Any version number, CLI command, or config key in this skill set marked `[VERIFY]` above is a candidate to have drifted — check it against the sources above before relying on it, the same way `eve-agent` defers to `node_modules/eve/docs` instead of guessing the eve API.
 
 ## Quick decision tree
 
