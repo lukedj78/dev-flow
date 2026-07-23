@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dev-flow — console delle skill</title>
+</head>
+<body>
+<title>dev-flow — console delle skill</title>
+
+<style>
+  :root{
+    --bg:#0a0c13; --bg-1:#0e111b; --bg-2:#12162282; --panel:#111524; --panel-2:#151a2b;
+    --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+    --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+    --ac:#6f8bff; --ac-2:#33d3c2; --ac-soft:rgba(111,139,255,.16);
+    --c-core:#f0b64d; --c-web:#6f8bff; --c-mobile:#33d3c2; --c-agent:#b487ff; --c-pm:#ff7d92; --c-mono:#4ec6e6;
+    --new:#33d3c2;
+    --fS:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --fM:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --maxw:1180px; --r:14px; --r-s:9px;
+    --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+  }
+  @media (prefers-color-scheme:light){
+    :root{
+      --bg:#eef1f8; --bg-1:#f5f7fc; --panel:#ffffff; --panel-2:#f3f6fd;
+      --bd:rgba(30,45,110,.12); --bd-2:rgba(30,45,110,.22);
+      --tx:#0f1526; --dim:#4a5573; --faint:#8590ac;
+      --ac:#3a53e6; --ac-2:#0c9f92; --ac-soft:rgba(58,83,230,.10);
+      --c-core:#c07d17; --c-web:#3a53e6; --c-mobile:#0c9f92; --c-agent:#7c4fe0; --c-pm:#e0475f; --c-mono:#1c86a6;
+      --new:#0c9f92; --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 12px 26px -20px rgba(20,30,80,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0c13; --bg-1:#0e111b; --panel:#111524; --panel-2:#151a2b;
+    --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+    --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+    --ac:#6f8bff; --ac-2:#33d3c2; --ac-soft:rgba(111,139,255,.16);
+    --c-core:#f0b64d; --c-web:#6f8bff; --c-mobile:#33d3c2; --c-agent:#b487ff; --c-pm:#ff7d92; --c-mono:#4ec6e6;
+    --new:#33d3c2; --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f8; --bg-1:#f5f7fc; --panel:#ffffff; --panel-2:#f3f6fd;
+    --bd:rgba(30,45,110,.12); --bd-2:rgba(30,45,110,.22);
+    --tx:#0f1526; --dim:#4a5573; --faint:#8590ac;
+    --ac:#3a53e6; --ac-2:#0c9f92; --ac-soft:rgba(58,83,230,.10);
+    --c-core:#c07d17; --c-web:#3a53e6; --c-mobile:#0c9f92; --c-agent:#7c4fe0; --c-pm:#e0475f; --c-mono:#1c86a6;
+    --new:#0c9f92; --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 12px 26px -20px rgba(20,30,80,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tx); font-family:var(--fS); line-height:1.55;
+    -webkit-font-smoothing:antialiased; letter-spacing:-.008em;
+    background-image:
+      radial-gradient(760px 460px at 88% -6%, var(--ac-soft), transparent 62%),
+      radial-gradient(620px 420px at -6% 8%, color-mix(in srgb,var(--ac-2) 12%, transparent), transparent 60%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  ::selection{background:var(--ac); color:#fff}
+  .mono{font-family:var(--fM); font-variant-numeric:tabular-nums}
+
+  .eyebrow{font-family:var(--fM); font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ac-2)}
+  .kick{display:flex; align-items:center; gap:.6em; font-family:var(--fM); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--faint)}
+  .kick .no{color:var(--ac)}
+
+  section{padding:clamp(2.6rem,5vw,4rem) 0}
+  .sec-t{font-weight:650; letter-spacing:-.02em; font-size:clamp(1.3rem,2.8vw,1.85rem); margin:.5rem 0 0; text-wrap:balance}
+  .sec-p{color:var(--dim); max-width:64ch; margin:.55rem 0 0; font-size:.97rem}
+
+  .badge{font-family:var(--fM); font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:var(--new);
+    border:1px solid color-mix(in srgb,var(--new) 40%,transparent); background:color-mix(in srgb,var(--new) 13%,transparent);
+    padding:.15em .45em; border-radius:5px; vertical-align:middle; margin-left:.5em; white-space:nowrap}
+
+  /* topbar */
+  .bar{position:sticky; top:0; z-index:30; backdrop-filter:blur(12px);
+    background:color-mix(in srgb,var(--bg) 72%,transparent); border-bottom:1px solid var(--bd)}
+  .bar .wrap{height:56px; display:flex; align-items:center; justify-content:space-between}
+  .logo{display:flex; align-items:center; gap:.65em; font-weight:650; letter-spacing:-.01em}
+  .logo .orb{width:20px; height:20px; border-radius:6px; position:relative;
+    background:linear-gradient(145deg,var(--ac),var(--ac-2)); box-shadow:0 0 18px -2px var(--ac)}
+  .logo small{font-family:var(--fM); font-weight:400; color:var(--faint); font-size:.62rem; letter-spacing:.14em; text-transform:uppercase}
+  .tg{font-family:var(--fM); font-size:.68rem; letter-spacing:.08em; color:var(--dim); background:var(--panel);
+    border:1px solid var(--bd); padding:.46em .8em; border-radius:8px; cursor:pointer}
+  .tg:hover{border-color:var(--bd-2); color:var(--tx)}
+  .tg:focus-visible{outline:2px solid var(--ac); outline-offset:2px}
+
+  /* hero */
+  .hero{padding:clamp(2.6rem,6vw,4.4rem) 0 1rem}
+  .hero h1{font-weight:700; letter-spacing:-.03em; line-height:1.02; text-wrap:balance;
+    font-size:clamp(2.1rem,5.6vw,3.9rem); margin:1rem 0 0; max-width:17ch}
+  .hero h1 .g{background:linear-gradient(96deg,var(--ac),var(--ac-2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hero .lede{color:var(--dim); font-size:clamp(1rem,1.5vw,1.14rem); max-width:64ch; margin:1.1rem 0 0}
+  .hero .lede code{font-family:var(--fM); font-size:.85em; color:var(--tx); background:var(--panel); border:1px solid var(--bd); border-radius:6px; padding:.06em .38em}
+
+  /* console metric panel */
+  .console{margin-top:2rem; background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+  .console .hd{display:flex; align-items:center; gap:.5em; padding:11px 16px; border-bottom:1px solid var(--bd); background:var(--panel-2)}
+  .console .hd .d{width:9px; height:9px; border-radius:50%}
+  .console .hd .d.r{background:#ff6b7d}.console .hd .d.y{background:#f0b64d}.console .hd .d.g{background:var(--ac-2)}
+  .console .hd .t{font-family:var(--fM); font-size:.68rem; color:var(--faint); letter-spacing:.06em; margin-left:.4em}
+  .metrics{display:grid; grid-template-columns:repeat(5,1fr)}
+  @media (max-width:720px){ .metrics{grid-template-columns:repeat(2,1fr)} }
+  .metric{padding:16px 18px; border-right:1px solid var(--bd); border-bottom:1px solid var(--bd)}
+  .metric .k{font-family:var(--fM); font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); display:flex; align-items:center; gap:.5em}
+  .metric .k i{width:7px; height:7px; border-radius:50%}
+  .metric .v{font-weight:700; font-size:1.85rem; line-height:1; margin-top:.5rem; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+
+  /* pipeline */
+  .pipe-wrap{margin-top:1.7rem; background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow); padding:8px 4px 4px}
+  .pipe-scroll{overflow-x:auto; scrollbar-width:thin; padding:18px 16px 20px}
+  .pipe{min-width:960px; position:relative}
+  .stages{display:grid; grid-template-columns:repeat(10,1fr); margin-bottom:20px}
+  .stage{position:relative; border-top:1px solid var(--bd-2); padding-top:8px;
+    font-family:var(--fM); font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--faint)}
+  .stage::before{content:""; position:absolute; left:0; top:-1px; width:18px; height:2px; background:var(--ac)}
+  .nodes{display:grid; grid-template-columns:repeat(10,1fr); position:relative}
+  .nd{position:relative}
+  .nd .dot{width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--fM); font-weight:700; font-size:.84rem; color:var(--ac); font-variant-numeric:tabular-nums;
+    background:var(--bg-1); border:1.5px solid var(--ac); position:relative; z-index:2}
+  .nd:not(.last)::before{content:""; position:absolute; left:34px; right:0; top:17px; height:2px; z-index:1;
+    background:linear-gradient(90deg, color-mix(in srgb,var(--ac) 60%,transparent), color-mix(in srgb,var(--ac-2) 45%,transparent))}
+  .nd.first .dot,.nd.last .dot{color:#fff; border-color:transparent;
+    background:linear-gradient(145deg,var(--ac),var(--ac-2)); box-shadow:0 0 16px -2px var(--ac-2)}
+  .nd .p{font-family:var(--fM); font-size:.76rem; color:var(--tx); margin-top:13px; padding-right:12px; word-break:break-word}
+  .nd .s{font-size:.74rem; color:var(--faint); margin-top:5px; padding-right:12px; line-height:1.35}
+  .nd .s b{color:var(--dim); font-weight:600}
+
+  /* tracks */
+  .tracks{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:1.7rem}
+  @media (max-width:760px){ .tracks{grid-template-columns:1fr} }
+  .card{background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow)}
+  .trk{padding:20px}
+  .trk .th{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .trk .th h3{font-weight:650; font-size:1.06rem; letter-spacing:-.01em; margin:0; display:flex; align-items:center; gap:.55em}
+  .trk .th h3 i{width:9px; height:9px; border-radius:50%}
+  .trk.web h3 i{background:var(--c-web); box-shadow:0 0 10px -1px var(--c-web)}
+  .trk.mob h3 i{background:var(--c-mobile); box-shadow:0 0 10px -1px var(--c-mobile)}
+  .trk .th .lab{font-family:var(--fM); font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+  .seq{display:flex; flex-wrap:wrap; align-items:center; gap:7px 4px; margin-top:15px}
+  .st{font-family:var(--fM); font-size:.76rem; color:var(--tx); background:var(--panel-2); border:1px solid var(--bd); border-radius:8px; padding:.32em .55em; white-space:nowrap}
+  .arw{color:var(--faint); font-family:var(--fM)}
+  .foot{margin-top:15px; padding-top:13px; border-top:1px solid var(--bd); font-size:.85rem; color:var(--dim)}
+  .foot b{color:var(--tx); font-weight:600}
+  .foot .o{font-family:var(--fM); font-size:.9em; background:var(--panel-2); border:1px solid var(--bd); border-radius:6px; padding:.08em .4em}
+  .foot .o.n{border-color:color-mix(in srgb,var(--new) 45%,transparent); color:var(--tx)}
+
+  /* layers */
+  .layers{display:grid; grid-template-columns:repeat(auto-fit,minmax(224px,1fr)); gap:14px; margin-top:1.7rem}
+  .lyr{padding:16px}
+  .lyr .h{display:flex; align-items:center; gap:.55em; font-weight:650; font-size:.96rem}
+  .lyr .h i{width:9px; height:9px; border-radius:2px}
+  .lyr p{color:var(--dim); font-size:.86rem; margin:.6rem 0 .8rem}
+  .lyr .ss{display:flex; flex-wrap:wrap; gap:6px}
+  .lyr .s{font-family:var(--fM); font-size:.72rem; color:var(--dim); background:var(--panel-2); border:1px solid var(--bd); border-radius:6px; padding:.22em .48em}
+
+  /* index */
+  .legend{display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:1.4rem}
+  .lg{display:flex; align-items:center; gap:.5em; font-family:var(--fM); font-size:.72rem; color:var(--dim)}
+  .lg i{width:9px; height:9px; border-radius:50%}
+  .index{display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:14px; margin-top:1.1rem}
+  .grp{padding:15px 16px 6px}
+  .grp .gh{display:flex; align-items:center; gap:.5em; padding-bottom:9px; border-bottom:1px solid var(--bd)}
+  .grp .gh i{width:9px; height:9px; border-radius:50%; flex:none}
+  .grp .gt{font-weight:650; font-size:.9rem}
+  .grp .gn{margin-left:auto; font-family:var(--fM); font-size:.68rem; color:var(--faint)}
+  .grp .row{display:flex; align-items:baseline; gap:10px; padding:.5em 0; border-bottom:1px solid color-mix(in srgb,var(--bd) 60%,transparent)}
+  .grp .row:last-child{border-bottom:0}
+  .grp .sk{font-family:var(--fM); font-size:.8rem; color:var(--tx)}
+  .grp .row.new .sk::before{content:""; display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--new); box-shadow:0 0 8px var(--new); margin-right:.55em; vertical-align:middle}
+  .grp .m{margin-left:auto; font-family:var(--fM); font-size:.63rem; color:var(--faint); white-space:nowrap; font-variant-numeric:tabular-nums}
+
+  footer{border-top:1px solid var(--bd); padding:2rem 0 3rem; margin-top:1rem}
+  footer .wrap{display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px}
+  footer .mono{color:var(--faint); font-size:.76rem}
+  footer code{color:var(--dim)}
+
+  /* how-to */
+  .modes{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:1.7rem}
+  @media (max-width:760px){ .modes{grid-template-columns:1fr} }
+  .mode{padding:18px}
+  .mode .mh{display:flex; align-items:center; gap:.6em; font-weight:650; font-size:.98rem}
+  .mode .mh .num{font-family:var(--fM); font-size:.68rem; color:var(--ac); border:1px solid var(--bd-2); border-radius:6px; padding:.12em .5em; font-variant-numeric:tabular-nums}
+  .mode p{color:var(--dim); font-size:.87rem; margin:.7rem 0 .9rem}
+  .mode .ex{display:block; font-family:var(--fM); font-size:.77rem; color:var(--tx); background:var(--panel-2); border:1px solid var(--bd); border-radius:8px; padding:.5em .65em; overflow-x:auto; white-space:nowrap}
+  .mode .ex .pr{color:var(--ac-2); margin-right:.4em}
+  .mode .ex .sk{color:var(--ac)}
+
+  .term{margin-top:16px; background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+  .term .thd{display:flex; align-items:center; gap:.5em; padding:11px 16px; border-bottom:1px solid var(--bd); background:var(--panel-2)}
+  .term .thd .d{width:9px; height:9px; border-radius:50%}
+  .term .thd .d.r{background:#ff6b7d}.term .thd .d.y{background:#f0b64d}.term .thd .d.g{background:var(--ac-2)}
+  .term .thd .t{font-family:var(--fM); font-size:.68rem; color:var(--faint); margin-left:.4em}
+  .term .tb{padding:16px; font-family:var(--fM); font-size:.82rem; overflow-x:auto}
+  .term .step{padding:.28em 0}
+  .term .step+.step{border-top:1px solid color-mix(in srgb,var(--bd) 55%,transparent)}
+  .term .cmd{color:var(--tx); white-space:nowrap}
+  .term .cmd .pr{color:var(--ac-2); margin-right:.55em}
+  .term .cmd .cm{color:var(--faint)}
+  .term .res{color:var(--faint); padding-left:1.5em; white-space:nowrap}
+  .term .res .ar{color:var(--ac-2); margin-right:.45em}
+  .term .res .sk{color:var(--ac)}
+  .term .res .sk.new::after{content:" ●"; color:var(--new)}
+
+  .js .reveal{opacity:0; transform:translateY(12px); transition:opacity .55s ease, transform .55s ease}
+  .js .reveal.in{opacity:1; transform:none}
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1; transform:none; transition:none} }
+</style>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="logo"><span class="orb"></span> dev-flow <small>skill console</small></div>
+    <button class="tg" id="tg" type="button" aria-label="Inverti tema">◐ tema</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">mappa del sistema · luglio 2026</div>
+    <h1><span class="g">37 skill</span> che portano un'idea fino in produzione.</h1>
+    <p class="lede">Ogni progetto vive in <code>.workflow/</code>. L'orchestratore <code>dev-flow</code> legge <code>meta.json#phase</code> e passa il testimone alla skill giusta — web e mobile, con engine agente ed esecuzione a sprint sotto lo stesso contratto.</p>
+
+    <div class="console">
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 37 skill · lint clean</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skill</div><div class="v" style="color:var(--ac)">37</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">18</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>fasi</div><div class="v">10</div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">01</span> spina dorsale</div>
+    <h2 class="sec-t">La pipeline a fasi</h2>
+    <p class="sec-p">Una sequenza monotòna: nessuna skill salta un passo. L'orchestratore propone il successivo leggendo lo stato — non impone.</p>
+
+    <div class="pipe-wrap">
+      <div class="pipe-scroll">
+        <div class="pipe">
+          <div class="stages">
+            <div class="stage" style="grid-column:span 4">Plan</div>
+            <div class="stage" style="grid-column:span 1">Design</div>
+            <div class="stage" style="grid-column:span 3">Build</div>
+            <div class="stage" style="grid-column:span 2">Ship</div>
+          </div>
+          <div class="nodes">
+            <div class="nd first"><div class="dot">01</div><div class="p">empty</div><div class="s">crea <b>.workflow/</b></div></div>
+            <div class="nd"><div class="dot">02</div><div class="p">idea_captured</div><div class="s"><b>prd-from-idea</b></div></div>
+            <div class="nd"><div class="dot">03</div><div class="p">prd_drafted</div><div class="s"><b>prd-to-tasks</b></div></div>
+            <div class="nd"><div class="dot">04</div><div class="p">tasks_split</div><div class="s">design · <b>linear-scrum</b></div></div>
+            <div class="nd"><div class="dot">05</div><div class="p">design_extracted</div><div class="s">scaffold</div></div>
+            <div class="nd"><div class="dot">06</div><div class="p">scaffolded</div><div class="s"><b>screenshot-to-page</b> · <b>module-add</b></div></div>
+            <div class="nd"><div class="dot">07</div><div class="p">page_generated</div><div class="s">moduli · dati</div></div>
+            <div class="nd"><div class="dot">08</div><div class="p">module_added</div><div class="s"><b>write-tests</b></div></div>
+            <div class="nd"><div class="dot">09</div><div class="p">feature_complete</div><div class="s">deploy</div></div>
+            <div class="nd last"><div class="dot">10</div><div class="p">deployed</div><div class="s">manutenzione</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">02</span> esecuzione</div>
+    <h2 class="sec-t">I due binari</h2>
+    <p class="sec-p">Stesso contratto, due stack. La voce <code>stack.framework</code> decide quale famiglia guida la costruzione.</p>
+
+    <div class="tracks">
+      <div class="card trk web">
+        <div class="th"><h3><i></i> Web</h3><span class="lab">next.js 16 · app router</span></div>
+        <div class="seq">
+          <span class="st">prd-from-idea</span><span class="arw">→</span>
+          <span class="st">prd-to-tasks</span><span class="arw">→</span>
+          <span class="st">figma/image-to-design-md</span><span class="arw">→</span>
+          <span class="st">design-md-to-app</span><span class="arw">→</span>
+          <span class="st">screenshot-to-page</span><span class="arw">→</span>
+          <span class="st">module-add</span><span class="arw">→</span>
+          <span class="st">write-tests</span>
+        </div>
+        <div class="foot"><b>UI allo scaffold:</b> <span class="o">shadcn</span> <span class="o">base-ui</span> <span class="o">mui</span> <span class="o n">coss<span class="badge">new</span></span></div>
+      </div>
+
+      <div class="card trk mob">
+        <div class="th"><h3><i></i> Mobile</h3><span class="lab">expo · react native</span></div>
+        <div class="seq">
+          <span class="st">prd-from-idea</span><span class="arw">→</span>
+          <span class="st">design</span><span class="arw">→</span>
+          <span class="st">rn-bootstrap</span><span class="arw">→</span>
+          <span class="st">rn-add-screen</span><span class="arw">→</span>
+          <span class="st">rn-module-add</span><span class="arw">→</span>
+          <span class="st">rn-write-tests</span><span class="arw">→</span>
+          <span class="st">rn-eas-deploy</span>
+        </div>
+        <div class="foot"><b>Fondamenta:</b> 9 skill knowledge · <b>Manutenzione:</b> <span class="o n">rn-upgrade<span class="badge">new</span></span> <span class="o">rn-eas-build-submit-update</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">03</span> come si usano</div>
+    <h2 class="sec-t">Tre modi per invocarle</h2>
+    <p class="sec-p">Non devi ricordarti quale skill serve: lascia guidare l'orchestratore, oppure chiamane una a nome. Alcune si attivano da sole dal tema che nomini.</p>
+
+    <div class="modes">
+      <div class="card mode">
+        <div class="mh"><span class="num">01</span> Orchestratore</div>
+        <p>Apri il progetto e dì cosa vuoi: <code>dev-flow</code> legge <code>meta.json#phase</code> e propone (o invoca) la skill giusta.</p>
+        <code class="ex"><span class="pr">›</span>continua questo progetto</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">02</span> A nome</div>
+        <p>Chiami direttamente la specialista — slash command o linguaggio naturale.</p>
+        <code class="ex"><span class="pr">›</span>/<span class="sk">module-add</span> auth</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">03</span> Trigger</div>
+        <p>Alcune scattano dal tema: nomini un form, una lettura dati, uno stato — e partono da sole.</p>
+        <code class="ex"><span class="pr">›</span>mi serve un form → <span class="sk">forms</span></code>
+      </div>
+    </div>
+
+    <div class="term" aria-label="sessione di esempio">
+      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">sessione tipo — idea → deploy</span></div>
+      <div class="tb">
+        <div class="step"><div class="cmd"><span class="pr">›</span>"nuovo progetto: app palestre"</div><div class="res"><span class="ar">→</span><span class="sk">prd-from-idea</span> · PROJECT.md + PRD.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"spezzalo in task"</div><div class="res"><span class="ar">→</span><span class="sk">prd-to-tasks</span> · tasks.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"portalo in Linear"</div><div class="res"><span class="ar">→</span><span class="sk new">linear-scrum</span> · issue + sprint 1</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"DESIGN.md da questo screenshot"</div><div class="res"><span class="ar">→</span><span class="sk">image-to-design-md</span> · DESIGN.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"scaffolda l'app con Coss/UI"</div><div class="res"><span class="ar">→</span><span class="sk">design-md-to-app</span> + <span class="sk new">coss-ui</span> · Next 16</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"aggiungi auth e database"</div><div class="res"><span class="ar">→</span><span class="sk">module-add</span> · better-auth + Drizzle</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"scrivi i test"</div><div class="res"><span class="ar">→</span><span class="sk">write-tests</span> · Vitest</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"deploy"</div><div class="res"><span class="ar">→</span><span class="sk">setup-deploy</span> · Vercel</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">04</span> installazione</div>
+    <h2 class="sec-t">Come si installano</h2>
+    <p class="sec-p">Sono markdown-portable: finiscono in <code>~/.claude/skills/&lt;name&gt;/</code> (o l'equivalente del tuo runtime). Cinque runtime: Claude Code · Codex · Copilot · Gemini · Cursor.</p>
+
+    <div class="term" aria-label="installazione consigliata">
+      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">install.sh — consigliato</span></div>
+      <div class="tb">
+        <div class="step"><div class="cmd"><span class="pr">$</span>git clone git@github.com:lukedj78/dev-flow.git</div></div>
+        <div class="step"><div class="cmd"><span class="pr">$</span>cd dev-flow</div></div>
+        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh <span class="cm"># Claude Code (default)</span></div></div>
+        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh --platform codex <span class="cm"># o copilot · gemini · cursor</span></div></div>
+      </div>
+    </div>
+    <p class="sec-p" style="margin-top:.9rem">Copia tutte le skill nel path del runtime + il bootstrap giusto (<code>AGENTS.md</code> / <code>GEMINI.md</code> / <code>.cursorrules</code>), con backup <code>.bak</code> degli esistenti. Disinstalli e ripristini con <code>./uninstall.sh</code>.</p>
+
+    <div class="modes" style="margin-top:1.2rem">
+      <div class="card mode">
+        <div class="mh"><span class="num">B</span> Plugin</div>
+        <p>Claude Code, dal repo clonato in locale.</p>
+        <code class="ex"><span class="pr">›</span>/plugin add …/dev-flow/dev-flow</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">C</span> gh skill</div>
+        <p>Via GitHub CLI — tutto o un sottoinsieme.</p>
+        <code class="ex"><span class="pr">$</span>gh skill install lukedj78/dev-flow</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">D</span> Drag &amp; drop</div>
+        <p>Trascini i pacchetti <code>.skill</code> nella finestra.</p>
+        <code class="ex">dist/*.skill <span class="pr">→</span> Claude Code</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">05</span> trasversali</div>
+    <h2 class="sec-t">Strati che attraversano il flusso</h2>
+    <p class="sec-p">Non stanno in una fase: si attivano su trigger o come scelta di prodotto, e non spostano <code>phase</code>.</p>
+
+    <div class="layers">
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-web)"></i> Disciplina web</div>
+        <p>Dove vive lo stato, come si leggono i dati, come si costruiscono i form — a ogni fase.</p>
+        <div class="ss"><span class="s">forms</span><span class="s">data-fetching</span><span class="s">state-discipline</span></div>
+      </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-agent)"></i> Engine agente · eve</div>
+        <p>L'agente eve (Vercel) come motore dell'app. Ora anche extensions installabili.</p>
+        <div class="ss"><span class="s">eve-agent</span><span class="s">eve-registry-porting</span></div>
+      </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-pm)"></i> Project management</div>
+        <p>Ogni progetto in Linear con agile scrum: cicli, stime, sprint, velocity.</p>
+        <div class="ss"><span class="s">linear-scrum</span></div>
+      </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-mono)"></i> Monorepo</div>
+        <p>Web + mobile in un turborepo, pacchetti condivisi, tipi ri-esportati alle due app.</p>
+        <div class="ss"><span class="s">bootstrap</span><span class="s">add-shared-package</span><span class="s">sync-types</span></div>
+      </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-core)"></i> Igiene componenti</div>
+        <p>Promozione su gerarchia di colocation e pattern di composizione React.</p>
+        <div class="ss"><span class="s">promote-component</span><span class="s">composition-patterns-guide</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">06</span> indice completo</div>
+    <h2 class="sec-t">Tutte e 37, per funzione</h2>
+    <p class="sec-p">Meta a fianco: righe di <code>SKILL.md</code> · reference · script. Il punto luminoso marca le nuove di luglio.</p>
+
+    <div class="legend">
+      <span class="lg"><i style="background:var(--c-core)"></i> core</span>
+      <span class="lg"><i style="background:var(--c-web)"></i> web</span>
+      <span class="lg"><i style="background:var(--c-mobile)"></i> mobile</span>
+      <span class="lg"><i style="background:var(--c-agent)"></i> agente</span>
+      <span class="lg"><i style="background:var(--c-pm)"></i> pm</span>
+      <span class="lg"><i style="background:var(--c-mono)"></i> monorepo</span>
+      <span class="lg"><i style="background:var(--new); box-shadow:0 0 8px var(--new)"></i> nuova</span>
+    </div>
+
+    <div class="index">
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Core · orchestrazione</span><span class="gn">3</span></div>
+        <div class="row"><span class="sk">dev-flow</span><span class="m">228·3r·4s</span></div>
+        <div class="row"><span class="sk">prd-from-idea</span><span class="m">244·1r</span></div>
+        <div class="row"><span class="sk">prd-to-tasks</span><span class="m">135·1r</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Design → codice</span><span class="gn">2</span></div>
+        <div class="row"><span class="sk">figma-to-design-md</span><span class="m">199·6r·2s</span></div>
+        <div class="row"><span class="sk">image-to-design-md</span><span class="m">176·2r·2s</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold & pagine</span><span class="gn">4</span></div>
+        <div class="row"><span class="sk">design-md-to-app</span><span class="m">1122·9r·2s</span></div>
+        <div class="row new"><span class="sk">coss-ui</span><span class="m">84·4r·2s</span></div>
+        <div class="row"><span class="sk">screenshot-to-page</span><span class="m">262·1r·1s</span></div>
+        <div class="row"><span class="sk">module-add</span><span class="m">157·11r</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · disciplina</span><span class="gn">3</span></div>
+        <div class="row"><span class="sk">forms</span><span class="m">437·5r·1s</span></div>
+        <div class="row"><span class="sk">data-fetching</span><span class="m">344·3r</span></div>
+        <div class="row"><span class="sk">state-discipline</span><span class="m">441·2r</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Qualità & igiene</span><span class="gn">3</span></div>
+        <div class="row"><span class="sk">write-tests</span><span class="m">160·5r</span></div>
+        <div class="row"><span class="sk">promote-component</span><span class="m">226·2r·2s</span></div>
+        <div class="row"><span class="sk">composition-patterns-guide</span><span class="m">226·2r</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-mono)"></i><span class="gt">Monorepo</span><span class="gn">3</span></div>
+        <div class="row"><span class="sk">monorepo-bootstrap</span><span class="m">202·5r·4s</span></div>
+        <div class="row"><span class="sk">monorepo-add-shared-package</span><span class="m">130·2r</span></div>
+        <div class="row"><span class="sk">monorepo-sync-types</span><span class="m">181·2r·1s</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-agent)"></i><span class="gt">Engine agente · eve</span><span class="gn">2</span></div>
+        <div class="row"><span class="sk">eve-agent</span><span class="m">169·4r·1s</span></div>
+        <div class="row new"><span class="sk">eve-registry-porting</span><span class="m">128</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-pm)"></i><span class="gt">Project management</span><span class="gn">1</span></div>
+        <div class="row new"><span class="sk">linear-scrum</span><span class="m">77·3r·3s</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-mobile)"></i><span class="gt">Mobile · operative</span><span class="gn">7</span></div>
+        <div class="row"><span class="sk">rn-bootstrap</span><span class="m">138·3r·4s</span></div>
+        <div class="row"><span class="sk">rn-add-screen</span><span class="m">144·3r</span></div>
+        <div class="row"><span class="sk">rn-module-add</span><span class="m">167·3r</span></div>
+        <div class="row"><span class="sk">rn-write-tests</span><span class="m">118·5r</span></div>
+        <div class="row"><span class="sk">rn-eas-deploy</span><span class="m">175·4r</span></div>
+        <div class="row"><span class="sk">rn-eas-build-submit-update</span><span class="m">40·4r</span></div>
+        <div class="row new"><span class="sk">rn-upgrade</span><span class="m">177·4r</span></div>
+      </div>
+      <div class="card grp">
+        <div class="gh"><i style="background:var(--c-mobile)"></i><span class="gt">Mobile · knowledge</span><span class="gn">9</span></div>
+        <div class="row"><span class="sk">rn-fundamentals</span><span class="m">47·4r</span></div>
+        <div class="row"><span class="sk">rn-expo-router</span><span class="m">35·4r</span></div>
+        <div class="row"><span class="sk">rn-styling</span><span class="m">46·5r</span></div>
+        <div class="row"><span class="sk">rn-data-fetching</span><span class="m">40·4r</span></div>
+        <div class="row"><span class="sk">rn-components-apis</span><span class="m">38·2r</span></div>
+        <div class="row"><span class="sk">rn-animations-gestures</span><span class="m">37·2r</span></div>
+        <div class="row"><span class="sk">rn-backend</span><span class="m">43·7r</span></div>
+        <div class="row"><span class="sk">rn-push-notifications</span><span class="m">37·3r</span></div>
+        <div class="row"><span class="sk">rn-publishing-payments</span><span class="m">41·4r</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">dev-flow · <code>github.com/lukedj78/dev-flow</code></span>
+    <span class="mono">web next 16 + mobile expo · engine eve · pm linear · <code>.workflow/meta.json</code></span>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('tg');
+    root.classList.add('js');
+    btn&&btn.addEventListener('click',function(){
+      var cur=root.getAttribute('data-theme');
+      if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+      root.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    });
+    if('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches){
+      var io=new IntersectionObserver(function(es){
+        es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+      },{threshold:.1});
+      document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+    } else { document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); }); }
+  })();
+</script>
+</body>
+</html>

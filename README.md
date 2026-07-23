@@ -2,6 +2,8 @@
 
 ![dev-flow — mappa delle 37 skill: pipeline a fasi (Plan · Design · Build · Ship), binari web/mobile, engine agente eve, come si usa e si installa, indice completo](./docs/assets/dev-flow-skill-map.png)
 
+<sub>↑ Versione interattiva (dark/light, apribile in locale nel browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
+
 > **A filesystem contract for agent-driven SDLC.**
 > One folder (`.workflow/`), one state file (`meta.json`), and **37 skills (4 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
