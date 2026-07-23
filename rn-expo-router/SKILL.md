@@ -5,6 +5,8 @@ description: 'Use when working with navigation in an Expo + React Native app: ad
 
 # rn-expo-router — guardrail for navigation in Expo + RN
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 4 rules (non-negotiable)
 
 1. **Expo Router only**. Never `import` from `@react-navigation/*` directly — Expo Router wraps and owns it.
