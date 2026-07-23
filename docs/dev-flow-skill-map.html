@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>dev-flow — console delle skill</title>
+<title>dev-flow — skill console</title>
 </head>
 <body>
-<title>dev-flow — console delle skill</title>
+<title>dev-flow — skill console</title>
 
 <style>
   :root{
@@ -212,24 +212,24 @@
 <div class="bar">
   <div class="wrap">
     <div class="logo"><span class="orb"></span> dev-flow <small>skill console</small></div>
-    <button class="tg" id="tg" type="button" aria-label="Inverti tema">◐ tema</button>
+    <button class="tg" id="tg" type="button" aria-label="Toggle theme">◐ theme</button>
   </div>
 </div>
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">mappa del sistema · luglio 2026</div>
-    <h1><span class="g">37 skill</span> che portano un'idea fino in produzione.</h1>
-    <p class="lede">Ogni progetto vive in <code>.workflow/</code>. L'orchestratore <code>dev-flow</code> legge <code>meta.json#phase</code> e passa il testimone alla skill giusta — web e mobile, con engine agente ed esecuzione a sprint sotto lo stesso contratto.</p>
+    <div class="eyebrow">system map · july 2026</div>
+    <h1><span class="g">37 skills</span> that take an idea all the way to production.</h1>
+    <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract.</p>
 
     <div class="console">
-      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 37 skill · lint clean</span></div>
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 37 skills · lint clean</span></div>
       <div class="metrics">
-        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skill</div><div class="v" style="color:var(--ac)">37</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">37</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">18</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>fasi</div><div class="v">10</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
       </div>
     </div>
   </div>
@@ -237,9 +237,9 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">01</span> spina dorsale</div>
-    <h2 class="sec-t">La pipeline a fasi</h2>
-    <p class="sec-p">Una sequenza monotòna: nessuna skill salta un passo. L'orchestratore propone il successivo leggendo lo stato — non impone.</p>
+    <div class="kick"><span class="no">01</span> backbone</div>
+    <h2 class="sec-t">The phase pipeline</h2>
+    <p class="sec-p">A monotonic sequence: no skill skips a step. The orchestrator suggests the next one by reading the state — it doesn't impose it.</p>
 
     <div class="pipe-wrap">
       <div class="pipe-scroll">
@@ -251,16 +251,16 @@
             <div class="stage" style="grid-column:span 2">Ship</div>
           </div>
           <div class="nodes">
-            <div class="nd first"><div class="dot">01</div><div class="p">empty</div><div class="s">crea <b>.workflow/</b></div></div>
+            <div class="nd first"><div class="dot">01</div><div class="p">empty</div><div class="s">creates <b>.workflow/</b></div></div>
             <div class="nd"><div class="dot">02</div><div class="p">idea_captured</div><div class="s"><b>prd-from-idea</b></div></div>
             <div class="nd"><div class="dot">03</div><div class="p">prd_drafted</div><div class="s"><b>prd-to-tasks</b></div></div>
             <div class="nd"><div class="dot">04</div><div class="p">tasks_split</div><div class="s">design · <b>linear-scrum</b></div></div>
             <div class="nd"><div class="dot">05</div><div class="p">design_extracted</div><div class="s">scaffold</div></div>
             <div class="nd"><div class="dot">06</div><div class="p">scaffolded</div><div class="s"><b>screenshot-to-page</b> · <b>module-add</b></div></div>
-            <div class="nd"><div class="dot">07</div><div class="p">page_generated</div><div class="s">moduli · dati</div></div>
+            <div class="nd"><div class="dot">07</div><div class="p">page_generated</div><div class="s">modules · data</div></div>
             <div class="nd"><div class="dot">08</div><div class="p">module_added</div><div class="s"><b>write-tests</b></div></div>
             <div class="nd"><div class="dot">09</div><div class="p">feature_complete</div><div class="s">deploy</div></div>
-            <div class="nd last"><div class="dot">10</div><div class="p">deployed</div><div class="s">manutenzione</div></div>
+            <div class="nd last"><div class="dot">10</div><div class="p">deployed</div><div class="s">maintenance</div></div>
           </div>
         </div>
       </div>
@@ -270,9 +270,9 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">02</span> esecuzione</div>
-    <h2 class="sec-t">I due binari</h2>
-    <p class="sec-p">Stesso contratto, due stack. La voce <code>stack.framework</code> decide quale famiglia guida la costruzione.</p>
+    <div class="kick"><span class="no">02</span> execution</div>
+    <h2 class="sec-t">The two tracks</h2>
+    <p class="sec-p">Same contract, two stacks. The <code>stack.framework</code> field decides which family drives the build.</p>
 
     <div class="tracks">
       <div class="card trk web">
@@ -286,7 +286,7 @@
           <span class="st">module-add</span><span class="arw">→</span>
           <span class="st">write-tests</span>
         </div>
-        <div class="foot"><b>UI allo scaffold:</b> <span class="o">shadcn</span> <span class="o">base-ui</span> <span class="o">mui</span> <span class="o n">coss<span class="badge">new</span></span></div>
+        <div class="foot"><b>UI at scaffold:</b> <span class="o">shadcn</span> <span class="o">base-ui</span> <span class="o">mui</span> <span class="o n">coss<span class="badge">new</span></span></div>
       </div>
 
       <div class="card trk mob">
@@ -300,7 +300,7 @@
           <span class="st">rn-write-tests</span><span class="arw">→</span>
           <span class="st">rn-eas-deploy</span>
         </div>
-        <div class="foot"><b>Fondamenta:</b> 9 skill knowledge · <b>Manutenzione:</b> <span class="o n">rn-upgrade<span class="badge">new</span></span> <span class="o">rn-eas-build-submit-update</span></div>
+        <div class="foot"><b>Foundations:</b> 9 knowledge skills · <b>Maintenance:</b> <span class="o n">rn-upgrade<span class="badge">new</span></span> <span class="o">rn-eas-build-submit-update</span></div>
       </div>
     </div>
   </div>
@@ -308,38 +308,38 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">03</span> come si usano</div>
-    <h2 class="sec-t">Tre modi per invocarle</h2>
-    <p class="sec-p">Non devi ricordarti quale skill serve: lascia guidare l'orchestratore, oppure chiamane una a nome. Alcune si attivano da sole dal tema che nomini.</p>
+    <div class="kick"><span class="no">03</span> how to use them</div>
+    <h2 class="sec-t">Three ways to invoke them</h2>
+    <p class="sec-p">You don't need to remember which skill you need: let the orchestrator guide you, or call one by name. Some trigger on their own from the topic you mention.</p>
 
     <div class="modes">
       <div class="card mode">
-        <div class="mh"><span class="num">01</span> Orchestratore</div>
-        <p>Apri il progetto e dì cosa vuoi: <code>dev-flow</code> legge <code>meta.json#phase</code> e propone (o invoca) la skill giusta.</p>
-        <code class="ex"><span class="pr">›</span>continua questo progetto</code>
+        <div class="mh"><span class="num">01</span> Orchestrator</div>
+        <p>Open the project and say what you want: <code>dev-flow</code> reads <code>meta.json#phase</code> and suggests (or invokes) the right skill.</p>
+        <code class="ex"><span class="pr">›</span>continue this project</code>
       </div>
       <div class="card mode">
-        <div class="mh"><span class="num">02</span> A nome</div>
-        <p>Chiami direttamente la specialista — slash command o linguaggio naturale.</p>
+        <div class="mh"><span class="num">02</span> By name</div>
+        <p>You call the specialist directly — slash command or natural language.</p>
         <code class="ex"><span class="pr">›</span>/<span class="sk">module-add</span> auth</code>
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">03</span> Trigger</div>
-        <p>Alcune scattano dal tema: nomini un form, una lettura dati, uno stato — e partono da sole.</p>
-        <code class="ex"><span class="pr">›</span>mi serve un form → <span class="sk">forms</span></code>
+        <p>Some fire from the topic: you mention a form, a data read, a state — and they start on their own.</p>
+        <code class="ex"><span class="pr">›</span>I need a form → <span class="sk">forms</span></code>
       </div>
     </div>
 
-    <div class="term" aria-label="sessione di esempio">
-      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">sessione tipo — idea → deploy</span></div>
+    <div class="term" aria-label="example session">
+      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">typical session — idea → deploy</span></div>
       <div class="tb">
-        <div class="step"><div class="cmd"><span class="pr">›</span>"nuovo progetto: app palestre"</div><div class="res"><span class="ar">→</span><span class="sk">prd-from-idea</span> · PROJECT.md + PRD.md</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"spezzalo in task"</div><div class="res"><span class="ar">→</span><span class="sk">prd-to-tasks</span> · tasks.md</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"portalo in Linear"</div><div class="res"><span class="ar">→</span><span class="sk new">linear-scrum</span> · issue + sprint 1</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"DESIGN.md da questo screenshot"</div><div class="res"><span class="ar">→</span><span class="sk">image-to-design-md</span> · DESIGN.md</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"scaffolda l'app con Coss/UI"</div><div class="res"><span class="ar">→</span><span class="sk">design-md-to-app</span> + <span class="sk new">coss-ui</span> · Next 16</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"aggiungi auth e database"</div><div class="res"><span class="ar">→</span><span class="sk">module-add</span> · better-auth + Drizzle</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"scrivi i test"</div><div class="res"><span class="ar">→</span><span class="sk">write-tests</span> · Vitest</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"new project: gym app"</div><div class="res"><span class="ar">→</span><span class="sk">prd-from-idea</span> · PROJECT.md + PRD.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"split it into tasks"</div><div class="res"><span class="ar">→</span><span class="sk">prd-to-tasks</span> · tasks.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"push it to Linear"</div><div class="res"><span class="ar">→</span><span class="sk new">linear-scrum</span> · issues + sprint 1</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"DESIGN.md from this screenshot"</div><div class="res"><span class="ar">→</span><span class="sk">image-to-design-md</span> · DESIGN.md</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"scaffold the app with Coss/UI"</div><div class="res"><span class="ar">→</span><span class="sk">design-md-to-app</span> + <span class="sk new">coss-ui</span> · Next 16</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"add auth and database"</div><div class="res"><span class="ar">→</span><span class="sk">module-add</span> · better-auth + Drizzle</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"write the tests"</div><div class="res"><span class="ar">→</span><span class="sk">write-tests</span> · Vitest</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"deploy"</div><div class="res"><span class="ar">→</span><span class="sk">setup-deploy</span> · Vercel</div></div>
       </div>
     </div>
@@ -348,35 +348,35 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">04</span> installazione</div>
-    <h2 class="sec-t">Come si installano</h2>
-    <p class="sec-p">Sono markdown-portable: finiscono in <code>~/.claude/skills/&lt;name&gt;/</code> (o l'equivalente del tuo runtime). Cinque runtime: Claude Code · Codex · Copilot · Gemini · Cursor.</p>
+    <div class="kick"><span class="no">04</span> installation</div>
+    <h2 class="sec-t">How to install them</h2>
+    <p class="sec-p">They're markdown-portable: they end up in <code>~/.claude/skills/&lt;name&gt;/</code> (or your runtime's equivalent). Five runtimes: Claude Code · Codex · Copilot · Gemini · Cursor.</p>
 
-    <div class="term" aria-label="installazione consigliata">
-      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">install.sh — consigliato</span></div>
+    <div class="term" aria-label="recommended installation">
+      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">install.sh — recommended</span></div>
       <div class="tb">
         <div class="step"><div class="cmd"><span class="pr">$</span>git clone git@github.com:lukedj78/dev-flow.git</div></div>
         <div class="step"><div class="cmd"><span class="pr">$</span>cd dev-flow</div></div>
         <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh <span class="cm"># Claude Code (default)</span></div></div>
-        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh --platform codex <span class="cm"># o copilot · gemini · cursor</span></div></div>
+        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh --platform codex <span class="cm"># or copilot · gemini · cursor</span></div></div>
       </div>
     </div>
-    <p class="sec-p" style="margin-top:.9rem">Copia tutte le skill nel path del runtime + il bootstrap giusto (<code>AGENTS.md</code> / <code>GEMINI.md</code> / <code>.cursorrules</code>), con backup <code>.bak</code> degli esistenti. Disinstalli e ripristini con <code>./uninstall.sh</code>.</p>
+    <p class="sec-p" style="margin-top:.9rem">Copies all the skills into the runtime's path plus the right bootstrap file (<code>AGENTS.md</code> / <code>GEMINI.md</code> / <code>.cursorrules</code>), with <code>.bak</code> backups of anything existing. Uninstall and restore with <code>./uninstall.sh</code>.</p>
 
     <div class="modes" style="margin-top:1.2rem">
       <div class="card mode">
         <div class="mh"><span class="num">B</span> Plugin</div>
-        <p>Claude Code, dal repo clonato in locale.</p>
+        <p>Claude Code, from the repo cloned locally.</p>
         <code class="ex"><span class="pr">›</span>/plugin add …/dev-flow/dev-flow</code>
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">C</span> gh skill</div>
-        <p>Via GitHub CLI — tutto o un sottoinsieme.</p>
+        <p>Via GitHub CLI — all of it or a subset.</p>
         <code class="ex"><span class="pr">$</span>gh skill install lukedj78/dev-flow</code>
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">D</span> Drag &amp; drop</div>
-        <p>Trascini i pacchetti <code>.skill</code> nella finestra.</p>
+        <p>Drag the <code>.skill</code> packages into the window.</p>
         <code class="ex">dist/*.skill <span class="pr">→</span> Claude Code</code>
       </div>
     </div>
@@ -385,34 +385,34 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">05</span> trasversali</div>
-    <h2 class="sec-t">Strati che attraversano il flusso</h2>
-    <p class="sec-p">Non stanno in una fase: si attivano su trigger o come scelta di prodotto, e non spostano <code>phase</code>.</p>
+    <div class="kick"><span class="no">05</span> cross-cutting</div>
+    <h2 class="sec-t">Layers that span the flow</h2>
+    <p class="sec-p">They don't live in a single phase: they trigger on cue or as a product choice, and they don't move <code>phase</code>.</p>
 
     <div class="layers">
       <div class="card lyr">
-        <div class="h"><i style="background:var(--c-web)"></i> Disciplina web</div>
-        <p>Dove vive lo stato, come si leggono i dati, come si costruiscono i form — a ogni fase.</p>
+        <div class="h"><i style="background:var(--c-web)"></i> Web discipline</div>
+        <p>Where state lives, how data gets read, how forms get built — at every phase.</p>
         <div class="ss"><span class="s">forms</span><span class="s">data-fetching</span><span class="s">state-discipline</span></div>
       </div>
       <div class="card lyr">
-        <div class="h"><i style="background:var(--c-agent)"></i> Engine agente · eve</div>
-        <p>L'agente eve (Vercel) come motore dell'app. Ora anche extensions installabili.</p>
+        <div class="h"><i style="background:var(--c-agent)"></i> Agent engine · eve</div>
+        <p>The eve agent (Vercel) as the app's engine. Now also installable extensions.</p>
         <div class="ss"><span class="s">eve-agent</span><span class="s">eve-registry-porting</span></div>
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-pm)"></i> Project management</div>
-        <p>Ogni progetto in Linear con agile scrum: cicli, stime, sprint, velocity.</p>
+        <p>Every project in Linear with agile scrum: cycles, estimates, sprints, velocity.</p>
         <div class="ss"><span class="s">linear-scrum</span></div>
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-mono)"></i> Monorepo</div>
-        <p>Web + mobile in un turborepo, pacchetti condivisi, tipi ri-esportati alle due app.</p>
+        <p>Web + mobile in one turborepo, shared packages, types re-exported to both apps.</p>
         <div class="ss"><span class="s">bootstrap</span><span class="s">add-shared-package</span><span class="s">sync-types</span></div>
       </div>
       <div class="card lyr">
-        <div class="h"><i style="background:var(--c-core)"></i> Igiene componenti</div>
-        <p>Promozione su gerarchia di colocation e pattern di composizione React.</p>
+        <div class="h"><i style="background:var(--c-core)"></i> Component hygiene</div>
+        <p>Promotion up the colocation hierarchy and React composition patterns.</p>
         <div class="ss"><span class="s">promote-component</span><span class="s">composition-patterns-guide</span></div>
       </div>
     </div>
@@ -421,47 +421,47 @@
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">06</span> indice completo</div>
-    <h2 class="sec-t">Tutte e 37, per funzione</h2>
-    <p class="sec-p">Meta a fianco: righe di <code>SKILL.md</code> · reference · script. Il punto luminoso marca le nuove di luglio.</p>
+    <div class="kick"><span class="no">06</span> full index</div>
+    <h2 class="sec-t">All 37, by function</h2>
+    <p class="sec-p">Meta alongside: <code>SKILL.md</code> lines · references · scripts. The glowing dot marks july's new ones.</p>
 
     <div class="legend">
       <span class="lg"><i style="background:var(--c-core)"></i> core</span>
       <span class="lg"><i style="background:var(--c-web)"></i> web</span>
       <span class="lg"><i style="background:var(--c-mobile)"></i> mobile</span>
-      <span class="lg"><i style="background:var(--c-agent)"></i> agente</span>
+      <span class="lg"><i style="background:var(--c-agent)"></i> agent</span>
       <span class="lg"><i style="background:var(--c-pm)"></i> pm</span>
       <span class="lg"><i style="background:var(--c-mono)"></i> monorepo</span>
-      <span class="lg"><i style="background:var(--new); box-shadow:0 0 8px var(--new)"></i> nuova</span>
+      <span class="lg"><i style="background:var(--new); box-shadow:0 0 8px var(--new)"></i> new</span>
     </div>
 
     <div class="index">
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Core · orchestrazione</span><span class="gn">3</span></div>
+        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Core · orchestration</span><span class="gn">3</span></div>
         <div class="row"><span class="sk">dev-flow</span><span class="m">228·3r·4s</span></div>
         <div class="row"><span class="sk">prd-from-idea</span><span class="m">244·1r</span></div>
         <div class="row"><span class="sk">prd-to-tasks</span><span class="m">135·1r</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Design → codice</span><span class="gn">2</span></div>
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Design → code</span><span class="gn">2</span></div>
         <div class="row"><span class="sk">figma-to-design-md</span><span class="m">199·6r·2s</span></div>
         <div class="row"><span class="sk">image-to-design-md</span><span class="m">176·2r·2s</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold & pagine</span><span class="gn">4</span></div>
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold & pages</span><span class="gn">4</span></div>
         <div class="row"><span class="sk">design-md-to-app</span><span class="m">1122·9r·2s</span></div>
         <div class="row new"><span class="sk">coss-ui</span><span class="m">84·4r·2s</span></div>
         <div class="row"><span class="sk">screenshot-to-page</span><span class="m">262·1r·1s</span></div>
         <div class="row"><span class="sk">module-add</span><span class="m">157·11r</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · disciplina</span><span class="gn">3</span></div>
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · discipline</span><span class="gn">3</span></div>
         <div class="row"><span class="sk">forms</span><span class="m">437·5r·1s</span></div>
         <div class="row"><span class="sk">data-fetching</span><span class="m">344·3r</span></div>
         <div class="row"><span class="sk">state-discipline</span><span class="m">441·2r</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Qualità & igiene</span><span class="gn">3</span></div>
+        <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Quality & hygiene</span><span class="gn">3</span></div>
         <div class="row"><span class="sk">write-tests</span><span class="m">160·5r</span></div>
         <div class="row"><span class="sk">promote-component</span><span class="m">226·2r·2s</span></div>
         <div class="row"><span class="sk">composition-patterns-guide</span><span class="m">226·2r</span></div>
@@ -473,7 +473,7 @@
         <div class="row"><span class="sk">monorepo-sync-types</span><span class="m">181·2r·1s</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-agent)"></i><span class="gt">Engine agente · eve</span><span class="gn">2</span></div>
+        <div class="gh"><i style="background:var(--c-agent)"></i><span class="gt">Agent engine · eve</span><span class="gn">2</span></div>
         <div class="row"><span class="sk">eve-agent</span><span class="m">169·4r·1s</span></div>
         <div class="row new"><span class="sk">eve-registry-porting</span><span class="m">128</span></div>
       </div>
@@ -482,7 +482,7 @@
         <div class="row new"><span class="sk">linear-scrum</span><span class="m">77·3r·3s</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-mobile)"></i><span class="gt">Mobile · operative</span><span class="gn">7</span></div>
+        <div class="gh"><i style="background:var(--c-mobile)"></i><span class="gt">Mobile · operations</span><span class="gn">7</span></div>
         <div class="row"><span class="sk">rn-bootstrap</span><span class="m">138·3r·4s</span></div>
         <div class="row"><span class="sk">rn-add-screen</span><span class="m">144·3r</span></div>
         <div class="row"><span class="sk">rn-module-add</span><span class="m">167·3r</span></div>
