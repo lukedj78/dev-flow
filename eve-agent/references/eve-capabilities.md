@@ -80,7 +80,7 @@ surface. Platform channels read secrets from env vars (`DISCORD_*`, `LINEAR_*`, 
 `TELEGRAM_*`, `TWILIO_*`); **Slack and GitHub go through Vercel Connect** (no `SLACK_*` env
 vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` from
 `@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
-Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`).
+Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs.
 
 Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
 
