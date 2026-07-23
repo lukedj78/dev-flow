@@ -241,6 +241,36 @@ assertions are hard gates; LLM-judge graders (`t.judge.autoevals.{factuality,sum
 closedQA,sql}`) are soft by default — enforce with `.atLeast()` or `.gate()`. The eval suite
 is the deploy gate; new capabilities without evals erode it.
 
+## Extension — `agent/extensions/<name>.ts` (installable capability bundle)
+
+An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; `[VERIFY]` every identifier below against `node_modules/eve/docs/` — this surface is new.)
+
+**Consume an installed extension** (the common case) — add ONE file under `agent/extensions/`:
+
+```ts
+// agent/extensions/crm.ts
+import crm from "@acme/crm";
+export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated by the extension's schema
+```
+
+* The **filename sets the namespace**: an extension tool `search` mounted via `agent/extensions/crm.ts` runs as `crm__search` (filename + `__` + tool name). Renaming the file re-namespaces its tools.
+* The extension declares a **config schema** (Zod / any Standard Schema); pass config as the default-export call argument. Read secrets from `process.env` in this trusted runtime — never hardcode.
+* Tune what it exposes without forking it: `disableTool()` to approval-gate / replace / remove a bundled tool, and `toolResultFrom` inside a hook to narrow a bundled tool's result type. `[VERIFY]` both against the installed docs.
+
+**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@latest extension init <name>`, which lays out the package:
+
+```
+@acme/crm/
+  package.json
+  extension/
+    extension.ts        # defineExtension + config schema
+    tools/  connections/  skills/  instructions.md  hooks/  lib/
+```
+
+Build with `eve extension build`, publish to a registry, then consume it from agents as above. `defineExtension` and the exact layout are `[VERIFY]` against `node_modules/eve/docs/`.
+
+**Extension vs. the other capabilities:** a tool/skill/connection/hook is a *single local file* in this agent; an extension is a *versioned package* that bundles several of them and is shared across agents. **Extension vs. `eve-registry-porting`:** porting *copies* a component into your repo (vendored, tenant-hardened by hand); an extension *installs* a package (a dependency you upgrade). Prefer an extension when a maintained package exists and the reuse-across-agents payoff justifies it; port when you need to own/modify the source or the source isn't packaged.
+
 ## After any add
 
 ```bash

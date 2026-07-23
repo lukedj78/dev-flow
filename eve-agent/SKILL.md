@@ -103,6 +103,7 @@ Goal: add ONE capability to an existing agent, following eve's filesystem conven
 * **Connection** → MCP or OpenAPI access under `agent/connections/<service>` (`defineMcpClientConnection` / `defineOpenAPIConnection` from `eve/connections`).
 * **Subagent** → a local child agent dir `agent/subagents/<name>/agent.ts` (mirrors `agent/`; no channels/schedules), or a remote one via `defineRemoteAgent` from `eve`. There is no `defineSubagent`.
 * **Hook** → a lifecycle subscriber under `agent/hooks/<name>` (`defineHook` from `eve/hooks`).
+* **Extension** → install a capability *package* (tools/connections/skills/instructions/hooks bundled, versioned like a dependency) by adding `agent/extensions/<name>.ts` (`import x from "@pkg"; export default x({ …config })`), or author one with `npx eve extension init`. The filename namespaces its tools (`x__toolname`); tune with `disableTool()` / `toolResultFrom`. New in eve (2026-07); the package route complements `eve-registry-porting` (which vendors source instead). See `references/eve-capabilities.md`.
 * **Eval** → a new case in `evals/` so the quality gate covers the new capability.
 
 For each: read the matching section of `node_modules/eve/docs/` first, add the single file following the existing house style in `apps/agent`, add/extend an eval that exercises it, run the verification gate, then update `meta.json` history (`{ "skill": "eve-agent", "action": "add-<type>", "inputs": { "name": "<name>" } }`).

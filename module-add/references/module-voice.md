@@ -103,7 +103,7 @@ export default function VoiceDemoPage() {
 ## Wiring voice over an eve agent (the recommended topology)
 
 When eve is the brain, don't point the realtime model at its own tools. Instead:
-1. STT (`openai/whisper-1`) turns speech into text.
+1. STT (`openai/whisper-1`) turns speech into text. For low-latency partial transcripts, the AI Gateway also supports **streaming transcription** via the AI SDK's `streamTranscribe` (new 2026-07-22) — stream mic audio and receive incremental transcript updates instead of one final blob; prefer it for live captions / barge-in. `[VERIFY]` the method name + import against the installed `ai` / `@ai-sdk/*`.
 2. Send that text to the eve agent (its HTTP session API, via the same web integration `useEveAgent` uses).
 3. Stream the agent's text reply to TTS (`xai/grok-tts`) and play it.
 

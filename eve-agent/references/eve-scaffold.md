@@ -13,6 +13,7 @@ Goal: a runnable eve agent at `apps/agent`, wired into the Turborepo/pnpm monore
 * `eve start` — serve the built output; prints the listening URL.
 * `eve eval` — run evals against the local app or a remote target.
 * `eve channels add web|slack` / `eve channels list` — scaffold / list channels.
+* `eve extension init <name>` — scaffold an installable **extension** package (bundles tools/connections/skills/instructions/hooks); `eve extension build` compiles it. Consume one from an agent via `agent/extensions/<name>.ts`. (New 2026-07 — verify against the installed docs.)
 * `eve link` — link to a Vercel project and pull AI Gateway credentials.
 * `eve deploy` — deploy to Vercel production (links first if needed).
 
