@@ -180,7 +180,7 @@ Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard 
 * A markdown schedule runs as the bare app principal — in a multi-tenant agent whose tools
   require a tenant id, it can't call anything. Use the handler form: enumerate tenants in
   code, then `receive(channel, { message, target, auth })` one session per tenant with the
-  tenant id stamped onto `auth.attributes` (eve's "dynamic scheduling" pattern).
+  tenant id stamped onto `auth.attributes` (eve's "dynamic scheduling" pattern — full recipe, incl. the atomic-lease `ScheduleStore` and at-least-once idempotency, in `references/eve-patterns.md` §4).
 * **The default eve HTTP channel does not implement `receive()`** — it cannot be a handoff
   target. Author a minimal internal channel (`defineChannel` with a `receive` hook that
   calls `send(message, { auth, mode: "task", continuationToken: <fresh unique> })`).
@@ -266,7 +266,11 @@ path is the id; `evals.config.ts` holds project config (default judge model, rep
 Add a negative case (`t.notCalledTool` / `t.usedNoTools` / `t.maxToolCalls`). Deterministic
 assertions are hard gates; LLM-judge graders (`t.judge.autoevals.{factuality,summarizes,
 closedQA,sql}`) are soft by default — enforce with `.atLeast()` or `.gate()`. The eval suite
-is the deploy gate; new capabilities without evals erode it.
+is the deploy gate; new capabilities without evals erode it. **Full API** — the complete
+assertion set (`toolOrder` / `eventOrder` / `calledSubagent` / `loadedSkill` / `noFailedActions`
+/ structured-output / preconditions), the matchers, judge model resolution, targets
+(`t.target.fetch` / `dispatchSchedule` / `attachSession`), reporters (Console / JUnit /
+Braintrust), and every `eve eval` flag + exit code — is in **`references/eve-evals.md`**.
 
 ## Extension — `agent/extensions/<name>.ts` (installable capability bundle)
 

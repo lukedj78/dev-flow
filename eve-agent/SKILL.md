@@ -140,6 +140,8 @@ Goal: add ONE capability to an existing agent, following eve's filesystem conven
 
 For each: read the matching section of `node_modules/eve/docs/` first, add the single file following the existing house style in `apps/agent`, add/extend an eval that exercises it, run the verification gate, then update `meta.json` history (`{ "skill": "eve-agent", "action": "add-<type>", "inputs": { "name": "<name>" } }`).
 
+**Multi-tenant SaaS agent?** Before adding any tool, schedule, connection, or memory that touches tenant data, read `references/eve-patterns.md`. Tenant auth, per-tenant approvals, tenant-scoped long-term memory, and dynamic scheduling are **composed recipes** with one non-negotiable rule — derive tenant/user from `ctx.session.auth`, never from model input — not ad-hoc code. This is the same tenant-safety backbone `eve-registry-porting` enforces when porting.
+
 ## Definition of Done (every mode)
 
 A run is complete only when these pass with exit code 0:
@@ -163,6 +165,8 @@ pnpm --filter agent eval      # runs `eve eval`
 * `references/eve-scaffold.md` — full scaffold procedure + monorepo wiring + per-session token limits.
 * `references/eve-capabilities.md` — adding tools / skills / channels / connections / schedules / subagents / hooks (incl. the external observability-sink hook pattern).
 * `references/eve-web-integration.md` — the official `withEve()` + `useEveAgent()` integration, the shared types package, the **widget protocol** (rich UI from agent output), the `prepareSend`→`clientContext`→`defineDynamic` bridge, and resumable chats from a persisted event log.
+* `references/eve-patterns.md` — the composed **multi-tenant & dynamic recipes**: tenant auth (`AuthFn` stamps `tenantId` on the principal), per-tenant **approvals** (policy gate ≠ authorization), tenant-scoped **long-term memory** (auth + `defineDynamic` on `turn.started` + tools + external store), and **dynamic scheduling** (dispatcher + CRUD tools + atomic-lease store, at-least-once). The through-line: **identity from `ctx.session.auth`, never the model.** Read it for any multi-tenant SaaS agent.
+* `references/eve-evals.md` — the **full evals API**: cases + driver (`t.send`/`start`/`reply`/`events`), the complete assertion set + matchers (`eve/evals/expect`), the LLM judge (`t.judge.autoevals`, model resolution, `.gate`/`.soft`/`.atLeast`), targets (`t.target.fetch`/`dispatchSchedule`/`attachSession`, remote auth), reporters (Console/JUnit/Braintrust), and every `eve eval` flag + exit code + the CI gate.
 
 ## Bundled scripts
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-23T19:47:03Z",
+  "generated_at": "2026-07-23T20:02:37Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 37,
   "families": {
@@ -418,13 +418,15 @@
       "references": [
         "eve-capabilities.md",
         "eve-conventions.md",
+        "eve-evals.md",
+        "eve-patterns.md",
         "eve-scaffold.md",
         "eve-web-integration.md"
       ],
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 169,
+      "skill_md_lines": 173,
       "bundle": "dist/eve-agent.skill"
     },
     {

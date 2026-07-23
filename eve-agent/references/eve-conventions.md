@@ -173,7 +173,8 @@ bundler does not capture `execute: someFn` and it fails on replay.
   deploy. Plain `vercel deploy` may need `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1` to recognize
   eve as a framework ([VERIFY]; `eve deploy` sets it itself).
 * For multi-tenant work read `node_modules/eve/docs/patterns/` — `multi-tenant-auth`,
-  `multi-tenant-approvals`, `multi-tenant-memory`, `dynamic-scheduling` are canonical recipes.
+  `multi-tenant-approvals`, `multi-tenant-memory`, `dynamic-scheduling` are canonical recipes,
+  written up (composition + load-bearing API + non-negotiable rules) in `references/eve-patterns.md`.
 * Self-host: `eve build` + `PORT=3000 eve start --host 0.0.0.0`, persistent `.workflow-data`,
   Nitro scheduled-task runner if schedules exist, and a real authenticator replacing
   `vercelOidc()`.
