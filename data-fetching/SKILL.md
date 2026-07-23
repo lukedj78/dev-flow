@@ -68,16 +68,16 @@ digraph data_fetching {
   "Server Component, await directly" [shape=box];
   "URL searchParams; page stays Server Component" [shape=box];
   "Promise<T> from Server Component, use() in Client leaf" [shape=box];
-  "Route Handler GET + SWR / React Query (last resort)" [shape=box];
+  "Route Handler GET + TanStack Query (last resort)" [shape=box];
 
   "Why is this a Client Component?" -> "Server Component, await directly" [label="It isn't / shouldn't be"];
   "Why is this a Client Component?" -> "URL searchParams; page stays Server Component" [label="Filter / tab / range state"];
   "Why is this a Client Component?" -> "Promise<T> from Server Component, use() in Client leaf" [label="Genuine interactivity at the data boundary, initial data only"];
-  "Why is this a Client Component?" -> "Route Handler GET + SWR / React Query (last resort)" [label="Polling, focus refetch, or third-party mutates the data"];
+  "Why is this a Client Component?" -> "Route Handler GET + TanStack Query (last resort)" [label="Polling, focus refetch, or third-party mutates the data"];
 }
 ```
 
-**The branches are not peers.** Top to bottom: Server Component (default, ~90% of cases), URL state (most "I need filters" cases), `use()` + `<Suspense>` (rare), Route Handler + SWR (last resort, narrow scope). Reaching for the bottom branch when an upper branch fits is the most common failure mode of this skill.
+**The branches are not peers.** Top to bottom: Server Component (default, ~90% of cases), URL state (most "I need filters" cases), `use()` + `<Suspense>` (rare), Route Handler + TanStack Query (last resort, narrow scope). Reaching for the bottom branch when an upper branch fits is the most common failure mode of this skill.
 
 **Server Actions are for mutations only.**
 
@@ -88,11 +88,11 @@ If you're staring at `useState` + `useEffect` + a `"use server"` read in a Clien
 1. **Lift the read to a Server Component.** Convert the page to `async function Page({ searchParams })`, `await` the read at the top, pass data down. If the page has interactive state, ask rung 2 *before* deciding it has to stay client.
 2. **Move state to URL `searchParams`.** Tabs, filters, ranges, pagination, sort, search query — all belong in the URL. The Client leaf calls `router.replace`; the Server Component re-renders with new data. Free streaming, free cache, shareable URL, back-button works.
 3. **Pass `Promise<T>` from Server Component, consume with `use()` + `<Suspense>`.** Only when a Client Component genuinely needs server data as props at mount (charting libs, third-party widgets expecting a synchronous data shape).
-4. **`GET` Route Handler + SWR / React Query.** Reserved for: interval polling, focus revalidation, third-party mutates the data outside your app. **Not** for "I already have a Client Component and want to keep it."
+4. **`GET` Route Handler + TanStack Query** (recommended default for this rung — retries, request dedup, devtools, mutation helpers; SWR is an acceptable lighter-weight alternative for a single simple polling widget, but don't reach for a second data library once TanStack Query is already in the project). Reserved for: interval polling, focus revalidation, third-party mutates the data outside your app. **Not** for "I already have a Client Component and want to keep it."
 
 ### The lateral migration is the failure mode
 
-`useEffect` + action → `useSWR` + Route Handler in the same Client Component is the wrong refactor. It feels like progress — no more action-as-read — but:
+`useEffect` + action → `useQuery`/`useSWR` + Route Handler in the same Client Component is the wrong refactor. It feels like progress — no more action-as-read — but:
 
 - Page is still `"use client"`. No SSR, no streaming, same bad LCP.
 - You traded a sequential POST queue for a sequential `fetch`. Same waterfall.
@@ -165,17 +165,26 @@ export async function archiveCase(id: string) {
 }
 ```
 
-After the mutation, call `revalidatePath` / `revalidateTag` / `refresh` and let the Server Component re-render with fresh data. Don't return a list to refresh client state by hand.
+After the mutation, invalidate and let the Server Component re-render with fresh data. Don't return a list to refresh client state by hand.
 
-**Three variants — pick the narrowest:**
+**Variants — pick the narrowest:**
 
 - `revalidatePath('/cases')` — invalidate by route segment.
-- `revalidateTag('cases')` — invalidate by tag (when a service uses `fetch(..., { next: { tags: ['cases'] } })` or React's `cache()` with tags).
-- `refresh()` from `next/cache` — inside a Server Action, refresh the client router cache for the current route. Useful when the mutation happens on the same page.
+- `revalidateTag('cases')` — invalidate by tag (when a service uses `fetch(..., { next: { tags: ['cases'] } })`, `unstable_cache`'s `tags` option, or — under Cache Components — `cacheTag('cases')` inside a `"use cache"` function/component).
+- `refresh()` from `next/cache` — inside a Server Action, refresh the client router cache for the current route. Useful when the mutation happens on the same page. Does **not** revalidate tagged data by itself — pair it with `revalidateTag`/`updateTag` when the mutation also needs to invalidate a tag.
 
-### 4. Route Handler + SWR / React Query — last resort, narrow scope
+**`revalidateTag` signature depends on whether Cache Components (`cacheComponents: true`) is enabled** — see [Cache Components](#cache-components--use-cache-next-16-opt-in) below for the full breakdown:
+
+- **Cache Components off** (default / pre-16 caching model): `revalidateTag('cases')` — single argument, expires the tag immediately. This is what the example above uses and it's correct for projects that haven't opted into Cache Components.
+- **Cache Components on**: the single-argument form is **deprecated**. Use either:
+  - `revalidateTag('cases', 'max')` in a Server Action or Route Handler — stale-while-revalidate: the current request still gets a fast (possibly stale) response, fresh data loads in the background.
+  - `updateTag('cases')` — **Server Actions only**, immediate expiry, read-your-own-writes (the user who triggered the mutation sees the new value on the very next render, not a background refresh). Prefer this over `revalidateTag` inside Server Actions whenever the user needs to see their own change immediately (e.g. after creating or editing the record they're looking at).
+
+### 4. Route Handler + TanStack Query (recommended) / SWR — last resort, narrow scope
 
 Reach for this **only** when the data genuinely changes without user intent: interval polling, focus revalidation, third-party mutates the data outside your app. Anything else belongs in patterns 1–3.
+
+**TanStack Query is the default** for this rung — it's what the project already has if `forms` scaffolded `stack.forms = "tanstack-form"`, and it gives you retries, request dedup, devtools, and mutation helpers for free. Reach for SWR only for a genuinely trivial one-off polling widget in a project that has no other client-side query library; never install both.
 
 ```ts
 // app/api/dashboard/stats/route.ts — only because the dashboard polls every 5s
@@ -188,6 +197,23 @@ export async function GET(req: Request) {
 ```
 
 ```tsx
+// TanStack Query — recommended default
+"use client";
+import { useQuery } from "@tanstack/react-query";
+
+export function LiveStats({ range }: { range: string }) {
+  const { data } = useQuery({
+    queryKey: ["dashboard-stats", range],
+    queryFn: () =>
+      fetch(`/api/dashboard/stats?range=${range}`).then((r) => r.json()),
+    refetchInterval: 5_000,
+  });
+  return /* … */;
+}
+```
+
+```tsx
+// SWR — acceptable for a single trivial polling widget, no other client query lib in the project
 "use client";
 import useSWR from "swr";
 
@@ -200,6 +226,37 @@ export function LiveStats({ range }: { range: string }) {
 ```
 
 If your Client Component doesn't poll, doesn't refetch on focus, and isn't watching externally-mutated data — **you don't need this**.
+
+## Cache Components / `use cache` (Next 16, opt-in)
+
+Next 16 introduces **Cache Components**, the explicit opt-in caching model, enabled with `cacheComponents: true` in `next.config.ts`. Once on, nothing is cached unless you mark it with the **`"use cache"`** directive — the framework stops implicitly caching and you cache *deliberately*. This is orthogonal to the ladder above: you still default to async Server Components; `"use cache"` is for **expensive reads you want memoized across requests** (a slow aggregate query, a third-party API call, a rarely-changing config), not a replacement for RSC data fetching.
+
+```ts
+// next.config.ts
+import type { NextConfig } from "next";
+const nextConfig: NextConfig = { cacheComponents: true };
+export default nextConfig;
+```
+
+```ts
+// lib/services/case.service.ts — cache an expensive read
+export async function getCaseStats() {
+  "use cache";                 // file/function/component-level directive
+  cacheLife("hours");          // how long this stays fresh (built-in profile or custom)
+  cacheTag("cases");           // tag so a mutation can invalidate it
+  return db.select(/* expensive aggregate */);
+}
+```
+
+- **`cacheLife(profile)`** — the freshness/expiry profile (`"seconds"` | `"minutes"` | `"hours"` | `"days"` | `"max"`, or a custom profile in `next.config.ts`).
+- **`cacheTag(tag)`** — attaches a tag; a Server Action then invalidates it.
+
+**Invalidation under Cache Components** (this is why the mutation section above branches on the flag):
+
+- **`updateTag('cases')`** — Server Actions only, **immediate** expiry with read-your-own-writes. Prefer it when the user must see their own change on the next render (e.g. right after editing the record they're viewing).
+- **`revalidateTag('cases', 'max')`** — the second argument (a cache profile) is **required** here; it's stale-while-revalidate (the triggering request may still see stale data while fresh loads in the background). The **single-argument** `revalidateTag('cases')` is the pre-Cache-Components form and is **deprecated** once `cacheComponents` is on.
+
+If the project has **not** enabled `cacheComponents`, ignore this section: the single-argument `revalidatePath` / `revalidateTag` in the mutation examples above are correct as-is. `[VERIFY]` the exact `cacheLife` profile names and the `revalidateTag`/`updateTag` signatures against the installed Next version — this surface is new in 16 and still settling.
 
 ## Anti-pattern catalog — red ❌ → green ✅
 
