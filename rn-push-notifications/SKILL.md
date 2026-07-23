@@ -5,6 +5,8 @@ description: 'Use when adding push or local notifications to an Expo + RN app: r
 
 # rn-push-notifications — guardrail for push + local notifications
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 5 rules (non-negotiable)
 
 1. **`expo-notifications` is the SDK**. Don't pull `@react-native-firebase/messaging` directly — Expo wraps APNs+FCM. Bare FCM is needed only for the rare case where you ship without Expo.
