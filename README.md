@@ -1,7 +1,7 @@
 # dev-flow
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **33 skills (13 web + 15 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **37 skills (4 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 
@@ -82,7 +82,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies all 33 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies all 37 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -117,7 +117,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 33. Restart Claude Code if you don't see them in /skills.
+# Should print 37. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -136,7 +136,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 
-`install.sh` installs **all 33 skills**, not just these. Beyond the core flow above: the web discipline skills (`forms`, `data-fetching`, `state-discipline`), the agent engine (`eve-agent`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 15 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 33 skills, in detail](#the-33-skills-in-detail).
+`install.sh` installs **all 37 skills**, not just these. Beyond the core flow above: the web discipline skills (`forms`, `data-fetching`, `state-discipline`), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 37 skills, in detail](#the-37-skills-in-detail).
 
 ### 2. Create a project
 
@@ -653,14 +653,14 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
-- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 33 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
+- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 37 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 
 ---
 
-## The 33 skills, in detail
+## The 37 skills, in detail
 
-> `dev-flow`, `prd-from-idea`, and `prd-to-tasks` are **stack-agnostic** — all three stacks use them. The 13 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 15 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 4 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, and `linear-scrum` — all three stacks use them. The 10 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -822,6 +822,10 @@ The agent counterpart to `design-md-to-app` + `module-add`: where those build/gr
 
 > Voice and realtime pair naturally: `module-add voice` puts a voice surface **over** the eve agent (STT → agent → TTS — eve stays the brain, voice is I/O), and `module-add realtime` covers user-to-user realtime that the agent doesn't own. Never run two competing control loops.
 
+### `eve-registry-porting` — port components from public eve registries, tenant-safe
+
+Ports a tool, connection, or skill from a public eve/Flue agent registry (atomeve.dev, evex.sh, agentcn, eveagents.dev) into a multi-tenant eve app without adopting the registry's standalone-agent runtime model — enforcing the conformance checklist (tenant from the verified session, `companyId` in every query, per-tenant encrypted secrets, verified deps only, sensitive actions gated) that keeps third-party registry code tenant-safe.
+
 ### `forms` — one toolkit for every form (Next.js 16 App Router)
 
 **Input**: a form to scaffold or edit (edit panel, create dialog, settings page).
@@ -887,7 +891,7 @@ Derived from `lusentis/next-skills/nextjs-usestate` (MIT) — renamed `state-dis
 
 ### Mobile stack (Expo + React Native)
 
-The 15 mobile skills mirror the web stack philosophy: opinionated defaults, idempotent operations, contract-driven state. Activate by saying "mobile" / "iOS" / "Android" at the target-platform question in `prd-from-idea` — that sets `meta.json#stack.framework="expo-rn"`.
+The 16 mobile skills mirror the web stack philosophy: opinionated defaults, idempotent operations, contract-driven state. Activate by saying "mobile" / "iOS" / "Android" at the target-platform question in `prd-from-idea` — that sets `meta.json#stack.framework="expo-rn"`.
 
 **Stack opinions baked in** (Wave 1–3):
 
@@ -1138,12 +1142,12 @@ The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 # sibling cross-references, installer coverage)
 python3 scripts/lint_skills.py
 
-# Regenerate skills.json (the machine-readable registry of all 33 skills)
+# Regenerate skills.json (the machine-readable registry of all 37 skills)
 python3 scripts/build_skills_registry.py
 
 # Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
 # after editing any SKILL.md / references / scripts / assets)
-python3 scripts/build_skill_bundles.py          # all 33
+python3 scripts/build_skill_bundles.py          # all 37
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
 # Check for npm version drift in the RN/Expo stack-defaults pin set

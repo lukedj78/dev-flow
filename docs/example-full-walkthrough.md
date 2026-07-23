@@ -1,6 +1,6 @@
 # Full walkthrough — a product that exercises every skill
 
-A worked end-to-end example that touches **all 33 skills** in the family. To use them all,
+A worked end-to-end example that touches **all 37 skills** in the family. To use them all,
 the product must span **web + mobile + agent**, so this imagines a full monorepo. A real
 project usually needs only a subset (e.g. web + eve, no mobile).
 

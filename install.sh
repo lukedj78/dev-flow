@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# Install all 29 dev-flow skills (9 web + 15 mobile + 3 monorepo + 2 refactor) + a
+# Install all 37 dev-flow skills (4 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) + a
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
 # generic markdown that any agent can follow. This installer supports five
 # runtimes — pick yours with --platform.
 #
-# Stacks:
-#   * Web (Next.js + shadcn):    dev-flow, prd-from-idea, prd-to-tasks,
-#                                figma-to-design-md, image-to-design-md,
-#                                design-md-to-app, screenshot-to-page,
-#                                module-add, write-tests
-#   * Mobile (Expo + RN):         rn-fundamentals, rn-styling, rn-expo-router,
-#                                rn-bootstrap, rn-components-apis,
-#                                rn-data-fetching, rn-add-screen,
-#                                rn-write-tests, rn-animations-gestures,
-#                                rn-push-notifications, rn-backend,
-#                                rn-eas-build-submit-update,
-#                                rn-publishing-payments, rn-module-add,
-#                                rn-eas-deploy
+# Stacks (see the SKILLS array below for the authoritative, up-to-date list —
+# this is just a summary, so it won't drift when skills are added):
+#   * Core (stack-agnostic flow):        4 skills  — dev-flow, prd-from-idea,
+#                                        prd-to-tasks, linear-scrum
+#   * Web (Next.js 16 + shadcn/Base UI/MUI): 10 skills — figma-to-design-md,
+#                                        image-to-design-md, design-md-to-app,
+#                                        coss-ui, screenshot-to-page, module-add,
+#                                        write-tests, forms, data-fetching,
+#                                        state-discipline
+#   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
+#   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
+#   * Monorepo (web + mobile shared):    3 skills  — monorepo-bootstrap,
+#                                        monorepo-add-shared-package,
+#                                        monorepo-sync-types
+#   * Refactor & composition:            2 skills  — promote-component,
+#                                        composition-patterns-guide
 #
 # Usage:
 #   ./install.sh                                # defaults to claude
