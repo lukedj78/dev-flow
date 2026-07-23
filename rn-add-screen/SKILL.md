@@ -11,7 +11,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"expo-rn"`.
 - Requires `meta.json#phase ≥ "scaffolded"` (run `rn-bootstrap` first).
 - Reads `DESIGN.md` from project root for the design tokens.
-- Writes ONE new file under `<project-root>/app/...` per call. Optional: components under `<project-root>/components/`, hooks under `<project-root>/lib/queries/`.
+- Writes ONE new file under `<project-root>/app/...` per call. Optional: screen-private components under the screen's `app/<route>/_components/` (L0 — never flat `components/`), hooks under `<project-root>/lib/queries/`.
 - Sets `meta.json#phase = "page_generated"` after the first screen, then leaves it (subsequent screens are still `page_generated`).
 - Always idempotent: re-adding the same route detects the existing file and reports.
 
@@ -72,7 +72,7 @@ Write to `<project-root>/app/<route>.tsx`. The file MUST:
 
 ### Step 5 — Update related files (only if necessary)
 
-- If the screen uses a NEW shared component, write it under `<project-root>/components/`.
+- If the screen uses a NEW component, write it under the screen's `app/<route>/_components/` (L0); promote to `components/shared/<dominio>/` (L2) only per the Rule of Three (see the Folder structure rules below).
 - If the screen uses a NEW query/mutation, write the hook under `<project-root>/lib/queries/` or `lib/mutations/`.
 - If the screen is reachable from another screen, add a `<Link>` there ONLY IF the user explicitly asks.
 
