@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow — map of the 37 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, how to use & install, full index](./docs/assets/dev-flow-skill-map.png)
+![dev-flow — map of the 37 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, how to use & install, full index](./docs/assets/dev-flow-map.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
