@@ -210,6 +210,10 @@ Bubble variants map to your theme tokens (`secondary`, `muted`, `tinted`, `ghost
 `outline`, `destructive`); `ghost` = borderless flowing text (ideal for assistant turns
 paired with typeset). `align="start|end"` on both `Message` and `Bubble`.
 
+### `@shadcn/helpers` — prototype the conversation in code (shadcn, July 2026)
+
+For AI chat specifically, **`@shadcn/helpers`** ships **AI SDK** and **TanStack AI** helpers that let you write a conversation in code and run it through the `useChat` lifecycle **without a backend** — ideal for building and iterating the chat UI before the agent is wired. Pair it with the chat components above (the components render; the helpers drive the message flow). `[VERIFY]` the package name + API against the installed version. When the app is backed by an **eve** agent, keep eve as the single source of truth (see the two-brains note in `module-add/references/module-voice.md`) — use these helpers only for local prototyping, never as a second runtime.
+
 ## 2. typeset (shadcn, July 2026) — for RENDERED markdown/HTML
 
 `shadcn/typeset` is a **single CSS file that lives in your project** (no package, no

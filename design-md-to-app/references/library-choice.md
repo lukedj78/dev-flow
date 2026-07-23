@@ -47,16 +47,17 @@ Pick MUI when the DESIGN.md shows any of:
 - **Built-in component breadth matters more than visual distinctiveness**: the user wants "professional, gets out of the way" rather than "make it look unique."
 - **The user already uses MUI in adjacent projects** and wants consistency.
 
-## If shadcn: Radix vs Base UI primitives (`--base`)
+## If shadcn: which primitive base — Base UI / Radix / React Aria (`--base`)
 
-shadcn CLI v4 builds its components on **either Radix UI or Base UI** primitives. After the user picks shadcn, ask the follow-up and record it as `stack.ui_base` (`"radix"` | `"base"`). The component API and the blocks (login, sidebar, dashboard, …) are identical across both — only the underlying primitive library changes, and `shadcn add` pulls the matching variant.
+shadcn CLI v4 builds its components on **Base UI, Radix, or React Aria** primitives. After the user picks shadcn, ask the follow-up and record it as `stack.ui_base` (`"base"` | `"radix"` | `"aria"`). The component API and the blocks (login, sidebar, dashboard, …) are identical across all — only the underlying primitive library changes, and `shadcn add` pulls the matching variant.
 
-- **Radix** (default): broadest component coverage today, the long-standing shadcn base. Pick it unless there's a reason not to.
-- **Base UI**: the MUI team's headless primitives — best-in-class a11y, and the natural choice when **migrating from MUI** or when accessibility rigor is a hard requirement. Some niche primitives may lag Radix; check coverage for anything exotic in the DESIGN.md.
+- **Base UI** (default since 2026-07): shadcn's default for new projects — the MUI team's headless primitives, best-in-class a11y, full component + block coverage. Pick it unless there's a reason not to.
+- **Radix**: the long-standing shadcn base, still fully supported. Pick it for existing Radix-specific code/presets or a preference for its ecosystem.
+- **React Aria** (`--base aria`, first-class since 2026-07): Adobe's a11y-first primitives. Pick it when standardizing on React Aria / Adobe interaction patterns.
 
 How to phrase it:
 
-> Hai scelto shadcn. Lo costruiamo su **Radix** (default, copertura più ampia) o su **Base UI** (a11y del team MUI, ideale se vieni da MUI)? I componenti e i blocchi sono identici nei due casi.
+> Hai scelto shadcn. Lo costruiamo su **Base UI** (default, a11y del team MUI), **Radix** (la base storica) o **React Aria** (primitivi a11y-first di Adobe)? I componenti e i blocchi sono identici nei tre casi.
 
 ### Don't confuse the two "Base UI" options
 

@@ -1,9 +1,12 @@
-# Vercel changelog watch
+# Ecosystem changelog watch — Vercel · shadcn/ui
 
-eve is in **beta** and Vercel ships to the changelog frequently. This file tracks changelog
-items that affect our skills, so the skills stay current. It is a living watchlist —
-periodically fetch <https://vercel.com/changelog>, add new relevant rows here, and apply the
-change to the affected skill.
+Two fast-moving upstreams underpin dev-flow: **Vercel/eve** (eve is in beta, ships to the
+changelog frequently) and **shadcn/ui** (the web UI layer, also releasing constantly). This
+file tracks changelog items from both that affect our skills, so the skills stay current. It
+is a living watchlist — periodically fetch each changelog, add new relevant rows below, and
+apply the change to the affected skill.
+
+## Vercel / eve
 
 ## Skills that track Vercel (check these when a relevant item ships)
 
@@ -36,3 +39,23 @@ change to the affected skill.
 | 2026-07-21 | Vercel MCP supports purchases; Python bytecode bundles | — | ⏭️ not relevant to our skills |
 
 > Convention: `[VERIFY]` any eve/AI-SDK identifier added from a changelog against `node_modules/eve/docs/` or the installed `@ai-sdk/*` before relying on it — beta surfaces move between the changelog announcement and the shipped API.
+
+---
+
+## shadcn/ui (<https://ui.shadcn.com/docs/changelog>)
+
+**Skills that track shadcn:** `design-md-to-app` (+ `references/shadcn-mapping.md`, `library-choice.md`, `base-ui-mapping.md`, `chat-and-typeset.md`), `coss-ui` (rides the shadcn CLI + `@coss/*` registry), `screenshot-to-page`, `module-add`, `forms`, `dev-flow` (shadcn create params + `stack.ui_base`), the `.workflow` contract (`ui_base` enum/default).
+
+**Last pass: 2026-07-23.**
+
+| Date | Changelog item | Relevant to | Status |
+|---|---|---|---|
+| 2026-07 | **Base UI is now the default** for new shadcn projects (`npx shadcn init` → Base UI; Radix still supported, not deprecated) | contract, `dev-flow`, `design-md-to-app`, `library-choice.md` | ✅ applied — flipped `stack.ui_base` default `radix` → `base` everywhere |
+| 2026-07 | **React Aria first-class base** (`--base aria`) | same | ✅ applied — added `aria` to the `ui_base` enum + guidance |
+| 2026-07 | **Toast** — first-party Toast for Base UI (actions, status types, promises, stacking, swipe-dismiss) | `design-md-to-app`, `base-ui-mapping.md` | ✅ applied — primitive table now points to the native Toast (`sonner` still noted for Radix) |
+| 2026-07 | **shadcn/typeset** — CSS typography system for rendered markdown | `chat-and-typeset.md` | ✅ already covered (§2) |
+| 2026-07 | **`@shadcn/helpers`** — AI SDK + TanStack AI helpers for `useChat` prototyping without a backend | `chat-and-typeset.md` | ✅ applied — note added |
+| 2026-06 | Chat interface components · GitHub registries | `chat-and-typeset.md`, namespaced registries | ✅ chat covered; `@coss/*` uses the namespaced-registry mechanism |
+| 2026-03→05 | `shadcn preset` / `apply` / `eject`, registry include+validate, CLI v4 | `dev-flow` / `design-md-to-app` | ✅ CLI v4 + preset (`stack.shadcn_preset`) covered; `eject`/`apply` not needed by our flow |
+
+> Convention: `[VERIFY]` any shadcn CLI flag / component / package added from the changelog against the installed shadcn version and <https://ui.shadcn.com/docs> before relying on it — the CLI surface moves fast.

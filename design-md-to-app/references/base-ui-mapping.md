@@ -158,7 +158,7 @@ Base UI ships these primitives. Map each DESIGN.md component to one:
 | Menu | `Menu.Root` / `ContextMenu.Root` | |
 | Number input | `NumberField.Root` | |
 | Form / field validation | `Form.Root` + `Form.Field` | optional Zod / RHF on top |
-| Toast | (use a third-party like `sonner` — Base UI doesn't ship one) | |
+| Toast | `Toast` — shadcn's **first-party Toast for Base UI** (since 2026-07: actions, status types, promises, stacking, swipe-dismiss). `sonner` still works if you prefer it. | `pnpm dlx shadcn@latest add toast` |
 | Calendar / date picker | (not yet in Base UI as of 2026-05 — fall back to `react-day-picker`) | |
 | Toggle group | `ToggleGroup.Root` | |
 | Avatar | (compose with `<img>` + fallback — no primitive) | |

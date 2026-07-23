@@ -144,7 +144,7 @@ shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the 
 
 | Parameter | Stack key | Ask? | Values / default |
 |---|---|---|---|
-| **Primitive base** | `ui_base` | **ASK** | `radix` (default) \| `base` (Base UI). The Radix-vs-Base-UI choice — DESIGN.md does NOT override it. |
+| **Primitive base** | `ui_base` | **ASK** | `base` (default — Base UI, shadcn's default since 2026-07) \| `radix` \| `aria` (React Aria). DESIGN.md does NOT override it. |
 | Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler |
 | RTL | `rtl` | **ASK only if i18n/RTL relevant** | `false` (default) |
 | Template / framework | (uses `stack.framework`) | already chosen | next \| vite \| start \| react-router \| laravel \| astro |
@@ -153,7 +153,7 @@ shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the 
 | CSS variables | `css_variables` | **don't ask** | stays `true` (required for token theming) |
 | Monorepo | (uses `stack.framework="monorepo"`) | already chosen | — |
 
-So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Radix o Base UI?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
+So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Base UI (default), Radix o React Aria?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
 
 Just before scaffolding, `design-md-to-app` prints a **recap of the full resolved shadcn create config and asks for confirmation** (its Step 4 confirmation gate) — including the values derived from DESIGN.md — so nothing is scaffolded on assumed config.
 
