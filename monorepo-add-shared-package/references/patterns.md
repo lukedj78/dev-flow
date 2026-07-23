@@ -12,6 +12,8 @@ You should create a new package, not just add to an existing one, when:
 | Need design tokens / Tailwind presets | `@<slug>/design` (exists by default) |
 | Need backend client + query helpers | `@<slug>/api` (exists by default, populated by module-add) |
 | Cross-platform UI components (rare, Tamagui) | `@<slug>/ui` |
+
+> **Naming collision to be aware of**: `monorepo-bootstrap` also uses the name `packages/ui` (`@workspace/ui`), but for a *different* meaning — its shadcn-monorepo layout for **web-centric** topologies (web-only or web+agent, no NativeWind side), where `packages/ui` holds the actual shadcn primitives + `src/styles/globals.css` tokens, not a cross-platform Tamagui package. If the project already went through `monorepo-bootstrap` with that topology, `packages/ui` is already shadcn's official layout — don't reinterpret or re-scaffold it as the rare Tamagui case described here. See `monorepo-bootstrap/references/decision-tree.md` → "The `packages/ui` rule" for which convention applies.
 | Shared ESLint/Prettier configs | `@<slug>/config-eslint` |
 | Shared TypeScript configs beyond base | `@<slug>/config-tsconfig` |
 | Domain-specific business logic | `@<slug>/<domain>` (e.g. `@<slug>/billing`, `@<slug>/analytics`) |
