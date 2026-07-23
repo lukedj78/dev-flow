@@ -5,6 +5,8 @@ description: 'Use when preparing an Expo + RN app for store submission (metadata
 
 # rn-publishing-payments — guardrail for store publishing + payments
 
+> For the current Expo API and per-version details, verify against the Expo docs / MCP `mcp.expo.dev` / `expo/skills` (see rn-fundamentals → Source of truth).
+
 ## The 5 rules (non-negotiable)
 
 1. **Apple's 30% rule**: ANY digital good/service consumed inside the app MUST go through IAP (subscriptions, premium tiers, in-app currency, unlock-feature one-shots) — **unless** an allowed external-purchase path applies (notably the US external-link rule since May 2025; see `references/decision-tree.md` Q2). Bypassing IAP *without* an allowed path = rejection under guideline 3.1.1.
