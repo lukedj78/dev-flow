@@ -11,7 +11,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"expo-rn"`.
 - Requires `meta.json#phase ≥ "scaffolded"` (run `rn-bootstrap` first).
 - Reads `DESIGN.md` from project root for the design tokens.
-- Writes ONE new file under `<project-root>/app/...` per call. Optional: screen-private components under the screen's `app/<route>/_components/` (L0 — never flat `components/`), hooks under `<project-root>/lib/queries/`.
+- Writes ONE new file under `<project-root>/app/...` per call — **routes only**: Expo Router treats every file under `app/` as a route, so nothing else may live there. Optional: screen-private components under `<project-root>/components/<feature>/` (L0, OUTSIDE `app/` — see Folder structure rules below), hooks under `<project-root>/lib/queries/`.
 - Sets `meta.json#phase = "page_generated"` after the first screen, then leaves it (subsequent screens are still `page_generated`).
 - Always idempotent: re-adding the same route detects the existing file and reports.
 
@@ -72,7 +72,7 @@ Write to `<project-root>/app/<route>.tsx`. The file MUST:
 
 ### Step 5 — Update related files (only if necessary)
 
-- If the screen uses a NEW component, write it under the screen's `app/<route>/_components/` (L0); promote to `components/shared/<dominio>/` (L2) only per the Rule of Three (see the Folder structure rules below).
+- If the screen uses a NEW component, write it under `components/<feature>/` (L0, e.g. `components/posts/PostCard.tsx` for a `/posts` route) — NEVER under `app/<route>/_components/` (Expo Router has no private-folder convention; every file under `app/` becomes a route — see the Folder structure rules below). Promote to `components/shared/<dominio>/` (L2) only per the Rule of Three.
 - If the screen uses a NEW query/mutation, write the hook under `<project-root>/lib/queries/` or `lib/mutations/`.
 - If the screen is reachable from another screen, add a `<Link>` there ONLY IF the user explicitly asks.
 
@@ -115,14 +115,27 @@ python3 .../dev-flow/scripts/update_meta.py <project-root> append-history \
 
 The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.g. `module-added` → `module_added`), and writes the canonical sha256 + timestamp into `meta.json#artifacts`. **Fall back to direct JSON editing only if the script is not on PATH** (and warn the user).
 
-## Folder structure rules (canonical)
+## Folder structure rules (canonical — Expo Router hybrid)
 
-When generating a new screen + its components, respect the canonical structure (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`):
+**Non-negotiable Expo Router constraint**: `app/` is **file-based routing only**. Unlike Next.js App Router, Expo Router has no convention for "private", non-routable folders — there is no `_`-prefix skip rule. Every `.tsx`/`.ts` file placed under `app/` (aside from a few reserved names like `_layout.tsx`, `+not-found.tsx`) is registered as a real route. Putting a component at `app/<route>/_components/PostCard.tsx` creates a ghost route at that path, not a private folder.
 
-- **Default**: components for the new screen go in `app/<route>/_components/<Name>.tsx` (L0 page-private).
-- **Route group detection**: if scaffolding under `app/(app)/(tabs)/feed/`, components live in `app/(app)/(tabs)/feed/_components/`.
-- **Never flat `components/`**: never put a new screen-specific component directly in `components/`.
-- **Promotion via `promote-component`**: when the same component pattern appears 3+ times, call the dedicated skill to lift to L1 or L2 with import rewriting.
+**[VERIFY]** this against the `expo-router` version actually installed in the project before relying on it: there's an open upstream feature request for an underscore-skip convention (matching Next.js). If it ships, this rule may relax — until then, assume no private folders exist inside `app/`.
+
+Given that constraint, the rule for this skill is:
+
+- **`app/` = routes only.** No components, no hooks, no utils — ever.
+- **Components go OUTSIDE `app/`, in `components/<feature>/<Component>.tsx`** (kebab-case feature folder named after the screen/domain, e.g. `components/posts/PostCard.tsx`; complex/compound components get their own subfolder). This is the mobile equivalent of what `_components/` does on web.
+- No `src/` prefix: keep `app/`, `components/`, `lib/` at the project root — consistent with `rn-bootstrap`'s scaffold and the default `create-expo-app` templates (which don't use `src/`).
+- The **model** (Rule of Three, L0 → L1 → L2 promotion ladder) is unchanged from the general dev-flow contract — only the mobile **target paths** differ from the web ones documented in `references/contracts.md`:
+
+  | Level | Web target (`_components/` valid) | Mobile target (this skill) |
+  |---|---|---|
+  | L0 (page-private) | `app/<route>/_components/<Component>.tsx` | `components/<feature>/<Component>.tsx` |
+  | L1 (route-group shared) | `app/(group)/_components/<Component>.tsx` | `components/<feature>/<Component>.tsx` (same physical folder as L0 — Expo has no route-group-scoped component folder; the 2nd use is a tolerated duplicate copy inside the second feature's folder) |
+  | L2 (globally shared) | `components/shared/<dominio>/<Component>.tsx` | `components/shared/<dominio>/<Component>.tsx` (same as web) |
+
+- **Never** `app/<route>/_components/` on mobile. A previous revision of this skill pointed there by mistake (copied from the Next.js convention) — that guidance is corrected here.
+- **Promotion via `promote-component`**: when the same component pattern appears 3+ times (i.e., copies exist across 3+ `components/<feature>/` folders), call the dedicated skill to lift to L2 with import rewriting.
 - **`components/shared/<dominio>/`** for L2: domain-based naming only (no "shared", "common", "misc").
 
 ## Sources

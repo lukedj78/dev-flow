@@ -253,10 +253,10 @@ Then any screen at `app/(app)/...` is protected. The screen file itself contains
 
 ## When you need to pull out a component
 
-If the screen has > ~120 lines or contains a sub-piece that would be reused, extract to the route's page-private folder — never to a flat `components/` (see SKILL.md "Folder structure rules"):
+If the screen has > ~120 lines or contains a sub-piece that would be reused, extract to `components/<feature>/` (L0) — NEVER into `app/`, since Expo Router has no private-folder convention there (every file under `app/` is a route; see SKILL.md "Folder structure rules"):
 
 ```
-app/posts/_components/
+components/posts/
 ├── PostCard.tsx
 ├── EmptyState.tsx
 └── LoadingScreen.tsx
