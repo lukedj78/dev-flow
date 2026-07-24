@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-23T20:48:51Z",
+  "generated_at": "2026-07-24T08:44:28Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 37,
   "families": {
@@ -439,7 +439,7 @@
       "skill_file": "eve-registry-porting/SKILL.md",
       "references": [],
       "scripts": [],
-      "skill_md_lines": 128,
+      "skill_md_lines": 139,
       "bundle": "dist/eve-registry-porting.skill"
     },
     {

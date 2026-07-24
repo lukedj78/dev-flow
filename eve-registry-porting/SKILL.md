@@ -32,6 +32,17 @@ on a cron or from Slack), which is the **opposite** of a multi-tenant app where
 So the rule is: **port the components (tool / connection / skill), never the
 agent-as-a-runtime**, and rewrite each one to be tenant-safe.
 
+## Where porting sits — the sourcing priority
+
+Porting is **third choice**, not first. Before vendoring third-party source, prefer a maintained option higher up the list:
+
+1. **eve's official integrations** — <https://eve.dev/integrations> (50+ MCP/OpenAPI connections, 11+ channels, official extensions). If the service is there, wire the connection/channel and stop — don't port. (`eve-agent` → Connection / Channel.)
+2. **An extension package** — a versioned npm bundle you install and `pnpm up` (`agent/extensions/<name>.ts`). (`eve-agent` → Extension.)
+3. **Port / vendor from a public registry** — *this skill*. Use it when there's **no** official integration or maintained package **and** you need to own/modify the source. You take on tenant-hardening **and** maintenance by hand.
+4. **Hand-write** from scratch — when nothing exists to borrow (`eve-agent` boilerplate).
+
+Go down a rung only when the one above has nothing. Porting trades "no dependency, full control" for "you tenant-harden and maintain it forever" — worth it for the code mine, not as a default.
+
 ## The registries
 
 | Registry | URL | Install (per registry — verify) |

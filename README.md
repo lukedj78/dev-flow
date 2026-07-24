@@ -828,7 +828,7 @@ The agent counterpart to `design-md-to-app` + `module-add`: where those build/gr
 
 ### `eve-registry-porting` — port components from public eve registries, tenant-safe
 
-Ports a tool, connection, or skill from a public eve/Flue agent registry (atomeve.dev, evex.sh, agentcn, eveagents.dev) into a multi-tenant eve app without adopting the registry's standalone-agent runtime model — enforcing the conformance checklist (tenant from the verified session, `companyId` in every query, per-tenant encrypted secrets, verified deps only, sensitive actions gated) that keeps third-party registry code tenant-safe.
+Ports a tool, connection, or skill from a public eve/Flue agent registry (atomeve.dev, evex.sh, agentcn, eveagents.dev) into a multi-tenant eve app without adopting the registry's standalone-agent runtime model — enforcing the conformance checklist (tenant from the verified session, `companyId` in every query, per-tenant encrypted secrets, verified deps only, sensitive actions gated) that keeps third-party registry code tenant-safe. It's the **third** sourcing choice — after eve's official [integrations](https://eve.dev/integrations) and extension packages, before hand-writing — for source you need to own/modify that has no maintained package.
 
 ### `forms` — one toolkit for every form (Next.js 16 App Router)
 
