@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove all 37 dev-flow skills (4 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
+# Remove all 38 dev-flow skills (5 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
 # runtime's skills directory. Restores `*.bak` backups created by install.sh,
 # if present.
 #
@@ -37,6 +37,7 @@ SKILLS=(
   prd-from-idea
   prd-to-tasks
   linear-scrum
+  compliance-audit
 
   # Web stack
   figma-to-design-md

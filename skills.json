@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-24T08:44:28Z",
+  "generated_at": "2026-07-24T16:09:58Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 37,
+  "skill_count": 38,
   "families": {
     "core": [
       "dev-flow",
@@ -10,6 +10,7 @@
       "prd-to-tasks"
     ],
     "web": [
+      "compliance-audit",
       "composition-patterns-guide",
       "coss-ui",
       "data-fetching",
@@ -66,7 +67,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 228,
+      "skill_md_lines": 230,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -336,6 +337,23 @@
       "scripts": [],
       "skill_md_lines": 118,
       "bundle": "dist/rn-write-tests.skill"
+    },
+    {
+      "name": "compliance-audit",
+      "family": "web",
+      "role": "operative",
+      "description": "Run a GDPR + EU AI Act compliance audit on an EXISTING dev-flow project (web / mobile / eve agent) and remediate the risks it finds. Two modes: Audit (scan the codebase + `meta.json#stack` against a 10-point risk register — DSAR export/erasure, consent/cookies, EU data residency & transfers, retenti...",
+      "skill_file": "compliance-audit/SKILL.md",
+      "references": [
+        "contracts.md",
+        "gdpr-ai-act-checklist.md"
+      ],
+      "scripts": [
+        "scan.py",
+        "test_scan.py"
+      ],
+      "skill_md_lines": 95,
+      "bundle": "dist/compliance-audit.skill"
     },
     {
       "name": "composition-patterns-guide",

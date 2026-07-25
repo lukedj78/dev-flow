@@ -1,6 +1,6 @@
 # Full walkthrough — a product that exercises every skill
 
-A worked end-to-end example that touches **all 37 skills** in the family. To use them all,
+A worked end-to-end example that touches **all 38 skills** in the family. To use them all,
 the product must span **web + mobile + agent**, so this imagines a full monorepo. A real
 project usually needs only a subset (e.g. web + eve, no mobile).
 
@@ -86,7 +86,17 @@ Stripe/Linear, an **eval** for each, an audit **hook**, a daily-digest **schedul
 | `module-add voice` | voice mode **over the agent** (STT → eve → TTS) |
 | `module-add realtime` | team presence/typing via Vercel WebSockets |
 
-## Phase 8 — deploy
+## Phase 8 — compliance gate (pre-deploy)
+
+At `feature_complete`, before shipping, dev-flow proposes **`compliance-audit`**. Helmsman has
+user accounts (DSAR + Apple/Play deletion), an **eve agent** (AI-transparency Art. 50, memory
+residency), and US-default infra — so it flags R1/R3/R5 and auto-applies the safe fixes (DSAR
+export/erasure endpoints, a cookie-consent banner, the AI disclosure in the agent + chat header,
+a sub-processor register from `meta.json#stack`), leaving the EU-region and legal-basis calls as
+`TODO(compliance)`. It writes `docs/compliance/audit-report.md`, records `meta.json#compliance`,
+and does **not** block deploy — the user decides.
+
+## Phase 9 — deploy
 
 `apps/web` → Vercel · `apps/agent` → `eve deploy` · `apps/mobile` → EAS.
 
