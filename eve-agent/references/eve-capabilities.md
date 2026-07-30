@@ -5,6 +5,40 @@ Add exactly ONE capability per invocation, idempotently. Read the matching secti
 `eve-conventions.md` for the import map, identity-by-path, durability/idempotency, and
 security rules that apply to all of these.
 
+## Install from the registry FIRST — `eve add` / `eve registry` ([VERIFY])
+
+Before hand-authoring any capability below, check whether the ecosystem already ships it — the
+same ecosystem-first rule as everywhere in dev-flow, now with a **first-class CLI** (source: eve.dev/docs/install-integrations). An **integration** is the umbrella term: it writes files
+straight into your project and can add *anything an agent uses* — a single tool, a channel, a
+connection, or a whole extension (an extension is one *kind* of integration).
+
+```bash
+# Discover (official eve catalog + any configured third-party sources)
+eve registry list                       # all available integrations
+eve registry search browser             # find a capability
+eve registry view extension/agent-browser   # inspect before installing
+
+# Install (kind/name, or a direct registry URL)
+eve add extension/agent-browser
+eve add channel/slack
+eve add connection/linear
+eve add instrumentation/braintrust
+eve add https://registry.acme.com/r/analytics.json
+#   flags: --skip-install (defer dep install)   --overwrite (replace existing files)
+
+# Third-party registries (shadcn registry format; stored in package.json#registries)
+eve registry add @acme=https://registry.acme.com/r/{name}.json
+```
+
+Where files land: **extensions** → a mount under `agent/extensions/`; **connections** →
+`agent/connections/` (+ installs `@vercel/connect` when required); **instrumentation** →
+`agent/instrumentation.ts` (agents have **one** instrumentation file — compose multiple
+exporters by hand). After any install: **review the generated files and add required config
+(env vars, Connect provisioning) before running the agent.** The full catalog is the
+integrations directory (<https://eve.dev/integrations>). Only fall through to hand-authoring the
+sections below when nothing in the registry fits (or you must own/modify the source — then see
+`eve-registry-porting`). `[VERIFY]` command syntax against `node_modules/eve/docs/`.
+
 ## Tool — `agent/tools/<name>.ts`
 
 The most common operation, and the most loop-friendly. The filename slug becomes the tool
@@ -71,10 +105,12 @@ the request matches the skill's description (or the user names it). Three shapes
 description as a **task trigger, not a label**. Skills are per-agent scoped — a subagent's
 skills are invisible to the root.
 
-## Channel — `eve channels add web|slack`
+## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Run `eve channels add <kind>` (kinds: `web`, `slack`, `discord`, `github`,
-`linear`, `teams`, `telegram`, `twilio`); `eve channels list` shows user-authored channels.
+A new entrypoint. Install from the registry: `eve add channel/<kind>` (kinds: `web`, `slack`,
+`discord`, `github`, `linear`, `teams`, `telegram`, `twilio`) — or the older `eve channels add
+<kind>` form ([VERIFY] which your installed CLI uses); `eve channels list` shows user-authored
+channels.
 The file stem is the channel id and the channel is the module's **default export**
 (`defineChannel` from `eve/channels` for custom ones). The default HTTP channel
 (`agent/channels/eve.ts`) already exists from scaffold — only add a channel for another
@@ -103,6 +139,12 @@ that appears in Slack but never replies is almost always missing one of the two;
 path must be `/eve/v1/slack`, not Connect's default `/slack`; re-running `create` installs a
 duplicate Slack app. Slack delivers over the public internet, so it cannot be tested on
 localhost — deploy first, then smoke-test with `eve dev <url>`.
+
+**Slack event hooks + session controls** ([VERIFY] against installed docs) — configured on the
+`slackChannel({ … })` options in `agent/channels/slack.ts`:
+- **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention), `ctx.isSubscribed()` (the thread already owns an active eve session), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
+- **`onEvent(ctx)`** — react to raw Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). Inside it, **`ctx.receive(...)`** starts an agent turn and can **fan one event out to multiple targets** (e.g. greet every new member).
+- **Session controls** (thread-bound, callable from the hooks): **`ctx.cancel({ reason })`** stops the current turn but **keeps the session** — for mid-turn corrections; new input queues onto the same session. **`ctx.reset({ reason })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
 
 A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
 `module-add voice` stub) should treat the agent as the brain and voice as an I/O channel
@@ -280,7 +322,7 @@ Braintrust), and every `eve eval` flag + exit code — is in **`references/eve-e
 
 An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; `[VERIFY]` every identifier below against `node_modules/eve/docs/` — this surface is new.)
 
-**Consume an installed extension** (the common case) — add ONE file under `agent/extensions/`:
+**Consume an installed extension** (the common case) — `eve add extension/<name>` (from the registry — see the "Install from the registry FIRST" section at the top; it writes the mount + installs the package), or add the ONE file under `agent/extensions/` by hand:
 
 ```ts
 // agent/extensions/crm.ts

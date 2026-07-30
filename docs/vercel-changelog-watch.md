@@ -25,12 +25,14 @@ apply the change to the affected skill.
 3. For relevant items, edit the affected skill (mark new/unstable API `[VERIFY]` against the installed docs — eve is beta), and add a row to the log below with status `applied`.
 4. Update the "Last pass" date. For anything ambiguous or out of scope, ask the user.
 
-**Last pass: 2026-07-30** (entries through 2026-07-30). Previous: 2026-07-23 (through 2026-07-22).
+**Last pass: 2026-07-30** (entries through 2026-07-30, + two user-flagged eve items). Previous: 2026-07-23 (through 2026-07-22).
 
 ## Log
 
 | Date | Changelog item | Relevant to | Status |
 |---|---|---|---|
+| 2026-07-30 | **Discover & install eve integrations from the CLI** — `eve add <kind>/<name>` (extension/channel/connection/instrumentation) + `eve registry list/search/view`, third-party sources via `eve registry add @name=<url>` (shadcn-registry format, `package.json#registries`), flags `--skip-install`/`--overwrite` ([install-integrations docs](https://eve.dev/docs/install-integrations)) | `eve-agent`, `eve-registry-porting` | ✅ **applied** — new **§Install from the registry FIRST** in `eve-capabilities.md`, ecosystem-first CLI in `SKILL.md`, Channel/Extension sections reconciled to `eve add`; `eve-registry-porting` sourcing priority reframed (shadcn-format registries → `eve registry add`+`eve add` install, above porting); docs-coverage row added. `[VERIFY]` CLI syntax against installed docs. |
+| 2026-07-30 | **eve adds Slack event hooks + session controls** — `onMessage` (`ctx.isBotMentioned()`/`isSubscribed()`/`thread.listParticipants()`), `onEvent` (raw Events API: `reaction_added`/`team_join`/… + `ctx.receive()` fan-out), session controls `ctx.cancel({reason})` (keep session) / `ctx.reset({reason})` (retire session) in `agent/channels/slack.ts` | `eve-agent` | ✅ **applied** — Slack section of `eve-capabilities.md` now documents both hooks + the two session controls; docs-coverage channels/slack row updated. `[VERIFY]` identifiers against installed docs. |
 | 2026-07-30 | **Run multiple isolated agents in a single Sandbox** — `@vercel/sandbox` SDK gains multiple Linux users/groups | `eve-agent` (watch) | ⏭️ **watch, not applied** — a platform primitive *beneath* eve's documented "exactly one sandbox per agent" model; **no eve-facing API**. Don't imply a capability eve doesn't expose. Revisit if eve ships per-tenant sandbox multiplexing (would matter to multi-tenant eve apps like EVE Hospitality). |
 | 2026-07-30 | **Turborepo + Vercel Remote Cache support OIDC** — OIDC policies for CI/CD to reach Remote Cache | `monorepo-bootstrap` (watch) | ⏭️ **not applied** — our scaffolder doesn't set up Remote Cache; OIDC is an auth detail on a feature we don't wire. Out of scope for a bootstrap. Optional future: a "enable Remote Cache" post-bootstrap note. |
 | 2026-07-30 | **mcp-handler 2.0** — latest (stateless) MCP spec, no Redis required | — (watch) | ⏭️ **not applied** — builds MCP *servers*; no skill scaffolds one. eve *consumes* MCP via `connections` (opposite direction). Revisit only if we add an "expose app/agent as MCP" skill. |

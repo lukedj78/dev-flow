@@ -35,7 +35,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | Page | Covered in | |
 |---|---|---|
 | `/docs/connections` · `/mcp` · `/openapi` | `eve-capabilities.md` §Connection (`defineMcpClientConnection` / `defineOpenAPIConnection`) | ✅ |
-| `/docs/channels/overview` · `/eve` · `/slack` · `/discord` · `/github` · `/linear` · `/teams` · `/telegram` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect) | ✅ |
+| `/docs/channels/overview` · `/eve` · `/slack` · `/discord` · `/github` · `/linear` · `/teams` · `/telegram` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
 | `/docs/channels/custom` | `eve-capabilities.md` §Channel (`defineChannel`) | ↪ |
 | `/docs/channels/chat-sdk` | `eve-capabilities.md` §Channel — Vercel Chat SDK adapter for Slack/Discord/Telegram/WhatsApp/email | ↪ |
 
@@ -75,6 +75,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/reference/cli` | `eve-scaffold.md` §CLI quick reference + `eve-evals.md` (`eve eval` flags) | ↪ |
 | `/docs/reference/project-layout` | `eve-scaffold.md` + `SKILL.md` layout | ✅ |
 | `/integrations` (directory) | `eve-capabilities.md` §Connection/Channel/Extension + `SKILL.md` (ecosystem-first) — adopt prebuilt connections/channels/extensions before hand-rolling | ✅ |
+| `/docs/install-integrations` | `eve-capabilities.md` §Install from the registry FIRST (`eve add` / `eve registry list/search/view/add`, third-party shadcn-format sources) + `SKILL.md` ecosystem-first + `eve-registry-porting` sourcing priority | ✅ |
 | `/docs/reference/typescript-api` | read the installed `.d.ts` / `node_modules/eve/docs/` — never mirror types | ⛔ |
 | `/docs/tutorial/*` (9-part series) | a learning tutorial, not API surface — this skill encodes the workflow, not tutorials | ⛔ |
 

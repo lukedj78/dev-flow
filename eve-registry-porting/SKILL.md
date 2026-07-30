@@ -36,12 +36,13 @@ agent-as-a-runtime**, and rewrite each one to be tenant-safe.
 
 Porting is **third choice**, not first. Before vendoring third-party source, prefer a maintained option higher up the list:
 
-1. **eve's official integrations** — <https://eve.dev/integrations> (50+ MCP/OpenAPI connections, 11+ channels, official extensions). If the service is there, wire the connection/channel and stop — don't port. (`eve-agent` → Connection / Channel.)
-2. **An extension package** — a versioned npm bundle you install and `pnpm up` (`agent/extensions/<name>.ts`). (`eve-agent` → Extension.)
-3. **Port / vendor from a public registry** — *this skill*. Use it when there's **no** official integration or maintained package **and** you need to own/modify the source. You take on tenant-hardening **and** maintenance by hand.
-4. **Hand-write** from scratch — when nothing exists to borrow (`eve-agent` boilerplate).
+1. **eve's official integrations** — discover + install from the CLI: **`eve registry search <cap>`** → **`eve add <kind>/<name>`** (catalog at <https://eve.dev/integrations> — 50+ MCP/OpenAPI connections, 11+ channels, official extensions). If the service is there, install and stop — don't port. (`eve-agent` → §Install from the registry FIRST / Connection / Channel.)
+2. **Install a third-party registry as a source** — the community registries below are **shadcn-registry format**, so you can register one as an eve source (**`eve registry add @name=https://…/r/{name}.json`**, stored in `package.json#registries`) and pull with **`eve add @name/<slug>`**. That's an *install* (files written, dep tracked) — prefer it over porting whenever you **don't** need to own/modify the source. `[VERIFY]` each registry actually serves the shadcn JSON shape.
+3. **An extension package** — a versioned npm bundle you install and `pnpm up` (`agent/extensions/<name>.ts`). (`eve-agent` → Extension.)
+4. **Port / vendor from a public registry** — *this skill*. Use it when the source **isn't** installable as above (not registry-served) **or** you need to own/modify it. You take on tenant-hardening **and** maintenance by hand.
+5. **Hand-write** from scratch — when nothing exists to borrow (`eve-agent` boilerplate).
 
-Go down a rung only when the one above has nothing. Porting trades "no dependency, full control" for "you tenant-harden and maintain it forever" — worth it for the code mine, not as a default.
+Go down a rung only when the one above has nothing. Porting trades "no dependency, full control" for "you tenant-harden and maintain it forever" — worth it for the code mine or a source you must modify, not as a default now that `eve registry add` + `eve add` can install directly from shadcn-format registries.
 
 ## The registries
 
