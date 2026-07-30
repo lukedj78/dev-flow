@@ -665,7 +665,7 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 
 ## The 39 skills, in detail
 
-> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 10 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 11 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
