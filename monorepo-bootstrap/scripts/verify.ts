@@ -58,14 +58,21 @@ const checks: Check[] = [
   { name: "apps/web: directory exists", run: () => dirExists("apps/web") },
   { name: "apps/web: package.json exists", run: () => fileExists("apps/web/package.json") },
   {
-    name: "apps/web: tailwind.config.{js,ts} references design preset",
+    name: "apps/web: design tokens wired (v4 @import theme.css OR v3 preset)",
     run: () => {
       if (!slug) return false;
+      // Tailwind v3 fallback: JS config references the design preset.
       for (const ext of ["js", "ts"]) {
         const p = path.join(projectRoot, `apps/web/tailwind.config.${ext}`);
-        if (fs.existsSync(p)) {
-          const text = fs.readFileSync(p, "utf8");
-          return text.includes(`@${slug}/design/tailwind`);
+        if (fs.existsSync(p) && fs.readFileSync(p, "utf8").includes(`@${slug}/design/tailwind`)) {
+          return true;
+        }
+      }
+      // Tailwind v4 (default on create-next-app@16): globals.css imports the shared @theme.
+      for (const g of ["apps/web/app/globals.css", "apps/web/src/app/globals.css"]) {
+        const p = path.join(projectRoot, g);
+        if (fs.existsSync(p) && fs.readFileSync(p, "utf8").includes(`@${slug}/design/theme.css`)) {
+          return true;
         }
       }
       return false;

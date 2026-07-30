@@ -1,4 +1,4 @@
-> Sources: Reanimated 4 docs, Gesture Handler 2 docs, internal opinion.
+> Sources: Reanimated 4 docs, Gesture Handler 3 docs, internal opinion.
 
 # Decision tree — animations + gestures
 
@@ -9,7 +9,7 @@ What does the animation do?
 ├── Per-frame value (drag, scroll-linked, gesture)         → Worklets, MANDATORY
 │                                                            (useSharedValue + useAnimatedStyle)
 ├── Enter / exit / layout shift                             → Reanimated Layout animations
-│                                                            (FadeIn / FadeOut / SlideIn / Layout)
+│                                                            (FadeIn / FadeOut / SlideIn / LinearTransition)
 ├── State-driven style change (expand/collapse, toggle,     → CSS Animations/Transitions API
 │   theme swap) — trigger is plain React state, not a         (Reanimated 4+): `transition: {...}`
 │   continuous gesture value                                  on the style, or `animationName` keyframes
@@ -71,7 +71,7 @@ What's the interaction?
 Symptom → fix
 ├── Animation janks                               → check it's a worklet (useAnimatedStyle, not inline style)
 ├── ScrollView lags                                → use Animated.ScrollView + scrollEventThrottle={16}
-├── Layout animation jumps on list items           → add itemLayoutAnimation={Layout.springify()} on the list
+├── Layout animation jumps on list items           → add itemLayoutAnimation={LinearTransition.springify()} on the list
 ├── Worklet logs nothing                           → console.log inside worklets works in dev only
 ├── Gesture doesn't fire                           → wrap parent in GestureHandlerRootView (already in
 │                                                    rn-bootstrap root layout? if not, add it)

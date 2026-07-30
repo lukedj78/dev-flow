@@ -36,5 +36,5 @@ description: 'Use for cloud builds and OTA updates of an Expo + RN app via EAS: 
 - Course: codewithbeto.dev/rnCourse — EAS Build/Submit/Update/Workflows modules (paid).
 - Official: https://docs.expo.dev/eas/
 - Official: https://docs.expo.dev/eas-update/introduction/
-- Official: https://docs.expo.dev/eas-workflows/get-started/
+- Official: https://docs.expo.dev/eas/workflows/get-started/
 - Observability (post-Update health): `rn-eas-deploy/references/observability.md`, https://github.com/expo/skills (`eas-update-insights`)

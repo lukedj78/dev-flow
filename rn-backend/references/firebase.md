@@ -49,27 +49,25 @@ Add `GoogleService-Info.plist` (iOS) + `google-services.json` (Android) at proje
 ## 3. `lib/firebase.ts`
 
 ```ts
-import "@react-native-firebase/app";        // initialize on import
-import auth from "@react-native-firebase/auth";
-import firestore from "@react-native-firebase/firestore";
-
-export { auth, firestore };
+import "@react-native-firebase/app"; // initialize on import
 ```
 
 The native module reads `GoogleService-Info.plist` / `google-services.json` automatically — no JS config needed.
+
+> The old namespaced API (`auth()`, `firestore()`) was deprecated and **removed in v22** (current v26) — use the modular API (`getAuth()`, `getFirestore()`), importing functions directly from each package as shown below.
 
 ## 4. `lib/auth.ts`
 
 ```ts
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { auth } from "./firebase";
+import { getAuth, signInWithEmailAndPassword, signOut } from "@react-native-firebase/auth";
 import { useAuthStore } from "@/store/auth";
 
 export function useSignIn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const result = await auth().signInWithEmailAndPassword(email, password);
+      const result = await signInWithEmailAndPassword(getAuth(), email, password);
       const user = result.user;
       useAuthStore.getState().setUser({ id: user.uid, email: user.email! });
       return user;
@@ -82,7 +80,7 @@ export function useSignOut() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await auth().signOut();
+      await signOut(getAuth());
       useAuthStore.getState().setUser(null);
       qc.clear();
     },
@@ -96,12 +94,12 @@ Firebase tokens are stored automatically by the native SDK in Keychain/Keystore 
 
 ```tsx
 import { useEffect } from "react";
-import { auth } from "@/lib/firebase";
+import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { useAuthStore } from "@/store/auth";
 
 // inside RootLayout
 useEffect(() => {
-  const unsubscribe = auth().onAuthStateChanged((user) => {
+  const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
     if (user) {
       useAuthStore.getState().setUser({ id: user.uid, email: user.email! });
     } else {
@@ -117,17 +115,19 @@ useEffect(() => {
 ```ts
 // lib/queries/usePosts.ts
 import { useQuery } from "@tanstack/react-query";
-import { firestore } from "@/lib/firebase";
+import { getFirestore, collection, query, orderBy, limit, getDocs } from "@react-native-firebase/firestore";
 
 export function usePosts() {
   return useQuery({
     queryKey: ["posts", "list"],
     queryFn: async () => {
-      const snapshot = await firestore()
-        .collection("posts")
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .get();
+      const snapshot = await getDocs(
+        query(
+          collection(getFirestore(), "posts"),
+          orderBy("createdAt", "desc"),
+          limit(50),
+        ),
+      );
       return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
   });

@@ -118,7 +118,7 @@ Ask: **"Vuoi lo scaffold completo (showcase + STYLE_NOTES + provider wiring) o s
 
 - **Full scaffold** (default for new projects): everything described in §What you produce — theme files + component overrides + `/showcase` route + `STYLE_NOTES.md` + `_design-md-mapping.json` + provider wiring.
 - **Theme-only patch** (recommended for mature existing projects): write *only* the design-token files as a reviewable diff:
-  - shadcn: `globals.css`, `tailwind.config.ts`, the `cva` blocks of components named in DESIGN.md.
+  - shadcn: `globals.css` (Tailwind v4 is CSS-first — tokens live in `@theme` inside `globals.css`; only touch `tailwind.config.ts` if the project still uses a v3 JS config), the `cva` blocks of components named in DESIGN.md.
   - MUI: `lib/theme.ts` only (or wherever the theme already lives).
   - **Plus** `_design-md-mapping.json` and `STYLE_NOTES.md` because they're cheap to add and useful for the reviewer.
 
@@ -1088,13 +1088,14 @@ font-family: var(--font-display), Inter, ui-sans-serif, system-ui, -apple-system
 
 ## Companion skills (Next.js 16 App Router)
 
-When scaffolding a Next.js project, the dev-flow set ships three sibling skills that the orchestrator loads automatically alongside `design-md-to-app`:
+When scaffolding a Next.js project, the dev-flow set ships four sibling discipline skills that the orchestrator loads automatically alongside `design-md-to-app`:
 
 - **`forms`** — `lib/forms/` shared toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`) on top of either TanStack Form + Zod (default) or react-hook-form + Zod (opt-in via `meta.json#stack.forms`). Consumer code is identical; backend swap is invisible. Bans `useState` for field values, auto-save, inline `toast`, raw `useForm`.
 - **`data-fetching`** — Read in async Server Components, mutate via Server Actions + `revalidatePath`/`revalidateTag`. Bans `useEffect`+fetch / `useState`+`useEffect`+`getX` in Client Components. Walks the migration ladder: Server Component → URL `searchParams` → `Promise<T>` + `use()` + `<Suspense>` → Route Handler + SWR (last resort).
 - **`state-discipline`** — Eight-rung ladder for "should I `useState` here?". Derive, URL, lift, query lib, event handler, `key` to reset, `useMountEffect` for one-time external sync, then `useState`. Bans bare `useEffect` (lint-enforced).
+- **`transitions`** — One tokenized motion system (`lib/motion/`): cheapest-tier-first (Tailwind + `tw-animate-css` → CSS keyframes → View Transitions → Motion), always with a `prefers-reduced-motion` fallback, tokens instead of magic-number durations/easings. Sits above `module-add motion`.
 
-The three are installed by `./install.sh` together with `design-md-to-app` — no extra step. Their source lives in this repo at `forms/`, `data-fetching/`, `state-discipline/`. They are adapted (with attribution) from `lusentis/next-skills` and tailored to the dev-flow contract (`meta.json#stack` reads + history append + refusal on framework/version mismatch).
+The four are installed by `./install.sh` together with `design-md-to-app` — no extra step. Their source lives in this repo at `forms/`, `data-fetching/`, `state-discipline/`, `transitions/`. The first three are adapted (with attribution) from `lusentis/next-skills`; `transitions` is our own (inspired by transitions.dev). All are tailored to the dev-flow contract (`meta.json#stack` reads + history append + refusal on framework/version mismatch).
 
 Earlier drafts of this skill recommended installing the originals via `npx skills add lusentis/next-skills …` — that recommendation is **superseded**. Use the in-tree versions.
 

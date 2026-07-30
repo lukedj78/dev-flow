@@ -11,7 +11,7 @@ npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
   expo-secure-store -- --legacy-peer-deps
 ```
 
-(`@supabase/supabase-js` needs AsyncStorage by default; we configure it to use expo-secure-store instead — see step 3.)
+(`@supabase/supabase-js` uses AsyncStorage for the session — see step 3.)
 
 ## 2. `.env.example` additions
 
@@ -22,25 +22,19 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 
 The anon key is NOT secret — it's published in the client. RLS policies are what protect data, not the key.
 
-## 3. `lib/supabase.ts` — client with secure-store
+## 3. `lib/supabase.ts` — client with AsyncStorage
 
 ```ts
 import "react-native-url-polyfill/auto"; // required for Supabase on RN
 import { createClient } from "@supabase/supabase-js";
-import * as SecureStore from "expo-secure-store";
-
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
   {
     auth: {
-      storage: ExpoSecureStoreAdapter as any,
+      storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false, // not relevant on mobile
@@ -48,6 +42,8 @@ export const supabase = createClient(
   },
 );
 ```
+
+> Use AsyncStorage for the session: expo-secure-store has a documented 2048-byte per-value limit that can truncate a session (JWT + refresh token). Keep SecureStore only for small secrets, not the session.
 
 Also install `react-native-url-polyfill`: `npx expo install react-native-url-polyfill -- --legacy-peer-deps`.
 

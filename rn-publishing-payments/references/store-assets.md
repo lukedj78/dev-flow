@@ -10,13 +10,13 @@
 
 ### Screenshots (REQUIRED, minimum 3 per size)
 
-iOS asks for screenshots in MULTIPLE display sizes. The minimum 2026 set:
+Apple now base-requires only two sizes and auto-scales them down for smaller devices. The minimum 2026 set:
 
 | Display | Resolution | Devices |
 |---|---|---|
-| 6.9" | 1290×2796 (portrait) | iPhone 15 Pro Max, 14 Pro Max, etc. |
-| 6.5" | 1242×2688 | iPhone 11 Pro Max (older models) — may be optional in 2026, check current ASC |
-| iPad Pro 12.9" 3rd gen+ | 2048×2732 | If you ship iPad |
+| 6.9" iPhone | 1290×2796 (portrait) | iPhone 15/16 Pro Max, etc. — REQUIRED |
+| 13" iPad | 2064×2752 | If you ship iPad — REQUIRED for iPad |
+| 6.5" iPhone (fallback) | 1242×2688 | iPhone 11 Pro Max — optional fallback only; 6.9" auto-scales down |
 
 Best practice:
 - Capture from a real device or `xcrun simctl io booted screenshot`.

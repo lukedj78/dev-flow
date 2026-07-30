@@ -35,7 +35,7 @@ fi
 if [[ ! -f turbo.json ]]; then
   cat > turbo.json <<'EOF'
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://turborepo.dev/schema.json",
   "globalDependencies": [".env"],
   "tasks": {
     "build": {

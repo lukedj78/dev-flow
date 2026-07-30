@@ -1,6 +1,6 @@
 > Sources: docs.swmansion.com/react-native-reanimated, docs.swmansion.com/react-native-gesture-handler, internal opinion.
 
-# Patterns — Reanimated 4 + Gesture Handler 2
+# Patterns — Reanimated 4 + Gesture Handler 3
 
 ## Press animation (scale + opacity)
 
@@ -37,21 +37,21 @@ export function PressableButton({ label, onPress }: { label: string; onPress: ()
 }
 ```
 
-## Layout animations (FadeIn / SlideIn / Layout)
+## Layout animations (FadeIn / SlideIn / LinearTransition)
 
 ```tsx
-import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 
 <Animated.View
   entering={FadeIn.duration(300)}
   exiting={FadeOut.duration(200)}
-  layout={Layout.springify()}
+  layout={LinearTransition.springify()}
 >
   <Text>I fade in, fade out, and animate position on layout change.</Text>
 </Animated.View>
 ```
 
-Layout animations also work on FlashList / FlatList items via `itemLayoutAnimation={Layout.springify()}` on the list.
+Layout animations also work on FlashList / FlatList items via `itemLayoutAnimation={LinearTransition.springify()}` on the list.
 
 ## Pan gesture (swipe-to-dismiss)
 
@@ -235,7 +235,7 @@ import Animated from "react-native-reanimated";
 
 - ❌ Per-frame gesture-driven values (drag, pinch, scroll-linked) — CSS transitions animate FROM one committed style TO another; they don't drive continuous per-frame updates from a gesture.
 - ❌ Anything needing `runOnJS`, `interpolate`, or cross-shared-value coordination.
-- ❌ Existing layout animations (`FadeIn`/`FadeOut`/`Layout.springify()`) — those are a separate, already-declarative API; no need to migrate them to CSS transitions.
+- ❌ Existing layout animations (`FadeIn`/`FadeOut`/`LinearTransition.springify()`) — those are a separate, already-declarative API; no need to migrate them to CSS transitions.
 
 Both APIs run on the UI thread and can be mixed in the same app/component tree without conflict.
 
@@ -243,6 +243,6 @@ Both APIs run on the UI thread and can be mixed in the same app/component tree w
 
 - ❌ `useEffect` to start an animation that should run on press — drive it from the press event directly.
 - ❌ Read `useState` value inside `useAnimatedStyle` — it's a worklet; capture into a shared value first.
-- ❌ Animate dimensions of components inside a list without `layout={Layout.springify()}` on the list — layout shifts will jump.
+- ❌ Animate dimensions of components inside a list without `layout={LinearTransition.springify()}` on the list — layout shifts will jump.
 - ❌ Use multiple competing gestures without `Gesture.Race()` / `Gesture.Simultaneous()` / `Gesture.Exclusive()` — undefined behavior.
 - ❌ Forget `scrollEventThrottle={16}` on `Animated.ScrollView` — animation will jitter.

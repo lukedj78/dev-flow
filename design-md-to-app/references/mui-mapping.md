@@ -16,7 +16,7 @@ MUI is a runtime library — installation is the same across frameworks, only th
 ### Next.js (App Router) — default
 
 ```bash
-pnpm create next-app@latest <dir> --ts --eslint --app --src-dir --import-alias "@/*"
+pnpm create next-app@latest <dir> --ts --eslint --app --no-src-dir --import-alias "@/*"
 cd <dir>
 pnpm add @mui/material @emotion/react @emotion/styled @mui/icons-material
 pnpm add @mui/material-nextjs   # for AppRouterCacheProvider (SSR-safe Emotion)

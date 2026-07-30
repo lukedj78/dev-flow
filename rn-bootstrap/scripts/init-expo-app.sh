@@ -64,7 +64,7 @@ echo "[init-expo-app] installing base dependencies …"
 # (including the `expo` package itself) here so the subsequent `npx expo install …`
 # call can read the SDK version from node_modules/expo/package.json. Without this
 # step, expo CLI errors with: "Cannot determine the project's Expo SDK version".
-# --legacy-peer-deps avoids known peer-range mismatches between Expo SDK 54 deps
+# --legacy-peer-deps avoids known peer-range mismatches between Expo SDK 57 deps
 # and transitively-required RN versions; safe to drop when upstream peer ranges
 # stabilize.
 npm install --legacy-peer-deps
@@ -74,8 +74,8 @@ echo "[init-expo-app] adding expo-router (SDK-matched version) …"
 # installed Expo SDK. Plain `npm install expo-router` grabs latest from npm, which
 # can be one SDK ahead and fail with peer-dep conflicts (e.g. RN version mismatch).
 # `-- --legacy-peer-deps` is passed through to the underlying npm install — same
-# reason as install-stack.sh: Expo SDK 54 transitively pulls packages (e.g.
-# react-native-screens 4.25) that demand RN ≥ 0.82, while SDK 54 ships RN 0.81.
+# reason as install-stack.sh: Expo SDK 57 transitively pulls packages (e.g.
+# react-native-screens) that demand a newer RN than SDK 57 ships (RN 0.86.2).
 npx --yes expo install expo-router -- --legacy-peer-deps
 
 echo "[init-expo-app] done. Next: install-stack.sh"

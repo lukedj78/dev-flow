@@ -79,11 +79,12 @@ Update `meta.json`:
 
 Branch by topology (see Step 1 → `stack.monorepo.topology`, and `references/decision-tree.md` → "The `packages/ui` rule"):
 
-**Topology `"web-mobile"`** → `packages/design/` (tokens + two Tailwind flavors, no components — components can't cross the React-DOM/React-Native boundary):
+**Topology `"web-mobile"`** → `packages/design/` (tokens + Tailwind flavors, no components — components can't cross the React-DOM/React-Native boundary):
 - `src/tokens.ts` — parses `.workflow/DESIGN.md` `json tokens` block, emits typed JS object.
-- `src/tailwind-preset.ts` — exports a Tailwind preset (web v3.4 / v4 compatible) consuming the tokens.
-- `src/nativewind-preset.ts` — exports a NativeWind preset (Tailwind 3.4 syntax, mobile-compatible).
-- `package.json` with name `@<project-slug>/design`, exports `./tokens`, `./tailwind`, `./nativewind`.
+- `theme.css` — an **`@theme` block** built from the tokens. This is how the **web** app (Tailwind v4, which `create-next-app@16 --tailwind` installs) consumes the tokens: `apps/web/app/globals.css` does `@import "@<slug>/design/theme.css";`. Tailwind v4 is CSS-first and has **no JS `presets` mechanism**.
+- `src/tailwind-preset.ts` — a v3-style JS preset, exported **only** as a fallback for a web app still on Tailwind v3 (`scaffold-web.sh --patch` auto-detects: `tailwind.config.*` present → patch this preset; absent → v4 `@import` path above).
+- `src/nativewind-preset.ts` — exports a NativeWind preset (Tailwind 3.4 syntax) for **mobile** (NativeWind still tracks the v3 config shape).
+- `package.json` with name `@<project-slug>/design`, exports `./tokens`, `./theme.css`, `./tailwind` (v3 fallback), `./nativewind`.
 - `tsconfig.json` extending `@<slug>/typescript-config/<preset>.json` (e.g., `nextjs.json` for apps/web, `react-native.json` for apps/mobile).
 
 This package is published as `workspace:*` to both apps.
@@ -196,7 +197,7 @@ The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.
 ## Sources
 
 - Spec: `docs/superpowers/specs/2026-05-29-monorepo-set-design.md`
-- Official: https://turbo.build/repo/docs
+- Official: https://turborepo.dev/docs
 - Official: https://pnpm.io/workspaces
 - Official: https://docs.expo.dev/guides/monorepos/
 - Course: codewithbeto.dev/rnCourse — (no direct monorepo coverage; assembled from official sources).

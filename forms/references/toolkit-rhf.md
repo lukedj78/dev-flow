@@ -4,7 +4,7 @@ The 7 files of `lib/forms/` when `meta.json#stack.forms = "react-hook-form"`. Th
 
 Dependencies:
 - `react-hook-form` ^7
-- `@hookform/resolvers` ^3
+- `@hookform/resolvers` ^5
 - `zod` ^4
 - shadcn `Field` component installed
 - `sonner` mounted at the root layout

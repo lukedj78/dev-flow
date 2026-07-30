@@ -1,4 +1,4 @@
-> Sources: turbo.build/repo/docs, pnpm.io/workspaces, docs.expo.dev/guides/monorepos, internal opinion.
+> Sources: turborepo.dev/docs, pnpm.io/workspaces, docs.expo.dev/guides/monorepos, internal opinion.
 
 # Decision tree — monorepo
 

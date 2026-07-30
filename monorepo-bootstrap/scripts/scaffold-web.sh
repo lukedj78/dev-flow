@@ -50,44 +50,64 @@ if [[ "${4:-}" != "--patch" ]]; then
 fi
 
 # --patch phase: assume apps/web/ has been scaffolded by design-md-to-app
-echo "[scaffold-web --patch] Patching apps/web/tailwind.config.js…"
+echo "[scaffold-web --patch] Wiring the @${SLUG}/design tokens into apps/web…"
 
+# Tailwind version detection. create-next-app@16 --tailwind installs Tailwind v4
+# (CSS-first: NO tailwind.config.{js,ts}, tokens live in an @theme block inside
+# globals.css). Older/v3 projects still have a JS config with a `presets` array.
 TAILWIND_CFG="apps/web/tailwind.config.js"
-if [[ ! -f "$TAILWIND_CFG" ]]; then
-  # Also try .ts
-  TAILWIND_CFG="apps/web/tailwind.config.ts"
-fi
+[[ -f "$TAILWIND_CFG" ]] || TAILWIND_CFG="apps/web/tailwind.config.ts"
 
-if [[ ! -f "$TAILWIND_CFG" ]]; then
-  echo "  ✗ No tailwind.config.{js,ts} found in apps/web/. Has design-md-to-app actually run?"
-  exit 1
-fi
-
-# Check if preset is already wired
-if grep -q "@${SLUG}/design/tailwind" "$TAILWIND_CFG"; then
-  echo "  ✓ @${SLUG}/design/tailwind preset already wired in $TAILWIND_CFG"
-else
-  # Use Node to safely patch the config (more robust than sed)
-  node -e "
-    const fs = require('fs');
-    const path = '$TAILWIND_CFG';
-    let text = fs.readFileSync(path, 'utf8');
-
-    // Try to inject 'presets' alongside 'theme'
-    const presetLine = \"  presets: [require('@${SLUG}/design/tailwind').default],\";
-
-    if (text.includes('presets:')) {
-      // Already has presets — add our preset to the array if not present
-      if (!text.includes('@${SLUG}/design/tailwind')) {
-        text = text.replace(/presets:\\s*\\[/, \"presets: [require('@${SLUG}/design/tailwind').default, \");
+if [[ -f "$TAILWIND_CFG" ]]; then
+  # ---- Tailwind v3 path: JS preset ----
+  if grep -q "@${SLUG}/design/tailwind" "$TAILWIND_CFG"; then
+    echo "  ✓ @${SLUG}/design/tailwind preset already wired in $TAILWIND_CFG"
+  else
+    node -e "
+      const fs = require('fs');
+      const path = '$TAILWIND_CFG';
+      let text = fs.readFileSync(path, 'utf8');
+      const presetLine = \"  presets: [require('@${SLUG}/design/tailwind').default],\";
+      if (text.includes('presets:')) {
+        if (!text.includes('@${SLUG}/design/tailwind')) {
+          text = text.replace(/presets:\\s*\\[/, \"presets: [require('@${SLUG}/design/tailwind').default, \");
+        }
+      } else {
+        text = text.replace(/(\\s+)theme:/, '\\n' + presetLine + '\$1theme:');
       }
-    } else {
-      // Insert presets line before theme
-      text = text.replace(/(\\s+)theme:/, '\\n' + presetLine + '\$1theme:');
-    }
-    fs.writeFileSync(path, text);
-    console.log('  ✓ Patched ' + path + ' to import @${SLUG}/design/tailwind preset');
-  "
+      fs.writeFileSync(path, text);
+      console.log('  ✓ (Tailwind v3) patched ' + path + ' to import @${SLUG}/design/tailwind preset');
+    "
+  fi
+else
+  # ---- Tailwind v4 path (default on create-next-app@16): shared CSS @theme ----
+  # The @${SLUG}/design package exports `./theme.css` (an @theme block built from
+  # the DESIGN.md tokens). We @import it into globals.css right after Tailwind so
+  # the tokens stream in — v4 has no JS `presets` mechanism.
+  GLOBALS="apps/web/app/globals.css"
+  [[ -f "$GLOBALS" ]] || GLOBALS="apps/web/src/app/globals.css"
+  if [[ ! -f "$GLOBALS" ]]; then
+    echo "  ✗ No tailwind.config.{js,ts} AND no app/globals.css found in apps/web/. Has design-md-to-app actually run?"
+    exit 1
+  fi
+  if grep -q "@${SLUG}/design/theme.css" "$GLOBALS"; then
+    echo "  ✓ @${SLUG}/design/theme.css already imported in $GLOBALS"
+  else
+    node -e "
+      const fs = require('fs');
+      const path = '$GLOBALS';
+      let text = fs.readFileSync(path, 'utf8');
+      const imp = '@import \"@${SLUG}/design/theme.css\";';
+      // place right after the Tailwind import so tokens override defaults
+      if (/@import\\s+[\"']tailwindcss[\"'];?/.test(text)) {
+        text = text.replace(/(@import\\s+[\"']tailwindcss[\"'];?)/, '\$1\\n' + imp);
+      } else {
+        text = imp + '\\n' + text;
+      }
+      fs.writeFileSync(path, text);
+      console.log('  ✓ (Tailwind v4) imported @${SLUG}/design/theme.css into ' + path);
+    "
+  fi
 fi
 
 # Patch apps/web/package.json to add workspace deps

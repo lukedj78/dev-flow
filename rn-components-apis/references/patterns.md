@@ -46,7 +46,6 @@ import { FlashList } from "@shopify/flash-list";
 <FlashList
   data={items}
   renderItem={({ item }) => <Row item={item} />}
-  estimatedItemSize={64}
   keyExtractor={(item) => item.id}
   ItemSeparatorComponent={() => <View className="h-px bg-zinc-200 dark:bg-zinc-800" />}
   onEndReached={loadMore}
@@ -54,8 +53,7 @@ import { FlashList } from "@shopify/flash-list";
 />
 ```
 
-- `estimatedItemSize` is REQUIRED — picks recycling pool size.
-- For variable-size items, give a representative average.
+- FlashList v2 auto-sizes items — no `estimatedItemSize` needed (that prop was required in v1, now removed).
 - For grids: `numColumns={2}`.
 
 ## Keyboard avoidance

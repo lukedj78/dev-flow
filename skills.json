@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-30T19:09:39Z",
+  "generated_at": "2026-07-30T20:09:55Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 39,
   "families": {
@@ -336,7 +336,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 118,
+      "skill_md_lines": 117,
       "bundle": "dist/rn-write-tests.skill"
     },
     {
@@ -425,7 +425,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1122,
+      "skill_md_lines": 1123,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -593,7 +593,7 @@
         "scaffold-web.sh",
         "verify.ts"
       ],
-      "skill_md_lines": 202,
+      "skill_md_lines": 203,
       "bundle": "dist/monorepo-bootstrap.skill"
     },
     {

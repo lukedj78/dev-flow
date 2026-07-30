@@ -1,6 +1,6 @@
 > Bootstrap snapshot — kept in sync manually with `rn-fundamentals/references/stack-defaults.md`.
 > Update both files together when bumping a major version.
-> Snapshot date: 2026-05-16.
+> Snapshot date: 2026-07-22.
 
 # Stack defaults (opinionated)
 

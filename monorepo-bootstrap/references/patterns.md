@@ -1,4 +1,4 @@
-> Sources: turbo.build/repo/docs, pnpm.io/workspaces, internal opinion.
+> Sources: turborepo.dev/docs, pnpm.io/workspaces, internal opinion.
 
 # Patterns and anti-patterns — monorepo bootstrap
 

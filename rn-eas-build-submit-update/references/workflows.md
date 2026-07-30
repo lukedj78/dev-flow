@@ -1,4 +1,4 @@
-> Sources: https://docs.expo.dev/eas-workflows/get-started/
+> Sources: https://docs.expo.dev/eas/workflows/get-started/
 
 # EAS Workflows — CI/CD on EAS infrastructure
 
@@ -109,8 +109,8 @@ Tag a release: `git tag v1.2.0 && git push origin v1.2.0` → workflow builds + 
 
 ## Where to find runner / step references
 
-- Runner types (linux-small / linux-medium / linux-large / macos-medium): https://docs.expo.dev/eas-workflows/syntax/
-- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas-workflows/reference/
+- Runner types (linux-small / linux-medium / linux-large / macos-medium): https://docs.expo.dev/eas/workflows/syntax/
+- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas/workflows/reference/
 
 ## When to use cron
 

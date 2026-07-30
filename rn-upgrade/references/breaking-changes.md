@@ -8,7 +8,7 @@ Walk this before declaring an upgrade done. For every row that applies to the pr
 
 | Old | New | Notes |
 |---|---|---|
-| `expo-av` | `expo-audio` + `expo-video` | `expo-av` is deprecated in favor of two focused packages: `expo-audio` for playback/recording, `expo-video` for video playback. Audio and video code must be split when migrating — they're no longer one API surface. `[VERIFY]` exact deprecation/removal SDK version. |
+| `expo-av` | `expo-audio` + `expo-video` | `expo-av` was deprecated in SDK 53 and **removed in SDK 54**, replaced by two focused packages: `expo-audio` for playback/recording, `expo-video` for video playback. Audio and video code must be split when migrating — they're no longer one API surface. |
 | `expo-permissions` | per-module permission APIs | Long deprecated; each module (camera, location, notifications) now exposes its own `usePermissions`/`requestPermissionsAsync`. If still present in a project, this is a stale leftover, not a recent-SDK concern. |
 | `expo-file-system` (legacy API) | `expo-file-system/next` (new API) | Some SDKs ship a parallel modern API alongside the legacy one before a full cutover. `[VERIFY]` which is current/required for the target SDK. |
 | Old Expo Router APIs (e.g. pre-file-based conventions) | current Expo Router conventions | If the project predates Expo Router stabilizing, check `rn-expo-router/SKILL.md` for the current file-based routing shape. |

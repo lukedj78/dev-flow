@@ -38,11 +38,10 @@ Check if `jest`, `jest-expo`, `@testing-library/react-native` are in `package.js
 npx expo install --dev \
   jest jest-expo \
   @testing-library/react-native \
-  @testing-library/jest-native \
   @types/jest -- --legacy-peer-deps
 ```
 
-(See `references/jest-setup.md` for the full config.)
+(Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
 
 For Maestro: detect `.maestro/` directory. If missing AND user wants e2e, see `references/maestro-setup.md` (manual install, not npm).
 

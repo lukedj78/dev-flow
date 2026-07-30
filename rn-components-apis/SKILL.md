@@ -25,7 +25,7 @@ description: 'Use when working with React Native core components (View, Text, Sc
 
 - ❌ `<TouchableOpacity onPress={...}>` → `<Pressable onPress={...}>`
 - ❌ `<Image source={{ uri }} />` from `react-native` → `import { Image } from "expo-image"`
-- ❌ `<FlatList data={items}>` for any list that may grow → `<FlashList data={items} estimatedItemSize={64}>`
+- ❌ `<FlatList data={items}>` for any list that may grow → `<FlashList data={items}>` (FlashList v2 auto-sizes — no `estimatedItemSize`)
 - ❌ `const { width } = Dimensions.get('window')` at module top — use `useWindowDimensions()` inside the component
 - ❌ `<KeyboardAvoidingView>` without explicit `behavior` prop — broken on Android. Use `Platform.select({ ios: "padding", android: "height" })`
 

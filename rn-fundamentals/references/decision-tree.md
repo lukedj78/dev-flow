@@ -22,7 +22,7 @@ Adding any of: custom native module, config plugin, custom build flag?
 └── YES → DEV CLIENT (expo-dev-client). Build once per native change.
 ```
 
-**Default for a brand-new app: Expo Go. Switch to dev client the day you add Reanimated 3 + native config OR any expo-* module that needs prebuild (very few do).**
+**Default for a brand-new app: Expo Go. Switch to dev client the day you add Reanimated 4 + native config OR any expo-* module that needs prebuild (very few do).**
 
 ## Q3: New Architecture ON or OFF?
 

@@ -1,4 +1,4 @@
-> Sources: turbo.build/repo/docs, pnpm.io/workspaces, docs.expo.dev/guides/monorepos, internal opinion.
+> Sources: turborepo.dev/docs, pnpm.io/workspaces, docs.expo.dev/guides/monorepos, internal opinion.
 
 # Monorepo layout — the canonical structure
 
@@ -90,7 +90,7 @@ packages:
 ### `turbo.json`
 ```json
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://turborepo.dev/schema.json",
   "globalDependencies": [".env"],
   "tasks": {
     "build": {

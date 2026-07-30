@@ -137,16 +137,17 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 | `idea_captured` | all | `PROJECT.md` exists | `prd-from-idea` (to expand into PRD) or scaffold (skip if simple) |
 | `prd_drafted` | all | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, or scaffold |
 | `tasks_split` | all | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or scaffold |
-| `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile) |
+| `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile, `monorepo-bootstrap` for monorepo) |
+| `monorepo_initialized` | **monorepo only** | turborepo root exists (`pnpm-workspace.yaml` + `turbo.json`), before the apps are scaffolded | `monorepo-bootstrap` continues — scaffolds `apps/web` (`design-md-to-app`), `apps/mobile` (`rn-bootstrap`), and/or `apps/agent` (`eve-agent`) |
 | `scaffolded` | all | `app/` exists with framework + UI library installed | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
 | `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |
-| `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; mobile leads to `feature_complete` |
-| `feature_complete` | **expo-rn only** | All planned features built and tested; ready to ship | `rn-eas-deploy` |
-| `deployed` | **expo-rn only** | App live on App Store + Play Store with EAS Update channels configured | maintenance loop (`rn-add-screen` for features, `rn-eas-build-submit-update` for OTA hotfixes) |
+| `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; leads to `feature_complete` when the build is done (all stacks) |
+| `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gate `compliance-audit`, then deploy: web → `setup-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
+| `deployed` | all | Live in production (web on Vercel / mobile on App Store + Play Store / agent via `eve deploy`) | maintenance loop (web: `screenshot-to-page` / `module-add`; mobile: `rn-add-screen` / `rn-eas-build-submit-update`; re-run `compliance-audit` after material changes) |
 
 **Notes**:
 - All values are `snake_case` (e.g., `module_added` NOT `module-added`). Skills that use the kebab-case variant are non-conforming and should be migrated.
-- The `feature_complete` and `deployed` phases are **mobile-only** (`stack.framework="expo-rn"`); web stack ends at `module_added` and continues iteratively.
+- The `feature_complete` and `deployed` phases are **cross-stack** (web, mobile, agent, monorepo). A web or agent project stays iterating at `module_added` and advances to `feature_complete` when the user declares the build done — at which point dev-flow proposes the `compliance-audit` pre-deploy gate and then the stack's deploy skill. `monorepo_initialized` is **monorepo-only** (a mid-`monorepo-bootstrap` checkpoint before the apps are scaffolded).
 - **Phase progression is monotonic** — a skill should never set `phase` to an earlier value than what it found. If a skill is re-run (e.g., user re-extracts design from a new Figma), it appends to `history` but keeps the phase ≥ the current one.
 - The `deployed` phase is terminal in the sense that future runs stay there; subsequent EAS Update or new-feature work appends to `history` without phase regression.
 

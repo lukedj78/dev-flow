@@ -10,9 +10,10 @@ Run this once per project, on the first call of `rn-write-tests`.
 npx expo install --dev \
   jest jest-expo \
   @testing-library/react-native \
-  @testing-library/jest-native \
   @types/jest -- --legacy-peer-deps
 ```
+
+(Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+; the standalone `@testing-library/jest-native` package is deprecated and no longer needed.)
 
 ## 2. `package.json` — add jest config + script
 
@@ -39,10 +40,8 @@ The `transformIgnorePatterns` is the standard jest-expo recipe; keep it verbatim
 ## 3. `jest.setup.ts` — global mocks + matchers
 
 ```ts
-import "@testing-library/jest-native/extend-expect";
-
-// Silence Reanimated worklets warnings in tests
-jest.mock("react-native-reanimated", () => require("react-native-reanimated/mock"));
+// Reanimated 4's recommended test setup
+require("react-native-reanimated").setUpTests();
 
 // Mock NativeWind colorScheme (not reactive in tests)
 jest.mock("nativewind", () => ({
@@ -62,7 +61,7 @@ console.warn = (...args: unknown[]) => {
 ```json
 {
   "compilerOptions": {
-    "types": ["jest", "@testing-library/jest-native"]
+    "types": ["jest"]
   }
 }
 ```

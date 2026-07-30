@@ -61,7 +61,7 @@ Then: iOS → production → Push Notifications → Generate (lets EAS handle th
 
 ## 5. Development build required
 
-Push notifications do NOT work in Expo Go (after SDK 53). You MUST use a development build:
+Remote (push) notifications in Expo Go were removed for **Android** in SDK 53; iOS remote push still works in Expo Go. For reliable cross-platform push you MUST use a development build:
 
 ```bash
 eas build --profile development --platform ios

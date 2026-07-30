@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`, `forms`, `data-fetching`, `state-discipline`, `eve-agent` (the eve agent engine behind the app). Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
+description: 'Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `figma-to-design-md`, `image-to-design-md`, `design-md-to-app`, `screenshot-to-page`, `module-add`, `write-tests`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `compliance-audit`, `eve-agent` (the eve agent engine behind the app). Use when the user wants to "start a new project end-to-end", "advance my project to the next stage", "what should I do next on this project", or pastes a brand-new product idea / Figma URL / inspiration images with a request to "build the app". Not for: deeply-specialized work inside one stage (in that case, invoke the specialist skill directly).'
 ---
 
 # dev-flow — workflow orchestrator
@@ -86,7 +86,7 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `design_extracted` | `design-md-to-app` (this is the natural next step — DESIGN.md exists, time to scaffold). |
 | `scaffolded` | `screenshot-to-page` if `screenshots/` has unmapped images; `module-add` to wire auth/db/etc.; `forms` for any form-building request; iterate. |
 | `page_generated` | `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
-| `module_added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. For `expo-rn` stack, also `rn-eas-deploy` once feature-complete. |
+| `module_added` | `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. When the build is done, advance to `feature_complete` (all stacks) → `compliance-audit` pre-deploy gate, then deploy. |
 | `feature_complete` | **Propose `compliance-audit` as a pre-deploy gate** (GDPR/AI-Act, any stack), then deploy: mobile (`expo-rn`) → `rn-eas-deploy`; web → `setup-deploy`; agent → `eve deploy`. |
 | `deployed` | Maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` after material changes; telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |

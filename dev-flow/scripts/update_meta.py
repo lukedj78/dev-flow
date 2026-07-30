@@ -52,10 +52,12 @@ PHASES = [
     "prd_drafted",
     "tasks_split",
     "design_extracted",
+    # Monorepo-only mid-bootstrap checkpoint (turborepo root before apps are scaffolded)
+    "monorepo_initialized",
     "scaffolded",
     "page_generated",
     "module_added",
-    # Mobile-only (stack.framework == "expo-rn") progression beyond module_added
+    # Cross-stack terminal progression beyond module_added (web / mobile / agent / monorepo)
     "feature_complete",
     "deployed",
 ]

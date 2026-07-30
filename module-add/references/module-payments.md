@@ -50,9 +50,14 @@ import { env } from "@/lib/env";
  *
  * The apiVersion is pinned. Stripe rolls forward; pinning protects you from
  * silent webhook payload changes. Bump deliberately when you're ready.
+ *
+ * The current SDK default is "2026-06-24.dahlia" — a fresh `stripe` install now
+ * ships Dahlia types, so pinning an older literal like "2025-09-30.clover" can
+ * throw a TS mismatch against the bundled types. Match the pin to the installed
+ * SDK's types (or `stripe listen --latest-api-version` to confirm your account).
  */
 export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-09-30.clover",
+  apiVersion: "2026-06-24.dahlia",
   typescript: true,
 });
 ```

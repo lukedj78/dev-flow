@@ -153,7 +153,7 @@ the built-in `connection_search`. The model never sees the URL or credentials.
 // MCP
 import { defineMcpClientConnection } from "eve/connections";
 export default defineMcpClientConnection({
-  url: "https://mcp.linear.app/sse",
+  url: "https://mcp.linear.app/mcp",   // [VERIFY] Streamable HTTP endpoint; the /sse transport is deprecated
   description: "Linear workspace: issues, projects, comments.",
   auth: { getToken: async () => ({ token: process.env.LINEAR_API_TOKEN! }) },
   tools: { allow: ["list_issues", "create_issue"] },   // set exactly one of allow / block

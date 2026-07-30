@@ -128,7 +128,16 @@ Reduced-motion: guard with `if (!matchMedia("(prefers-reduced-motion: reduce)").
 ## Route / page transitions (Tier 2)
 
 Next.js 16 App Router route transitions via the View Transitions API — Tier 2, no Motion needed.
+
+**For production, drive it from the stable browser API** — wrap the navigation in `document.startViewTransition(...)` (the same primitive shown above for same-doc swaps) and name shared regions with `view-transition-name`. This is the path the Next.js docs recommend for route transitions today.
+
+The React `<ViewTransition>` component below is React's **experimental** `unstable_ViewTransition` — treat it as opt-in, not production-ready. It requires enabling the flag in `next.config.js`, and the Next.js docs explicitly flag it as experimental / not recommended for production:
+```js
+// next.config.js
+const nextConfig = { experimental: { viewTransition: true } };
+```
 ```tsx
+// EXPERIMENTAL — opt-in only; prefer document.startViewTransition() for production route transitions
 // wrap navigations in a view transition; name the shared regions with `view-transition-name`
 import { unstable_ViewTransition as ViewTransition } from "react";
 <ViewTransition><main>{children}</main></ViewTransition>

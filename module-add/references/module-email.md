@@ -8,7 +8,7 @@ This is **transactional email only**. Marketing/newsletters belong in a CRM (Loo
 
 Before doing anything, check whether email is already wired:
 
-1. `<project-root>/package.json` contains `"resend"` and `"@react-email/components"` in dependencies.
+1. `<project-root>/package.json` contains `"resend"` and `"react-email"` in dependencies.
 2. `<project-root>/lib/email.ts` exists.
 3. `<project-root>/emails/` directory exists (template folder).
 4. `<project-root>/.env.local.example` contains `RESEND_API_KEY`.
@@ -23,9 +23,10 @@ None hard-required. Works standalone — but most projects send email *for* some
 
 ```bash
 cd <project-root>
-pnpm add resend
-pnpm add -D react-email @react-email/components
+pnpm add resend react-email
 ```
+
+React Email 6.0 unified the components, render, and preview CLI into a single `react-email` package — `@react-email/components` is deprecated (`npm i react-email`). Import template primitives from `"react-email"`.
 
 ## Files to write
 
@@ -116,7 +117,7 @@ import {
   Section,
   Tailwind,
   Text,
-} from "@react-email/components";
+} from "react-email";
 
 /**
  * Welcome email — minimal reference template.

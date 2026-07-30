@@ -162,9 +162,9 @@ Put commonly-used Expo mocks in `jest.setup.ts` so every test gets them.
 - ❌ Snapshot test on a screen — it churns. Use targeted assertions.
 - ❌ Forgetting `mockReset` between tests when reusing a mock — leakage.
 
-## Recommended assertions library
+## Recommended assertions
 
-`@testing-library/jest-native` extends `expect` with native matchers. Use these instead of generic equivalents:
+Native matchers are built into `@testing-library/react-native` (v12.4+) — no separate import needed. Use these instead of generic equivalents:
 
 ```ts
 expect(node).toBeOnTheScreen();
@@ -172,5 +172,3 @@ expect(node).toBeDisabled();
 expect(node).toHaveTextContent(/welcome/i);
 expect(node).toHaveStyle({ opacity: 0.5 });
 ```
-
-(Requires `import "@testing-library/jest-native/extend-expect"` in `jest.setup.ts` — already done in the setup doc.)

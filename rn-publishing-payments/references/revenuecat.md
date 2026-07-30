@@ -7,10 +7,10 @@ RevenueCat sits between your client and StoreKit / Google Play Billing. It handl
 ## 1. Install
 
 ```bash
-npx expo install react-native-purchases -- --legacy-peer-deps
+npx expo install react-native-purchases react-native-purchases-ui -- --legacy-peer-deps
 ```
 
-For RN Firebase / Hermes / New Architecture, `react-native-purchases` works since v8+. Verify with `npm view react-native-purchases peerDependencies`.
+For RN Firebase / Hermes / New Architecture, `react-native-purchases` works since v8+ — install the current v10 (10.5.0). Verify with `npm view react-native-purchases peerDependencies`. `react-native-purchases-ui` (RevenueCatUI) ships prebuilt, remotely-configurable Paywalls and a Customer Center — the recommended default over a hand-rolled paywall (see step 5).
 
 ## 2. RevenueCat dashboard setup (one-time)
 
@@ -71,8 +71,34 @@ Pass YOUR user id as `appUserID`. RevenueCat links the purchase to that id, so w
 
 ## 5. Paywall screen
 
+**Recommended default: RevenueCatUI's prebuilt Paywall.** Instead of hand-rolling the UI, render `<RevenueCatUI.Paywall />` (or present it with `RevenueCatUI.presentPaywall()`). The paywall is designed and A/B-tested from the RevenueCat dashboard — no app release needed to change copy, pricing layout, or the offering — and it wires up purchase + restore for you.
+
 ```tsx
-// app/(app)/paywall.tsx
+// app/(app)/paywall.tsx (RevenueCatUI — recommended)
+import RevenueCatUI from "react-native-purchases-ui";
+
+export default function Paywall() {
+  return (
+    <RevenueCatUI.Paywall
+      onPurchaseCompleted={({ customerInfo }) => {
+        if (customerInfo.entitlements.active.pro) {
+          // navigate or invalidate queries
+        }
+      }}
+      onRestoreCompleted={({ customerInfo }) => {
+        // handle restored entitlements
+      }}
+    />
+  );
+}
+```
+
+RevenueCatUI also ships a **Customer Center** (`RevenueCatUI.presentCustomerCenter()`) for self-serve manage/cancel/refund flows.
+
+The hand-rolled paywall below remains valid when you need full custom UI:
+
+```tsx
+// app/(app)/paywall.tsx (hand-rolled — when you need custom UI)
 import { useEffect, useState } from "react";
 import { Text, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -179,7 +205,7 @@ RevenueCat's dashboard shows both sandbox and production transactions clearly se
 ## 8. Common pitfalls
 
 - **`appUserID` not set**: purchases attach to an anonymous device ID; user can't restore on another device.
-- **Forgetting `expo-build-properties`** for iOS `useFrameworks: "static"`: required for `react-native-purchases` v8+.
+- **Forgetting `expo-build-properties`** for iOS `useFrameworks: "static"`: required for `react-native-purchases` v10.
 - **No "Restore Purchases" button**: Apple reject 3.1.1.
 - **Subscription auto-renew off in sandbox**: Apple's sandbox subscriptions renew every few minutes for testing — expected.
 - **`getCustomerInfo()` cached too long**: if the user just purchased, force a refresh with `Purchases.invalidateCustomerInfoCache()`.
