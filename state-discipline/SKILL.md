@@ -114,7 +114,22 @@ export default async function CasesPage({
 }
 ```
 
-The chip-row Client Component calls `router.replace(\`?\${next}\`, { scroll: false })`. Free streaming, free cache, shareable URL, back-button works.
+The chip-row Client Component writes the param. Free streaming, free cache, shareable URL, back-button works.
+
+**Write the URL with `nuqs`, not hand-rolled `router.replace`** ([VERIFY] against Next 16). [`nuqs`](https://nuqs.dev) (v2) is the ecosystem-first, type-safe URL-state library — `useQueryState`/`useQueryStates` behave like `useState` but persist to the URL, with typed parsers, built-in **throttling** (hand-rolled per-keystroke `router.replace` on a search box is the classic jank), and `useTransition` support. The page stays a Server Component reading the `searchParams` prop (above) — nuqs only owns the **client write side**:
+
+```tsx
+"use client";
+import { useQueryState, parseAsStringEnum } from "nuqs";
+// chip row — one typed param, synced to ?status=
+const [status, setStatus] = useQueryState(
+  "status",
+  parseAsStringEnum(["open", "closed"]).withDefault("open"),
+);
+// setStatus("closed") updates the URL; the Server Component above re-renders with new data
+```
+
+One-time setup: wrap the root layout in `<NuqsAdapter>` (from `nuqs/adapters/next/app`). For type-safe server reads in nested components without prop-drilling, `createSearchParamsCache([...])`. The hand-rolled `router.replace(\`?\${next}\`)` is a fine fallback when you don't want the dependency, but for anything beyond a single boolean, prefer nuqs.
 
 ### 3. Lift state, don't mirror
 
@@ -363,7 +378,7 @@ Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says 
 | "I just need to keep the prop in state so I can edit it locally." | Lift the setter, or use `key` to reset on identity change. Mirroring desyncs. |
 | "I'll `useEffect` to compute X from Y." | Derive during render. If expensive: `useMemo`. |
 | "I need to fetch on mount." | Server Component (`data-fetching` rung 1). Or `useMountEffect` if genuinely client-side. |
-| "I need to sync state to URL on every change — `useEffect` is fine." | Backwards. Make URL the source of truth; read it via `searchParams` / `useSearchParams`; write it via `router.replace`. The "sync" disappears. |
+| "I need to sync state to URL on every change — `useEffect` is fine." | Backwards. Make URL the source of truth; read it server-side via the `searchParams` prop; write it client-side via `nuqs` `useQueryState` (typed + throttled) — or hand-rolled `router.replace` for a single param. The "sync" disappears. |
 | "I'll `useEffect` to reset state when the user changes." | `key={userId}` on the component. |
 | "I'll show a toast in `useEffect` after submit." | Toast in the click handler. |
 | "I'll store the dropdown-open state in URL." | Don't — local UI state with no shareable contract belongs in `useState`. Rung 8. |

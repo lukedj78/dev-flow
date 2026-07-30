@@ -860,7 +860,7 @@ Derived from `lusentis/next-skills/nextjs-forms` (MIT) — see `forms/SKILL.md` 
 **Input**: a data read in a Next.js 16 App Router app.
 **Output**: the read landed in the correct place per the four-rung ladder:
 1. **Async Server Component** (default, ~90% of cases) — `await listX()` at the top.
-2. **URL `searchParams`** — filter / tab / range state moves to the URL; page stays a Server Component.
+2. **URL `searchParams`** — filter / tab / range state moves to the URL; page stays a Server Component (server reads the `searchParams` prop, client writes it with type-safe `nuqs`).
 3. **`Promise<T>` + `use()` + `<Suspense>`** — when a Client Component genuinely needs server data as props at mount (charting libs, third-party widgets).
 4. **Route Handler + SWR / React Query** — last resort, narrow scope: polling, focus refetch, third-party-mutated data.
 
@@ -879,7 +879,7 @@ Derived from `lusentis/next-skills/nextjs-data-fetching` (MIT).
 **Input**: a `useState + useEffect` pair, a bare `useEffect`, or a "should I `useState` here?" question.
 **Output**: refactor applied at the right rung of an 8-step ladder:
 1. **Derive** during render (don't store-and-sync).
-2. **URL state** for shareable / back-button-correct state.
+2. **URL state** for shareable / back-button-correct state (written client-side with type-safe `nuqs`, not hand-rolled `router.replace`).
 3. **Lift** state to the nearest common parent (don't mirror).
 4. **Server state** belongs on the server (route to `data-fetching`) — or in a query library if it must be client.
 5. **Side effect after user click** → event handler, not `useEffect`.

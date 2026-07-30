@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-30T20:19:49Z",
+  "generated_at": "2026-07-30T21:09:49Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 39,
   "families": {
@@ -671,7 +671,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 441,
+      "skill_md_lines": 456,
       "bundle": "dist/state-discipline.skill"
     },
     {
