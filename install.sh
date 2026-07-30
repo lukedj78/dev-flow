@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install all 38 dev-flow skills (5 core + 10 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) + a
+# Install all 39 dev-flow skills (5 core + 11 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) + a
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
@@ -11,11 +11,11 @@
 #   * Core (stack-agnostic flow):        5 skills  — dev-flow, prd-from-idea,
 #                                        prd-to-tasks, linear-scrum,
 #                                        compliance-audit
-#   * Web (Next.js 16 + shadcn/Base UI/MUI): 10 skills — figma-to-design-md,
+#   * Web (Next.js 16 + shadcn/Base UI/MUI): 11 skills — figma-to-design-md,
 #                                        image-to-design-md, design-md-to-app,
 #                                        coss-ui, screenshot-to-page, module-add,
 #                                        write-tests, forms, data-fetching,
-#                                        state-discipline
+#                                        state-discipline, transitions
 #   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
 #   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
 #   * Monorepo (web + mobile shared):    3 skills  — monorepo-bootstrap,
@@ -157,6 +157,7 @@ SKILLS=(
   forms
   data-fetching
   state-discipline
+  transitions
 
   # Agent engine (eve — Vercel filesystem-first agent framework)
   eve-agent

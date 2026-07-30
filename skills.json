@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-24T16:09:58Z",
+  "generated_at": "2026-07-30T19:09:39Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 38,
+  "skill_count": 39,
   "families": {
     "core": [
       "dev-flow",
@@ -29,6 +29,7 @@
       "rn-upgrade",
       "screenshot-to-page",
       "state-discipline",
+      "transitions",
       "write-tests"
     ],
     "mobile": [
@@ -67,7 +68,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 230,
+      "skill_md_lines": 231,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -672,6 +673,24 @@
       "scripts": [],
       "skill_md_lines": 441,
       "bundle": "dist/state-discipline.skill"
+    },
+    {
+      "name": "transitions",
+      "family": "web",
+      "role": "operative",
+      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, spring presets, distances) plus a curated library of production-ready, tokenized micro-interactions — entrance/exit, stagger, layout resize, modal/dropdown/panel/toast/accordion toggles, hover (lift/tilt/avatar-gr...",
+      "skill_file": "transitions/SKILL.md",
+      "references": [
+        "audit-recipe.md",
+        "contracts.md",
+        "motion-library.md"
+      ],
+      "scripts": [
+        "scan_motion.py",
+        "test_scan_motion.py"
+      ],
+      "skill_md_lines": 132,
+      "bundle": "dist/transitions.skill"
     },
     {
       "name": "write-tests",

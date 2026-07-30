@@ -167,15 +167,16 @@ For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` 
 
 ## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
 
-Three sibling skills live alongside the phase-driven flow above. They do **not** bump `phase` and they apply only to `stack.framework ∈ {"next", "monorepo"}` + `stack.nextjs_version = "16"`. Invoke them when the trigger fires, regardless of current `phase`:
+Four sibling skills live alongside the phase-driven flow above. They do **not** bump `phase` and they apply only to `stack.framework ∈ {"next", "monorepo"}` + `stack.nextjs_version = "16"`. Invoke them when the trigger fires, regardless of current `phase`:
 
 | Skill | Trigger | What it does |
 |---|---|---|
 | `forms` | User mentions "form", "edit panel", "create dialog", "settings page", "save button" — OR you're about to write a form, `useState` for field values, raw `useForm`, hand-rolled dirty tracking, inline `toast` on submit | Routes through `lib/forms/` shared toolkit. Scaffolds it on first run via `forms/scripts/scaffold_lib_forms.py` (reads `stack.forms` = `"tanstack-form"` or `"react-hook-form"`). Refuses if Pages Router or pre-16. |
 | `data-fetching` | User is about to add `useEffect` to fetch, convert a page to `"use client"` for filter state, add a `"use server"` `getX`/`listX`/`findX`, or pastes `useState + useEffect + fetch` | Walks the 4-rung ladder: Server Component → URL `searchParams` → `Promise<T>` + `use()` + `<Suspense>` → Route Handler + SWR (last resort). Bans Server Actions for reads. |
 | `state-discipline` | User pastes `useState + useEffect`, reaches for `useState` to mirror a prop, derives a value via `useEffect + setState`, or asks "should I `useState` here?" | Walks the 8-rung ladder: derive → URL → lift → query lib → event handler → `key` reset → `useMountEffect` → honest `useState`. Bans bare `useEffect`. |
+| `transitions` | User says "add a transition / animation", "animate this", "page transition", "stagger these cards" — OR you're about to write an inline `transition:` / `animate={{…}}` / `@keyframes` / a Tailwind `duration-[Xms]` | Routes motion through one token layer (`lib/motion/`) + a curated library, cheapest-tier-first (Tailwind/`tw-animate-css` → CSS keyframes → View Transitions → Motion). Always ships `prefers-reduced-motion`. Sits above `module-add motion`; routes there for Tier-3 spring/layout/gesture. Records `stack.motion`. |
 
-All three append a `history` entry per run (no phase bump) and have `audit-recipe.md` references for "audit my codebase against X" requests. When in doubt about whether to call them: if `stack.framework` is web-shaped and the conversation touches forms / reads / `useEffect` / `useState`, route there.
+All four append a `history` entry per run (no phase bump) and have `audit-recipe.md` references for "audit my codebase against X" requests. When in doubt about whether to call them: if `stack.framework` is web-shaped and the conversation touches forms / reads / `useEffect` / `useState` / motion, route there.
 
 ## Agent engine (eve) — an optional, on-demand component
 

@@ -1,6 +1,6 @@
 # Full walkthrough — a product that exercises every skill
 
-A worked end-to-end example that touches **all 38 skills** in the family. To use them all,
+A worked end-to-end example that touches **all 39 skills** in the family. To use them all,
 the product must span **web + mobile + agent**, so this imagines a full monorepo. A real
 project usually needs only a subset (e.g. web + eve, no mobile).
 
@@ -48,6 +48,7 @@ move, and delegates to the specialist skills below. `phase` transitions are note
 | `forms` | reply form + settings (TanStack Form, `lib/forms/`) |
 | `data-fetching` | server-component reads + `searchParams` filters (ticket list) |
 | `state-discipline` | local UI state done right (filters, toggles) — no stray `useEffect` |
+| `transitions` | one motion system: tokenized modal/toast/stagger + a View-Transitions route change; `prefers-reduced-motion` throughout |
 | `module-add` | `auth` (better-auth), `db` (drizzle+neon), `payments` (stripe), `email` (resend), `ci`, `motion`, `storage`, `deploy` |
 | `composition-patterns-guide` | refactor a bloated component (boolean props → compound) |
 | `promote-component` | lift `TicketCard` once it's used in 3+ pages |
@@ -113,7 +114,7 @@ iteration; the runner **repeats** it. (See `docs/loop-engineering.md`.)
 ## One-sentence summary
 
 dev-flow orchestrates the specialists phase by phase (web, mobile, agent, shared); the
-**discipline** skills (`forms`/`data-fetching`/`state-discipline`) and **refactor** skills
+**discipline** skills (`forms`/`data-fetching`/`state-discipline`/`transitions`) and **refactor** skills
 (`composition-patterns-guide`/`promote-component`) act cross-cutting at any phase; `eve-agent`
 + `voice`/`realtime` add the brain and its senses; and the **loop** runs the whole thing
 automatically from Linear.
