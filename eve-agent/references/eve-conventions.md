@@ -162,8 +162,10 @@ bundler does not capture `execute: someFn` and it fails on replay.
   `vercel deploy` (not `--prebuilt` when skipping prewarming).
 * When `apps/web` fronts the agent, the proxy/rewrites must forward **both** `/eve/` **and**
   `/.well-known/workflow/`.
-* Model credentials via env: `AI_GATEWAY_API_KEY` (gateway) or a provider key
-  (`ANTHROPIC_API_KEY`, …) plus the matching `@ai-sdk/*` package for direct routing.
+* Model credentials via env, three options (per `/docs/installation`): `AI_GATEWAY_API_KEY`
+  (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
+  project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
+  matching `@ai-sdk/*` package for direct routing.
 * Prereqs: **Node ≥ 24** and npm. Default scaffold model: `anthropic/claude-sonnet-5`; the
   `model` field also accepts `defineDynamic({ fallback, … })` for per-session model choice.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
