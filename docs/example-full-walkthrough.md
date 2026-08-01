@@ -1,6 +1,6 @@
 # Full walkthrough — a product that exercises every skill
 
-A worked end-to-end example that touches **all 39 skills** in the family. To use them all,
+A worked end-to-end example that touches **all 41 skills** in the family. To use them all,
 the product must span **web + mobile + agent**, so this imagines a full monorepo. A real
 project usually needs only a subset (e.g. web + eve, no mobile).
 
@@ -49,6 +49,7 @@ move, and delegates to the specialist skills below. `phase` transitions are note
 | `data-fetching` | server-component reads + `searchParams` filters (ticket list) |
 | `state-discipline` | local UI state done right (filters, toggles) — no stray `useEffect` |
 | `transitions` | one motion system: tokenized modal/toast/stagger + a View-Transitions route change; `prefers-reduced-motion` throughout |
+| `heroicons-animated` | the notification **bell** shakes on a new ticket, the **menu**↔**close** morph — Motion icons from `@heroicons-animated/*`, reduced-motion-guarded |
 | `module-add` | `auth` (better-auth), `db` (drizzle+neon), `payments` (stripe), `email` (resend), `ci`, `motion`, `storage`, `deploy` |
 | `composition-patterns-guide` | refactor a bloated component (boolean props → compound) |
 | `promote-component` | lift `TicketCard` once it's used in 3+ pages |
@@ -87,15 +88,25 @@ Stripe/Linear, an **eval** for each, an audit **hook**, a daily-digest **schedul
 | `module-add voice` | voice mode **over the agent** (STT → eve → TTS) |
 | `module-add realtime` | team presence/typing via Vercel WebSockets |
 
-## Phase 8 — compliance gate (pre-deploy)
+## Phase 8 — pre-deploy gates (compliance + cost)
 
-At `feature_complete`, before shipping, dev-flow proposes **`compliance-audit`**. Helmsman has
-user accounts (DSAR + Apple/Play deletion), an **eve agent** (AI-transparency Art. 50, memory
-residency), and US-default infra — so it flags R1/R3/R5 and auto-applies the safe fixes (DSAR
-export/erasure endpoints, a cookie-consent banner, the AI disclosure in the agent + chat header,
-a sub-processor register from `meta.json#stack`), leaving the EU-region and legal-basis calls as
-`TODO(compliance)`. It writes `docs/compliance/audit-report.md`, records `meta.json#compliance`,
-and does **not** block deploy — the user decides.
+At `feature_complete`, before shipping, dev-flow proposes **two gates** side by side.
+
+**`compliance-audit`** (legal risk). Helmsman has user accounts (DSAR + Apple/Play deletion), an
+**eve agent** (AI-transparency Art. 50, memory residency), and US-default infra — so it flags
+R1/R3/R5 and auto-applies the safe fixes (DSAR export/erasure endpoints, a cookie-consent banner,
+the AI disclosure in the agent + chat header, a sub-processor register from `meta.json#stack`),
+leaving the EU-region and legal-basis calls as `TODO(compliance)`. Writes
+`docs/compliance/audit-report.md`, records `meta.json#compliance`.
+
+**`vercel-doctor`** (cost/perf risk). The web app deploys to Vercel, so dev-flow runs the cost
+gate: it finds a `/dashboard` route opting out of the CDN and a per-request fan-out in the ticket
+list, auto-removes dead exports, and **routes** the caching + invocation findings to
+**`data-fetching`** (Next 16 `"use cache"` / Server-Component reads) and the image findings to
+**`design-md-to-app`**. Writes `docs/vercel/doctor-report.md` + a health score to
+`meta.json#vercel_doctor`.
+
+Neither blocks the deploy — they surface findings; the user decides.
 
 ## Phase 9 — deploy
 

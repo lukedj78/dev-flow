@@ -1,11 +1,11 @@
 # dev-flow
 
-![dev-flow — map of the 39 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, governance (PM & compliance), how to use & install, full index](./docs/assets/dev-flow-map-39.png)
+![dev-flow — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, governance (PM & compliance), how to use & install, full index](./docs/assets/dev-flow-map-41.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **39 skills (5 core + 11 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **41 skills (5 core + 13 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 
@@ -86,7 +86,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies all 39 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies all 41 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -121,7 +121,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 39. Restart Claude Code if you don't see them in /skills.
+# Should print 41. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -141,7 +141,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 
-`install.sh` installs **all 39 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 39 skills, in detail](#the-39-skills-in-detail).
+`install.sh` installs **all 41 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`heroicons-animated` animated icons, `vercel-doctor` cost/perf pre-deploy gate), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 41 skills, in detail](#the-41-skills-in-detail).
 
 ### 2. Create a project
 
@@ -658,14 +658,14 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
-- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 39 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
+- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 41 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 
 ---
 
-## The 39 skills, in detail
+## The 41 skills, in detail
 
-> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 11 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 13 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -909,6 +909,20 @@ Derived from `lusentis/next-skills/nextjs-usestate` (MIT) — renamed `state-dis
 **How it works**: governs motion the way `state-discipline` governs state — reach for the **cheapest technique tier first** (Tailwind + `tw-animate-css` → CSS keyframes → View Transitions API → Motion runtime), always ship a `prefers-reduced-motion` fallback, animate only `transform`/`opacity`, and use tokens instead of magic-number durations/easings. Four modes: **Setup** (scaffold `lib/motion/` from the DESIGN.md motion block), **Apply** (best-fit transition at the lowest viable tier), **Audit** (`scripts/scan_motion.py` first-pass → verified findings), **Refine** (swap hardcoded values → tokens). Sits **above** `module-add motion` (which installs the Motion runtime) and reuses `tw-animate-css`; routes to `module-add motion` only when a spring/layout/gesture effect genuinely needs JS. Records `meta.json#stack.motion`, never bumps `phase`. Web-only — the mobile counterpart is `rn-animations-gestures`.
 
 Inspired by the **[transitions.dev](https://transitions.dev/)** motion library (Jakub Antalík) — this is our token-driven, stack-native take on the idea, not a fork or an install of their package.
+
+### `heroicons-animated` — Motion-animated Heroicons via the shadcn registry
+
+**Input**: "animated icon" / "animate this icon" / "make the bell shake on a new notification".
+**Output**: one Motion-animated Heroicon added from the [`@heroicons-animated/*`](https://www.heroicons-animated.com/) shadcn registry (316 icons, MIT) — `shadcn add @heroicons-animated/<name>` — wired with the **accessibility guard the raw components lack**.
+
+**How it works**: each icon is a `registry:ui` `.tsx` built on `motion` that animates on hover and exposes an imperative ref handle (`<Name>IconHandle.startAnimation()/stopAnimation()`) for event-driven control. The skill owns the registry install and enforces two things the library omits: a **`prefers-reduced-motion` guard** (the components animate unconditionally) and timing **aligned to `lib/motion/tokens.ts`**. Ecosystem-first for icons — don't hand-animate an SVG. Sits alongside `transitions` (motion discipline) and `module-add motion` (the runtime it depends on); same namespaced-registry mechanism as `coss-ui`. Web only; no phase bump. RN counterpart: `rn-animations-gestures`.
+
+### `vercel-doctor` — cost & performance pre-deploy gate
+
+**Input**: "my Vercel bill is high" / "optimize for Vercel" / a pre-deploy check on a Next.js-on-Vercel project.
+**Output**: a `docs/vercel/doctor-report.md` (health score + findings), the **safe fixes applied**, and the judgment calls **routed to the owning skill**.
+
+**How it works**: wraps the third-party [vercel-doctor](https://www.vercel-doctor.com/) CLI, which scans a Next.js codebase for costly Vercel patterns across six areas — caching that defeats the CDN, dead code, function duration, image waste, excessive invocations, config. The skill applies the mechanical fixes (dead-code removal with `tsc` green, config/image tweaks) and routes the rest to the skill that owns it: caching + invocations → `data-fetching` (Next 16 `"use cache"` / Server-Component reads), images → `design-md-to-app`. The **cost/perf sibling of `compliance-audit`** (legal-risk gate) — both are `feature_complete` pre-deploy gates, both record to `meta.json`, both never bump `phase` or block deploy. Third-party tool, `[VERIFY]` the invocation + license. Refuses for non-Vercel/non-Next targets.
 
 ### Mobile stack (Expo + React Native)
 
@@ -1163,12 +1177,12 @@ The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 # sibling cross-references, installer coverage)
 python3 scripts/lint_skills.py
 
-# Regenerate skills.json (the machine-readable registry of all 39 skills)
+# Regenerate skills.json (the machine-readable registry of all 41 skills)
 python3 scripts/build_skills_registry.py
 
 # Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
 # after editing any SKILL.md / references / scripts / assets)
-python3 scripts/build_skill_bundles.py          # all 39
+python3 scripts/build_skill_bundles.py          # all 41
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
 # Check for npm version drift in the RN/Expo stack-defaults pin set

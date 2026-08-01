@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-30T21:09:49Z",
+  "generated_at": "2026-08-01T16:21:55Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 39,
+  "skill_count": 41,
   "families": {
     "core": [
       "dev-flow",
@@ -19,6 +19,7 @@
       "eve-registry-porting",
       "figma-to-design-md",
       "forms",
+      "heroicons-animated",
       "image-to-design-md",
       "linear-scrum",
       "module-add",
@@ -30,6 +31,7 @@
       "screenshot-to-page",
       "state-discipline",
       "transitions",
+      "vercel-doctor",
       "write-tests"
     ],
     "mobile": [
@@ -68,7 +70,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 231,
+      "skill_md_lines": 235,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -502,6 +504,20 @@
       "bundle": "dist/forms.skill"
     },
     {
+      "name": "heroicons-animated",
+      "family": "web",
+      "role": "operative",
+      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry (316 icons, MIT, by Aniket Pawar, backed by Vercel OSS) instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtim...",
+      "skill_file": "heroicons-animated/SKILL.md",
+      "references": [
+        "contracts.md",
+        "usage.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 91,
+      "bundle": "dist/heroicons-animated.skill"
+    },
+    {
       "name": "image-to-design-md",
       "family": "web",
       "role": "operative",
@@ -691,6 +707,19 @@
       ],
       "skill_md_lines": 132,
       "bundle": "dist/transitions.skill"
+    },
+    {
+      "name": "vercel-doctor",
+      "family": "web",
+      "role": "operative",
+      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, a third-party CLI — `npx vercel-doctor` [VERIFY]) scans the codebase for cost/performance anti-pattern...",
+      "skill_file": "vercel-doctor/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 69,
+      "bundle": "dist/vercel-doctor.skill"
     },
     {
       "name": "write-tests",
