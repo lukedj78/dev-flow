@@ -1,8 +1,8 @@
-# eve patterns — multi-tenant & dynamic recipes
+# eve patterns — multi-tenant, dynamic, governance & traceability recipes
 
-These are **composed patterns**, not framework subsystems: eve gives you primitives (auth, tools, instructions, schedules, approval) and you assemble tenant-safe behaviour from them. Live docs: <https://eve.dev/docs/patterns/…>. As always, **read `node_modules/eve/docs/` first** and treat every identifier below as `[VERIFY]` against the installed version — patterns move.
+These are **composed patterns**, not framework subsystems: eve gives you primitives (auth, tools, instructions, schedules, approval, hooks, sandbox) and you assemble tenant-safe behaviour from them. Live docs: <https://eve.dev/docs/patterns/…>. As always, **read `node_modules/eve/docs/` first** and treat every identifier below as `[VERIFY]` against the installed version — patterns move.
 
-## The one rule that runs through all four
+## The one rule that runs through the tenancy recipes (#1–#4)
 
 **Identity is derived, never supplied.** Tenant and user come from the **verified session** (`ctx.session.auth.current`, or `ctx.session.auth.initiator` when a conversation is permanently owned by its creator) — **never** from model input, a tool argument, or a remote API response. Centralise it:
 
@@ -174,8 +174,57 @@ export interface ScheduleStore {
 
 **Rules:** `claimDue` leases atomically so overlapping minute-ticks don't double-claim. **Delivery is at-least-once** — a crash after `receive` but before `complete` re-dispatches, so **side-effecting jobs must be idempotent**. Identity comes from `ctx.session`, never the model. Convert user times to **ISO 8601 with explicit offset** and confirm the timezone before scheduling.
 
+## 5. Traceability — a durable, idempotent audit hook
+
+**Problem:** an agent's work (tool calls, reasoning, field writes) lives only in a runtime log nobody can query — you can say *what* a value is, never *how it got there*. **Pattern:** a wildcard **hook** that mirrors every runtime event into your own DB, keyed to the domain record. This is GDPR **Art. 12 traceability** as an eve primitive — the bridge from `eve-agent` to `compliance-audit`.
+
+```ts
+// agent/hooks/audit.ts
+import { db } from "@/db";
+import { defineHook } from "eve/hooks";
+
+export default defineHook({
+  events: {
+    async "*"(event, ctx) {                 // "*" = every event type
+      const id = event.meta?.id;            // eve's stable ULID for this event
+      if (!id) return;                      // no id → can't dedupe → skip
+      try {
+        await db.agentEvent.createMany({
+          data: [{ id, sessionId: ctx.session.id, type: event.type }],
+          skipDuplicates: true,             // reconnect re-delivers → no-op, not a dup row
+        });
+      } catch { /* observe-only: swallow — an audit failure must never fail the turn */ }
+    },
+  },
+});
+```
+
+**Two invariants make it safe:** (1) **observe-only** — hooks run *after* the event is durably recorded and must **never throw**, so wrap the write; a failure here can't take a turn down. (2) **idempotent** — use eve's per-event `meta.id` (a ULID, stable across reconnects/rewinds/replays) as the primary key with `skipDuplicates`, so at-least-once redelivery lands as no-ops. Think **flight-recorder**: records everything, never interferes, never double-writes on rewind. Pairs with `compliance-audit` (Art. 12 + R7 "don't log PII" — store event *shape*/ids, not sensitive payloads).
+
+## 6. Data governance — the read-vs-egress boundary
+
+**Reframe:** the useful question isn't "what may the agent *read*?" but "what may *leave*?" An agent can usually read all of *its own* org's data; the risk is **egress** — to third-party tools (LLM/search APIs), into the sandbox, into logs. Codify it as an **agent skill** the model loads before touching data (advertised via `load_skill`), not as ad-hoc prompt text.
+
+```md
+# agent/skills/data-boundaries.md
+---
+description: Read before touching internal data or calling any third-party tool.
+---
+You may READ everything internal — it's ours. The boundary is EGRESS.
+Three rules about what LEAVES:
+1. No internal text in third-party calls (web_search / web_fetch / an external LLM).
+   Ask the public, *derived* question instead — the public fact, not the user's words.
+2. Nothing from a mailbox/record into /workspace (the sandbox has a different
+   lifetime and audience than a turn — see the Sandbox concept).
+3. Nothing sensitive into logs. Reading is not logging.
+```
+
+Concrete: enriching a contact, the agent may read the whole Acme email thread, but must turn `web_search("<pasted customer sentence>")` into `web_search("what did Acme announce in 2026?")`. **Library analogy:** read any book, but you can't photocopy pages and mail them out — the control is at the *door* (egress), not the *shelf* (read). This is the governance layer above eve's sandbox **network policy** + **credential brokering** (see `eve-concepts.md` §Sandbox), and it maps onto `compliance-audit` R3 (transfers), R7 (PII in logs), R4 (sandbox retention). For a multi-tenant agent, combine it with #1 (the read scope itself is tenant-derived).
+
+> Recipes #5–#6 are distilled from the MIT reference implementation **[trycompai/crm](https://github.com/trycompai/crm)** (`apps/agent/agent/hooks/audit.ts`, `agent/skills/data-boundaries.md`) — a production eve monorepo whose structure independently matches this skill's conventions.
+
 ---
 
 ## When to reach for these
 
-Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. They are the tenant-safety backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
+Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.

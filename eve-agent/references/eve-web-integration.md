@@ -92,6 +92,15 @@ literal. Use `<Marker className="shimmer">` for the "agent is working" state, no
 Full recipe: `design-md-to-app/references/chat-and-typeset.md`. In a monorepo the primitives
 live in the shared `packages/ui` (`@workspace/ui`), imported by `apps/web`.
 
+**Option — Vercel AI Elements.** [AI Elements](https://ai-sdk.dev/elements) is Vercel's prebuilt
+component kit for AI chat surfaces (message list, prompt input, reasoning/tool blocks, etc.),
+installed via the shadcn CLI. It's a legitimate alternative when you want a batteries-included
+AI-chat look out of the box — but it is **not** the default here: the **best practice stays the
+shadcn chat components + `shadcn/typeset`** above, which stay consistent with the rest of the
+app's design system and DESIGN.md tokens. Reach for AI Elements only when the user explicitly
+wants that kit; bind it to `useEveAgent()`'s `data.messages`/`status`/`send` the same way.
+(Seen in the wild in the `trycompai/crm` reference monorepo's `.agents/skills/ai-elements`.)
+
 ## Rich UI from agent output — the widget protocol
 
 When the agent should render **structured cards** (a match, a chart, a data table), don't make
