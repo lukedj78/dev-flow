@@ -78,9 +78,18 @@ The contract is also published as a standalone Python package, [`dev-flow-contra
 
 ### 1. Install the skills
 
-Pick whichever fits your setup — they all end up at `~/.claude/skills/<name>/` :
+Two ways in, two philosophies. The **plugin** subscribes you to the suite as a managed bundle that updates when we ship. **`install.sh`** copies the skill files so you can fork and hack on them — and it's the route for Codex / Copilot / Gemini / Cursor. Pick one; installing both leaves you with every skill twice.
 
-#### Option A — bundled `install.sh` (recommended for this repo)
+#### Option A — Claude Code plugin (recommended)
+
+```bash
+/plugin marketplace add lukedj78/dev-flow
+/plugin install dev-flow@dev-flow
+```
+
+All 41 skills arrive namespaced (`dev-flow:forms`, `dev-flow:rn-bootstrap`, …), and `/plugin marketplace update` pulls new releases. The shipped set is generated from the canonical taxonomy, so what you install always matches [`skills.json`](./skills.json) and the [CHANGELOG](./CHANGELOG.md).
+
+#### Option B — bundled `install.sh` (editable copies, all runtimes)
 
 ```bash
 git clone git@github.com:lukedj78/dev-flow.git
@@ -94,7 +103,7 @@ The script copies all 41 skill folders into the platform-appropriate location (e
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
-#### Option B — Claude Code `/plugin add` (interactive)
+#### Option C — `/plugin add` a single skill (local development)
 
 If you have the repo cloned locally:
 
@@ -106,7 +115,7 @@ If you have the repo cloned locally:
 
 Run once per skill folder. Useful if you only want to install a subset.
 
-#### Option C — `gh skill install` (GitHub CLI extension)
+#### Option D — `gh skill install` (GitHub CLI extension)
 
 ```bash
 gh extension install <ext-author>/gh-skill          # one-time
@@ -117,7 +126,7 @@ gh skill install lukedj78/dev-flow dev-flow design-md-to-app
 
 This works with the same `gh auth` you already use to clone private repos.
 
-#### Option D — drag-and-drop the `.skill` files
+#### Option E — drag-and-drop the `.skill` files
 
 The `dist/` folder contains packaged `.skill` archives. Drag them into your Claude Code window one at a time — useful when you don't have shell access on the target machine. (`dist/` is regenerated periodically; the newest skills — e.g. `eve-agent` — may ship source-only until repackaged, so prefer `install.sh` for the full set.)
 
@@ -666,6 +675,9 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 - 📇 **[Knowledge index](./docs/knowledge-index.md)** — the map of every doc-grounded how-to: which domain, which reference, which upstream to re-verify. Start here when wiring a library or running a knowledge refresh.
 - 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 41 skills.
+- 🔤 **[CONTEXT.md](./CONTEXT.md)** — the ubiquitous language: what *skill*, *family*, *phase*, *reference*, *gate*, *module* mean here, and the words to avoid (three different things are called "registry" — always qualify it).
+- 📋 **[CHANGELOG.md](./CHANGELOG.md)** — semver on the suite as a whole; what a major/minor/patch bump means for the contract.
+- 🚫 **[.out-of-scope/](./.out-of-scope/)** — decisions *not* to build, each with what would change our mind. Read before proposing something that was already evaluated.
 
 ---
 
@@ -677,10 +689,13 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 ├── references/*.md          its doc-grounded how-tos, recipes, vendored contract
 └── scripts/*                its executable helpers + tests
 docs/                        cross-cutting docs, knowledge index, assets
-scripts/                     repo tooling (registry + bundle builders, linter)
+scripts/                     repo tooling (registry + manifest + bundle builders, linter)
 dist/                        generated <skill>.skill bundles (one per skill)
+.claude-plugin/              plugin.json (generated) + marketplace.json — plugin distribution
+.out-of-scope/               decisions not to build, with what would change our mind
+.obsidian/                   committed vault config (see docs/OBSIDIAN.md)
 bootstrap/ contract-package/ evals/   templates, the contract as a package, eval fixtures
-install.sh · uninstall.sh · skills.json
+README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh · skills.json
 ```
 
 **Why the skill folders are flat, not nested by family.** The root mirrors the install target (`~/.claude/skills/<name>/`) one-to-one, keeps ~385 cross-skill reference paths valid, and matches what Claude Code / Codex / Gemini expect. The six-family grouping is **logical, not physical**: it lives in the `TAXONOMY` map in [`scripts/build_skills_registry.py`](./scripts/build_skills_registry.py) and is published in `skills.json`. That map is the single source of truth for family + role — a skill missing from it is a **build error**, never a silent default, so the counts here and in `install.sh` can't drift out of sync again.

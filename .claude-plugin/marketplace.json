@@ -1,0 +1,28 @@
+{
+  "name": "dev-flow",
+  "owner": {
+    "name": "lucadigerlando",
+    "url": "https://github.com/lukedj78"
+  },
+  "metadata": {
+    "description": "dev-flow — the skill suite that takes a product from idea to production, over one filesystem contract."
+  },
+  "plugins": [
+    {
+      "name": "dev-flow",
+      "source": "./",
+      "description": "41 skills over one .workflow/meta.json contract: PRD → design → scaffold → modules → tests → pre-deploy gates, for Next.js 16 web, Expo/RN mobile, turborepo monorepos and an eve agent engine.",
+      "category": "engineering",
+      "keywords": [
+        "nextjs",
+        "expo",
+        "react-native",
+        "shadcn",
+        "eve",
+        "monorepo",
+        "gdpr",
+        "scrum"
+      ]
+    }
+  ]
+}
