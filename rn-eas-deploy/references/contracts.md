@@ -4,6 +4,43 @@ This document defines the **canonical contract** that all skills in the dev-flow
 
 > Living version: this file. Skills that need to consult the contract should read **this exact file** (vendor a copy into their `references/` if standalone) — do not paraphrase from memory.
 
+## Knowledge principle — doc-grounded, never invent (rule zero)
+
+The skills are a **second brain**: authoritative, doc-grounded knowledge of the domains we build in, so we act as **experts and never improvise an API**. This governs how every skill is written and used:
+
+1. **Never invent.** Do not guess an API, flag, config shape, file path, or command. If the skill states it, it must be **grounded in the official documentation** (or the installed source, e.g. `node_modules/<pkg>`), not memory.
+2. **If we don't have the knowledge, get it.** When a skill says "use library X", it must also document **how** — the real setup + usage from X's official docs — so we don't scaffold something wrong and redo it later. A bare "use X" without the how-to is an incomplete skill. When the knowledge isn't in the skill yet, consult the official online docs *before* writing code, then capture what you learned back into the skill.
+3. **Mark the moving surface `[VERIFY]`.** Any identifier from a fast-moving or beta upstream (eve, next-intl, shadcn CLI, Expo SDK, Motion, Stripe apiVersion, …) carries a `[VERIFY]` note to check against the installed version — because docs move (e.g. next-intl renamed `middleware.ts` → `proxy.ts`).
+4. **Update periodically.** Upstreams change; the knowledge base must keep pace. Run the ecosystem watch (`docs/vercel-changelog-watch.md` and the per-skill audit recipes) on a cadence, apply what changed, and log it. Stale docs-grounding is a bug.
+
+Reference material (`references/*.md`) exists to satisfy #2 — every "use X" default in this contract points at a doc-grounded how-to, not just a name.
+
+## Golden rules (all projects, all stacks)
+
+Two non-negotiable rules every dev-flow skill enforces, regardless of the user's or team's spoken language:
+
+1. **Code is written in English.** Every code identifier — functions, variables, constants, types, enums, file/folder names, DB columns, API field names, commit messages — **and all code comments** are in English, always. This holds even when the user converses in another language (e.g. Italian): the conversation language and the code language are independent. English code stays portable, greppable, and consistent across contributors and tools. The one thing that is *not* English-by-default is **user-facing copy** — that goes through i18n (rule 2), never hardcoded.
+
+2. **Every frontend ships i18n from day one.** No user-facing string is ever hardcoded; all visible copy (labels, buttons, errors, empty states, emails) routes through i18n keys. The minimum locale set is **English + Italian** (`stack.locales = ["en", "it"]`, default locale `en`); a project may declare more, decided per project. The library:
+   - **Web (Next.js App Router)** → **[next-intl](https://next-intl.dev/)** (`stack.i18n = "next-intl"`), the canonical default. **The doc-grounded how-to is `design-md-to-app/references/i18n-next-intl.md`** (routing vs no-routing modes, `routing.ts`/`navigation.ts`/`proxy.ts`/`request.ts`, `[locale]` layout with `setRequestLocale` + `generateStaticParams`, `messages/{en,it}.json`, server vs client usage) — read it, don't reinvent the setup. Wired at scaffold time by `design-md-to-app`; the `forms` skill routes all form copy through it.
+   - **Mobile (Expo/RN)** → the RN i18n stack (e.g. `i18next` + `expo-localization`) — next-intl is web-only.
+   Record both `stack.i18n` and `stack.locales` in `meta.json`. Adding i18n later touches every screen, so it is set up **at scaffold**, not deferred.
+
+These are recorded in the `stack` block (`i18n`, `locales`) and treated as defaults, not questions — skip asking; only confirm extra locales beyond en/it.
+
+### Recommended default libraries (ecosystem-first)
+
+When a project needs one of these capabilities, reach for the default below instead of hand-rolling or picking ad-hoc — the same ecosystem-first rule used everywhere in dev-flow. Not every project needs them; these are the defaults **when** it does.
+
+| Capability | Web default | Mobile default |
+|---|---|---|
+| **Maps** | **[mapcn](https://mapcn.dev/)** — MapLibre GL, shadcn-registry. How-to: `design-md-to-app/references/maps-mapcn.md` (⚠️ CARTO default tiles need an Enterprise license for commercial use). `stack.maps = "mapcn"`. | **[mapcn-rn](https://mapcn-rn.dev/)** — MapLibre/Mapbox RN + NativeWind. How-to: `rn-components-apis/references/maps-mapcn-rn.md` (⚠️ native modules → dev build, not Expo Go). `stack.maps = "mapcn-rn"`. |
+| **Animated icons** | `heroicons-animated` (skill) | `rn-animations-gestures` |
+| **Motion** | `transitions` + `module-add motion` | `rn-animations-gestures` |
+| **Forms** | `forms` (`stack.forms`) | RN form stack |
+
+Per the **Knowledge principle**, each of these defaults must ship (or point at) a **doc-grounded how-to** — not just a name — before it's used to scaffold; `[VERIFY]` install command + license + API against the official site each time (docs move). These are starting defaults; a project may override with a documented reason.
+
 ## Folder layout
 
 A "dev-flow project" is a **standard codebase root** (the directory that contains `package.json`, your framework files, your git repo) with a `.workflow/` overlay holding planning + design metadata. The codebase lives at the top, not nested inside `.workflow/`.
@@ -172,6 +209,9 @@ Captures user choices that downstream skills need. Keys:
 - `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
 - `push` (mobile, optional): `"expo-notifications"` | `null`
 - `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.
+- `i18n` (frontend, **golden rule 2**): `"next-intl"` (web canonical default) | `"i18next"` | `"react-i18next"` | `null`. Every frontend has i18n — do not leave `null` for a frontend. Web new projects default to `"next-intl"`; mobile uses the RN i18n stack.
+- `locales` (frontend, **golden rule 2**): array of BCP-47 codes, first entry = default locale. **Minimum `["en", "it"]`**; a project may add more (e.g. `["en", "it", "fr"]`). Set at scaffold, not asked.
+- `maps` (frontend, optional — only when the product shows maps): `"mapcn"` (web, MapLibre GL — how-to `design-md-to-app/references/maps-mapcn.md`) | `"mapcn-rn"` (mobile, MapLibre/Mapbox RN — how-to `rn-components-apis/references/maps-mapcn-rn.md`) | `null`. Ecosystem-first default when a project needs a map. `null` when the product has no maps.
 - `forms` (web/monorepo, optional): `"tanstack-form"` | `"react-hook-form"` | `null`. The form-handling library. Defaults to `"tanstack-form"` for new Next.js 16 App Router projects (aligned with `nextjs-forms` skill from `lusentis/next-skills`). `"react-hook-form"` is supported for legacy projects or teams with strong preference. Written by `prd-from-idea` Q8 or set at scaffold time by `design-md-to-app`.
 - `agent` (optional): `"eve"` | `null`. An **optional product component** — the agent engine wired into `apps/agent/`, owned exclusively by the `eve-agent` skill. Opted into at stack-decision time or later on demand (not a pipeline phase). `null`/unset → no agent (or `eve-agent` will scaffold one when opted in); `"eve"` → an eve agent exists and `eve-agent` runs in capability mode. Setting it to `"eve"` implies a monorepo (`apps/web` + `apps/agent`). `eve-agent` writes this key and appends to `history` but does **not** bump `phase` — the agent has its own capability cadence, separate from the web app's linear build.
 - `nextjs_version` (web only, optional): `"16"` | string. The Next.js major version. **Canonical default for new projects = `"16"`** (App Router, RSC, async `searchParams`, `use(promise)`, `revalidatePath`, `revalidateTag`). Pages Router (`pages/` dir) is explicitly NOT supported by the dev-flow skill set — use only App Router. If an existing project is Pages Router or pre-16, the web skills refuse to apply.

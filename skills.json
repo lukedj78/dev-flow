@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-02T06:57:56Z",
+  "generated_at": "2026-08-02T07:25:31Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
@@ -70,7 +70,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 235,
+      "skill_md_lines": 245,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -175,6 +175,7 @@
       "skill_file": "rn-components-apis/SKILL.md",
       "references": [
         "decision-tree.md",
+        "maps-mapcn-rn.md",
         "patterns.md"
       ],
       "scripts": [],
@@ -417,7 +418,9 @@
         "base-ui-mapping.md",
         "chat-and-typeset.md",
         "contracts.md",
+        "i18n-next-intl.md",
         "library-choice.md",
+        "maps-mapcn.md",
         "mui-mapping.md",
         "shadcn-mapping.md",
         "showcase-template.md",

@@ -21,6 +21,15 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 `.workflow/` is the load-bearing convention. Read **`references/contracts.md`** before doing anything — it defines the folder layout, the `meta.json` schema, the `phase` enum, and which skill owns which file. **Do not improvise.** If a skill behaves in a way the contract doesn't describe, fix the contract or fix the skill — never silently diverge.
 
+## Golden rules (enforced on every project)
+
+Two non-negotiables, defined in full in `references/contracts.md` §Golden rules — every skill honors them:
+
+1. **Code is in English** — functions, variables, constants, types, file names, DB columns, API fields, comments. Independent of the conversation language (the user may speak Italian; the code is still English). Only user-facing copy is localized (rule 2).
+2. **Every frontend ships i18n from day one** — no hardcoded user-facing strings; all copy through i18n keys. Web → **[next-intl](https://next-intl.dev/)** (`stack.i18n = "next-intl"`), mobile → the RN i18n stack. Minimum locales **English + Italian** (`stack.locales = ["en","it"]`, default `en`); more per project. Set at scaffold, not deferred.
+
+Plus **ecosystem-first recommended defaults** (contract §Recommended default libraries) — e.g. maps → **mapcn** (web) / **mapcn-rn** (mobile). Reach for these when the capability is needed rather than hand-rolling.
+
 ## Stack-aware routing
 
 `dev-flow` reads `meta.json#stack.framework` and routes to a stack-specific family of operative skills.
@@ -64,6 +73,7 @@ If `<root>/.workflow/` does not exist, create it and write a minimal `meta.json`
   "updated_at": "<same>",
   "phase": "empty",
   "stack": {
+    "i18n": null, "locales": ["en", "it"],
     "framework": null, "ui": null, "auth": null, "db": null,
     "payments": null, "deploy": null, "agent": null
   },

@@ -8,6 +8,8 @@
 > One folder (`.workflow/`), one state file (`meta.json`), and **41 skills (5 core + 13 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
+>
+> **Golden rules** (enforced on every project, see the contract): **① code is written in English** (identifiers, constants, comments — independent of the conversation language); **② every frontend ships i18n from day one** — web via [next-intl](https://next-intl.dev/), mobile via the RN i18n stack, minimum locales **English + Italian**, no hardcoded user-facing copy.
 
 ```
                       ┌────────────────────────┐

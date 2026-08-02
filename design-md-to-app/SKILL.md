@@ -116,7 +116,7 @@ The mapping references describe the framework-specific glue (font loading, root 
 
 Ask: **"Vuoi lo scaffold completo (showcase + STYLE_NOTES + provider wiring) o solo le patch al tema?"** Two modes:
 
-- **Full scaffold** (default for new projects): everything described in §What you produce — theme files + component overrides + `/showcase` route + `STYLE_NOTES.md` + `_design-md-mapping.json` + provider wiring.
+- **Full scaffold** (default for new projects): everything described in §What you produce — theme files + component overrides + `/showcase` route + `STYLE_NOTES.md` + `_design-md-mapping.json` + provider wiring. **Golden rule 2 — wire i18n now** (follow the doc-grounded how-to in `references/i18n-next-intl.md`, don't improvise the setup): install **next-intl** (`stack.i18n`), scaffold `messages/en.json` + `messages/it.json` (minimum `stack.locales = ["en","it"]`, default `en`), the `[locale]` routing (`routing.ts`/`navigation.ts`/`proxy.ts`/`request.ts`) with `setRequestLocale` + `generateStaticParams`, and `<NextIntlClientProvider>` in the root layout. All scaffolded copy uses `useTranslations` keys — never hardcoded strings (the `forms` skill already assumes this). Adding i18n later touches every page, so it's part of the initial scaffold, not deferred.
 - **Theme-only patch** (recommended for mature existing projects): write *only* the design-token files as a reviewable diff:
   - shadcn: `globals.css` (Tailwind v4 is CSS-first — tokens live in `@theme` inside `globals.css`; only touch `tailwind.config.ts` if the project still uses a v3 JS config), the `cva` blocks of components named in DESIGN.md.
   - MUI: `lib/theme.ts` only (or wherever the theme already lives).
