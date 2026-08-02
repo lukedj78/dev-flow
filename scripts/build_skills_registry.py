@@ -37,51 +37,89 @@ except ImportError:
     sys.exit(1)
 
 
-CORE = {"dev-flow", "prd-from-idea", "prd-to-tasks"}
-
-WEB_FAMILY = {
-    "figma-to-design-md", "image-to-design-md", "design-md-to-app",
-    "screenshot-to-page", "module-add", "write-tests",
+# ---------------------------------------------------------------------------
+# THE TAXONOMY — single source of truth for every skill's family and role.
+#
+# Six families, matching README.md and install.sh exactly. Every skill on disk
+# MUST appear here: an unclassified skill is a build ERROR, never a silent
+# default (a silent "web" fallback is how rn-upgrade once ended up filed as a
+# web skill). Adding a skill? Add its row here in the same commit.
+#
+# family: core | web | agent | mobile | monorepo | refactor
+# role:   orchestrator | discovery | operative | knowledge
+# ---------------------------------------------------------------------------
+TAXONOMY: dict[str, tuple[str, str]] = {
+    # --- core (5): stack-agnostic, used by every stack -----------------------
+    "dev-flow":                     ("core", "orchestrator"),
+    "prd-from-idea":                ("core", "discovery"),
+    "prd-to-tasks":                 ("core", "discovery"),
+    "linear-scrum":                 ("core", "operative"),
+    "compliance-audit":             ("core", "operative"),
+    # --- web (13): Next.js 16 App Router ------------------------------------
+    "figma-to-design-md":           ("web", "discovery"),
+    "image-to-design-md":           ("web", "discovery"),
+    "design-md-to-app":             ("web", "operative"),
+    "coss-ui":                      ("web", "operative"),
+    "screenshot-to-page":           ("web", "operative"),
+    "module-add":                   ("web", "operative"),
+    "write-tests":                  ("web", "operative"),
+    "forms":                        ("web", "operative"),
+    "data-fetching":                ("web", "knowledge"),
+    "state-discipline":             ("web", "knowledge"),
+    "transitions":                  ("web", "knowledge"),
+    "heroicons-animated":           ("web", "operative"),
+    "vercel-doctor":                ("web", "operative"),
+    # --- agent (2): the eve engine ------------------------------------------
+    "eve-agent":                    ("agent", "operative"),
+    "eve-registry-porting":         ("agent", "operative"),
+    # --- mobile (16): Expo + React Native -----------------------------------
+    "rn-fundamentals":              ("mobile", "knowledge"),
+    "rn-styling":                   ("mobile", "knowledge"),
+    "rn-expo-router":               ("mobile", "knowledge"),
+    "rn-components-apis":           ("mobile", "knowledge"),
+    "rn-data-fetching":             ("mobile", "knowledge"),
+    "rn-animations-gestures":       ("mobile", "knowledge"),
+    "rn-push-notifications":        ("mobile", "knowledge"),
+    "rn-backend":                   ("mobile", "knowledge"),
+    "rn-eas-build-submit-update":   ("mobile", "knowledge"),
+    "rn-publishing-payments":       ("mobile", "knowledge"),
+    "rn-bootstrap":                 ("mobile", "operative"),
+    "rn-add-screen":                ("mobile", "operative"),
+    "rn-write-tests":               ("mobile", "operative"),
+    "rn-module-add":                ("mobile", "operative"),
+    "rn-eas-deploy":                ("mobile", "operative"),
+    "rn-upgrade":                   ("mobile", "operative"),
+    # --- monorepo (3): turborepo + shared packages --------------------------
+    "monorepo-bootstrap":           ("monorepo", "operative"),
+    "monorepo-add-shared-package":  ("monorepo", "operative"),
+    "monorepo-sync-types":          ("monorepo", "operative"),
+    # --- refactor (2): stack-agnostic composition ---------------------------
+    "promote-component":            ("refactor", "operative"),
+    "composition-patterns-guide":   ("refactor", "knowledge"),
 }
 
-MOBILE_FAMILY = {
-    "rn-fundamentals", "rn-styling", "rn-expo-router", "rn-bootstrap",
-    "rn-components-apis", "rn-data-fetching", "rn-add-screen", "rn-write-tests",
-    "rn-animations-gestures", "rn-push-notifications", "rn-backend",
-    "rn-eas-build-submit-update", "rn-publishing-payments", "rn-module-add",
-    "rn-eas-deploy",
-}
+FAMILY_ORDER = ["core", "web", "agent", "mobile", "monorepo", "refactor"]
 
-KNOWLEDGE_RN = {
-    "rn-fundamentals", "rn-styling", "rn-expo-router", "rn-components-apis",
-    "rn-data-fetching", "rn-animations-gestures", "rn-push-notifications",
-    "rn-backend", "rn-eas-build-submit-update", "rn-publishing-payments",
-}
 
-OPERATIVE_RN = {
-    "rn-bootstrap", "rn-add-screen", "rn-write-tests", "rn-module-add",
-    "rn-eas-deploy",
-}
+def classify(name: str) -> tuple[str, str]:
+    """Return (family, role). Unknown skill => hard failure, never a default."""
+    try:
+        return TAXONOMY[name]
+    except KeyError:
+        raise SystemExit(
+            f"ERROR: skill '{name}' is not in the TAXONOMY in {__file__}.\n"
+            f"       Every skill must be classified explicitly — add a row for it\n"
+            f"       (family: {'|'.join(FAMILY_ORDER)}) and keep README.md +\n"
+            f"       install.sh counts in sync."
+        )
 
 
 def family_of(name: str) -> str:
-    if name in CORE:
-        return "core"
-    if name in MOBILE_FAMILY:
-        return "mobile"
-    return "web"
+    return classify(name)[0]
 
 
 def role_of(name: str) -> str:
-    if name == "dev-flow":
-        return "orchestrator"
-    if name in {"prd-from-idea", "prd-to-tasks"}:
-        return "discovery"
-    if name in KNOWLEDGE_RN:
-        return "knowledge"
-    if name in OPERATIVE_RN:
-        return "operative"
-    return "operative"  # web operatives default
+    return classify(name)[1]
 
 
 def truncate(text: str, n: int = 300) -> str:
@@ -143,11 +181,12 @@ def main() -> int:
         "generated_by": "scripts/build_skills_registry.py",
         "skill_count": len(skills),
         "families": {
-            "core": sorted(s["name"] for s in skills if s["family"] == "core"),
-            "web": sorted(s["name"] for s in skills if s["family"] == "web"),
-            "mobile": sorted(s["name"] for s in skills if s["family"] == "mobile"),
+            fam: sorted(s["name"] for s in skills if s["family"] == fam)
+            for fam in FAMILY_ORDER
         },
-        "skills": sorted(skills, key=lambda s: (s["family"], s["name"])),
+        "skills": sorted(
+            skills, key=lambda s: (FAMILY_ORDER.index(s["family"]), s["name"])
+        ),
     }
 
     out = Path("skills.json")

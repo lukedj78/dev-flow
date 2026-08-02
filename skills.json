@@ -1,38 +1,34 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-02T09:04:12Z",
+  "generated_at": "2026-08-02T10:02:37Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
     "core": [
+      "compliance-audit",
       "dev-flow",
+      "linear-scrum",
       "prd-from-idea",
       "prd-to-tasks"
     ],
     "web": [
-      "compliance-audit",
-      "composition-patterns-guide",
       "coss-ui",
       "data-fetching",
       "design-md-to-app",
-      "eve-agent",
-      "eve-registry-porting",
       "figma-to-design-md",
       "forms",
       "heroicons-animated",
       "image-to-design-md",
-      "linear-scrum",
       "module-add",
-      "monorepo-add-shared-package",
-      "monorepo-bootstrap",
-      "monorepo-sync-types",
-      "promote-component",
-      "rn-upgrade",
       "screenshot-to-page",
       "state-discipline",
       "transitions",
       "vercel-doctor",
       "write-tests"
+    ],
+    "agent": [
+      "eve-agent",
+      "eve-registry-porting"
     ],
     "mobile": [
       "rn-add-screen",
@@ -49,10 +45,37 @@
       "rn-publishing-payments",
       "rn-push-notifications",
       "rn-styling",
+      "rn-upgrade",
       "rn-write-tests"
+    ],
+    "monorepo": [
+      "monorepo-add-shared-package",
+      "monorepo-bootstrap",
+      "monorepo-sync-types"
+    ],
+    "refactor": [
+      "composition-patterns-guide",
+      "promote-component"
     ]
   },
   "skills": [
+    {
+      "name": "compliance-audit",
+      "family": "core",
+      "role": "operative",
+      "description": "Run a GDPR + EU AI Act compliance audit on an EXISTING dev-flow project (web / mobile / eve agent) and remediate the risks it finds. Two modes: Audit (scan the codebase + `meta.json#stack` against a 10-point risk register — DSAR export/erasure, consent/cookies, EU data residency & transfers, retenti...",
+      "skill_file": "compliance-audit/SKILL.md",
+      "references": [
+        "contracts.md",
+        "gdpr-ai-act-checklist.md"
+      ],
+      "scripts": [
+        "scan.py",
+        "test_scan.py"
+      ],
+      "skill_md_lines": 95,
+      "bundle": "dist/compliance-audit.skill"
+    },
     {
       "name": "dev-flow",
       "family": "core",
@@ -72,6 +95,25 @@
       ],
       "skill_md_lines": 245,
       "bundle": "dist/dev-flow.skill"
+    },
+    {
+      "name": "linear-scrum",
+      "family": "core",
+      "role": "operative",
+      "description": "Take a dev-flow project into Linear and run it with agile scrum. Creates/links a Linear Project under the workspace team, pushes `.workflow/tasks.md` into issues (story-point estimates, `area:web`/`area:agent` labels, milestones), sets up cycles/sprints (2-week cadence), and keeps Linear as the sour...",
+      "skill_file": "linear-scrum/SKILL.md",
+      "references": [
+        "contracts.md",
+        "linear-mcp.md",
+        "scrum-model.md"
+      ],
+      "scripts": [
+        "meta_linear.py",
+        "task_key.py",
+        "test_scripts.py"
+      ],
+      "skill_md_lines": 77,
+      "bundle": "dist/linear-scrum.skill"
     },
     {
       "name": "prd-from-idea",
@@ -98,6 +140,275 @@
       "scripts": [],
       "skill_md_lines": 135,
       "bundle": "dist/prd-to-tasks.skill"
+    },
+    {
+      "name": "coss-ui",
+      "family": "web",
+      "role": "operative",
+      "description": "Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4, installed through the shadcn CLI via the namespaced `@coss/*` registry (copy-paste-and-own source). Two modes: Init (scaffold a new/empty project with `shadcn init @coss/style` —...",
+      "skill_file": "coss-ui/SKILL.md",
+      "references": [
+        "contracts.md",
+        "coss-registry.md",
+        "deps-and-license.md",
+        "design-md-reconciliation.md"
+      ],
+      "scripts": [
+        "check_coss_state.py",
+        "test_check_coss_state.py"
+      ],
+      "skill_md_lines": 84,
+      "bundle": "dist/coss-ui.skill"
+    },
+    {
+      "name": "data-fetching",
+      "family": "web",
+      "role": "knowledge",
+      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter/tab/range state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component genuinely needs server data, and Route Handlers + SWR/React Query only as a last resort (polling / ...",
+      "skill_file": "data-fetching/SKILL.md",
+      "references": [
+        "anti-patterns.md",
+        "audit-recipe.md",
+        "contracts.md",
+        "nuqs.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 345,
+      "bundle": "dist/data-fetching.skill"
+    },
+    {
+      "name": "design-md-to-app",
+      "family": "web",
+      "role": "operative",
+      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Rou...",
+      "skill_file": "design-md-to-app/SKILL.md",
+      "references": [
+        "anti-slop-fallbacks.md",
+        "base-ui-mapping.md",
+        "chat-and-typeset.md",
+        "contracts.md",
+        "i18n-next-intl.md",
+        "library-choice.md",
+        "maps-mapcn.md",
+        "mui-mapping.md",
+        "shadcn-mapping.md",
+        "showcase-template.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "build_registry.py",
+        "parse_design_md.py"
+      ],
+      "skill_md_lines": 1124,
+      "bundle": "dist/design-md-to-app.skill"
+    },
+    {
+      "name": "figma-to-design-md",
+      "family": "web",
+      "role": "discovery",
+      "description": "Use when the user provides a Figma URL and wants to export/extract/generate design tokens, colors, typography, or system documentation into DESIGN.md format—a portable, AI-readable design standard. Includes requests like \"crea il design.md\", \"estrai i token\", \"portare il design fuori da figma\", \"des...",
+      "skill_file": "figma-to-design-md/SKILL.md",
+      "references": [
+        "contracts.md",
+        "example.md",
+        "figma-api.md",
+        "figma-manual.md",
+        "figma-mcp.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "figma_api_fetch.py",
+        "quantize_palette.py"
+      ],
+      "skill_md_lines": 199,
+      "bundle": "dist/figma-to-design-md.skill"
+    },
+    {
+      "name": "forms",
+      "family": "web",
+      "role": "operative",
+      "description": "Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. ...",
+      "skill_file": "forms/SKILL.md",
+      "references": [
+        "audit-recipe.md",
+        "contracts.md",
+        "form-actions.md",
+        "toolkit-rhf.md",
+        "toolkit-tanstack.md"
+      ],
+      "scripts": [
+        "scaffold_lib_forms.py"
+      ],
+      "skill_md_lines": 437,
+      "bundle": "dist/forms.skill"
+    },
+    {
+      "name": "heroicons-animated",
+      "family": "web",
+      "role": "operative",
+      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry (316 icons, MIT, by Aniket Pawar, backed by Vercel OSS) instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtim...",
+      "skill_file": "heroicons-animated/SKILL.md",
+      "references": [
+        "contracts.md",
+        "usage.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 91,
+      "bundle": "dist/heroicons-animated.skill"
+    },
+    {
+      "name": "image-to-design-md",
+      "family": "web",
+      "role": "discovery",
+      "description": "Generate a DESIGN.md (Google design.md spec) from 1+ raster images — PNG / JPG screenshots, mockups, Pinterest pins, Dribbble shots, competitor app captures. Extracts palette via k-means, identifies typography + components via vision-LLM, infers layout / radius / spacing, synthesizes a spec-complian...",
+      "skill_file": "image-to-design-md/SKILL.md",
+      "references": [
+        "contracts.md",
+        "spec.md"
+      ],
+      "scripts": [
+        "aggregate_palettes.py",
+        "quantize_palette.py"
+      ],
+      "skill_md_lines": 176,
+      "bundle": "dist/image-to-design-md.skill"
+    },
+    {
+      "name": "module-add",
+      "family": "web",
+      "role": "operative",
+      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to inst...",
+      "skill_file": "module-add/SKILL.md",
+      "references": [
+        "contracts.md",
+        "module-auth.md",
+        "module-ci.md",
+        "module-db.md",
+        "module-deploy.md",
+        "module-email.md",
+        "module-motion.md",
+        "module-payments.md",
+        "module-realtime.md",
+        "module-storage.md",
+        "module-stubs.md",
+        "module-test.md",
+        "module-voice.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 157,
+      "bundle": "dist/module-add.skill"
+    },
+    {
+      "name": "screenshot-to-page",
+      "family": "web",
+      "role": "operative",
+      "description": "Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project's DESIGN.md tokens and the existing UI library (shadcn, Base UI, MUI, or Coss). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.wor...",
+      "skill_file": "screenshot-to-page/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [
+        "visual_diff.py"
+      ],
+      "skill_md_lines": 262,
+      "bundle": "dist/screenshot-to-page.skill"
+    },
+    {
+      "name": "state-discipline",
+      "family": "web",
+      "role": "knowledge",
+      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use a query library for server state, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `...",
+      "skill_file": "state-discipline/SKILL.md",
+      "references": [
+        "audit-recipe.md",
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 457,
+      "bundle": "dist/state-discipline.skill"
+    },
+    {
+      "name": "transitions",
+      "family": "web",
+      "role": "knowledge",
+      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, spring presets, distances) plus a curated library of production-ready, tokenized micro-interactions — entrance/exit, stagger, layout resize, modal/dropdown/panel/toast/accordion toggles, hover (lift/tilt/avatar-gr...",
+      "skill_file": "transitions/SKILL.md",
+      "references": [
+        "audit-recipe.md",
+        "contracts.md",
+        "motion-library.md",
+        "tw-animate-css.md"
+      ],
+      "scripts": [
+        "scan_motion.py",
+        "test_scan_motion.py"
+      ],
+      "skill_md_lines": 133,
+      "bundle": "dist/transitions.skill"
+    },
+    {
+      "name": "vercel-doctor",
+      "family": "web",
+      "role": "operative",
+      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor...",
+      "skill_file": "vercel-doctor/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 97,
+      "bundle": "dist/vercel-doctor.skill"
+    },
+    {
+      "name": "write-tests",
+      "family": "web",
+      "role": "operative",
+      "description": "Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query). Reads the project's wired test framework from `.workflow/meta.json#stack.test`, follows the mocking patterns already present in `vitest.setup.ts` and any sibling test file...",
+      "skill_file": "write-tests/SKILL.md",
+      "references": [
+        "contracts.md",
+        "test-component.md",
+        "test-page-e2e.md",
+        "test-query.md",
+        "test-server-action.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 160,
+      "bundle": "dist/write-tests.skill"
+    },
+    {
+      "name": "eve-agent",
+      "family": "agent",
+      "role": "operative",
+      "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app. Use this skill whenever the user wants to create, set up, or initialize an eve agent; add a tool, skill, channel, connection, schedule, subagent, or hook to an eve agen...",
+      "skill_file": "eve-agent/SKILL.md",
+      "references": [
+        "ai-elements.md",
+        "eve-capabilities.md",
+        "eve-concepts.md",
+        "eve-conventions.md",
+        "eve-docs-coverage.md",
+        "eve-evals.md",
+        "eve-patterns.md",
+        "eve-scaffold.md",
+        "eve-web-integration.md"
+      ],
+      "scripts": [
+        "check_eve_state.py"
+      ],
+      "skill_md_lines": 177,
+      "bundle": "dist/eve-agent.skill"
+    },
+    {
+      "name": "eve-registry-porting",
+      "family": "agent",
+      "role": "operative",
+      "description": "Port a component (tool, connection, or skill) from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the \"shadcn for agents\" registries — into a multi-tenant eve app WITHOUT adopting the registry's standalone-agent runtime model. Use when the user wants to \"install / u...",
+      "skill_file": "eve-registry-porting/SKILL.md",
+      "references": [],
+      "scripts": [],
+      "skill_md_lines": 140,
+      "bundle": "dist/eve-registry-porting.skill"
     },
     {
       "name": "rn-add-screen",
@@ -328,6 +639,22 @@
       "bundle": "dist/rn-styling.skill"
     },
     {
+      "name": "rn-upgrade",
+      "family": "mobile",
+      "role": "operative",
+      "description": "Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo` and run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear `node_modules`/`.expo`/Watchman caches, and native-rebuild (`expo prebuild --clean` + `pod install` + `gradlew clean`...",
+      "skill_file": "rn-upgrade/SKILL.md",
+      "references": [
+        "beta-preview.md",
+        "breaking-changes.md",
+        "contracts.md",
+        "native-rebuild.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 177,
+      "bundle": "dist/rn-upgrade.skill"
+    },
+    {
       "name": "rn-write-tests",
       "family": "mobile",
       "role": "operative",
@@ -345,249 +672,8 @@
       "bundle": "dist/rn-write-tests.skill"
     },
     {
-      "name": "compliance-audit",
-      "family": "web",
-      "role": "operative",
-      "description": "Run a GDPR + EU AI Act compliance audit on an EXISTING dev-flow project (web / mobile / eve agent) and remediate the risks it finds. Two modes: Audit (scan the codebase + `meta.json#stack` against a 10-point risk register — DSAR export/erasure, consent/cookies, EU data residency & transfers, retenti...",
-      "skill_file": "compliance-audit/SKILL.md",
-      "references": [
-        "contracts.md",
-        "gdpr-ai-act-checklist.md"
-      ],
-      "scripts": [
-        "scan.py",
-        "test_scan.py"
-      ],
-      "skill_md_lines": 95,
-      "bundle": "dist/compliance-audit.skill"
-    },
-    {
-      "name": "composition-patterns-guide",
-      "family": "web",
-      "role": "operative",
-      "description": "Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules adapted to our web + RN stack: avoid boolean props (use composition or explici...",
-      "skill_file": "composition-patterns-guide/SKILL.md",
-      "references": [
-        "colocation-rules.md",
-        "contracts.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 226,
-      "bundle": "dist/composition-patterns-guide.skill"
-    },
-    {
-      "name": "coss-ui",
-      "family": "web",
-      "role": "operative",
-      "description": "Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4, installed through the shadcn CLI via the namespaced `@coss/*` registry (copy-paste-and-own source). Two modes: Init (scaffold a new/empty project with `shadcn init @coss/style` —...",
-      "skill_file": "coss-ui/SKILL.md",
-      "references": [
-        "contracts.md",
-        "coss-registry.md",
-        "deps-and-license.md",
-        "design-md-reconciliation.md"
-      ],
-      "scripts": [
-        "check_coss_state.py",
-        "test_check_coss_state.py"
-      ],
-      "skill_md_lines": 84,
-      "bundle": "dist/coss-ui.skill"
-    },
-    {
-      "name": "data-fetching",
-      "family": "web",
-      "role": "operative",
-      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter/tab/range state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component genuinely needs server data, and Route Handlers + SWR/React Query only as a last resort (polling / ...",
-      "skill_file": "data-fetching/SKILL.md",
-      "references": [
-        "anti-patterns.md",
-        "audit-recipe.md",
-        "contracts.md",
-        "nuqs.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 345,
-      "bundle": "dist/data-fetching.skill"
-    },
-    {
-      "name": "design-md-to-app",
-      "family": "web",
-      "role": "operative",
-      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Rou...",
-      "skill_file": "design-md-to-app/SKILL.md",
-      "references": [
-        "anti-slop-fallbacks.md",
-        "base-ui-mapping.md",
-        "chat-and-typeset.md",
-        "contracts.md",
-        "i18n-next-intl.md",
-        "library-choice.md",
-        "maps-mapcn.md",
-        "mui-mapping.md",
-        "shadcn-mapping.md",
-        "showcase-template.md",
-        "spec.md"
-      ],
-      "scripts": [
-        "build_registry.py",
-        "parse_design_md.py"
-      ],
-      "skill_md_lines": 1124,
-      "bundle": "dist/design-md-to-app.skill"
-    },
-    {
-      "name": "eve-agent",
-      "family": "web",
-      "role": "operative",
-      "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app. Use this skill whenever the user wants to create, set up, or initialize an eve agent; add a tool, skill, channel, connection, schedule, subagent, or hook to an eve agen...",
-      "skill_file": "eve-agent/SKILL.md",
-      "references": [
-        "ai-elements.md",
-        "eve-capabilities.md",
-        "eve-concepts.md",
-        "eve-conventions.md",
-        "eve-docs-coverage.md",
-        "eve-evals.md",
-        "eve-patterns.md",
-        "eve-scaffold.md",
-        "eve-web-integration.md"
-      ],
-      "scripts": [
-        "check_eve_state.py"
-      ],
-      "skill_md_lines": 177,
-      "bundle": "dist/eve-agent.skill"
-    },
-    {
-      "name": "eve-registry-porting",
-      "family": "web",
-      "role": "operative",
-      "description": "Port a component (tool, connection, or skill) from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the \"shadcn for agents\" registries — into a multi-tenant eve app WITHOUT adopting the registry's standalone-agent runtime model. Use when the user wants to \"install / u...",
-      "skill_file": "eve-registry-porting/SKILL.md",
-      "references": [],
-      "scripts": [],
-      "skill_md_lines": 140,
-      "bundle": "dist/eve-registry-porting.skill"
-    },
-    {
-      "name": "figma-to-design-md",
-      "family": "web",
-      "role": "operative",
-      "description": "Use when the user provides a Figma URL and wants to export/extract/generate design tokens, colors, typography, or system documentation into DESIGN.md format—a portable, AI-readable design standard. Includes requests like \"crea il design.md\", \"estrai i token\", \"portare il design fuori da figma\", \"des...",
-      "skill_file": "figma-to-design-md/SKILL.md",
-      "references": [
-        "contracts.md",
-        "example.md",
-        "figma-api.md",
-        "figma-manual.md",
-        "figma-mcp.md",
-        "spec.md"
-      ],
-      "scripts": [
-        "figma_api_fetch.py",
-        "quantize_palette.py"
-      ],
-      "skill_md_lines": 199,
-      "bundle": "dist/figma-to-design-md.skill"
-    },
-    {
-      "name": "forms",
-      "family": "web",
-      "role": "operative",
-      "description": "Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. ...",
-      "skill_file": "forms/SKILL.md",
-      "references": [
-        "audit-recipe.md",
-        "contracts.md",
-        "form-actions.md",
-        "toolkit-rhf.md",
-        "toolkit-tanstack.md"
-      ],
-      "scripts": [
-        "scaffold_lib_forms.py"
-      ],
-      "skill_md_lines": 437,
-      "bundle": "dist/forms.skill"
-    },
-    {
-      "name": "heroicons-animated",
-      "family": "web",
-      "role": "operative",
-      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry (316 icons, MIT, by Aniket Pawar, backed by Vercel OSS) instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtim...",
-      "skill_file": "heroicons-animated/SKILL.md",
-      "references": [
-        "contracts.md",
-        "usage.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 91,
-      "bundle": "dist/heroicons-animated.skill"
-    },
-    {
-      "name": "image-to-design-md",
-      "family": "web",
-      "role": "operative",
-      "description": "Generate a DESIGN.md (Google design.md spec) from 1+ raster images — PNG / JPG screenshots, mockups, Pinterest pins, Dribbble shots, competitor app captures. Extracts palette via k-means, identifies typography + components via vision-LLM, infers layout / radius / spacing, synthesizes a spec-complian...",
-      "skill_file": "image-to-design-md/SKILL.md",
-      "references": [
-        "contracts.md",
-        "spec.md"
-      ],
-      "scripts": [
-        "aggregate_palettes.py",
-        "quantize_palette.py"
-      ],
-      "skill_md_lines": 176,
-      "bundle": "dist/image-to-design-md.skill"
-    },
-    {
-      "name": "linear-scrum",
-      "family": "web",
-      "role": "operative",
-      "description": "Take a dev-flow project into Linear and run it with agile scrum. Creates/links a Linear Project under the workspace team, pushes `.workflow/tasks.md` into issues (story-point estimates, `area:web`/`area:agent` labels, milestones), sets up cycles/sprints (2-week cadence), and keeps Linear as the sour...",
-      "skill_file": "linear-scrum/SKILL.md",
-      "references": [
-        "contracts.md",
-        "linear-mcp.md",
-        "scrum-model.md"
-      ],
-      "scripts": [
-        "meta_linear.py",
-        "task_key.py",
-        "test_scripts.py"
-      ],
-      "skill_md_lines": 77,
-      "bundle": "dist/linear-scrum.skill"
-    },
-    {
-      "name": "module-add",
-      "family": "web",
-      "role": "operative",
-      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to inst...",
-      "skill_file": "module-add/SKILL.md",
-      "references": [
-        "contracts.md",
-        "module-auth.md",
-        "module-ci.md",
-        "module-db.md",
-        "module-deploy.md",
-        "module-email.md",
-        "module-motion.md",
-        "module-payments.md",
-        "module-realtime.md",
-        "module-storage.md",
-        "module-stubs.md",
-        "module-test.md",
-        "module-voice.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 157,
-      "bundle": "dist/module-add.skill"
-    },
-    {
       "name": "monorepo-add-shared-package",
-      "family": "web",
+      "family": "monorepo",
       "role": "operative",
       "description": "Extract logic from apps/web/ or apps/mobile/ into a new or existing shared package under packages/ in a turborepo monorepo, OR create a fresh empty shared package skeleton. Reads .workflow/meta.json with stack.framework=\"monorepo\". Adds the package to pnpm-workspace.yaml (already covered by the wild...",
       "skill_file": "monorepo-add-shared-package/SKILL.md",
@@ -601,7 +687,7 @@
     },
     {
       "name": "monorepo-bootstrap",
-      "family": "web",
+      "family": "monorepo",
       "role": "operative",
       "description": "Scaffold a turborepo monorepo, with shared packages (types, design tokens or shared UI, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework=\"monorepo\" and phase in {prd_drafted, design_extracted}. Supports three topologies, detected/asked in Step 1: web+...",
       "skill_file": "monorepo-bootstrap/SKILL.md",
@@ -623,7 +709,7 @@
     },
     {
       "name": "monorepo-sync-types",
-      "family": "web",
+      "family": "monorepo",
       "role": "operative",
       "description": "Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), neon-drizzle (via drizzle-kit introspect/pull + InferSelectModel/InferInsertModel r...",
       "skill_file": "monorepo-sync-types/SKILL.md",
@@ -638,8 +724,22 @@
       "bundle": "dist/monorepo-sync-types.skill"
     },
     {
+      "name": "composition-patterns-guide",
+      "family": "refactor",
+      "role": "knowledge",
+      "description": "Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules adapted to our web + RN stack: avoid boolean props (use composition or explici...",
+      "skill_file": "composition-patterns-guide/SKILL.md",
+      "references": [
+        "colocation-rules.md",
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 226,
+      "bundle": "dist/composition-patterns-guide.skill"
+    },
+    {
       "name": "promote-component",
-      "family": "web",
+      "family": "refactor",
       "role": "operative",
       "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: (1) \"scan candidates\" — analyzes the entire codebase, counts usages of every component under app/**/_components/ (web) or components/<feature>/ (mobile — Expo Router has no...",
       "skill_file": "promote-component/SKILL.md",
@@ -653,100 +753,6 @@
       ],
       "skill_md_lines": 226,
       "bundle": "dist/promote-component.skill"
-    },
-    {
-      "name": "rn-upgrade",
-      "family": "web",
-      "role": "operative",
-      "description": "Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo` and run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear `node_modules`/`.expo`/Watchman caches, and native-rebuild (`expo prebuild --clean` + `pod install` + `gradlew clean`...",
-      "skill_file": "rn-upgrade/SKILL.md",
-      "references": [
-        "beta-preview.md",
-        "breaking-changes.md",
-        "contracts.md",
-        "native-rebuild.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 177,
-      "bundle": "dist/rn-upgrade.skill"
-    },
-    {
-      "name": "screenshot-to-page",
-      "family": "web",
-      "role": "operative",
-      "description": "Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project's DESIGN.md tokens and the existing UI library (shadcn, Base UI, MUI, or Coss). Reads a screenshot from `.workflow/screenshots/`, plus `.workflow/DESIGN.md` and `.wor...",
-      "skill_file": "screenshot-to-page/SKILL.md",
-      "references": [
-        "contracts.md"
-      ],
-      "scripts": [
-        "visual_diff.py"
-      ],
-      "skill_md_lines": 262,
-      "bundle": "dist/screenshot-to-page.skill"
-    },
-    {
-      "name": "state-discipline",
-      "family": "web",
-      "role": "operative",
-      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use a query library for server state, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `...",
-      "skill_file": "state-discipline/SKILL.md",
-      "references": [
-        "audit-recipe.md",
-        "contracts.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 457,
-      "bundle": "dist/state-discipline.skill"
-    },
-    {
-      "name": "transitions",
-      "family": "web",
-      "role": "operative",
-      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, spring presets, distances) plus a curated library of production-ready, tokenized micro-interactions — entrance/exit, stagger, layout resize, modal/dropdown/panel/toast/accordion toggles, hover (lift/tilt/avatar-gr...",
-      "skill_file": "transitions/SKILL.md",
-      "references": [
-        "audit-recipe.md",
-        "contracts.md",
-        "motion-library.md",
-        "tw-animate-css.md"
-      ],
-      "scripts": [
-        "scan_motion.py",
-        "test_scan_motion.py"
-      ],
-      "skill_md_lines": 133,
-      "bundle": "dist/transitions.skill"
-    },
-    {
-      "name": "vercel-doctor",
-      "family": "web",
-      "role": "operative",
-      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor...",
-      "skill_file": "vercel-doctor/SKILL.md",
-      "references": [
-        "contracts.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 97,
-      "bundle": "dist/vercel-doctor.skill"
-    },
-    {
-      "name": "write-tests",
-      "family": "web",
-      "role": "operative",
-      "description": "Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query). Reads the project's wired test framework from `.workflow/meta.json#stack.test`, follows the mocking patterns already present in `vitest.setup.ts` and any sibling test file...",
-      "skill_file": "write-tests/SKILL.md",
-      "references": [
-        "contracts.md",
-        "test-component.md",
-        "test-page-e2e.md",
-        "test-query.md",
-        "test-server-action.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 160,
-      "bundle": "dist/write-tests.skill"
     }
   ]
 }

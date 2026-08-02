@@ -38,3 +38,10 @@ android/.gradle/
 
 # Skill bundles generated in root — official bundles live in dist/*.skill
 /*.skill
+
+# Obsidian: vault config IS committed (.obsidian/app.json, graph.json) so the
+# ignore filters + graph colors are shared; personal window layout is not.
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/plugins/
+.obsidian/themes/

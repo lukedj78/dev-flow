@@ -1,0 +1,15 @@
+{
+  "useMarkdownLinks": true,
+  "newLinkFormat": "relative",
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "docs/assets",
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "dist/",
+    ".git/",
+    "node_modules/",
+    ".claude/",
+    "contract-package/src/",
+    "contract-package/tests/"
+  ]
+}

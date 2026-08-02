@@ -1,0 +1,27 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": true,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    { "query": "path:docs/", "color": { "a": 1, "rgb": 9741240 } },
+    { "query": "path:dev-flow/ OR path:prd- OR path:linear-scrum/ OR path:compliance-audit/", "color": { "a": 1, "rgb": 16096779 } },
+    { "query": "path:rn- OR path:monorepo-", "color": { "a": 1, "rgb": 2278750 } },
+    { "query": "path:eve-", "color": { "a": 1, "rgb": 11032055 } },
+    { "query": "file:SKILL.md", "color": { "a": 1, "rgb": 3900150 } }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": -0.8,
+  "nodeSizeMultiplier": 1.2,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.4,
+  "repelStrength": 11,
+  "linkStrength": 0.6,
+  "linkDistance": 260,
+  "scale": 0.7
+}

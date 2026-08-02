@@ -664,6 +664,26 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
 - 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 41 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
+- 📇 **[Knowledge index](./docs/knowledge-index.md)** — the map of every doc-grounded how-to: which domain, which reference, which upstream to re-verify. Start here when wiring a library or running a knowledge refresh.
+- 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 41 skills.
+
+---
+
+## Repository layout
+
+```
+<skill-name>/                41 skill folders, FLAT at the root
+├── SKILL.md                 the skill (frontmatter: name + description)
+├── references/*.md          its doc-grounded how-tos, recipes, vendored contract
+└── scripts/*                its executable helpers + tests
+docs/                        cross-cutting docs, knowledge index, assets
+scripts/                     repo tooling (registry + bundle builders, linter)
+dist/                        generated <skill>.skill bundles (one per skill)
+bootstrap/ contract-package/ evals/   templates, the contract as a package, eval fixtures
+install.sh · uninstall.sh · skills.json
+```
+
+**Why the skill folders are flat, not nested by family.** The root mirrors the install target (`~/.claude/skills/<name>/`) one-to-one, keeps ~385 cross-skill reference paths valid, and matches what Claude Code / Codex / Gemini expect. The six-family grouping is **logical, not physical**: it lives in the `TAXONOMY` map in [`scripts/build_skills_registry.py`](./scripts/build_skills_registry.py) and is published in `skills.json`. That map is the single source of truth for family + role — a skill missing from it is a **build error**, never a silent default, so the counts here and in `install.sh` can't drift out of sync again.
 
 ---
 

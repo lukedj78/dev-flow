@@ -4,6 +4,8 @@ The skills are a **second brain**: when a skill says *"use library X"*, there mu
 
 This index is the map of those how-tos: what we're expert in, where the knowledge lives, and which upstream to re-verify when it moves. **Use it two ways**: before wiring a library, read its how-to instead of improvising; when running a periodic knowledge refresh, walk this table and re-check each upstream.
 
+> 🧠 Browsing this as a graph? The repo is also an Obsidian vault — see **[OBSIDIAN.md](OBSIDIAN.md)**. Pin this note as your home.
+
 ## Frontend foundations
 
 | Domain | How-to | Upstream (source of truth) | Used by |
