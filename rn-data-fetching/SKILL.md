@@ -18,7 +18,7 @@ description: 'Use when fetching data from APIs in React Native: choosing between
 ## Quick decision tree
 
 - "Should I use fetch or TanStack Query?" → `references/decision-tree.md`
-- "How do I set up TanStack Query in a fresh Expo app?" → `references/tanstack-query-setup.md`
+- "How do I set up TanStack Query in a fresh Expo app?" → `references/tanstack-query-rn.md`
 - "What's the right query key shape, the right cancel pattern, the right loading state?" → `references/patterns.md`
 - "Show me a working query / mutation / infinite scroll example" → `references/examples/`
 - "Why does my fetch race on unmount?" → `references/concepts.md`

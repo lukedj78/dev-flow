@@ -18,14 +18,14 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
 | `ci` | husky + lint-staged + GitHub Actions | `references/module-ci.md` | ✅ implemented |
 | `motion` | Motion (rebranded framer-motion) + opinionated wrappers | `references/module-motion.md` | ✅ implemented |
-| `storage` | UploadThing | `references/module-stubs.md` | 🚧 planned — contributions welcome |
-| `deploy` | Vercel | `references/module-stubs.md` | 🚧 planned — contributions welcome |
+| `storage` | Vercel Blob (UploadThing / S3 as alternatives) | `references/module-storage.md` | ✅ implemented |
+| `deploy` | Vercel (project config — `setup-deploy` ships it) | `references/module-deploy.md` | ✅ implemented |
 | `voice` | AI Gateway realtime (`@ai-sdk/gateway` + `experimental_useRealtime`) | `references/module-voice.md` | ✅ implemented — experimental API |
 | `realtime` | Vercel Functions WebSockets (`experimental_upgradeWebSocket`) | `references/module-realtime.md` | ✅ implemented — experimental API |
 
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
 
-For modules marked "stub", the reference file gives the shape (packages, env vars, out-of-band steps) but doesn't provide the install templates. Implement the stub on first request — copy `module-auth.md` or `module-db.md` as the structural template and fill in.
+Every module in the table now has a full reference file. What's still open is **alternative variants inside** a module (Clerk instead of better-auth, Prisma instead of Drizzle, Fly.io instead of Vercel) — `references/module-stubs.md` tracks those. Implement a variant on first request: copy `module-auth.md` or `module-db.md` as the structural template, ground every identifier in the vendor's current docs, then run.
 
 ## When this skill applies
 
@@ -132,7 +132,7 @@ Some modules depend on others. If the user runs them out of order, the skill mus
 - `auth` requires `db`. If `stack.db` is `null`, ask: "auth needs a database to store sessions. Set up `db` first?" and route there before `auth`.
 - `payments` requires `auth` and `db`. Same pattern.
 - `email` is independent.
-- `storage` is mostly independent (some providers integrate with auth for signed URLs, but it's optional).
+- `storage` (Vercel Blob) strongly wants `auth` **and** `db`: the client-upload token route authenticates in `onBeforeGenerateToken` — skip it and the store is world-writable — and the `files` table is what makes an upload ownable, queryable and erasable (DSAR). Ask before wiring it without them.
 - `test` is independent — best run after `db` so server-action smoke tests have a schema to mock against, but works without it.
 - `ci` is mostly independent — works best after `test` (so CI has tests to run) but writes a workflow that gracefully skips test steps when none exist.
 - `motion` is fully independent — pure UI concern, no backend dependency. Run only when a project genuinely needs JS-driven motion (gestures, magnetic hover, shared-element transitions); for plain reveal-on-scroll, `tw-animate-css` (already installed via shadcn) is enough and lighter.

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-02T07:25:31Z",
+  "generated_at": "2026-08-02T09:04:12Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
@@ -155,6 +155,7 @@
       "skill_file": "rn-bootstrap/SKILL.md",
       "references": [
         "contracts.md",
+        "i18n-rn.md",
         "post-bootstrap-checklist.md",
         "stack-defaults.md"
       ],
@@ -164,7 +165,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 138,
+      "skill_md_lines": 139,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {
@@ -179,7 +180,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 38,
+      "skill_md_lines": 39,
       "bundle": "dist/rn-components-apis.skill"
     },
     {
@@ -192,7 +193,7 @@
         "concepts.md",
         "decision-tree.md",
         "patterns.md",
-        "tanstack-query-setup.md"
+        "tanstack-query-rn.md"
       ],
       "scripts": [],
       "skill_md_lines": 40,
@@ -256,10 +257,11 @@
         "concepts.md",
         "decision-tree.md",
         "patterns.md",
-        "stack-defaults.md"
+        "stack-defaults.md",
+        "zustand-rn.md"
       ],
       "scripts": [],
-      "skill_md_lines": 47,
+      "skill_md_lines": 48,
       "bundle": "dist/rn-fundamentals.skill"
     },
     {
@@ -335,7 +337,7 @@
         "contracts.md",
         "decision-tree.md",
         "jest-setup.md",
-        "maestro-setup.md",
+        "maestro.md",
         "rntl-patterns.md"
       ],
       "scripts": [],
@@ -401,10 +403,11 @@
       "references": [
         "anti-patterns.md",
         "audit-recipe.md",
-        "contracts.md"
+        "contracts.md",
+        "nuqs.md"
       ],
       "scripts": [],
-      "skill_md_lines": 344,
+      "skill_md_lines": 345,
       "bundle": "dist/data-fetching.skill"
     },
     {
@@ -430,7 +433,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1123,
+      "skill_md_lines": 1124,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -440,6 +443,7 @@
       "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app. Use this skill whenever the user wants to create, set up, or initialize an eve agent; add a tool, skill, channel, connection, schedule, subagent, or hook to an eve agen...",
       "skill_file": "eve-agent/SKILL.md",
       "references": [
+        "ai-elements.md",
         "eve-capabilities.md",
         "eve-concepts.md",
         "eve-conventions.md",
@@ -567,10 +571,12 @@
         "module-auth.md",
         "module-ci.md",
         "module-db.md",
+        "module-deploy.md",
         "module-email.md",
         "module-motion.md",
         "module-payments.md",
         "module-realtime.md",
+        "module-storage.md",
         "module-stubs.md",
         "module-test.md",
         "module-voice.md"
@@ -690,7 +696,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 456,
+      "skill_md_lines": 457,
       "bundle": "dist/state-discipline.skill"
     },
     {
@@ -702,26 +708,27 @@
       "references": [
         "audit-recipe.md",
         "contracts.md",
-        "motion-library.md"
+        "motion-library.md",
+        "tw-animate-css.md"
       ],
       "scripts": [
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 132,
+      "skill_md_lines": 133,
       "bundle": "dist/transitions.skill"
     },
     {
       "name": "vercel-doctor",
       "family": "web",
       "role": "operative",
-      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, a third-party CLI — `npx vercel-doctor` [VERIFY]) scans the codebase for cost/performance anti-pattern...",
+      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor...",
       "skill_file": "vercel-doctor/SKILL.md",
       "references": [
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 69,
+      "skill_md_lines": 97,
       "bundle": "dist/vercel-doctor.skill"
     },
     {

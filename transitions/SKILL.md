@@ -128,5 +128,6 @@ In a given file, replace hardcoded durations/easings with the nearest token (rou
 ## Reference files
 
 - `references/motion-library.md` — the curated, tokenized transition library: each entry → tier, tokens used, code snippet, and its `prefers-reduced-motion` fallback. Grouped enter/exit · toggle · hover · feedback · layout · route.
+- `references/tw-animate-css.md` — the **Tier-0 engine how-to** (doc-grounded): the `animate-in`/`animate-out` class set and modifiers, `data-[state]` composition, the CSS variables to point at `lib/motion/tokens.ts`, and the `motion-reduce:` pattern. Read it before writing Tier-0 classes — don't guess class names.
 - `references/audit-recipe.md` — "audit my codebase for ad-hoc motion" recipe (patterns, verify steps, refine order).
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).

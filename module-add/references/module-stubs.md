@@ -6,55 +6,34 @@ If the user invokes `module-add` for one of these and the full reference doesn't
 
 ---
 
-## `module-storage` — UploadThing (default) / S3 (alternative)
+## Recently implemented (no longer stubs)
 
-**Default**: UploadThing for file uploads (images, documents). Reference UI: a `/upload` example page with the UploadThing button + a `lib/uploadthing.ts` file router with size/type limits.
-
-**Alternative**: S3 with presigned URLs — heavier setup (AWS credentials, IAM policy, CORS config) but no third-party dependency. Treat as a separate variant when the user explicitly asks.
-
-**Prerequisites**: `auth` is recommended (to gate uploads to signed-in users and to associate uploads with the uploader).
-
-**Packages**: `uploadthing`, `@uploadthing/react`.
-
-**Env vars**: `UPLOADTHING_SECRET`, `UPLOADTHING_APP_ID`.
-
-**Out-of-band steps**: register an UploadThing account, configure a file router with size/type limits, copy the keys to `.env.local`.
-
-**Schema additions**: `files` table with `{ id, key, url, ownerId, sizeBytes, mimeType, createdAt }` — UploadThing doesn't track files for you beyond the upload itself.
-
-**Caveats to document when implementing**:
-- File size limits are enforced both client-side (UX) and server-side (security) — never trust the client.
-- For images, ALWAYS validate MIME type server-side. Client-claimed type lies.
-- Cleanup of orphaned uploads (uploaded but never linked to a record) is your responsibility — schedule a daily prune job.
+- **`storage`** → `references/module-storage.md`. Vercel Blob is the default; UploadThing and S3 + presigned URLs are documented alternatives.
+- **`deploy`** → `references/module-deploy.md`. Vercel project config (link, `vercel.json`, per-environment env vars, region, monorepo root directory). Alternative targets (Fly.io, Cloudflare Pages, Render, Railway) are still unimplemented variants — see the note at the end of that file.
 
 ---
 
-## `module-deploy` — Vercel
+## Currently open stubs
 
-**Default**: Vercel via `vercel.json` config + GitHub Actions integration. Detects framework from `meta.json#stack.framework` and writes the appropriate config (rewrites, redirects, function regions).
+None. Every module listed in `module-add/SKILL.md` has a full reference file.
 
-**Prerequisites**: at least one route should exist (so the deploy isn't deploying an empty scaffold). `module-add ci` should ideally have run, since `vercel.json` and the CI workflow share env-var conventions.
+The remaining unimplemented work is **alternative variants inside existing modules**, not new modules:
 
-**Packages**: none (Vercel CLI is installed globally — `npm install -g vercel`).
-
-**Env vars**: lifted from the existing `.env.local.example` and instructed to be set via the Vercel dashboard or `vercel env add`.
-
-**Out-of-band steps**: run `vercel link`, push to GitHub, configure preview/production environments in the Vercel dashboard, set up branch protection.
-
-**Alternative deploy targets**: Fly.io (containers, full Postgres), Cloudflare Pages (edge), Render, Railway. Each is a separate variant — implement when a user asks, copying the Vercel structure.
-
-**Caveats to document when implementing**:
-- Vercel's hobby tier has a 100GB-month bandwidth cap. Mention it.
-- Edge runtime (`export const runtime = "edge"`) is a perf win for API routes that don't need Node APIs — but breaks for any route that uses `node:fs`, native modules, or heavy DB drivers (`pg` works, `@neondatabase/serverless` is preferred for edge).
-- `vercel.json` `regions` defaults to `iad1` (Washington DC). For European audiences, set `["fra1"]` or `["lhr1"]` to halve cold-start latency.
-
----
+| Module | Implemented variant | Unimplemented alternatives |
+|---|---|---|
+| `auth` | better-auth | Clerk, Auth.js, WorkOS |
+| `db` | Drizzle + Neon | Prisma, Supabase, PlanetScale |
+| `payments` | Stripe | Polar, Lemon Squeezy, Paddle |
+| `email` | Resend + React Email | Postmark, SES, Loops (marketing — different module entirely) |
+| `storage` | Vercel Blob | UploadThing and S3 are sketched in `module-storage.md`; Cloudflare R2, Supabase Storage are not |
+| `deploy` | Vercel | Fly.io, Cloudflare Pages, Render, Railway |
 
 ## When to implement these
 
-Implement on demand: the first time a user says "module-add storage" or "module-add deploy". Don't preemptively implement all of them — references that go stale (e.g., Stripe API version drift, UploadThing SDK changes) hurt more than the missing variant. Implement the variant fully — including the install templates and reference UI — when the user asks for it.
+Implement on demand: the first time a user asks for that specific variant. Don't preemptively implement all of them — references that go stale (Stripe API version drift, SDK renames, env-var consolidations) hurt more than a missing variant. Implement the variant fully — including the install templates and the reference implementation — when the user asks for it.
 
-Always update:
-1. `module-add/SKILL.md` — flip the row from 🚧 to ✅, swap `references/module-stubs.md` for the new file path.
-2. `dist/` — re-package the skill.
-3. README — same flip.
+Always update, in this order:
+1. The variant's reference file (`references/module-<name>.md`) — add the variant section.
+2. `module-add/SKILL.md` — the module table, if the module's default changed.
+3. `dist/` — re-package the skill.
+4. README — same flip.

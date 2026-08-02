@@ -13,7 +13,7 @@ The skills are a **second brain**: authoritative, doc-grounded knowledge of the 
 3. **Mark the moving surface `[VERIFY]`.** Any identifier from a fast-moving or beta upstream (eve, next-intl, shadcn CLI, Expo SDK, Motion, Stripe apiVersion, …) carries a `[VERIFY]` note to check against the installed version — because docs move (e.g. next-intl renamed `middleware.ts` → `proxy.ts`).
 4. **Update periodically.** Upstreams change; the knowledge base must keep pace. Run the ecosystem watch (`docs/vercel-changelog-watch.md` and the per-skill audit recipes) on a cadence, apply what changed, and log it. Stale docs-grounding is a bug.
 
-Reference material (`references/*.md`) exists to satisfy #2 — every "use X" default in this contract points at a doc-grounded how-to, not just a name.
+Reference material (`references/*.md`) exists to satisfy #2 — every "use X" default in this contract points at a doc-grounded how-to, not just a name. **`docs/knowledge-index.md` is the map of them all**: which domains we're expert in, where each how-to lives, and which upstream to re-verify when it moves. Read it before wiring a library; walk it when running a periodic refresh; **add a row whenever you introduce a new "use X" default**.
 
 ## Golden rules (all projects, all stacks)
 
@@ -35,6 +35,7 @@ When a project needs one of these capabilities, reach for the default below inst
 | Capability | Web default | Mobile default |
 |---|---|---|
 | **Maps** | **[mapcn](https://mapcn.dev/)** — MapLibre GL, shadcn-registry. How-to: `design-md-to-app/references/maps-mapcn.md` (⚠️ CARTO default tiles need an Enterprise license for commercial use). `stack.maps = "mapcn"`. | **[mapcn-rn](https://mapcn-rn.dev/)** — MapLibre/Mapbox RN + NativeWind. How-to: `rn-components-apis/references/maps-mapcn-rn.md` (⚠️ native modules → dev build, not Expo Go). `stack.maps = "mapcn-rn"`. |
+| **File / blob storage** | **Vercel Blob** (`@vercel/blob`) when deploying to Vercel — same platform, one less sub-processor. UploadThing / S3 only on request. How-to: `module-add/references/module-storage.md`. `stack.storage = "vercel-blob"`. | provider-side (`supabase` / `firebase` / custom) via `rn-module-add` |
 | **Animated icons** | `heroicons-animated` (skill) | `rn-animations-gestures` |
 | **Motion** | `transitions` + `module-add motion` | `rn-animations-gestures` |
 | **Forms** | `forms` (`stack.forms`) | RN form stack |
@@ -205,7 +206,7 @@ Captures user choices that downstream skills need. Keys:
 - `db`: `"neon-drizzle"` | `"supabase"` | `"firebase"` | `"planetscale-prisma"` | `"custom-rest"` | `"trpc"` | `null`
 - `payments`: `"stripe"` | `"lemon-squeezy"` | `"revenuecat"` (mobile IAP) | `null`
 - `deploy`: `"vercel"` | `"fly"` | `"cloudflare-pages"` | `"eas"` (mobile) | `null`
-- `storage` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
+- `storage` (optional — file/blob storage): **web** → `"vercel-blob"` (**default** when `deploy = "vercel"` — same platform, no extra vendor/sub-processor; how-to `module-add/references/module-storage.md`) | `"uploadthing"` | `"s3"`; **mobile** → `"supabase"` | `"firebase"` | `"custom-rest"`; `null` when the product stores no files.
 - `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
 - `push` (mobile, optional): `"expo-notifications"` | `null`
 - `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.

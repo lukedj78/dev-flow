@@ -107,7 +107,7 @@ AppState.addEventListener("change", (state) => {
 });
 ```
 
-This is done once in the root layout — see `tanstack-query-setup.md`.
+This is done once in the root layout — see `tanstack-query-rn.md`.
 
 ## Sources
 

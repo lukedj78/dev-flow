@@ -9,6 +9,8 @@
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 >
+> **Rule zero — doc-grounded, never invent.** The skills are a second brain: when one says *"use library X"*, it ships the **how** from X's official docs, marks fast-moving identifiers `[VERIFY]`, and gets re-verified periodically. The map of every how-to is **[docs/knowledge-index.md](./docs/knowledge-index.md)**.
+>
 > **Golden rules** (enforced on every project, see the contract): **① code is written in English** (identifiers, constants, comments — independent of the conversation language); **② every frontend ships i18n from day one** — web via [next-intl](https://next-intl.dev/), mobile via the RN i18n stack, minimum locales **English + Italian**, no hardcoded user-facing copy.
 
 ```
@@ -800,8 +802,8 @@ The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs
 | `motion` | Motion (rebranded framer-motion) + opinionated wrappers (FadeIn, StaggerList, MagneticButton) | ✅ shipped |
 | `voice` | Realtime voice over the Vercel AI Gateway (`@ai-sdk/gateway` + `experimental_useRealtime`); STT → agent → TTS topology | ✅ shipped (experimental API) |
 | `realtime` | App-level WebSockets (Vercel Functions `experimental_upgradeWebSocket`); presence / chat / collab, external store for shared state | ✅ shipped (experimental API) |
-| `storage` | UploadThing / S3 | 🚧 planned |
-| `deploy` | Vercel / Fly / Cloudflare Pages | 🚧 planned |
+| `storage` | Vercel Blob (default: server + client uploads, auth-gated, `files` table); UploadThing / S3 + presigned URLs as alternatives | ✅ shipped |
+| `deploy` | Vercel project config (link, `vercel.json`, per-environment env vars, EU region, monorepo root directory); `setup-deploy` does the actual shipping | ✅ shipped |
 
 The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing. Cross-module dependencies are resolved automatically (`auth` requires `db`; `payments` requires both — the skill prompts before chaining).
 

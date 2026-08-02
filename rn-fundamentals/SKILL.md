@@ -32,6 +32,7 @@ Any version number, CLI command, or config key in this skill set marked `[VERIFY
 - "What versions am I targeting?" → `references/stack-defaults.md`
 - "Why does X behave differently than React on the web?" → `references/concepts.md`
 - "Is this an OK pattern at the foundational level?" → `references/patterns.md`
+- "Where does this piece of state live?" → `references/zustand-rn.md` (Zustand as the client-state store: selectors + `useShallow`, slices, `persist` with AsyncStorage, ⚠️ the async-hydration race — and the table for what does **not** belong in it: server data → TanStack Query, form fields → the form lib, ephemeral UI → `useState`)
 
 ## Common anti-patterns (NEVER do)
 

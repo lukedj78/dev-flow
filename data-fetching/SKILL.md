@@ -86,7 +86,7 @@ digraph data_fetching {
 If you're staring at `useState` + `useEffect` + a `"use server"` read in a Client Component, walk this ladder **top-down** and stop at the first rung that fits. It's almost always rung 1.
 
 1. **Lift the read to a Server Component.** Convert the page to `async function Page({ searchParams })`, `await` the read at the top, pass data down. If the page has interactive state, ask rung 2 *before* deciding it has to stay client.
-2. **Move state to URL `searchParams`.** Tabs, filters, ranges, pagination, sort, search query — all belong in the URL. The Server Component reads the `searchParams` prop and re-renders with new data; the Client leaf **writes** the param with [`nuqs`](https://nuqs.dev) `useQueryState`/`useQueryStates` (typed parsers + built-in throttling — the ecosystem-first replacement for hand-rolled `router.replace`, which stays a fine fallback for a single param). Free streaming, free cache, shareable URL, back-button works. One-time: `<NuqsAdapter>` in the root layout; `createSearchParamsCache` for type-safe reads in nested Server Components. `[VERIFY]` nuqs against Next 16.
+2. **Move state to URL `searchParams`.** Tabs, filters, ranges, pagination, sort, search query — all belong in the URL. The Server Component reads the `searchParams` prop and re-renders with new data; the Client leaf **writes** the param with [`nuqs`](https://nuqs.dev) `useQueryState`/`useQueryStates` (typed parsers + built-in URL-update rate limiting — the ecosystem-first replacement for hand-rolled `router.replace`, which stays a fine fallback for a single param; **note `shallow: false` when the Server Component must re-render** — see `references/nuqs.md`). Free streaming, free cache, shareable URL, back-button works. One-time: `<NuqsAdapter>` in the root layout; `createSearchParamsCache` for type-safe reads in nested Server Components. `[VERIFY]` nuqs against Next 16.
 3. **Pass `Promise<T>` from Server Component, consume with `use()` + `<Suspense>`.** Only when a Client Component genuinely needs server data as props at mount (charting libs, third-party widgets expecting a synchronous data shape).
 4. **`GET` Route Handler + TanStack Query** (recommended default for this rung — retries, request dedup, devtools, mutation helpers; SWR is an acceptable lighter-weight alternative for a single simple polling widget, but don't reach for a second data library once TanStack Query is already in the project). Reserved for: interval polling, focus revalidation, third-party mutates the data outside your app. **Not** for "I already have a Client Component and want to keep it."
 
@@ -338,6 +338,7 @@ This skill is derived from the `nextjs-data-fetching` skill from **[lusentis/nex
 - Next.js docs (Mutating data): <https://nextjs.org/docs/app/getting-started/mutating-data>
 - React `use()`: <https://react.dev/reference/react/use>
 - `revalidatePath` / `revalidateTag`: <https://nextjs.org/docs/app/api-reference/functions/revalidatePath>
+- **`references/nuqs.md`** — the doc-grounded how-to for rung 2 (URL state): `useQueryState`/`useQueryStates`, parsers, `shallow`/`throttleMs`/`history` options, and `createSearchParamsCache` for the server side. Read it before wiring URL state — don't improvise the API.
 
 ## When in doubt
 

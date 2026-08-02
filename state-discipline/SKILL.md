@@ -116,7 +116,7 @@ export default async function CasesPage({
 
 The chip-row Client Component writes the param. Free streaming, free cache, shareable URL, back-button works.
 
-**Write the URL with `nuqs`, not hand-rolled `router.replace`** ([VERIFY] against Next 16). [`nuqs`](https://nuqs.dev) (v2) is the ecosystem-first, type-safe URL-state library — `useQueryState`/`useQueryStates` behave like `useState` but persist to the URL, with typed parsers, built-in **throttling** (hand-rolled per-keystroke `router.replace` on a search box is the classic jank), and `useTransition` support. The page stays a Server Component reading the `searchParams` prop (above) — nuqs only owns the **client write side**:
+**Write the URL with `nuqs`, not hand-rolled `router.replace`** ([VERIFY] against Next 16). [`nuqs`](https://nuqs.dev) (v2) is the ecosystem-first, type-safe URL-state library — `useQueryState`/`useQueryStates` behave like `useState` but persist to the URL, with typed parsers, built-in **URL-update rate limiting** (`limitUrlUpdates: debounce(…)` — hand-rolled per-keystroke `router.replace` on a search box is the classic jank), and `useTransition` support. The page stays a Server Component reading the `searchParams` prop (above) — nuqs only owns the **client write side**:
 
 ```tsx
 "use client";
@@ -450,6 +450,7 @@ Derived from the `nextjs-usestate` skill from **[lusentis/next-skills](https://g
 - React docs (`useActionState`): <https://react.dev/reference/react/useActionState>
 - React docs (`useEffectEvent`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/useEffectEvent>
 - React docs (`<Activity>`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/Activity>
+- **`data-fetching/references/nuqs.md`** — the doc-grounded how-to for rung 2 (URL state) with `nuqs`: hooks, parsers, options, server-side cache. Read it before wiring URL state — don't improvise the API.
 
 ## When in doubt
 

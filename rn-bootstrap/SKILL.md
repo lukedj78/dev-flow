@@ -24,6 +24,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - `rn-fundamentals/SKILL.md` — confirms Expo SDK + New Architecture + TypeScript + npm.
 - `rn-styling/references/nativewind-setup.md` — the 7-step NativeWind setup (this skill automates it).
 - `rn-expo-router/references/concepts.md` — folder layout for `app/`.
+- `references/i18n-rn.md` — **golden rule 2**: every frontend ships i18n from day one. Wire it during this scaffold (device-locale detection, `locales/{en,it}.json`, provider in `app/_layout.tsx`, persisted locale choice) and record `stack.i18n` + `stack.locales = ["en","it"]` in `meta.json`. Follow that reference — don't improvise the setup; adding i18n later touches every screen.
 
 ## Workflow
 

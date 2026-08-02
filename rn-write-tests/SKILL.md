@@ -43,7 +43,7 @@ npx expo install --dev \
 
 (Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
 
-For Maestro: detect `.maestro/` directory. If missing AND user wants e2e, see `references/maestro-setup.md` (manual install, not npm).
+For Maestro: detect `.maestro/` directory. If missing AND user wants e2e, see `references/maestro.md` (manual install, not npm — Java 17+, `.maestro/` flow layout, `testID` conventions, and ⚠️ the Expo Go vs dev-build caveat: Expo Go can't `launchApp` your own `appId`, use `openLink: exp://…`).
 
 ### Step 3 — Choose what to test
 
@@ -58,7 +58,7 @@ If the file under test is `app/(auth)/sign-in.tsx`, write an RNTL test of the sc
 
 ### Step 4 — Write the test
 
-Use the canonical patterns from `references/rntl-patterns.md` (or `references/jest-setup.md` for utilities, or `references/maestro-setup.md` for e2e).
+Use the canonical patterns from `references/rntl-patterns.md` (or `references/jest-setup.md` for utilities, or `references/maestro.md` for e2e).
 
 Test files:
 - Unit/integration: `__tests__/<mirror-source-path>.test.tsx` (or `.test.ts` for non-JSX).

@@ -197,6 +197,7 @@ Before authoring **any** component beyond the simplest (Eyebrow, simple text wra
 | Command palette / cmd+k | `Command` (CMDK) | Categorized search, keyboard, animations |
 | **Chat / conversation / AI console / support inbox** | `MessageScroller` + `Message` + `Bubble` + `Marker` (shadcn chat, Jun 2026) | Autoscroll that yields to the user, scroll-to-bottom button, edge scroll-fade, virtualization — see `references/chat-and-typeset.md` |
 | **Rendered markdown / AI output / rich description** | `.typeset` (shadcn/typeset, Jul 2026) + `streamdown` | Consistent typography on rendered markdown; `whitespace-pre-wrap` on model output leaves `**bold**` literal — see `references/chat-and-typeset.md` |
+| **Map / location / route / store-locator** | **mapcn** (MapLibre GL, shadcn registry) — `Map` + Markers/Popups/Routes/Clusters/Controls | Theme-aware, Tailwind-styled, declarative composition; ⚠️ default CARTO tiles need an Enterprise license for **commercial** use — swap the tile provider before shipping. See `references/maps-mapcn.md`; record `stack.maps = "mapcn"` |
 | Date range picker | `Calendar` + `Popover` | Locale-aware, keyboard nav, range selection |
 | Tabs (route-driven or panel) | `Tabs` | ARIA roles, keyboard nav, animations |
 | Sheet / slide-out panel | `Sheet` | Right/left/top/bottom variants |
