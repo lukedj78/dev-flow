@@ -100,7 +100,8 @@
   .console .hd .d{width:9px; height:9px; border-radius:50%}
   .console .hd .d.r{background:#ff6b7d}.console .hd .d.y{background:#f0b64d}.console .hd .d.g{background:var(--ac-2)}
   .console .hd .t{font-family:var(--fM); font-size:.68rem; color:var(--faint); letter-spacing:.06em; margin-left:.4em}
-  .metrics{display:grid; grid-template-columns:repeat(5,1fr)}
+  .metrics{display:grid; grid-template-columns:repeat(6,1fr)}
+  @media (max-width:980px){ .metrics{grid-template-columns:repeat(3,1fr)} }
   @media (max-width:720px){ .metrics{grid-template-columns:repeat(2,1fr)} }
   .metric{padding:16px 18px; border-right:1px solid var(--bd); border-bottom:1px solid var(--bd)}
   .metric .k{font-family:var(--fM); font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); display:flex; align-items:center; gap:.5em}
@@ -218,18 +219,19 @@
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">system map · july 2026</div>
+    <div class="eyebrow">system map · v1.0.0 · august 2026</div>
     <h1><span class="g">41 skills</span> that take an idea all the way to production.</h1>
-    <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract.</p>
+    <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract. Installable as a Claude Code plugin.</p>
 
     <div class="console">
-      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 41 skills · lint clean</span></div>
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 41 skills · v1.0.0 · lint clean</span></div>
       <div class="metrics">
         <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">41</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">20</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">11</div></div>
       </div>
     </div>
   </div>
@@ -320,8 +322,8 @@
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">02</span> By name</div>
-        <p>You call the specialist directly — slash command or natural language.</p>
-        <code class="ex"><span class="pr">›</span>/<span class="sk">module-add</span> auth</code>
+        <p>You call the specialist directly — slash command or natural language. Installed as a plugin, they're namespaced.</p>
+        <code class="ex"><span class="pr">›</span>/<span class="sk">dev-flow:module-add</span> auth</code>
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">03</span> Trigger</div>
@@ -350,24 +352,22 @@
   <div class="wrap">
     <div class="kick"><span class="no">04</span> installation</div>
     <h2 class="sec-t">How to install them</h2>
-    <p class="sec-p">They're markdown-portable: they end up in <code>~/.claude/skills/&lt;name&gt;/</code> (or your runtime's equivalent). Five runtimes: Claude Code · Codex · Copilot · Gemini · Cursor.</p>
+    <p class="sec-p">Two ways in, two philosophies. The <b>plugin</b> subscribes you to the suite as a managed bundle that updates when we ship. <code>install.sh</code> copies editable files you can fork — and it's the route for Codex · Copilot · Gemini · Cursor.</p>
 
     <div class="term" aria-label="recommended installation">
-      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">install.sh — recommended</span></div>
+      <div class="thd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t">Claude Code plugin — recommended</span></div>
       <div class="tb">
-        <div class="step"><div class="cmd"><span class="pr">$</span>git clone git@github.com:lukedj78/dev-flow.git</div></div>
-        <div class="step"><div class="cmd"><span class="pr">$</span>cd dev-flow</div></div>
-        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh <span class="cm"># Claude Code (default)</span></div></div>
-        <div class="step"><div class="cmd"><span class="pr">$</span>./install.sh --platform codex <span class="cm"># or copilot · gemini · cursor</span></div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>/plugin marketplace add lukedj78/dev-flow</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>/plugin install dev-flow@dev-flow</div></div>
       </div>
     </div>
-    <p class="sec-p" style="margin-top:.9rem">Copies all the skills into the runtime's path plus the right bootstrap file (<code>AGENTS.md</code> / <code>GEMINI.md</code> / <code>.cursorrules</code>), with <code>.bak</code> backups of anything existing. Uninstall and restore with <code>./uninstall.sh</code>.</p>
+    <p class="sec-p" style="margin-top:.9rem">All 41 arrive namespaced (<code>dev-flow:forms</code>, <code>dev-flow:rn-bootstrap</code>…) and <code>/plugin marketplace update</code> pulls new releases. The shipped set is <b>generated from the taxonomy</b>, so it can't drift from <code>skills.json</code> — and both manifests pass <code>claude plugin validate --strict</code>.</p>
 
     <div class="modes" style="margin-top:1.2rem">
       <div class="card mode">
-        <div class="mh"><span class="num">B</span> Plugin</div>
-        <p>Claude Code, from the repo cloned locally.</p>
-        <code class="ex"><span class="pr">›</span>/plugin add …/dev-flow/dev-flow</code>
+        <div class="mh"><span class="num">B</span> install.sh</div>
+        <p>Editable copies. Five runtimes, with the right bootstrap file and <code>.bak</code> backups.</p>
+        <code class="ex"><span class="pr">$</span>./install.sh --platform codex</code>
       </div>
       <div class="card mode">
         <div class="mh"><span class="num">C</span> gh skill</div>
@@ -380,6 +380,7 @@
         <code class="ex">dist/*.skill <span class="pr">→</span> Claude Code</code>
       </div>
     </div>
+    <p class="sec-p" style="margin-top:.9rem">Pick one — installing the plugin <i>and</i> <code>install.sh</code> leaves you with every skill twice.</p>
   </div>
 </section>
 
@@ -415,15 +416,48 @@
         <p>Promotion up the colocation hierarchy and React composition patterns.</p>
         <div class="ss"><span class="s">promote-component</span><span class="s">composition-patterns-guide</span></div>
       </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-pm)"></i> Pre-deploy gates</div>
+        <p>At <code>feature_complete</code>: legal risk and cost risk. They report, they never block.</p>
+        <div class="ss"><span class="s">compliance-audit</span><span class="s">vercel-doctor</span></div>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="reveal">
   <div class="wrap">
-    <div class="kick"><span class="no">06</span> full index</div>
+    <div class="kick"><span class="no">06</span> the rules</div>
+    <h2 class="sec-t">What every skill is held to</h2>
+    <p class="sec-p">Three rules that apply before any skill does its job — one about how the skills are <i>written</i>, two about how the code they produce <i>looks</i>.</p>
+
+    <div class="modes">
+      <div class="card mode">
+        <div class="mh"><span class="num">0</span> Never invent</div>
+        <p>The skills are a doc-grounded second brain. No guessed API, flag or command: a “use library X” without the <b>how</b> from X's official docs is an incomplete skill. Moving surfaces carry <code>[VERIFY]</code>; upstreams get re-checked on a cadence.</p>
+        <code class="ex">docs/knowledge-index.md <span class="pr">→</span> every how-to</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">1</span> English code</div>
+        <p>Identifiers, constants, types, columns, comments — always English, independent of the language you're speaking. Only user-facing copy is localized.</p>
+        <code class="ex">getUserById() <span class="pr">not</span> prendiUtente()</code>
+      </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">2</span> i18n on day one</div>
+        <p>Every frontend ships i18n from the scaffold — no hardcoded copy. Web <code>next-intl</code>, mobile the RN stack. Minimum <code>en</code> + <code>it</code>; adding it later touches every screen.</p>
+        <code class="ex">stack.locales = ["en", "it"]</code>
+      </div>
+    </div>
+
+    <p class="sec-p" style="margin-top:1rem">That principle is why verification keeps paying: it caught a CLI documented without its required path argument, a utility class that doesn't exist in the package we recommended, and a prop removed two majors ago — before any of it reached a project.</p>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="wrap">
+    <div class="kick"><span class="no">07</span> full index</div>
     <h2 class="sec-t">All 41, by function</h2>
-    <p class="sec-p">Meta alongside: <code>SKILL.md</code> lines · references · scripts. The glowing dot marks july's new ones.</p>
+    <p class="sec-p">Meta alongside: <code>SKILL.md</code> lines · references · scripts. The glowing dot marks the newest additions.</p>
 
     <div class="legend">
       <span class="lg"><i style="background:var(--c-core)"></i> core</span>

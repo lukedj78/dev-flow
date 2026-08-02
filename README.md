@@ -1,11 +1,13 @@
 # dev-flow
 
-![dev-flow — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, governance (PM & compliance), how to use & install, full index](./docs/assets/dev-flow-map-41.png)
+![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to, plugin install, full index](./docs/assets/dev-flow-map-v1.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
 > One folder (`.workflow/`), one state file (`meta.json`), and **41 skills (5 core + 13 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+>
+> **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 >
