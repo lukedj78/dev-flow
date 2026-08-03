@@ -1,4 +1,4 @@
-# eve patterns — multi-tenant, dynamic, governance & traceability recipes
+# eve patterns — multi-tenant, dynamic, governance, traceability & team recipes
 
 These are **composed patterns**, not framework subsystems: eve gives you primitives (auth, tools, instructions, schedules, approval, hooks, sandbox) and you assemble tenant-safe behaviour from them. Live docs: <https://eve.dev/docs/patterns/…>. As always, **read `node_modules/eve/docs/` first** and treat every identifier below as `[VERIFY]` against the installed version — patterns move.
 
@@ -223,8 +223,65 @@ Concrete: enriching a contact, the agent may read the whole Acme email thread, b
 
 > Recipes #5–#6 are distilled from the MIT reference implementation **[trycompai/crm](https://github.com/trycompai/crm)** (`apps/agent/agent/hooks/audit.ts`, `agent/skills/data-boundaries.md`) — a production eve monorepo whose structure independently matches this skill's conventions.
 
+## 7. Multi-agent team — a lead that routes, specialists that don't overlap
+
+**Problem:** past a certain surface area one agent's instructions become a pile of unrelated procedures, and its context fills with work it isn't doing. **Pattern:** a **lead** that grounds itself in shared state and routes to exactly one **specialist**, each specialist owning a job end-to-end. Five rules make it hold together.
+
+**a. Depth-1 delegation.** The lead grounds (reads the shared context + the caller's standing preferences), then hands off to **exactly one** specialist with a full brief. **Specialists don't delegate further** — each gathers its own evidence (`web_search`/`web_fetch`) and runs its own review pass before handing back. A tree deeper than one hop turns every request into a game of telephone.
+
+**b. Split by job, not by artifact.** The seam between two specialists that both touch "a newsletter" is *who does what to it*: one authors the prose, the other adapts it and operates the channel. Split by artifact and both agents claim the same work; split by job and a newsletter is simply two hops, chained by the lead. Where two specialists' guidance touches the same number (title length, link counts), keep the specs *in agreement* rather than silently duplicated.
+
+**c. Shared state has exactly one writer.** One specialist **owns authoring** the shared document (brand context, house style, the domain glossary); everyone else reads it at the start of every task. It's the one piece of state whose quality bounds every other agent's output — so its structure belongs in a **skill**, not in a convention someone remembers. Multi-tenant? The scope comes from `requireTenantCaller(ctx)` (#1), never from model input.
+
+**d. Handoff artifacts travel by id, not by value.** Long output the next specialist needs but no human wants pasted in a thread (an audit, research notes, a plan) is written to blob storage and returns an **id**. The reply carries the id plus a few lines of summary — never the document.
+
+```ts
+// agent/lib/artifacts/tools.ts — a factory, so every agent gets the same tool
+export const saveArtifactTool = () => defineTool({
+  description: "Save a Markdown document for another agent to read, and get back an id to hand " +
+    "along. Your reply carries the id and a short summary, never the document — pasting it back " +
+    "is the one thing this tool exists to avoid.",
+  async execute({ kind, title, markdown }) { /* → blob under a reserved prefix; return { id } */ },
+});
+```
+
+**The load-bearing detail:** every specialist gets `save` **and** `read`; the **lead gets only `read`**. That asymmetry is what keeps a relayed document out of the lead's context — otherwise the router quietly becomes the place every document passes through.
+
+**e. The subagent's `description` is the routing contract.** The lead routes on it, so write it like a SKILL.md description: what it does, when to use it, **what the caller must pass in the message**, and explicitly **what it does not do**.
+
+```ts
+// agent/subagents/content-marketer/agent.ts
+export default defineAgent({
+  compaction: { thresholdPercent: 0.9 },
+  description:
+    "Write and edit long-form marketing content: blog posts, landing pages, case studies… " +
+    "The caller passes the brief, the audience, the format, source material, and the destination " +
+    "in the message. Does not publish, schedule, or touch social accounts.",
+  model: "anthropic/claude-opus-5",
+});
+```
+
+**Sharing code across specialists** — Node subpath imports, so a shared helper isn't a relative-path maze:
+
+```jsonc
+// package.json
+"imports": { "#*": "./agent/*" }        // then: import { … } from "#lib/artifacts/config.js"
+```
+
+```
+agent/lib/<domain>/config.ts   // key layout, size caps, id format, vocabulary — no behaviour
+agent/lib/<domain>/tools.ts    // tool *factories* over that config: saveArtifactTool(),
+                               //   lintAgainstStyleTool(surfaces), buildTrackedLinkTool(surfaces)
+```
+
+Factories (not exported tool instances) let each agent mount the same capability with its own parameters. **Subagents inherit nothing** — each has its own `sandbox.ts`, `connections/`, `tools/`, `skills/`; grant each only what its job needs (the prose specialists ship with `bash` disabled). And there is **no wiring file**: names come from paths (§identity-by-path in `eve-conventions.md`), so adding a specialist means adding a directory.
+
+**Document it.** Keep an `ARCHITECTURE.md` that states each specialist's ownership boundary and the direction of the dependencies — written for humans *and* for the agents working in the repo. Gate it with one script: `"validate": "check && typecheck && eve info"`.
+
+> Recipe #7 is distilled from Vercel Labs' MIT template **[marketing-team-eve-template](https://github.com/vercel-labs/marketing-team-eve-template)** (a lead + 5 specialists, 20 agent skills in `SKILL.md` + `references/` form). `[VERIFY]` identifiers against your installed eve — the template tracks `eve ^0.27.6`.
+
 ---
 
 ## When to reach for these
 
-Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
+Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.

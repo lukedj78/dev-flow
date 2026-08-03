@@ -247,6 +247,8 @@ Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard 
 
 Prefer a **skill** when a subagent would be overkill (a skill is lighter).
 
+**Building a whole team of them?** The mechanics above are one subagent; the *architecture* — a lead that routes depth-1 to non-overlapping specialists, boundaries drawn by job rather than artifact, shared state with exactly one writer, handoff artifacts passed **by id** so documents never enter the lead's context, and the subagent `description` written as a routing contract — is **`eve-patterns.md` §7**. Read it before adding the second subagent, not the fifth.
+
 ## Hook — `agent/hooks/<name>.ts` (lifecycle subscriber)
 
 ```ts

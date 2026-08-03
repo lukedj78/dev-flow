@@ -6,6 +6,8 @@ TypeScript types of the **installed** version — names and defaults can drift.
 
 ## Import map (each capability has its own subpath)
 
+> **Your own shared code**: declare a Node subpath import once — `"imports": { "#*": "./agent/*" }` in `package.json` — then import shared helpers as `#lib/<domain>/<file>.js` from anywhere in the agent, including subagents, instead of climbing relative paths. Put non-behavioural constants (key layouts, size caps, id formats, vocabularies) in `agent/lib/<domain>/config.ts` and expose capabilities as **tool factories** in `agent/lib/<domain>/tools.ts`, so several agents mount the same tool with their own parameters. See `eve-patterns.md` §7. `[VERIFY]` against your eve version.
+
 Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else is namespaced:
 
 | Helper | Module |
