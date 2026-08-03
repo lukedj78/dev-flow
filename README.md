@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to, plugin install, full index](./docs/assets/dev-flow-map-v1.png)
+![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to, plugin install, full index](./docs/assets/dev-flow-map-v1-r2.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -1240,6 +1240,8 @@ claude plugin validate . --strict                  # the marketplace entry
 ```
 
 CI runs `lint_skills.py` + `build_skills_registry.py` on every PR (see `.github/workflows/lint-skills.yml`); a missing or stale `skills.json` will fail the workflow.
+
+**Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. **Give the file a new name every time** — `dev-flow-map-<version>-r<n>.png` — and update the `README` image path: GitHub's camo proxy caches by URL, so overwriting in place leaves everyone looking at the previous image.
 
 ---
 
