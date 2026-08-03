@@ -329,6 +329,7 @@ The stub:
 - Shows a **"empty-state" card**: an icon (relevant to the section), the route name as title, a 1-sentence description of what the page will eventually do, and a CTA button (no-op for now).
 - Optionally: a **"Task pianificati"** list inside the empty state, pulled from `tasks.md` for that user story (e.g., for `/clienti`, list the 3 tasks tagged with the relevant user story). This makes the placeholder useful — the user sees what's coming.
 - Does **not** include real data, real forms, or any business logic.
+- The icon here is a **UI icon** (`stack.icon_library`), not an illustration. A hand-drawn illustration is a *stylistic commitment* — only if DESIGN.md's visual language admits it, only at emotional moments (first-run empty state, onboarding, 404), and only a handful per product. See `references/illustrations.md` (Koboyo, `stack.illustrations` — default `null`); when in doubt, type and spacing beat borrowed art.
 
 #### Reusable placeholder component
 

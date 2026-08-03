@@ -36,6 +36,7 @@ When a project needs one of these capabilities, reach for the default below inst
 |---|---|---|
 | **Maps** | **[mapcn](https://mapcn.dev/)** — MapLibre GL, shadcn-registry. How-to: `design-md-to-app/references/maps-mapcn.md` (⚠️ CARTO default tiles need an Enterprise license for commercial use). `stack.maps = "mapcn"`. | **[mapcn-rn](https://mapcn-rn.dev/)** — MapLibre/Mapbox RN + NativeWind. How-to: `rn-components-apis/references/maps-mapcn-rn.md` (⚠️ native modules → dev build, not Expo Go). `stack.maps = "mapcn-rn"`. |
 | **File / blob storage** | **Vercel Blob** (`@vercel/blob`) when deploying to Vercel — same platform, one less sub-processor. UploadThing / S3 only on request. How-to: `module-add/references/module-storage.md`. `stack.storage = "vercel-blob"`. | provider-side (`supabase` / `firebase` / custom) via `rn-module-add` |
+| **Illustration / spot art** | **[Koboyo](https://koboyo.com/icons)** — 71k hand-drawn SVGs, free commercially, found via its MCP server. ⚠️ **Use sparingly and only when DESIGN.md admits it**; the licence forbids products where the art *is* the feature. How-to: `design-md-to-app/references/illustrations.md`. | same source, vendored as SVG |
 | **Animated icons** | `heroicons-animated` (skill) | `rn-animations-gestures` |
 | **Motion** | `transitions` + `module-add motion` | `rn-animations-gestures` |
 | **Forms** | `forms` (`stack.forms`) | RN form stack |
@@ -200,6 +201,7 @@ Captures user choices that downstream skills need. Keys:
 - `base_color` (web, only when `ui="shadcn"`): `"neutral"` | `"gray"` | `"zinc"` | `"stone"` | `"slate"`. The shadcn base color. Default `"neutral"`. In dev-flow mode the **DESIGN.md tokens override** the actual palette — this is only the scaffold starting point.
 - `ui_theme` (web, only when `ui="shadcn"`): `"vega"` | `"nova"` | `"maia"` | `"lyra"` | `"mira"` | `null`. The shadcn create starting theme. Default `null` (plain). DESIGN.md tokens override.
 - `icon_library` (web): `"lucide"` | `"radix-icons"` | `"tabler"` | string. Default `"lucide"`.
+- `illustrations` (frontend, optional): `"koboyo"` | string | `null`. **Default `null` — the honest value for most products.** Spot art / illustration for *moments* (empty states, onboarding, 404), distinct from `icon_library` (UI icons). Set it only when DESIGN.md's visual language actually admits illustration; how-to + the restraint rules + the licence boundary are in `design-md-to-app/references/illustrations.md`.
 - `css_variables` (web): `true` | `false`. shadcn `--css-variables`. Default `true` (required for token-driven theming from DESIGN.md).
 - `rtl` (web, optional): `true` | `false`. shadcn `--rtl` (right-to-left support). Default `false`.
 - `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase"` | `"supabase-auth"` | `"firebase"` | `"custom-rest"` | `"trpc"` | `null`

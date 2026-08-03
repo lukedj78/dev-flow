@@ -15,6 +15,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 | **URL state** | `data-fetching/references/nuqs.md` | <https://nuqs.dev/docs> | `data-fetching` rung 2, `state-discipline` rung 2 |
 | **Motion (Tier 0)** | `transitions/references/tw-animate-css.md` | <https://github.com/Wombosvideo/tw-animate-css> | `transitions`, shadcn scaffolds |
 | **Motion (runtime)** | `module-add/references/module-motion.md` | <https://motion.dev/docs/react> | `transitions` Tier 3, `heroicons-animated` |
+| **Illustrations** | `design-md-to-app/references/illustrations.md` | <https://koboyo.com/icons> + its [licence](https://koboyo.com/icons/license) | `design-md-to-app` (⚠️ use sparingly — DESIGN.md decides; licence forbids art-as-the-product) |
 | **Maps — web** | `design-md-to-app/references/maps-mapcn.md` | <https://mapcn.dev/docs> | `design-md-to-app` (⚠️ CARTO tiles: commercial licence) |
 | **Maps — mobile** | `rn-components-apis/references/maps-mapcn-rn.md` | <https://mapcn-rn.dev/docs> | `rn-add-screen` (⚠️ needs a dev build) |
 

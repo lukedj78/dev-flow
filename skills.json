@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-03T16:50:14Z",
+  "generated_at": "2026-08-03T18:59:19Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
@@ -188,6 +188,7 @@
         "chat-and-typeset.md",
         "contracts.md",
         "i18n-next-intl.md",
+        "illustrations.md",
         "library-choice.md",
         "maps-mapcn.md",
         "mui-mapping.md",
@@ -199,7 +200,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1124,
+      "skill_md_lines": 1125,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
