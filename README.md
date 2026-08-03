@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to, plugin install, full index](./docs/assets/dev-flow-map-v1-r2.png)
+![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r3.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -809,6 +809,9 @@ The skill is explicit about confidence: every guess is flagged in the prose. A 1
 - **`/showcase` route**: a 9-section design-system documentation page (Color tokens, Typography ladder, Buttons, Cards, Inputs, Badges, Radius, Spacing, Do's/Don'ts) — non-skippable in dev-flow mode.
 - **Placeholder routes** for every nav item declared in DESIGN.md / screenshots / PRD, so no link goes to `/_not-found`.
 - **Server actions stub**: at least one `lib/server/<domain>.ts` with Zod schemas + `ActionResult<T>` discriminated union + `flattenZod` helper, as a referenceable pattern.
+
+- **i18n from day one** (golden rule 2): next-intl wired at scaffold — `[locale]` routing, `messages/{en,it}.json`, provider — so no copy is ever hardcoded. How-to: `references/i18n-next-intl.md`.
+- **Visual defaults, opt-in**: maps via [mapcn](https://mapcn.dev/) (`references/maps-mapcn.md`) and illustrations via [Koboyo](https://koboyo.com/icons) (`references/illustrations.md`) — the latter deliberately sparing: `stack.illustrations` defaults to `null`, and hand-drawn art is added only when DESIGN.md's visual language admits it, at emotional moments (first empty state, onboarding, 404), a handful per product.
 
 The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs/conventions.md).
 

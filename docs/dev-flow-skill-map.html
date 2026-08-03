@@ -231,7 +231,7 @@
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">11</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">13</div></div>
       </div>
     </div>
   </div>
@@ -450,6 +450,21 @@
     </div>
 
     <p class="sec-p" style="margin-top:1rem">That principle is why verification keeps paying: it caught a CLI documented without its required path argument, a utility class that doesn't exist in the package we recommended, and a prop removed two majors ago — before any of it reached a project.</p>
+
+    <h3 class="sec-t" style="font-size:1.05rem; margin-top:2rem">Ecosystem-first defaults</h3>
+    <p class="sec-p">When a project needs one of these, we reach for the default rather than hand-roll — and each ships a doc-grounded how-to, never just a name. <b>13</b> of them so far.</p>
+
+    <div class="term" aria-label="library defaults">
+      <div class="tb">
+        <div class="step"><div class="cmd"><span class="sk">i18n</span> next-intl <span class="cm">· web</span> · i18next + expo-localization <span class="cm">· mobile — minimum en + it</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">url state</span> nuqs <span class="cm"># the write side of the searchParams rung</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">storage</span> Vercel Blob <span class="cm"># same platform as the deploy, one less sub-processor</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">maps</span> mapcn <span class="cm">· web</span> · mapcn-rn <span class="cm">· mobile — mind the tile licence</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">motion</span> tw-animate-css <span class="pr">→</span> CSS <span class="pr">→</span> view transitions <span class="pr">→</span> Motion <span class="cm"># cheapest tier that works</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">illustration</span> Koboyo <span class="cm"># sparingly — only if DESIGN.md admits hand-drawn art</span></div></div>
+      </div>
+    </div>
+    <p class="sec-p" style="margin-top:.9rem">A default is a starting point, not an obligation: a project overrides any of them with a documented reason — and the ones it doesn't need stay <code>null</code>.</p>
   </div>
 </section>
 
