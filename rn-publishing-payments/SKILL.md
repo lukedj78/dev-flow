@@ -12,7 +12,7 @@ description: 'Use when preparing an Expo + RN app for store submission (metadata
 1. **Apple's 30% rule**: ANY digital good/service consumed inside the app MUST go through IAP (subscriptions, premium tiers, in-app currency, unlock-feature one-shots) — **unless** an allowed external-purchase path applies (notably the US external-link rule since May 2025; see `references/decision-tree.md` Q2). Bypassing IAP *without* an allowed path = rejection under guideline 3.1.1.
 2. **Stripe / external payment only for NON-digital**: physical goods (shipped), services rendered outside the app (ride, food delivery, classroom), B2B (consultant invoice). Even then, Apple's "anti-steering" rules apply — careful what you link.
 3. **Use RevenueCat for IAP**, not raw `react-native-iap`. RevenueCat handles receipt validation, cross-platform subscriptions, restore-purchases, sandbox testing, and analytics in one SDK with a generous free tier. Raw IAP works but you'll write 10x the code.
-4. **Screenshots must be REAL** screenshots of the running app, not marketing illustrations (guideline 2.3.10). 3 sizes per platform required (see `references/store-assets.md`).
+4. **Screenshots must be REAL** screenshots of the running app, not marketing illustrations (guideline 2.3.10). iOS needs **one iPhone size — 6.9" (preferred) or 6.5"** — plus 13" iPad only if you ship iPad; Apple scales the rest down (see `references/store-assets.md`).
 5. **Privacy nutrition label (iOS) + Data safety (Android) MUST match reality**. Lying about data collection = ban. Audit the SDKs you use (analytics, push, crash reporting) — each declares what it collects.
 
 ## Quick decision tree

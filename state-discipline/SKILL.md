@@ -256,7 +256,7 @@ export function ChatRoom({ roomId, theme }: { roomId: string; theme: string }) {
 }
 ```
 
-Use `useMountEffect` for genuinely mount-only, no-fresh-reads side effects (focus on mount, one-shot third-party init). Reach for `useEffectEvent` when the effect must stay subscribed/connected across renders but a piece of its logic needs to read current props/state without becoming a re-run trigger. `[VERIFY]` — confirm `useEffectEvent` is stable (not `experimental_useEffectEvent`) in the project's exact React version before relying on the non-prefixed import; it stabilized around React 19.2.
+Use `useMountEffect` for genuinely mount-only, no-fresh-reads side effects (focus on mount, one-shot third-party init). Reach for `useEffectEvent` when the effect must stay subscribed/connected across renders but a piece of its logic needs to read current props/state without becoming a re-run trigger. **Stable since React 19.2** (shipped alongside `<Activity>` and `cacheSignal`; current stable 19.2.x) — import `useEffectEvent` from `react`, not the `experimental_` prefix. On React 19.0/19.1 the prefixed form is still required.
 
 ### 8. Honest `useState` — the last 10%
 
@@ -369,7 +369,7 @@ function Tabs({ activeTab }: { activeTab: "chat" | "settings" }) {
 }
 ```
 
-Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says "my draft disappeared when I switched tabs and came back," that's a `key`-shaped reset where `<Activity>` was needed. `[VERIFY]` — confirm `<Activity>` is available (not behind an experimental/canary flag) in the project's exact React version; it stabilized around React 19.2.
+Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says "my draft disappeared when I switched tabs and came back," that's a `key`-shaped reset where `<Activity>` was needed. **Stable since React 19.2** — available from `react` directly (current stable 19.2.x). On React 19.0/19.1 it was canary-only, so check the project's version before reaching for it.
 
 ## Red flags / rationalizations
 
@@ -448,8 +448,8 @@ Derived from the `nextjs-usestate` skill from **[lusentis/next-skills](https://g
 - React docs (`useTransition`): <https://react.dev/reference/react/useTransition>
 - React docs (`key`): <https://react.dev/learn/preserving-and-resetting-state>
 - React docs (`useActionState`): <https://react.dev/reference/react/useActionState>
-- React docs (`useEffectEvent`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/useEffectEvent>
-- React docs (`<Activity>`) `[VERIFY stabilization version]`: <https://react.dev/reference/react/Activity>
+- React docs (`useEffectEvent`) — **stable since React 19.2**: <https://react.dev/reference/react/useEffectEvent>
+- React docs (`<Activity>`) — **stable since React 19.2**: <https://react.dev/reference/react/Activity>
 - **`data-fetching/references/nuqs.md`** — the doc-grounded how-to for rung 2 (URL state) with `nuqs`: hooks, parsers, options, server-side cache. Read it before wiring URL state — don't improvise the API.
 
 ## When in doubt

@@ -9,11 +9,17 @@ Run this once per project, on the first call of `rn-write-tests`.
 ```bash
 npx expo install --dev \
   jest jest-expo \
-  @testing-library/react-native \
+  @testing-library/react-native@^14 \
+  test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
 ```
 
-(Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+; the standalone `@testing-library/jest-native` package is deprecated and no longer needed.)
+- **`test-renderer@^1` is a required peer dependency of RNTL v14** — it replaces the deprecated `react-test-renderer`, which was dropped. If the project still has `react-test-renderer` / `@types/react-test-renderer`, remove them.
+- Pick the `test-renderer` line that matches your React 19 minor: `1.2` for React 19.2, `1.1` for 19.1, `1.0` for 19.0. A newer line than your React version produces peer warnings (or an install error on npm); an older line blocks newer React 19 features in tests.
+- **Node `^22.13 || >=24` is required** by RNTL v14 (along with React ≥ 19 and RN ≥ 0.78). CI images pinned to Node 20 will fail to install — bump the runner before pinning the dep.
+- Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+; the standalone `@testing-library/jest-native` package is deprecated and no longer needed.
+
+⚠️ RNTL v14 made `render`, `renderHook`, `fireEvent` and `act` **async** — see the v14 section at the top of `rntl-patterns.md` before writing (or migrating) any test.
 
 ## 2. `package.json` — add jest config + script
 
@@ -109,6 +115,7 @@ describe("formatPrice", () => {
 ## Common pitfalls
 
 - **`SyntaxError: Unexpected token 'export'`** when importing a node_modules package → add the package name to `transformIgnorePatterns` (last segment after `nativewind`).
-- **Async warnings** about React state updates → wrap in `act` or use `waitFor`.
+- **Async warnings** about React state updates → you probably forgot to `await` a `render` / `fireEvent` / `renderHook` call (v14 made them async). Otherwise use `waitFor`, or `await act(...)`.
+- **`Invariant Violation: Text strings must be rendered within a <Text> component`** → v14 always enforces this (the `unstable_validateStringsRenderedWithinText` opt-out was removed). Fix the component; it would fail at runtime too.
 - **`useNativeDriver` warnings spam** → silenced by the setup file above.
 - **`window is not defined`** → you're testing a node-only file with the wrong env. Set `/** @jest-environment node */` at the top.

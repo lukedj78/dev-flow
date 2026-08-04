@@ -125,6 +125,9 @@ document.startViewTransition?.(() => flushSync(() => setState(next)));
 ```
 Reduced-motion: guard with `if (!matchMedia("(prefers-reduced-motion: reduce)").matches)` — else swap instantly.
 
+**Sitting on the Tier-2/Tier-3 seam: Motion's `animateView`** (graduated from Motion+ into the main library in **12.41.0**, refined through 12.43.x). It's a first-party choreography layer *over* the browser's View Transitions — `.add()`, `.new()`/`.old()`, `.layout()`, `.group()`, `.crop()`, `.class()` — so you keep the native API's cheapness but get scriptable control over which elements pair up and how. Reach for it when a plain `document.startViewTransition` can't express the pairing you need, **before** escalating to Motion `layout`/`layoutId` (which re-renders through React). Requires the `motion` runtime (`module-add motion`). `[VERIFY]` the API against the installed version — it's young.
+
+
 ## Route / page transitions (Tier 2)
 
 Next.js 16 App Router route transitions via the View Transitions API — Tier 2, no Motion needed.

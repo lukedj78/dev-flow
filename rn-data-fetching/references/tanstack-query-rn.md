@@ -143,7 +143,7 @@ const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuer
 />
 ```
 
-`getNextPageParam` returning `undefined` (or `null`) is what sets `hasNextPage: false`. FlashList v2 no longer needs `estimatedItemSize` `[VERIFY]`.
+`getNextPageParam` returning `undefined` (or `null`) is what sets `hasNextPage: false`. FlashList v2 no longer needs `estimatedItemSize` (the prop is deprecated — "No longer used" per the v2 changes doc).
 
 ## Refetch when a screen regains focus
 

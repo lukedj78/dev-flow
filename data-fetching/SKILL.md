@@ -258,6 +258,74 @@ export async function getCaseStats() {
 
 If the project has **not** enabled `cacheComponents`, ignore this section: the single-argument `revalidatePath` / `revalidateTag` in the mutation examples above are correct as-is. `[VERIFY]` the exact `cacheLife` profile names and the `revalidateTag`/`updateTag` signatures against the installed Next version — this surface is new in 16 and still settling.
 
+## Instant Navigations (Next **16.3**, stable — opt-in via `cacheComponents`) `[VERIFY]`
+
+Doc-grounded against <https://nextjs.org/docs/app/guides/instant-navigation> (page states `version: 16.3.0`). Not preview — 16.3.0 is the `latest` npm tag. Still **opt-in**: it rides on `cacheComponents: true`, which Vercel says will become a default in a future major.
+
+**Definition.** A navigation is *instant* when the browser starts rendering the moment the user clicks: static/cached/fallback content appears immediately while the server streams the rest into its fallbacks. (Assumes warm caches — a cold cache still computes once.)
+
+**The distinction that explains everything:** a direct visit and a client navigation produce **different initial UI**.
+- **Direct visit** → the **static shell** as HTML, typically from a CDN.
+- **Client navigation** → only the tree *below the shared layout* re-renders, so a `<Suspense>` boundary sitting **above** that point never triggers. Next generates a per-route **App Shell** for this case.
+
+That's why the same page can be instant on load and blocking on navigation. (Same reason `useSearchParams()` suspends on a page load but resolves synchronously on a client navigation — the router already has the params.)
+
+**Three levers when a route `await`s something:**
+
+| Lever | How | Effect |
+|---|---|---|
+| **Stream** | wrap in `<Suspense>` | fallback shows instantly, content streams in |
+| **Cache** | `'use cache'` (+ `cacheLife`) | the value lands in the shell |
+| **Block** | `export const instant = false` in `page.tsx`/`layout.tsx` | opts the segment **out of validation feedback**; that segment's navigation blocks on the server |
+
+⚠️ Read `instant = false` precisely: it silences *insights* for that segment, it does not "make it dynamic". Sibling navigations below it are still validated. Prefer `use cache: private` over opting out when the content depends on `cookies()`/`headers()` but has a known lifetime (needs `stale` ≥ 5 minutes).
+
+**Validation is ON by default** under Cache Components (`validationLevel: 'warning'`): every Page and Default segment is validated in development, simulating both page load and client navigation. Opt down to only-explicitly-marked segments:
+
+```ts
+// next.config.ts
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: { instantInsights: { validationLevel: 'manual-warning' } },
+};
+```
+
+**Two `use cache` variants worth knowing** (they change what can be instant):
+- **`'use cache: private'`** — for functions reading `cookies()`/`headers()`. Cached **in the browser only**, so it **cannot** be part of the static shell; it pairs with runtime prefetching.
+- **`'use cache: remote'`** — persistent caching. Plain `'use cache'` is in-memory and **does not survive across serverless instances**, which is the trap on Vercel.
+
+**Partial Prefetching** (its own adoption guide) changes `<Link>`: each visible link prefetches the destination's **App Shell**, shared across every link to the same route — so rendering a `<Link>` is effectively free (no more one request per link). `prefetch={true}` adds the page content *and* opts into **runtime prefetching**, resolving that link's `params` / `searchParams` / full URL before the click.
+
+**Tooling.** *Navigation Inspector* (DevTools) freezes the page at its initial loading state — "Pause on navigations", then Resume — showing the static shell on direct visits and the prefetched destination on client navigations; pair with the React DevTools Suspense panel. Regression guard: the `instant()` helper from `@next/playwright` (see `write-tests` → `references/test-page-e2e.md`).
+
+**How it maps onto our ladder:** nothing here replaces it. Rung 1 (async Server Component) + `<Suspense>` **is** Stream; the Cache Components section above **is** Cache. What 16.3 adds is a *validator* that tells you when a route silently fell off the ladder, plus the vocabulary to say "this one blocks on purpose".
+
+**Adopting it — don't hand-roll the migration.** Official paths, in order:
+1. **[Migrating to Cache Components](https://nextjs.org/docs/app/guides/migrating-to-cache-components)** — the canonical migration guide for an existing app.
+2. **[Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)** — the `<Link>` defaults and the migration off `unstable_eager`.
+3. **Four official Skills** live in `vercel/next.js/skills/` (install: `npx skills add vercel/next.js --skill <name>`):
+   - `next-cache-components-adoption` — flip the flag and walk the app to a passing build (ships a `cache-components-instant-false` codemod).
+   - `next-partial-prefetching-adoption` — flip `partialPrefetching`, opt routes in with `export const prefetch = 'partial'`.
+   - `next-cache-components-optimizer` — the observe → test → fix → verify loop: confirms the UI renders, writes an `instant()` test that *fails first*, works it to green against a production-like build, leaves it as a regression guard.
+   - `next-dev-loop` — the general edit → verify loop (`/_next/mcp` + `agent-browser`), not Cache-Components-specific.
+   `[VERIFY]` against <https://nextjs.org/docs/app/guides/ai-agents>. Note Vercel's own rule there: *framework knowledge comes from the bundled docs, not from Skills — Skills cover workflows, not lookups.* That is exactly our rule zero.
+
+## Next 16.3 — what you get by just upgrading `[VERIFY]`
+
+Released 2026-08-03 (`npm install next@latest`). These need **no** config and no code change — recommend the upgrade to any Next 16 project:
+
+- **~90% less dev memory** (Turbopack disk caching + memory eviction, now on by default) and **faster repeat builds** (the filesystem cache now covers `next build`).
+- **~22% more requests under load** — the App Router SSR layer moved from web streams to native Node.js streams.
+- **TypeScript 7** for type checking during `next build` — just bump the local dep (`pnpm add -D typescript@^7`).
+- **Fewer prefetch requests** — small prefetch payloads are bundled together automatically.
+
+New APIs worth knowing (opt-in, no flag):
+
+- **`catchError` from `next/error`** — a custom error boundary that, unlike a plain React error boundary, does **not** interfere with `notFound()` / `redirect()`, and hands you a **`retry()`** that re-fetches the boundary's children **including re-rendering failed Server Components**. This is the missing piece for "the read failed, let the user retry" — previously you could only reset client state.
+- **`import.meta.glob`** (Vite-compatible, via Turbopack) — load many local files from a Server Component with HMR, e.g. a folder of markdown posts.
+
+Experimental in 16.3, flag-gated: the **Rust React Compiler** (`reactCompiler` + `experimental.turbopackRustReactCompiler`) and **network resilience** (`experimental.useOffline` + a `useOffline()` hook from `next/offline`, which keeps a navigation/fetch/Server Action pending and retries on reconnect instead of throwing).
+
 ## Anti-pattern catalog — red ❌ → green ✅
 
 The full red→green catalog (6 patterns: action-in-useEffect, useState-filter, manual-refetch-after-mutation, getX-in-actions, await-then-pass-to-client, optimistic-by-hand) is in `references/anti-patterns.md`. Brief index:
@@ -338,7 +406,7 @@ This skill is derived from the `nextjs-data-fetching` skill from **[lusentis/nex
 - Next.js docs (Mutating data): <https://nextjs.org/docs/app/getting-started/mutating-data>
 - React `use()`: <https://react.dev/reference/react/use>
 - `revalidatePath` / `revalidateTag`: <https://nextjs.org/docs/app/api-reference/functions/revalidatePath>
-- **`references/nuqs.md`** — the doc-grounded how-to for rung 2 (URL state): `useQueryState`/`useQueryStates`, parsers, `shallow`/`throttleMs`/`history` options, and `createSearchParamsCache` for the server side. Read it before wiring URL state — don't improvise the API.
+- **`references/nuqs.md`** — the doc-grounded how-to for rung 2 (URL state): `useQueryState`/`useQueryStates`, parsers, `shallow`/`limitUrlUpdates`/`history` options, and `createSearchParamsCache` for the server side. Read it before wiring URL state — don't improvise the API.
 
 ## When in doubt
 

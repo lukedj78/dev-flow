@@ -1,8 +1,32 @@
-> Sources: https://developer.apple.com/app-store/review/guidelines/, https://support.google.com/googleplay/android-developer/topic/9858052
+> Sources: https://developer.apple.com/app-store/review/guidelines/, https://developer.apple.com/news/upcoming-requirements/, https://support.google.com/googleplay/android-developer/topic/9858052, https://developer.android.com/developer-verification
 
 # Store review — what gets you rejected
 
 The full Apple guidelines are 30+ pages. This file lists the points you'll most likely trip on.
+
+## Hard gates — these block the upload, not the review
+
+Guideline violations get you a rejection you can argue with. These three reject the binary or pull the listing outright, and no amount of Resolution Center prose helps.
+
+### Xcode 26 / iOS 26 SDK floor (Apple, since 2026-04-28)
+
+Apps uploaded to App Store Connect **must be built with Xcode 26 or later, using the iOS 26 SDK** (or iPadOS/tvOS/visionOS/watchOS 26). An older toolchain is refused at upload.
+
+On EAS this is free if you leave the build image alone: `image: auto` resolves to `macos-tahoe-26.5-xcode-26.6` for SDK 57. The trap is a project that **pinned an older `image` in `eas.json`** (e.g. `macos-sequoia-15.5-xcode-16.4` from an SDK 53 era) — those builds still succeed and then fail at submit. Grep `eas.json` for `"image"` before a release; if it's pinned to an Xcode < 26 image, drop the pin or move it forward. See `rn-eas-build-submit-update/references/eas-json.md`.
+
+### Google Play developer verification + content ratings (announced 2026-07-15)
+
+Two things, both now mandatory:
+- **Developer verification** — all your apps must be registered in Play Console under a verified developer identity (legal name, address, contactable email/phone; D-U-N-S + website for organizations). ~99% of Play apps are auto-registered, but check Play Console for stragglers, and register anything you also distribute outside Play.
+- **Content ratings** — Google no longer allows unrated apps. Fill the rating questionnaire; an unanswered one is now a removal reason, not a nag.
+
+Enforcement starts **2026-09-30** for users in **Brazil, Indonesia, Singapore and Thailand**, expanding **globally in 2027**. Unverified apps can't be installed or updated on certified Android devices in the enforcing regions.
+
+### EU DSA trader status (Apple, in force since 2025-02-17)
+
+Apps **without verified trader status are removed from the App Store in the EU** until it's provided and verified — and trader status has been required to submit updates for EU-distributed apps since 2024-10-16. This is a Digital Services Act obligation, not an App Review guideline: it hits the listing directly.
+
+Relevant to every EU-based project we ship. Fill it in App Store Connect → Business → Trader Status; verification takes days, so do it well before the release you care about.
 
 ## Apple App Store — most common rejections
 
@@ -55,6 +79,7 @@ The full Apple guidelines are 30+ pages. This file lists the points you'll most 
 
 ### Policy: Target API level
 - Google Play requires targeting a recent Android API level (rolling requirement, roughly the current major − 1 each year — e.g. API 35 in 2025, API 36 by August 31, 2026 for new/updated apps). Check the current deadline at Play Console's target API level policy page before submitting. The Expo SDK you're on handles the underlying `targetSdkVersion` — verify after each SDK bump.
+- **The API 36 deadline can be extended to November 1, 2026** on request: Play Console → Policy status → the warning's details page has an extension form. It buys two months, not a pass — and you have to ask before August 31.
 
 ### Policy: User data
 - Sending personal data over HTTP (not HTTPS) → reject.

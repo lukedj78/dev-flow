@@ -37,11 +37,14 @@ Check if `jest`, `jest-expo`, `@testing-library/react-native` are in `package.js
 ```bash
 npx expo install --dev \
   jest jest-expo \
-  @testing-library/react-native \
+  @testing-library/react-native@^14 \
+  test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
 ```
 
-(Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
+(`test-renderer@^1` is a **required** peer dep of RNTL v14 — it replaced `react-test-renderer`. Node `^22.13 || >=24` is also required. Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
+
+⚠️ **RNTL v14 is async**: `render`, `renderHook`, `fireEvent` and `act` all return Promises and MUST be awaited, and the `UNSAFE_*` queries are gone. Read the v14 section of `references/rntl-patterns.md` before writing a test — a missing `await` produces a test that passes for the wrong reason. Migrating an existing suite: `npx codemod@latest rntl-v14-update-deps --target .` then `npx codemod@latest rntl-v14-async-functions --target ./src`.
 
 For Maestro: detect `.maestro/` directory. If missing AND user wants e2e, see `references/maestro.md` (manual install, not npm — Java 17+, `.maestro/` flow layout, `testID` conventions, and ⚠️ the Expo Go vs dev-build caveat: Expo Go can't `launchApp` your own `appId`, use `openLink: exp://…`).
 
@@ -49,7 +52,7 @@ For Maestro: detect `.maestro/` directory. If missing AND user wants e2e, see `r
 
 Ask the user (one round-trip) what to test:
 - **Component** (renders, props, interactions) → RNTL.
-- **Hook** (`useQuery`, `useMutation`, custom hook) → RNTL `renderHook`.
+- **Hook** (`useQuery`, `useMutation`, custom hook) → RNTL `await renderHook(...)`.
 - **Pure function** (utility, helper) → plain Jest.
 - **e2e flow** (sign-in, navigation, form submit) → Maestro.
 

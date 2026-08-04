@@ -25,7 +25,7 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
 
   Options: `eveRoot` (default = Next app root), `eveBuildCommand` (default `"eve build"`),
   `servicePrefix` (default `"/_eve_internal/eve"`), `devServerTimeoutMs` (default `180000`).
-  `eve channels add web` (or `eve init --channel-web-nextjs`) generates a `next.config.ts`
+  `eve add channel/web` (or `eve init --channel-web-nextjs`) generates a `next.config.ts`
   already wrapped with `withEve`.
 
 * **`useEveAgent()` — from `eve/react`** — a hook that opens a session, streams events, and

@@ -130,7 +130,7 @@ Goal: add ONE capability to an existing agent, following eve's filesystem conven
 
 * **Tool** → a single file in `agent/tools/<name>.ts` using `defineTool` from `eve/tools`. The filename becomes the tool name; eve auto-registers it. No manual registration, no orchestration graph. This is the eve analogue of "add a feature" — exactly what an autonomous loop is good at.
 * **Skill** → an on-demand procedure in `agent/skills/<name>.md`.
-* **Channel** → a new entrypoint via `eve channels add web|slack` under `agent/channels/`.
+* **Channel** → a new entrypoint via `eve add channel/<kind>` under `agent/channels/` (⚠️ `eve channels add` was **removed in eve 0.29.0**; only `eve channels list` remains).
 * **Schedule** → a cron-style trigger under `agent/schedules/<name>` (root-only; `defineSchedule` from `eve/schedules`).
 * **Connection** → MCP or OpenAPI access under `agent/connections/<service>` (`defineMcpClientConnection` / `defineOpenAPIConnection` from `eve/connections`).
 * **Subagent** → a local child agent dir `agent/subagents/<name>/agent.ts` (mirrors `agent/`; no channels/schedules), or a remote one via `defineRemoteAgent` from `eve`. There is no `defineSubagent`.

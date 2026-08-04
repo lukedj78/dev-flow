@@ -1,4 +1,4 @@
-> Sources: https://developer.apple.com/app-store/product-page/, https://support.google.com/googleplay/android-developer/answer/9866151
+> Sources: https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications/, https://developer.apple.com/app-store/product-page/, https://support.google.com/googleplay/android-developer/answer/9866151
 
 # Store assets — what to produce, what size
 
@@ -8,19 +8,23 @@
 - 1024×1024 px, PNG, no alpha channel (no transparency).
 - File: `./assets/icon.png` (Expo handles resizing for in-device icons automatically).
 
-### Screenshots (REQUIRED, minimum 3 per size)
+### Screenshots (REQUIRED — 1 to 10 per size)
 
-Apple now base-requires only two sizes and auto-scales them down for smaller devices. The minimum 2026 set:
+Apple auto-scales down for smaller devices, so you upload **one iPhone size** (plus iPad only if you ship iPad). The 2026 set:
 
-| Display | Resolution | Devices |
+| Display | Accepted portrait sizes | Requirement |
 |---|---|---|
-| 6.9" iPhone | 1290×2796 (portrait) | iPhone 15/16 Pro Max, etc. — REQUIRED |
-| 13" iPad | 2064×2752 | If you ship iPad — REQUIRED for iPad |
-| 6.5" iPhone (fallback) | 1242×2688 | iPhone 11 Pro Max — optional fallback only; 6.9" auto-scales down |
+| 6.9" iPhone | **1320×2868**, 1290×2796, or 1260×2736 | REQUIRED if the app runs on iPhone — **6.9" OR 6.5", not both** |
+| 6.5" iPhone | 1284×2778 or 1242×2688 | Only required if you do NOT provide 6.9". Providing 6.9" is preferred (no upscaling) |
+| 13" iPad | **2064×2752** or 2048×2732 | REQUIRED if the app runs on iPad |
+| 12.9" iPad | 2048×2732 | Legacy/optional — 13" screenshots are scaled down if omitted |
+
+Apple accepts several resolutions per display class; pick the largest (bold above) — it's the native size of the newest device and scales down cleanly to the rest. Landscape is the same numbers transposed.
 
 Best practice:
 - Capture from a real device or `xcrun simctl io booted screenshot`.
-- 3-5 screenshots per size, showing key value proposition.
+- 3-5 screenshots per size, showing key value proposition (Apple's own limit is 1–10).
+- `.png` / `.jpg` / `.jpeg`, **no alpha channel or transparency**.
 - Optional: overlay text + device frames (must use Apple's provided frames or none — third-party renders rejected).
 
 ### App preview video (optional)
@@ -101,9 +105,8 @@ project-root/
 └── store-assets/                       # NOT bundled — used at submission time
     ├── ios/
     │   ├── screenshots/
-    │   │   ├── 6.9/
-    │   │   ├── 6.5/
-    │   │   └── ipad-12.9/
+    │   │   ├── 6.9/                    # 1320×2868 — the one iPhone size you need
+    │   │   └── ipad-13/                # 2064×2752 — only if you ship iPad
     │   └── preview.mp4
     ├── android/
     │   ├── screenshots/phone/

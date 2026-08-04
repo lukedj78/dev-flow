@@ -116,7 +116,7 @@ for something that should have been a digital good.
 ```
 Required materials:
 1. App icon (1024×1024 PNG, no transparency for iOS).
-2. Screenshots (3 sizes iOS, multiple sizes Android — see store-assets.md).
+2. Screenshots (iOS: one iPhone size — 6.9" or 6.5" — plus 13" iPad if you ship iPad; Android: phone required, tablets optional — see store-assets.md).
 3. App preview video (optional but recommended).
 4. App name + subtitle.
 5. Short description (170 chars Android, 30 chars iOS subtitle).

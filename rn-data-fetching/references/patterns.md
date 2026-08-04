@@ -139,11 +139,12 @@ const items = data?.pages.flatMap((p) => p.items) ?? [];
 <FlashList
   data={items}
   renderItem={({ item }) => <Row item={item} />}
-  estimatedItemSize={64}
   onEndReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
   onEndReachedThreshold={0.5}
 />
 ```
+
+**No `estimatedItemSize`** — FlashList v2 measures items itself and the prop is deprecated ("No longer used"). Same for `estimatedListSize`, `estimatedFirstItemOffset`, `onBlankArea` and `disableAutoLayout` (there is no auto-layout in v2). `MasonryFlashList` is replaced by a `masonry` prop on `FlashList`.
 
 ## Pull-to-refresh
 

@@ -53,7 +53,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/dynamic-capabilities` | `eve-concepts.md` §Dynamic capabilities | ✅ |
 | `/docs/guides/dynamic-workflows` | `eve-concepts.md` §Dynamic workflows (`experimental_workflow`) | ✅ |
 | `/docs/guides/session-context` | `eve-conventions.md` + `eve-concepts.md` + `eve-patterns.md` (`ctx.session.auth`) | ✅ |
-| `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
+| `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |
 | `/docs/guides/instrumentation` | `eve-conventions.md` §Observability + `eve-scaffold.md` (`instrumentation.ts`) | ✅ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
@@ -75,6 +75,8 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/reference/cli` | `eve-scaffold.md` §CLI quick reference + `eve-evals.md` (`eve eval` flags) | ↪ |
 | `/docs/reference/project-layout` | `eve-scaffold.md` + `SKILL.md` layout | ✅ |
 | `/integrations` (directory) | `eve-capabilities.md` §Connection/Channel/Extension + `SKILL.md` (ecosystem-first) — adopt prebuilt connections/channels/extensions before hand-rolling | ✅ |
+| `/docs/channels/photon` | `eve-capabilities.md` §Channel — `photonIMessageChannel` (`eve/channels/photon`), `eve add channel/photon-imessage`, `connectPhotonCredentials`, route `/eve/v1/photon` (new in 0.29.3) | ✅ |
+| `/docs/guides/acp` | `eve-scaffold.md` §CLI — `eve acp [url]` (Agent Client Protocol v1 over stdio, `--scope` / `EVE_VERCEL_SCOPE`, new in 0.29.4) | ✅ |
 | `/docs/install-integrations` | `eve-capabilities.md` §Install from the registry FIRST (`eve add` / `eve registry list/search/view/add`, third-party shadcn-format sources) + `SKILL.md` ecosystem-first + `eve-registry-porting` sourcing priority | ✅ |
 | `/docs/reference/typescript-api` | read the installed `.d.ts` / `node_modules/eve/docs/` — never mirror types | ⛔ |
 | `/docs/tutorial/*` (9-part series) | a learning tutorial, not API surface — this skill encodes the workflow, not tutorials | ⛔ |

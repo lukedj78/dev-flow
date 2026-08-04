@@ -41,10 +41,10 @@ Upstream verification caught guidance that was wrong in practice:
 - `vercel-doctor` was documented without its required **path argument** — the real invocation is `npx -y vercel-doctor@latest .`.
 - `mapcn` installs as a single namespaced item (`shadcn add @mapcn/map`), not per-component registry URLs; **`mapcn-rn` has no `init` command** at all.
 - `tw-animate-css` ships **no shimmer utility** — the skeleton recipe now uses `animate-pulse` or a Tier-1 keyframe.
-- FlashList v2 **removed** `estimatedItemSize` (it was documented as required); Reanimated `Layout` → `LinearTransition`; Gesture Handler relabelled v3.
-- React Native Firebase namespaced API → modular (the old one was removed in v22); `@testing-library/jest-native` dropped (matchers are built into RNTL); Supabase session store moved off SecureStore (2 KB value limit truncates sessions).
+- FlashList v2 **deprecated** `estimatedItemSize` — "No longer used" (it was documented as required); Reanimated `Layout` → `LinearTransition`; Gesture Handler relabelled v3.
+- React Native Firebase namespaced API → modular (rnfirebase.io: the namespaced API "is being completely removed in v22"; current major is v26); `@testing-library/jest-native` dropped (matchers are built into RNTL); Supabase session store moved off SecureStore (2 KB value limit truncates sessions).
 - React Email 6 unified `@react-email/components` into `react-email`; `@hookform/resolvers` bumped to ^5 for Zod 4; Stripe `apiVersion` refreshed.
-- nuqs `throttleMs` is deprecated in favour of `limitUrlUpdates: debounce(…)`; i18next 26 removed `compatibilityJSON: 'v3'` (Hermes still needs the `@formatjs/intl-pluralrules` polyfill).
+- nuqs `throttleMs` is deprecated in favour of `limitUrlUpdates: debounce(…)`; i18next dropped the v3 JSON format in **v24** — `compatibilityJSON` has accepted only `'v4'` since, on 26 as on 24 (Hermes still needs the `@formatjs/intl-pluralrules` polyfill).
 - Two pairs of contradictory duplicate references consolidated to a single source of truth (Maestro setup, TanStack Query setup).
 
 [Unreleased]: https://github.com/lukedj78/dev-flow/compare/v1.0.0...HEAD

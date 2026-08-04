@@ -36,7 +36,7 @@ Print this to the user before deploy, asking them to confirm each. Block on miss
 - [ ] `./assets/icon.png` 1024×1024.
 - [ ] `./assets/adaptive-icon.png` 1024×1024 (Android adaptive).
 - [ ] `./assets/splash.png` for splash screen.
-- [ ] `./store-assets/ios/screenshots/` populated (6.9", 6.5", iPad).
+- [ ] `./store-assets/ios/screenshots/` populated — **6.9" (1320×2868) or 6.5"**, one of the two, plus **13" iPad (2064×2752)** if you ship iPad. 12.9" iPad is legacy/optional.
 - [ ] `./store-assets/android/screenshots/phone/` populated.
 - [ ] `./store-assets/android/feature-graphic.png` (1024×500).
 - [ ] Marketing copy in `./store-assets/descriptions/<locale>.md` for each supported locale.

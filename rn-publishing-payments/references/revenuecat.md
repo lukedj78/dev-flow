@@ -10,7 +10,7 @@ RevenueCat sits between your client and StoreKit / Google Play Billing. It handl
 npx expo install react-native-purchases react-native-purchases-ui -- --legacy-peer-deps
 ```
 
-For RN Firebase / Hermes / New Architecture, `react-native-purchases` works since v8+ — install the current v10 (10.5.0). Verify with `npm view react-native-purchases peerDependencies`. `react-native-purchases-ui` (RevenueCatUI) ships prebuilt, remotely-configurable Paywalls and a Customer Center — the recommended default over a hand-rolled paywall (see step 5).
+For RN Firebase / Hermes / New Architecture, `react-native-purchases` works since v8+ — install the current v10 (10.6.0, same for `react-native-purchases-ui`). Verify with `npm view react-native-purchases peerDependencies`. `react-native-purchases-ui` (RevenueCatUI) ships prebuilt, remotely-configurable Paywalls and a Customer Center — the recommended default over a hand-rolled paywall (see step 5).
 
 ## 2. RevenueCat dashboard setup (one-time)
 

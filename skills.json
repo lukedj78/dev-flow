@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-03T19:15:31Z",
+  "generated_at": "2026-08-04T17:55:49Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
@@ -173,7 +173,7 @@
         "nuqs.md"
       ],
       "scripts": [],
-      "skill_md_lines": 345,
+      "skill_md_lines": 413,
       "bundle": "dist/data-fetching.skill"
     },
     {
@@ -200,7 +200,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1125,
+      "skill_md_lines": 1126,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -669,7 +669,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 117,
+      "skill_md_lines": 120,
       "bundle": "dist/rn-write-tests.skill"
     },
     {

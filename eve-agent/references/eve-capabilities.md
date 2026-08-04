@@ -107,10 +107,10 @@ skills are invisible to the root.
 
 ## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Install from the registry: `eve add channel/<kind>` (kinds: `web`, `slack`,
-`discord`, `github`, `linear`, `teams`, `telegram`, `twilio`) — or the older `eve channels add
-<kind>` form ([VERIFY] which your installed CLI uses); `eve channels list` shows user-authored
-channels.
+A new entrypoint. Install from the registry: **`eve add channel/<kind>`** (kinds: `web`, `slack`,
+`discord`, `github`, `linear`, `teams`, `telegram`, `photon-imessage`) — or the `/add` browser in the
+dev TUI. ⚠️ **`eve channels add` was removed in eve 0.29.0**; only `eve channels list` (user-authored
+channels) survives. `[VERIFY]` the kind list against `eve registry list`.
 The file stem is the channel id and the channel is the module's **default export**
 (`defineChannel` from `eve/channels` for custom ones). The default HTTP channel
 (`agent/channels/eve.ts`) already exists from scaffold — only add a channel for another
@@ -123,7 +123,7 @@ Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messagi
 Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
 
 ```ts
-// agent/channels/slack.ts   (scaffolded by `eve channels add slack`)
+// agent/channels/slack.ts   (scaffolded by `eve add channel/slack`)
 import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 export default slackChannel({ credentials: connectSlackCredentials("slack/<agent-name>") });
@@ -143,8 +143,9 @@ localhost — deploy first, then smoke-test with `eve dev <url>`.
 **Slack event hooks + session controls** ([VERIFY] against installed docs) — configured on the
 `slackChannel({ … })` options in `agent/channels/slack.ts`:
 - **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention), `ctx.isSubscribed()` (the thread already owns an active eve session), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
-- **`onEvent(ctx)`** — react to raw Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). Inside it, **`ctx.receive(...)`** starts an agent turn and can **fan one event out to multiple targets** (e.g. greet every new member).
-- **Session controls** (thread-bound, callable from the hooks): **`ctx.cancel({ reason })`** stops the current turn but **keeps the session** — for mid-turn corrections; new input queues onto the same session. **`ctx.reset({ reason })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
+- **`onAppMention(ctx)`** / **`onDirectMessage(ctx)`** — the mention- and DM-specific hooks. Don't hand-roll that gating inside `onMessage`: eve already routes it. (`onInteraction(ctx)` handles interactive components.) All the message hooks receive the same `ctx` helpers and the session controls below.
+- **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). Inside it, **`ctx.receive(...)`** starts an agent turn and can **fan one event out to multiple targets** (e.g. greet every new member).
+- **Session controls** (thread-bound, callable from the hooks) — ⚠️ **the two take different options**: **`ctx.cancel({ turnId? })`** stops the current turn but **keeps the session** (for mid-turn corrections; new input queues onto the same session) — from `onEvent` it needs the thread explicitly: `ctx.cancel({ channelId, threadTs, turnId? })`. **`ctx.reset({ reason? })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). `reason` belongs to `reset` only. These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
 
 A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
 `module-add voice` stub) should treat the agent as the brain and voice as an I/O channel

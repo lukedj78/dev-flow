@@ -12,9 +12,12 @@ Goal: a runnable eve agent at `apps/agent`, wired into the Turborepo/pnpm monore
 * `eve build` — compile `.eve/` artifacts and the host output.
 * `eve start` — serve the built output; prints the listening URL.
 * `eve eval` — run evals against the local app or a remote target.
-* `eve channels add web|slack` / `eve channels list` — scaffold / list channels.
+* `eve add channel/<kind>` — install a channel (`eve channels add` was **removed in 0.29.0**); `eve channels list` — list user-authored channels.
 * `eve extension init <name>` — scaffold an installable **extension** package (bundles tools/connections/skills/instructions/hooks); `eve extension build` compiles it. Consume one from an agent via `agent/extensions/<name>.ts`. (New 2026-07 — verify against the installed docs.)
 * `eve link` — link to a Vercel project and pull AI Gateway credentials.
+* `eve traces` / `eve traces ls` — inspect run traces (**renamed** from `eve trace` in 0.29.0; the singular form is gone).
+* `eve logs` / `eve logs ls` — deployment logs.
+* `eve invoke` — invoke the agent directly; `eve acp [url]` — expose it over the Agent Client Protocol (stdio).
 * `eve deploy` — deploy to Vercel production (links first if needed).
 
 See `eve-conventions.md` for the import map, durability/idempotency, security model, and
@@ -66,7 +69,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
 ## 4. Set the channel auth (fail closed)
 
-* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback `[vercelOidc(), localDev()]` also does not admit browser users in production. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. (`jwtHmac`/`httpBasic` were not confirmed as exports — verify any specific helper against the installed docs.)
+* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback is `[vercelOidc(), localDev(), placeholderAuth()]` (0.30.0) and does not admit browser users in production. ⚠️ **0.30.0 security fix**: `localDev()` now grants local access based on the *deployment*, not the request `Host` — a spoofed Host could previously obtain local-dev access on a self-hosted deploy; the exported `isLoopbackRequest` helper was removed. Upgrade if you self-host. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. Auth helpers are first-class and documented (`jwtHmac`, `jwtEcdsa`, `httpBasic`, `oidc`, plus `ForbiddenError`/`UnauthenticatedError` and `withAuthChallenges`) — see the eve docs' *Auth and route protection* guide rather than guessing. `[VERIFY]` against the installed version.
 
 ## 5. Wire into the monorepo
 

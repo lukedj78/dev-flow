@@ -36,6 +36,6 @@ Re-run `npm view <pkg> version` once a month for each row of the table above. If
 
 ## Known compatibility constraints
 
-- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. Stay on Tailwind 3.4.x until NativeWind ships a v5 (or v4.x patch) confirming Tailwind 4 support.
+- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. NativeWind **v5 targets Tailwind v4**, but it is still on the `preview` dist-tag (`5.0.0-preview.4`) — `latest` remains **4.2.6**. Stay on Tailwind 3.4.x until v5 leaves preview.
 - **React 19** is the default for Expo SDK 55+. Some third-party RN libraries lag — when one breaks, check its issues page before downgrading React.
 - **Reanimated 4** uses the New Architecture under the hood; it requires `newArchEnabled: true` (already our default).

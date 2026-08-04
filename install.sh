@@ -276,7 +276,9 @@ case "$PLATFORM" in
     echo "  Then say something like \"voglio costruire X\" — dev-flow will route."
     ;;
   codex)
-    echo "  1. Copy $BOOTSTRAP_TARGET into each project root as AGENTS.md."
+    echo "  1. Merge $BOOTSTRAP_TARGET into each project root AGENTS.md (append — do NOT overwrite)."
+    echo "     Next.js 16.3+ maintains its own block between <!-- BEGIN:nextjs-agent-rules --> markers"
+    echo "     in AGENTS.md/CLAUDE.md; overwriting the file wipes it. Never edit inside the markers."
     echo "  2. Open the project with Codex CLI — it'll read AGENTS.md automatically."
     echo "  3. Try: 'I want to build a CRM for veterinarians.'"
     echo

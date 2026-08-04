@@ -23,8 +23,8 @@
 
 - **Managed**: `app.json` describes the native config; you don't touch Xcode/Android Studio. Expo prebuild generates native code on demand. 95% of apps.
 - **Bare**: you own `ios/` and `android/` folders. Use when you need a native library Expo cannot wrap (rare).
-- **Expo Go**: dev sandbox for managed apps with no custom native deps. Quick to start, can't load custom native modules.
-- **Dev client** (`expo-dev-client`): custom Expo Go for your app, supports any native module. Use as soon as you add a config plugin or custom native dep.
+- **Expo Go**: dev sandbox for managed apps with no custom native deps. Quick to start, can't load custom native modules. ⚠️ The **App Store** build is frozen at **SDK 54** (SDK 55+ were never approved), so on a physical iPhone it can't open our SDK 57 project — Android and the iOS simulator are unaffected. See `decision-tree.md` Q2.
+- **Dev client** (`expo-dev-client`): custom Expo Go for your app, supports any native module. **This is the default** — start here rather than reaching for Expo Go.
 
 ## Sources
 

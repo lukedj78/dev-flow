@@ -75,8 +75,30 @@ export default getRequestConfig(async ({requestLocale}) => {
 });
 ```
 
+> ⚠️ **On Next.js 16.3+ prefer `next/root-params` — and drop `setRequestLocale` entirely.** next-intl **4.13.5** (2026-08-04) deprecates `setRequestLocale`: Next 16.3 exposes the root `[locale]` param to any server context, so you read it **once** here instead of threading a call through every layout and page. `[VERIFY]` against the installed next-intl.
+>
+> ```ts
+> // i18n/request.ts — Next 16.3+ form
+> import * as rootParams from 'next/root-params';
+> import {getRequestConfig} from 'next-intl/server';
+> import {hasLocale} from 'next-intl';
+> import {notFound} from 'next/navigation';
+> import {routing} from './routing';
+>
+> export default getRequestConfig(async () => {
+>   const paramValue = await rootParams.locale();
+>   if (!hasLocale(routing.locales, paramValue)) notFound();
+>   return {locale: paramValue, messages: (await import(`../messages/${paramValue}.json`)).default};
+> });
+> ```
+>
+> Then the layout keeps `generateStaticParams` (**still required**) but drops both `setRequestLocale` and the manual `hasLocale` check, reading the locale with `getLocale()` from `next-intl/server` for `<html lang>`.
+>
+> **Caveat:** `next/root-params` does **not** work in **Route Handlers or Server Actions** — pass the locale explicitly there and feed it into `getRequestConfig`. On Next 16.0–16.2 the `requestLocale` + `setRequestLocale` form above is still the correct one.
+
 ```tsx
-// app/[locale]/layout.tsx — the locale segment root
+// app/[locale]/layout.tsx — the locale segment root (Next 16.0–16.2 form;
+// on 16.3+ drop setRequestLocale + the hasLocale check — see the root-params note above)
 import {setRequestLocale} from 'next-intl/server';
 import {hasLocale, NextIntlClientProvider} from 'next-intl';
 import {notFound} from 'next/navigation';
@@ -132,7 +154,7 @@ function Cta() {
 
 ## Static rendering
 
-Call `setRequestLocale(locale)` in **every** layout/page that renders translations, and add `generateStaticParams` (above). next-intl uses `cache()` to pass the locale without a `headers()` call, so pages stay statically renderable. Skip `setRequestLocale` → the route silently becomes dynamic.
+**Next 16.0–16.2:** call `setRequestLocale(locale)` in **every** layout/page that renders translations, and add `generateStaticParams` (above). next-intl uses `cache()` to pass the locale without a `headers()` call, so pages stay statically renderable; skipping it silently makes the route dynamic. **Next 16.3+:** `setRequestLocale` is deprecated — the `next/root-params` form above removes this whole footgun (one read in `i18n/request.ts`, nothing to forget per page). `generateStaticParams` is still required either way.
 
 ## Without i18n routing (delta)
 

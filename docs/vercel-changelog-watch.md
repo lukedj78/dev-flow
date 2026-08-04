@@ -1,10 +1,14 @@
-# Ecosystem changelog watch — Vercel · shadcn/ui
+# Ecosystem watch — Next.js · Vercel/eve · shadcn/ui · the web & mobile stacks
 
-Two fast-moving upstreams underpin dev-flow: **Vercel/eve** (eve is in beta, ships to the
-changelog frequently) and **shadcn/ui** (the web UI layer, also releasing constantly). This
-file tracks changelog items from both that affect our skills, so the skills stay current. It
-is a living watchlist — periodically fetch each changelog, add new relevant rows below, and
-apply the change to the affected skill.
+Rule zero #5 says the knowledge base must keep pace with its upstreams. This is the log of
+those passes. It began as Vercel + shadcn and now covers everything our skills pin: **Next.js**,
+**Vercel/eve**, **shadcn/ui**, the web library stack (next-intl, nuqs, TanStack, Motion, Stripe,
+better-auth, drizzle, the test stack) and the **Expo/RN** stack (SDK, RNTL, Reanimated, FlashList,
+EAS, store policies).
+
+A pass = fetch the upstreams → classify each item (**applied** / **watch** / **not relevant**) →
+edit the affected skill → log the row. **Check the package registry, not just the blog** — a blog
+post can announce a preview that has since gone stable (see the 16.3 row).
 
 ## Vercel / eve
 
@@ -25,12 +29,22 @@ apply the change to the affected skill.
 3. For relevant items, edit the affected skill (mark new/unstable API `[VERIFY]` against the installed docs — eve is beta), and add a row to the log below with status `applied`.
 4. Update the "Last pass" date. For anything ambiguous or out of scope, ask the user.
 
-**Last pass: 2026-07-31** (changelog through 2026-07-31; also re-verified `eve.dev/docs/getting-started`+`/installation` against the skill). Previous: 2026-07-30, 2026-07-23.
+**Last pass: 2026-08-04** (changelog through 2026-07-31; also re-verified `eve.dev/docs/getting-started`+`/installation` against the skill). Previous: 2026-07-30, 2026-07-23.
 
 ## Log
 
 | Date | Changelog item | Relevant to | Status |
 |---|---|---|---|
+| 2026-08-04 | **next-intl 4.13.5 deprecates `setRequestLocale`** — Next 16.3's `next/root-params` exposes the root `[locale]` param to any server context, so the locale is read **once** in `i18n/request.ts` (`await rootParams.locale()`) instead of calling `setRequestLocale` in every layout/page. Caveat: root-params does **not** work in Route Handlers / Server Actions. | `design-md-to-app` (golden rule 2 how-to) | ✅ **applied** — `i18n-next-intl.md` now branches: 16.3+ root-params (preferred) vs 16.0–16.2 `setRequestLocale`; the "call it in every layout" rule is scoped to the older versions. |
+| 2026-08-04 | **Motion 12.41+ graduated `animateView`** out of Motion+ — first-party choreography over the browser View Transitions (`.add()`, `.new()/.old()`, `.layout()`, `.group()`, `.crop()`, `.class()`) | `transitions` | ✅ **applied** — added on the Tier-2/Tier-3 seam in `motion-library.md`: reach for it when plain `startViewTransition` can't express the pairing, before escalating to Motion `layout`/`layoutId`. |
+| 2026-08-04 | **React 19.2**: `useEffectEvent` and `<Activity>` are **stable** (not canary) | `state-discipline` | ✅ **applied** — three `[VERIFY] stabilization version` hedges resolved to hard statements (with the 19.0/19.1 caveat). |
+| 2026-08-04 | **Stripe SDK 22.4.0** generates types against `2026-07-29.dahlia` (we pinned `2026-06-24.dahlia` — same major, one behind) | `module-add` payments | ✅ **applied** — pin bumped; the "bump deliberately" guidance stands. |
+| 2026-08-04 | Verified-clean (no action): **tw-animate-css v2 has NOT shipped** (1.4.0 still `latest` — our standing warning is correct), **`ViewTransition` is still Canary-only** in React (our experimental framing is correct), Tailwind 4.3.3, the form stack majors, Vitest 4 / Playwright configs, mapcn, nuqs 2.9.4 (bugfix only) | — | ✅ **no change** — a clean bill of health is a result worth logging. |
+| 2026-08-03 | **Next.js 16.3 stable** — Instant Navigations (`cacheComponents` + `partialPrefetching`: Stream/Cache/Block, App Shell per route, Instant Insights validation on by default, Navigation Inspector, `instant()` Playwright helper), plus zero-config wins (dev memory −90%, build cache, native Node streams +22% req/s, TS 7 type-check) and new APIs `catchError`/`import.meta.glob`. Experimental: Rust React Compiler, `useOffline`. | `data-fetching`, `write-tests`, `design-md-to-app`, contract | ✅ **applied** — new §Instant Navigations + §what-you-get-by-upgrading in `data-fetching`; `instant()` pattern in `write-tests/references/test-page-e2e.md`; scaffold guidance + contract note. ⚠️ **Correction**: first read the *preview* announcement and framed 16.3 as unstable — npm `latest` proved otherwise. Check the registry, not just the blog. |
+| 2026-08-03 | **`AGENTS.md` managed block** — `next dev` upserts `<!-- BEGIN:nextjs-agent-rules -->` into the project's `AGENTS.md` *and* `CLAUDE.md`, pointing at version-matched docs in `node_modules`; Vercel **retired** its doc-shipping skills as a result | contract (rule zero), `install.sh` | ✅ **applied** — rule zero now says *prefer the version-matched source the tool ships*; `install.sh` codex instructions changed from **copy** to **merge** (overwriting wiped Next's block). |
+| 2026-08-03 | **Four official Next.js skills** in `vercel/next.js/skills/` (`next-dev-loop`, `next-cache-components-adoption`, `next-partial-prefetching-adoption`, `next-cache-components-optimizer`) — frontmatter shape **identical to ours** (`name` + `description`, `SKILL.md` + `references/`) | `data-fetching` | ✅ **applied** — listed as the ecosystem-first adoption path. Format validation: our skill format matches Vercel's own. |
+| 2026-08-04 | **eve 0.27.6 → 0.30.2** — `eve channels add` **removed** (0.29.0); `ctx.cancel({turnId?})` not `{reason}`; Slack hooks are `onMessage`/`onAppMention`/`onDirectMessage`/`onInteraction` with `onEvent` as raw fallback; default auth fallback now `[vercelOidc(), localDev(), placeholderAuth()]` + a `localDev()` **security fix** (deployment-based, not `Host`-based; `isLoopbackRequest` removed); new pages `channels/photon`, `guides/acp`; `eve trace` → `eve traces` | `eve-agent` | ✅ **applied** — 5 sites de-referenced `eve channels add`; `ctx.cancel` signature corrected; hooks + auth + CLI + docs-coverage updated. |
+| 2026-08-04 | eve runtime additions not yet written up: `limits.sessionTimeoutMs` (durable sessions auto-complete after **30 days** by default), durable `sleep` tool, `webSearch({provider})`, `ClientSession.snapshot()`, `MessageStreamEvent` as canonical stream type (breaking, 0.28.0); `@agent-browser/eve` extension package | `eve-agent` (watch) | ⏭️ **not yet applied** — real API surface, but a second pass; logged so it isn't lost. |
 | 2026-07-31 | **`/docs/getting-started` + `/docs/installation` re-verify** (not a changelog item — user-requested) — Node 24, `npx eve@latest init`, default model via AI Gateway, `eve dev`/`eve link`/`eve deploy` | `eve-agent` | ✅ **already current** — `eve-scaffold.md`/`eve-conventions.md` already match. One micro-add: documented the 3rd credential option **`VERCEL_OIDC_TOKEN`** (linked Vercel project) alongside `AI_GATEWAY_API_KEY` / direct provider key. |
 | 2026-07-31 | Eve-adjacent AI-Gateway items on the changelog (**spend budgets**, **AI Gateway logs**, **Chat SDK Teams support**, **Workflow runs search**) | `eve-agent` (watch) | ⏭️ **watch, not applied** — none is an eve-facing API. Spend budgets/logs are AI-Gateway org/project settings beneath eve's billing (our per-session `limits` in `agent.ts` is the in-eve cost lever); Chat SDK already covers Teams as a channel kind; Workflow-runs-search is a dashboard feature. Couldn't confirm the spend-budgets mechanism (changelog URL 404) — don't document specifics unverified. Revisit if any gets an eve-facing surface. |
 | 2026-07-30 | **Discover & install eve integrations from the CLI** — `eve add <kind>/<name>` (extension/channel/connection/instrumentation) + `eve registry list/search/view`, third-party sources via `eve registry add @name=<url>` (shadcn-registry format, `package.json#registries`), flags `--skip-install`/`--overwrite` ([install-integrations docs](https://eve.dev/docs/install-integrations)) | `eve-agent`, `eve-registry-porting` | ✅ **applied** — new **§Install from the registry FIRST** in `eve-capabilities.md`, ecosystem-first CLI in `SKILL.md`, Channel/Extension sections reconciled to `eve add`; `eve-registry-porting` sourcing priority reframed (shadcn-format registries → `eve registry add`+`eve add` install, above porting); docs-coverage row added. `[VERIFY]` CLI syntax against installed docs. |

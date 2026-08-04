@@ -21,7 +21,7 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 
 - [ ] `npx tsc --noEmit` exits 0.
 - [ ] `npx expo doctor` exits 0 or with only documented warnings (e.g. "no native modules").
-- [ ] `npx expo start` starts Metro and shows the app in Expo Go / dev client.
+- [ ] `npx expo start` starts Metro and the app opens in a **development build** (`expo-dev-client`), the iOS simulator, or Expo Go on Android. ⚠️ The App Store build of Expo Go is frozen at **SDK 54** and cannot open an SDK 57 project on a physical iPhone — use a dev build, or `eas go` via TestFlight. See `rn-fundamentals/references/decision-tree.md` Q2.
 
 ## meta.json
 

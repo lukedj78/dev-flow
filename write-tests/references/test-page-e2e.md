@@ -125,3 +125,26 @@ Default to (1) when `module-add db` has run AND a test seed exists. Fall back to
 - **Asserting on text that's locale-specific**: if the project supports IT + EN, assertions on `"Clienti"` break in EN mode. Use accessible roles + regex (`/clients?/i`) or test only in one locale and document it.
 - **Network race conditions**: a page that fetches data on the client may not have the data rendered yet when assertions fire. Use `page.waitForResponse(...)` before asserting on fetched content, or `page.waitForLoadState("networkidle")` for the conservative approach.
 - **Skipping `webServer`**: forgetting that `playwright.config.ts` needs `webServer: { command: "pnpm dev", ... }` means tests run against nothing. Already configured by `module-add test`; only an issue if the user customized.
+
+## Asserting an *instant* navigation (Next **16.3 preview**) `[VERIFY]`
+
+Only relevant when the project has opted into Instant Navigations (`cacheComponents` + `partialPrefetching` — see `data-fetching/SKILL.md` §Instant Navigations). Next ships an `instant()` helper from **`@next/playwright`** that asserts what is visible **without waiting for the network** — i.e. the prefetched shell:
+
+```ts
+import { expect, test } from "@playwright/test";
+import { instant } from "@next/playwright";
+
+test("product title is available immediately", async ({ page }) => {
+  await page.goto("/products/shoes");
+
+  await instant(page, async () => {                 // inside: no network waiting allowed
+    await page.click('a[href="/products/hats"]');
+    await expect(page.locator("h1")).toContainText("Baseball Cap");
+    await expect(page.getByText("Checking inventory...")).toBeVisible();
+  });
+
+  await expect(page.getByText("12 in stock")).toBeVisible();  // outside: the streamed data
+});
+```
+
+The shape is the point: **inside** the `instant()` block you assert the shell (title from params, the loading placeholder); **outside** it you assert the data that streams in. It's a regression guard — a refactor that accidentally makes a route server-bound fails the test instead of silently making the app feel slower. Don't add these tests to a project that hasn't enabled the flags; `@next/playwright` is preview-tag tooling.
