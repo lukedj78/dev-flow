@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-04T18:02:19Z",
+  "generated_at": "2026-08-04T18:43:09Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 41,
   "families": {
@@ -357,7 +357,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 97,
+      "skill_md_lines": 135,
       "bundle": "dist/vercel-doctor.skill"
     },
     {

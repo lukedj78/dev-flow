@@ -37,6 +37,18 @@ npx -y vercel-doctor@latest . --ai-prompts docs/vercel/doctor-fixes.json
 If a flag above is rejected, the CLI has moved — run `npx -y vercel-doctor@latest --help` and use what
 it reports rather than guessing.
 
+### ⚠️ Two behaviours the `--help` does not tell you (found by running it)
+
+1. **With uncommitted changes it silently scans only those.** You don't have to pass `--diff` — if the
+   working tree is dirty the run prints *"Scanning uncommitted changes"* and looks at just those files.
+   A dirty tree can therefore produce a confident **"No issues found!"** that means nothing. **Run it on a
+   clean tree** (commit or stash first) when you want a real audit, and check the line that says either
+   *"Found N source files"* (full scan) or *"Scanning N changed source files"* (diff mode) before you
+   trust the result.
+2. **`--offline` also disables the score.** Telemetry is what computes it (`--help`: *"anonymous, not
+   stored, only used to calculate score"*). Use `--offline` for a private codebase and accept there is no
+   number; drop it only when the user is happy for the scan to phone home.
+
 ## The six cost areas it scans
 
 | Area | Typical finding | Who fixes it in dev-flow |
@@ -52,7 +64,33 @@ it reports rather than guessing.
 
 1. **Preconditions.** `meta.json#stack.framework ∈ {"next","monorepo"}` and the deploy target is Vercel (`stack.deploy = "vercel"` or the user says so). Refuse otherwise — the checks are Vercel-specific.
 2. **Run** `npx -y vercel-doctor@latest . --output markdown --report docs/vercel/doctor-report.md` at the project root (or `apps/web/`, or `--project <name>` in a monorepo). Add `--ai-prompts docs/vercel/doctor-fixes.json` when you want the fix prompts. Capture the **markdown report** + **health score** (`--score` alone if you only need the number).
-3. **Triage** each finding by area (table above). **Verify it in the code** before acting — a scan is a signal, not a verdict.
+3. **Triage** each finding by area (table above). **Verify it in the code** before acting — a scan is a
+   signal, not a verdict. Trust the categories unequally:
+
+   | Category | Trust | Why |
+   |---|---|---|
+   | Caching / route policy | **high** | reading a route's headers is a fact |
+   | Deployment + config (file count, `--archive=tgz`, Fluid Compute) | **high** | mechanical, verifiable |
+   | Static-asset size | medium | the threshold is low (~25 KB); judge each asset |
+   | Link prefetch | **read the version first** — see below | |
+   | **Dead code (`Unused file` / `Unused export` / `Unused type`)** | **lowest — never act on it alone** | see below |
+
+   ⚠️ **The dead-code pass is the one that will hurt you.** It runs `knip`, which resolves imports on its
+   own and does **not** know about framework-discovered entry points. On a real run against a Next 16 +
+   eve project it flagged **67 of 115 files (58%) as unused** — and every one we spot-checked was wrong:
+   `agent/agent.ts` (the **eve agent entry point**, discovered by path, imported by nobody — deleting it
+   destroys the agent), `db/index.ts` (imported by `agent/tools/*` via a relative path), `hooks/use-mobile.ts`
+   (imported through the `@/` alias), and `buttonVariants` (used by `components/ui/calendar.tsx`).
+   **Open every file before deleting it**, and treat anything a framework discovers by convention —
+   `agent/**`, route files, `middleware`/`proxy`, `instrumentation.ts`, config files — as a guaranteed
+   false positive. When in doubt, `--no-dead-code` and audit that separately.
+
+   ⚠️ **The Link-prefetch advice predates Next 16.3.** It says "add `prefetch={false}`… add `prefetch={true}`
+   only to critical links", which was right when every link cost a prefetch request. Under **Partial
+   Prefetching** (16.3) Next prefetches one reusable **App Shell per route**, so rendering a `<Link>` is
+   effectively free and `prefetch={true}` means something different (deeper per-link prefetch + runtime
+   prefetching). On ≤16.2 the advice stands; on 16.3+ with `partialPrefetching` on, **ignore it** and follow
+   `data-fetching` §Instant Navigations instead.
 4. **Apply the safe, mechanical fixes** here (dead-code deletion with `tsc --noEmit` green, config corrections, `next/image` `sizes`/format tweaks).
 5. **Route the judgment calls** to the owning skill rather than hand-fixing: caching + invocation findings → `data-fetching` (it owns the Next 16 read/caching ladder); image-pattern findings → `design-md-to-app`. Don't re-implement their rules here.
 6. **Persist**: write the report to `docs/vercel/doctor-report.md`, update `meta.json#vercel_doctor`, append `history`. **No phase bump.**
