@@ -51,7 +51,7 @@ Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle
 ## Non-negotiables (the discipline)
 
 1. **Tokens, not magic numbers.** Every duration/easing/spring/distance comes from `lib/motion/tokens.ts`. No inline `duration-[237ms]`, no ad-hoc `cubic-bezier(...)` in components.
-2. **`prefers-reduced-motion` always.** Every transition ships a reduced-motion fallback (opacity-only or instant). Tier 0/1 use the `motion-reduce:` Tailwind variant or a media query; Tier 3 uses `useReducedMotion()`. A transition without a reduced-motion path is incomplete.
+2. **`prefers-reduced-motion` always.** Every transition ships a reduced-motion fallback (opacity-only or instant). Tier 0/1 use the `motion-reduce:` Tailwind variant or a media query; Tier 3 uses `useReducedMotion()`. A transition without a reduced-motion path is incomplete. **This rule is machine-checkable**: `shadscan`'s `animations-respect-reduced-motion` verifies it against the built app — run that gate before shipping instead of trusting a grep.
 3. **Animate only `transform` and `opacity`** (+ `filter` sparingly). Never animate `width`/`height`/`top`/`left`/`box-shadow` — layout thrash. Use `transform: scale/translate` and, for layout, Tier 2/3.
 4. **Don't force `"use client"` for motion that doesn't need it.** Prefer Tiers 0–2 to keep Server Components server-rendered.
 5. **Motion has meaning.** Entrance ≠ decoration: it should clarify hierarchy, direction, or causality. If it doesn't, cut it.

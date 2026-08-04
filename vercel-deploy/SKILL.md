@@ -1,6 +1,6 @@
 ---
 name: vercel-deploy
-description: 'Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: verify the pre-deploy gates ran, reproduce the platform build locally, deploy a preview and smoke-test it, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to Current (`vercel promote`), attach and verify the custom domains + DNS, and hand the user a rollback runbook. Reads `.workflow/meta.json` — requires `stack.framework` in {`next`, `monorepo`} and `phase >= feature_complete`. Sets `stack.deploy = "vercel"` and `phase = "deployed"` on success. Idempotent: re-running detects what already shipped and skips it. Triggers on: "deploy", "ship it", "go live", "push to production", "manda in produzione", "attacca il dominio", "rollback the deploy". Not for: writing the Vercel project config — `vercel.json`, region, env-var matrix, monorepo root directory are `module-add deploy` (run it first); cost/perf review before shipping (`vercel-doctor`); legal/privacy review before shipping (`compliance-audit`); GitHub Actions and git hooks (`module-add ci`); shipping an Expo/RN app (`rn-eas-deploy`); shipping an eve agent (`eve deploy`).'
+description: 'Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: verify the pre-deploy gates ran, reproduce the platform build locally, deploy a preview and smoke-test it, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to Current (`vercel promote`), attach and verify the custom domains + DNS, and hand the user a rollback runbook. Reads `.workflow/meta.json` — requires `stack.framework` in {`next`, `monorepo`} and `phase >= feature_complete`. Sets `stack.deploy = "vercel"` and `phase = "deployed"` on success. Idempotent: re-running detects what already shipped and skips it. Triggers on: "deploy", "ship it", "go live", "push to production", "manda in produzione", "attacca il dominio", "rollback the deploy". Not for: writing the Vercel project config — `vercel.json`, region, env-var matrix, monorepo root directory are `module-add deploy` (run it first); the three pre-deploy gates — cost/perf (`vercel-doctor`), legal/privacy (`compliance-audit`), UI quality + a11y (`shadscan`); GitHub Actions and git hooks (`module-add ci`); shipping an Expo/RN app (`rn-eas-deploy`); shipping an eve agent (`eve deploy`).'
 ---
 
 # vercel-deploy — ship the web app to production on Vercel
@@ -19,6 +19,7 @@ This skill **ships**. It does not configure.
 | husky, lint-staged, GitHub Actions | **`module-add ci`** |
 | cost/perf gate before shipping | **`vercel-doctor`** |
 | legal/privacy gate before shipping | **`compliance-audit`** |
+| UI-quality / accessibility gate before shipping | **`shadscan`** |
 | preview → smoke → staged production → promote, domains + DNS, rollback, `phase = "deployed"` | **this skill** |
 
 If `vercel.json` or `.vercel/project.json` is missing, do not improvise them here — say so and route to `module-add deploy`. Two skills writing the same config is how the region silently changes between runs.
@@ -66,15 +67,15 @@ pnpm dlx vercel@latest project inspect   # details of the *linked* project
 
 Never `vercel link` from this skill. Re-linking silently repoints the directory at a different project — that is how staging code reaches production.
 
-### Step 2 — Confirm the gates ran (propose, never block)
+### Step 2 — Confirm the three gates ran (propose, never block)
 
-Read `meta.json#compliance` and `meta.json#vercel_doctor`.
+Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf) and `meta.json#shadscan` (UI quality + a11y).
 
 - Missing → tell the user which gate has never run and offer to run it now.
 - Present but older than the last material change (compare against `history`) → offer a re-run.
 - Present and current → state the findings summary in one line and move on.
 
-Neither gate blocks a deploy. Report and let the user decide — that is the existing policy for both, and this skill does not tighten it.
+No gate blocks a deploy. Report and let the user decide — that is the existing policy for all three, and this skill does not tighten it.
 
 ### Step 3 — Reproduce the platform build locally
 
@@ -207,7 +208,7 @@ Commit: `release: deploy <version> to production on Vercel`.
 - Which gates ran, and any finding the user chose to ship with.
 - The rollback command, verbatim.
 - For a monorepo: which sides have shipped and which have not (`rn-eas-deploy` for mobile, `eve deploy` for the agent).
-- The maintenance loop: re-run `compliance-audit` + `vercel-doctor` after material changes.
+- The maintenance loop: re-run `compliance-audit` + `vercel-doctor` + `shadscan` after material changes.
 
 ---
 

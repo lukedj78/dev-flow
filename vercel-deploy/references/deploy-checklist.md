@@ -16,12 +16,13 @@ Everything to verify **before** the first `vercel deploy` of a run. Work down th
 
 Any miss → `module-add deploy`, not an improvised fix here.
 
-## 2. The gates
+## 2. The three gates
 
 | Gate | meta.json key | What "stale" means |
 |---|---|---|
 | `compliance-audit` | `meta.json#compliance` | ran before the last module that touched personal data (auth, db, email, storage) |
 | `vercel-doctor` | `meta.json#vercel_doctor` | ran before the last material change to routes, caching or images |
+| `shadscan` | `meta.json#shadscan` | ran before the last material change to components, forms or motion |
 
 Report the state, offer the re-run, **do not block**. If the user ships with an open finding, name the finding in the final summary so it is on the record.
 

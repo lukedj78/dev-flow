@@ -34,7 +34,7 @@ MANIFEST_META = {
     "version": VERSION,
     "description": (
         "An end-to-end product-development skill suite: one filesystem contract "
-        "(.workflow/meta.json) and 42 skills that take an idea to production — "
+        "(.workflow/meta.json) and 43 skills that take an idea to production — "
         "web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, "
         "plus GDPR/AI-Act and Vercel-cost pre-deploy gates."
     ),

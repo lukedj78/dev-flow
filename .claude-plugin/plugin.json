@@ -2,7 +2,7 @@
   "name": "dev-flow",
   "displayName": "dev-flow",
   "version": "1.0.0",
-  "description": "An end-to-end product-development skill suite: one filesystem contract (.workflow/meta.json) and 42 skills that take an idea to production \u2014 web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, plus GDPR/AI-Act and Vercel-cost pre-deploy gates.",
+  "description": "An end-to-end product-development skill suite: one filesystem contract (.workflow/meta.json) and 43 skills that take an idea to production \u2014 web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, plus GDPR/AI-Act and Vercel-cost pre-deploy gates.",
   "author": {
     "name": "lucadigerlando",
     "url": "https://github.com/lukedj78"
@@ -38,6 +38,7 @@
     "./image-to-design-md",
     "./module-add",
     "./screenshot-to-page",
+    "./shadscan",
     "./state-discipline",
     "./transitions",
     "./vercel-deploy",
