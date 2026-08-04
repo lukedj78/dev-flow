@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-04T18:43:09Z",
+  "generated_at": "2026-08-04T19:27:13Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 41,
+  "skill_count": 42,
   "families": {
     "core": [
       "compliance-audit",
@@ -21,6 +21,7 @@
       "image-to-design-md",
       "module-add",
       "screenshot-to-page",
+      "shadscan",
       "state-discipline",
       "transitions",
       "vercel-doctor",
@@ -73,7 +74,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 95,
+      "skill_md_lines": 97,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -93,7 +94,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 245,
+      "skill_md_lines": 247,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -240,7 +241,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 437,
+      "skill_md_lines": 439,
       "bundle": "dist/forms.skill"
     },
     {
@@ -315,6 +316,19 @@
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
+      "name": "shadscan",
+      "family": "web",
+      "role": "operative",
+      "description": "Run shadscan on a React/shadcn app to find missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — then route each fix to the dev-flow skill that owns it. shadscan (https://www.shadscan.com/, an independent open-source CLI ...",
+      "skill_file": "shadscan/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 216,
+      "bundle": "dist/shadscan.skill"
+    },
+    {
       "name": "state-discipline",
       "family": "web",
       "role": "knowledge",
@@ -357,7 +371,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 135,
+      "skill_md_lines": 136,
       "bundle": "dist/vercel-doctor.skill"
     },
     {

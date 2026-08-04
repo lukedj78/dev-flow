@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove all 41 dev-flow skills (5 core + 13 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
+# Remove all 42 dev-flow skills (5 core + 14 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
 # runtime's skills directory. Restores `*.bak` backups created by install.sh,
 # if present.
 #
@@ -53,6 +53,7 @@ SKILLS=(
   transitions
   heroicons-animated
   vercel-doctor
+  shadscan
 
   # Agent engine (eve)
   eve-agent

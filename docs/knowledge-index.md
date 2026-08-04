@@ -50,6 +50,24 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 
 `design-md-to-app/references/` — `shadcn-mapping.md`, `base-ui-mapping.md`, `mui-mapping.md`, `library-choice.md`, `chat-and-typeset.md`, `anti-slop-fallbacks.md`; plus `coss-ui/references/` for the Coss/UI registry.
 
+## Pre-deploy gates (third-party CLIs)
+
+Three gates run at `feature_complete` — legal, cost, UI. Two of them wrap an **external CLI whose flags and
+report schema move independently of us**, so they belong in this index: a gate documented against a stale
+surface fails silently.
+
+| Gate | How-to | Upstream (source of truth) | Pinned surface to re-verify |
+|---|---|---|---|
+| **Legal** — GDPR / EU AI Act | `compliance-audit/SKILL.md` + `references/` | EU regulation texts (see the skill) | the 10-point risk register |
+| **Cost/perf** — Vercel | `vercel-doctor/SKILL.md` | <https://www.vercel-doctor.com/> · [repo](https://github.com/Aniket-508/vercel-doctor) | CLI flags (`--help`), the **required path argument**, `--offline` vs score |
+| **UI quality + a11y** | `shadscan/SKILL.md` | <https://www.shadscan.com/> · [repo](https://github.com/TheOrcDev/shadscan) | CLI flags (`--help`), report `schemaVersion` + `rulesetVersion`, the `agentHandoff` shape |
+
+⚠️ shadscan's report is **versioned** (`schemaVersion`, `rulesetVersion`, `engineVersion`): scores only compare
+within the same ruleset, and the `agentHandoff.actionables` shape this skill parses can change with the schema.
+Re-read the JSON before trusting a diff across versions. shadscan also **ships its own agent skills**
+(`.agents/skills/migrate-radix-to-base/` — Radix → **Base UI**, our default `ui_base`): ecosystem-first, read
+theirs rather than writing our own migration notes.
+
 ## Keeping it current (rule zero #4)
 
 Stale grounding is a bug. Two mechanisms:

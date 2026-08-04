@@ -115,6 +115,7 @@ Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy g
 
 - **`compliance-audit`** — the sibling gate: legal/privacy risk (GDPR/AI-Act) vs vercel-doctor's cost/perf risk. Both are `feature_complete` pre-deploy gates, both no-phase-bump, both "auto-fix safe + route/flag the rest."
 - **`data-fetching`** — owns the real fix for the two biggest cost areas (caching, invocations). vercel-doctor **detects**, `data-fetching` **corrects** (Next 16 `"use cache"` / Server-Component reads). Don't duplicate its ladder.
+- **`shadscan`** — the third gate: UI quality + accessibility. Same shape (pre-deploy, no phase bump, auto-fix safe + route the rest), different surface. Worth noting the contrast in *precision*: shadscan reports what is present in the file it names, while the dead-code pass here resolves imports speculatively and gets it wrong most of the time.
 - **`setup-deploy`** — the actual Vercel deploy. vercel-doctor runs *before* it, not instead of it.
 
 ## Definition of Done

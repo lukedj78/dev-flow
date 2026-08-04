@@ -38,6 +38,7 @@
     "./image-to-design-md",
     "./module-add",
     "./screenshot-to-page",
+    "./shadscan",
     "./state-discipline",
     "./transitions",
     "./vercel-doctor",

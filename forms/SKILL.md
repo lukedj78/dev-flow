@@ -407,6 +407,8 @@ This skill does not bump `phase`.
 
 When the user asks "audit my codebase against the forms skill" / "scan for form anti-patterns", produce a report — do not modify code. The detailed audit recipe (greps for each violation, severity rubric, report template) lives in `references/audit-recipe.md`.
 
+This audit checks **our conventions** (which library, where the hook lives, how errors surface). Its complement is the `shadscan` gate, which checks the **user-facing outcome** — `forms-have-labels`, `field-errors-rendered`, `invalid-fields-associated-with-errors`, `async-action-pending-state`. Passing this audit does not imply passing that one: a textbook TanStack Form with no `<FormLabel>` is invisible to the greps below and fails shadscan on the spot.
+
 The 10 violation kinds:
 
 | Code | Violation | Severity |

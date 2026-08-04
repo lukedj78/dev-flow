@@ -9,7 +9,17 @@ What a bump means here:
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **`shadscan`** — the **third pre-deploy gate**, completing the trio: legal (`compliance-audit`) · cost (`vercel-doctor`) · **UI quality + accessibility**. It wraps the third-party [`@shadscan/cli`](https://www.shadscan.com/) (MIT, deterministic and read-only — no app start, no file edits, no LLM, no source upload, no secrets), which scores a React/shadcn app out of 100 across Foundation · Interaction · States · Accessibility · Forms · Production Polish with file:line evidence. The skill reads the `--json` report's `agentHandoff` block — where each actionable carries a **`disposition`** (`fix` / `decide` / `verify`), a **`confidence`**, and machine-checkable acceptance criteria — applies the confirmed defects, surfaces the `decide` items to the user as product questions, and routes the real corrections to the owning skill (`forms`, `transitions`, `data-fetching`, `design-md-to-app`, `composition-patterns-guide`). Records `meta.json#shadscan`; no phase bump; web only.
+
+  This closes a real hole: two of shadscan's rules are **verbatim our own contract** — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label / error-association rules are what `forms` prescribes. Nothing in the suite could previously verify that the UI we prescribe actually got built.
+
+  Verified by running it: **64/100 (grade D)** on a live Next 16 + eve project, 59 rules evaluated, 17 actionables (9 `fix` · 7 `verify` · 4 `decide`). Both spot-checks against the source were **true positives** (a suppressed focus ring with no `focus-visible` replacement; a form submit with no pending state) — the opposite of `vercel-doctor`'s dead-code pass. The skill carries the anti-gaming rule shadscan states itself: **never add unused infrastructure to raise the score**.
+- **`docs/knowledge-index.md` §Pre-deploy gates** — the two gates that wrap an external CLI now have a row each, because their flags and report schema move independently of us.
+
+### Changed
+- The suite is **42 skills** (14 web). `dev-flow` proposes all three gates at `feature_complete` and re-runs them in the `deployed` loop.
+- `transitions` non-negotiable #2 (`prefers-reduced-motion`) is now labelled **machine-checkable**, pointing at the rule that verifies it; `forms` audit mode notes that passing *our conventions* does not imply passing the *user-facing outcome* (a textbook TanStack Form with no `<FormLabel>` passes the greps and fails the gate).
 
 ## [1.0.0] — 2026-08-02
 
