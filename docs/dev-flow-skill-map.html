@@ -434,7 +434,7 @@
     <div class="modes">
       <div class="card mode">
         <div class="mh"><span class="num">0</span> Never invent</div>
-        <p>The skills are a doc-grounded second brain. No guessed API, flag or command: a “use library X” without the <b>how</b> from X's official docs is an incomplete skill. Moving surfaces carry <code>[VERIFY]</code>; upstreams get re-checked on a cadence.</p>
+        <p>The skills are a doc-grounded second brain. No guessed API, flag or command: a “use library X” without the <b>how</b> from X's official docs is an incomplete skill. Prefer the <b>version-matched</b> source the tool itself ships — <code>next dev</code> maintains an <code>AGENTS.md</code> block pointing at the bundled docs; eve ships <code>node_modules/eve/docs</code>. Moving surfaces carry <code>[VERIFY]</code>; upstreams get re-checked on a cadence.</p>
         <code class="ex">docs/knowledge-index.md <span class="pr">→</span> every how-to</code>
       </div>
       <div class="card mode">
@@ -449,7 +449,8 @@
       </div>
     </div>
 
-    <p class="sec-p" style="margin-top:1rem">That principle is why verification keeps paying: it caught a CLI documented without its required path argument, a utility class that doesn't exist in the package we recommended, and a prop removed two majors ago — before any of it reached a project.</p>
+    <p class="sec-p" style="margin-top:1rem">That principle is why verification keeps paying. Real catches, before any of it reached a project: a CLI command we asserted in five places that had been <b>removed</b> upstream · an i18n API <b>deprecated the same day</b> we swept · a test library that turned its whole API <b>async</b>, silently breaking every test we generate on a fresh install · a default runtime that stopped working on iOS · a utility class that doesn't exist in the package we recommended.</p>
+    <p class="sec-p">And the inverse is a result too: this sweep <i>confirmed</i> two standing warnings were still correct, and that nine dependencies hadn't moved at all.</p>
 
     <h3 class="sec-t" style="font-size:1.05rem; margin-top:2rem">Ecosystem-first defaults</h3>
     <p class="sec-p">When a project needs one of these, we reach for the default rather than hand-roll — and each ships a doc-grounded how-to, never just a name. <b>13</b> of them so far.</p>

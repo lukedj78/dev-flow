@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r3.png)
+![dev-flow v1.0.0 — map of the 41 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r4.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -11,7 +11,7 @@
 >
 > The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 >
-> **Rule zero — doc-grounded, never invent.** The skills are a second brain: when one says *"use library X"*, it ships the **how** from X's official docs, marks fast-moving identifiers `[VERIFY]`, and gets re-verified periodically. The map of every how-to is **[docs/knowledge-index.md](./docs/knowledge-index.md)**.
+> **Rule zero — doc-grounded, never invent.** The skills are a second brain: when one says *"use library X"*, it ships the **how** from X's official docs, prefers the **version-matched** source the tool itself ships (`next dev` maintains an `AGENTS.md` block pointing at bundled docs; eve ships `node_modules/eve/docs`), marks fast-moving identifiers `[VERIFY]`, and gets re-verified on a cadence — logged in [docs/vercel-changelog-watch.md](./docs/vercel-changelog-watch.md). The map of every how-to is **[docs/knowledge-index.md](./docs/knowledge-index.md)**.
 >
 > **Golden rules** (enforced on every project, see the contract): **① code is written in English** (identifiers, constants, comments — independent of the conversation language); **② every frontend ships i18n from day one** — web via [next-intl](https://next-intl.dev/), mobile via the RN i18n stack, minimum locales **English + Italian**, no hardcoded user-facing copy.
 
@@ -909,6 +909,8 @@ Derived from `lusentis/next-skills/nextjs-forms` (MIT) — see `forms/SKILL.md` 
 4. **Route Handler + SWR / React Query** — last resort, narrow scope: polling, focus refetch, third-party-mutated data.
 
 Server Actions are for **mutations only** — never reads. After mutating, call `revalidatePath` / `revalidateTag` / `refresh()` and let the Server Component re-render. Never `useState + useEffect + fetch` in a Client Component. Never `useEffect` driving a Server Action call.
+
+**Next 16.3 — Instant Navigations** (stable, opt-in via `cacheComponents` + `partialPrefetching`): the skill covers the Stream / Cache / **Block** levers, the static-shell-vs-App-Shell distinction that explains why a page can be instant on load and blocking on navigation, `use cache: private|remote`, and how Partial Prefetching changes `<Link>` (one reusable shell per route, not one request per link). Adoption routes to Vercel's official migration guide and Skills — we don't hand-roll it.
 
 **Why**: Server Actions are queued sequentially. Reading via action in `useEffect` costs SSR, streaming, request deduping, caching, parallelism — and produces no error to warn you. The bug is silent.
 
