@@ -11,7 +11,7 @@
     {
       "name": "dev-flow",
       "source": "./",
-      "description": "41 skills over one .workflow/meta.json contract: PRD → design → scaffold → modules → tests → pre-deploy gates, for Next.js 16 web, Expo/RN mobile, turborepo monorepos and an eve agent engine.",
+      "description": "42 skills over one .workflow/meta.json contract: PRD → design → scaffold → modules → tests → pre-deploy gates → deploy, for Next.js 16 web, Expo/RN mobile, turborepo monorepos and an eve agent engine.",
       "category": "engineering",
       "keywords": [
         "nextjs",

@@ -220,14 +220,14 @@
 <header class="hero">
   <div class="wrap">
     <div class="eyebrow">system map · v1.0.0 · august 2026</div>
-    <h1><span class="g">41 skills</span> that take an idea all the way to production.</h1>
+    <h1><span class="g">42 skills</span> that take an idea all the way to production.</h1>
     <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract. Installable as a Claude Code plugin.</p>
 
     <div class="console">
-      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 41 skills · v1.0.0 · lint clean</span></div>
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 42 skills · v1.0.0 · lint clean</span></div>
       <div class="metrics">
-        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">41</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">20</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">42</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">21</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
@@ -342,7 +342,7 @@
         <div class="step"><div class="cmd"><span class="pr">›</span>"scaffold the app with Coss/UI"</div><div class="res"><span class="ar">→</span><span class="sk">design-md-to-app</span> + <span class="sk new">coss-ui</span> · Next 16</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"add auth and database"</div><div class="res"><span class="ar">→</span><span class="sk">module-add</span> · better-auth + Drizzle</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"write the tests"</div><div class="res"><span class="ar">→</span><span class="sk">write-tests</span> · Vitest</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"deploy"</div><div class="res"><span class="ar">→</span><span class="sk">setup-deploy</span> · Vercel</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"deploy"</div><div class="res"><span class="ar">→</span><span class="sk">vercel-deploy</span> · Vercel</div></div>
       </div>
     </div>
   </div>
@@ -361,7 +361,7 @@
         <div class="step"><div class="cmd"><span class="pr">›</span>/plugin install dev-flow@dev-flow</div></div>
       </div>
     </div>
-    <p class="sec-p" style="margin-top:.9rem">All 41 arrive namespaced (<code>dev-flow:forms</code>, <code>dev-flow:rn-bootstrap</code>…) and <code>/plugin marketplace update</code> pulls new releases. The shipped set is <b>generated from the taxonomy</b>, so it can't drift from <code>skills.json</code> — and both manifests pass <code>claude plugin validate --strict</code>.</p>
+    <p class="sec-p" style="margin-top:.9rem">All 42 arrive namespaced (<code>dev-flow:forms</code>, <code>dev-flow:rn-bootstrap</code>…) and <code>/plugin marketplace update</code> pulls new releases. The shipped set is <b>generated from the taxonomy</b>, so it can't drift from <code>skills.json</code> — and both manifests pass <code>claude plugin validate --strict</code>.</p>
 
     <div class="modes" style="margin-top:1.2rem">
       <div class="card mode">
@@ -472,7 +472,7 @@
 <section class="reveal">
   <div class="wrap">
     <div class="kick"><span class="no">07</span> full index</div>
-    <h2 class="sec-t">All 41, by function</h2>
+    <h2 class="sec-t">All 42, by function</h2>
     <p class="sec-p">Meta alongside: <code>SKILL.md</code> lines · references · scripts. The glowing dot marks the newest additions.</p>
 
     <div class="legend">
@@ -498,12 +498,13 @@
         <div class="row"><span class="sk">image-to-design-md</span><span class="m">176·2r·2s</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold & pages</span><span class="gn">5</span></div>
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold, pages & ship</span><span class="gn">6</span></div>
         <div class="row"><span class="sk">design-md-to-app</span><span class="m">1122·9r·2s</span></div>
         <div class="row new"><span class="sk">coss-ui</span><span class="m">84·4r·2s</span></div>
         <div class="row"><span class="sk">screenshot-to-page</span><span class="m">262·1r·1s</span></div>
         <div class="row"><span class="sk">module-add</span><span class="m">157·11r</span></div>
         <div class="row new"><span class="sk">heroicons-animated</span><span class="m">90·2r</span></div>
+        <div class="row new"><span class="sk">vercel-deploy</span><span class="m">250·4r</span></div>
       </div>
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · discipline</span><span class="gn">4</span></div>

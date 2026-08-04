@@ -20,7 +20,7 @@ post can announce a preview that has since gone stable (see the 16.3 row).
 | `module-add` (voice / realtime / deploy) | AI Gateway audio + realtime, `stack.deploy = "vercel"` |
 | `design-md-to-app` | `stack.deploy = "vercel"` |
 | `monorepo-bootstrap` | Vercel deploy for `apps/web` |
-| `setup-deploy` | Vercel project setup |
+| `vercel-deploy` | Vercel CLI (`deploy` / `promote` / `rollback` / `domains`), Instant Rollback, Deployment Protection, Skew Protection |
 
 ## How to run a watch pass
 

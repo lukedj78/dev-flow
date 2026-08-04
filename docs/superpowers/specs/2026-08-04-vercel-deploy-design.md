@@ -58,7 +58,7 @@ vercel-deploy/
     rollback-runbook.md       instant rollback, limiti di piano, trappola auto-assign, undo
 ```
 
-### Workflow (11 step)
+### Workflow (12 step)
 
 1. Precondizioni: `stack.framework ∈ {next, monorepo}` (se `expo-rn` → rifiuta, instrada a `rn-eas-deploy`); `phase ≥ feature_complete`; `.vercel/project.json` presente; `stack.deploy == "vercel"` — altrimenti `module-add deploy` prima.
 2. Gate: leggi `meta.json#compliance` e `#vercel_doctor`, proponi se assenti o stantii. **Non blocca** — coerente con la policy esistente dei gate.
@@ -71,6 +71,7 @@ vercel-deploy/
 9. Domini: add + DNS + redirect apex/www, idempotente.
 10. Verifica post-deploy + consegna del runbook di rollback.
 11. `meta.json`: `phase = "deployed"`, `stack.deploy = "vercel"`, `stack_config.production_url`, `history`. Commit.
+12. Riepilogo finale: URL di produzione, gate eseguiti, comando di rollback, lati non ancora spediti (monorepo).
 
 ### Anti-pattern da scrivere
 

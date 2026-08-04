@@ -9,7 +9,14 @@ What a bump means here:
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **`vercel-deploy`** (web · operative) — the skill that actually ships a Next.js 16 project to Vercel, and the only one that sets `phase = "deployed"` for web. Preview → smoke → **staged** production (`vercel --prod --skip-domain`) → `vercel promote` → domains + DNS, plus a rollback runbook. It ships; it does not configure — `vercel.json`, region and the env-var matrix stay with `module-add deploy`, and a missing config routes there instead of being improvised. Grounded in the CLI docs' own *Preferred production commands*, which name `--skip-domain` / `promote` / `rollback` over `vercel alias`. References: `deploy-checklist.md`, `domains-dns.md`, `rollback-runbook.md`. **42 skills** now: 5 core · **14 web** · 2 agent · 16 mobile · 3 monorepo · 2 refactor.
+- **Lint check #8** — bare-backtick skill references at a routing marker (`→ \`x\``, `invoke \`x\``, `use \`x\``…) are now verified against the skills on disk. Check #6 only saw `` `<name>/SKILL.md` `` paths, which is why a dangling reference could survive in prose.
+
+### Changed
+- **Contract**: the `feature_complete` row now routes web to `vercel-deploy`. Re-vendored to all 30 skills.
+- Every reference to `setup-deploy` — a skill that was routed to but **never existed**, in `dev-flow`, `module-add`, `vercel-doctor` and the contract — now points at `vercel-deploy`. The name changed for two reasons: `setup-deploy` collides with an unrelated third-party skill of the same name that installs to `~/.claude/skills/`, and the *setup* has always belonged to `module-add deploy`.
+- `dev-flow`'s README routing block no longer marks `feature_complete` / `deployed` as "(expo-rn only)" — web and the eve agent have owners there too.
 
 ## [1.0.0] — 2026-08-02
 
