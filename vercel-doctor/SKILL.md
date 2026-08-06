@@ -1,6 +1,6 @@
 ---
 name: vercel-doctor
-description: 'Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor; run with `npx -y vercel-doctor@latest .`) scans the codebase for cost/performance anti-patterns across six areas — caching that defeats the CDN, unused code (dead files/exports/types), serverless function duration, image-optimization waste, excessive function invocations, and platform/deploy config — and emits a markdown report, AI-fix prompts, and a project health score. This skill wraps that run: it interprets the report, applies the safe mechanical fixes, and hands the judgment calls to the owning skill (`data-fetching` for Next 16 caching, `design-md-to-app` for image patterns, plain cleanup for dead code). Cost/performance counterpart to `compliance-audit` (which is the legal-risk pre-deploy gate). Horizontal capability; dev-flow proposes it as a pre-deploy gate at `feature_complete` and in the `deployed` maintenance loop. Records a `vercel_doctor` block in meta.json; does NOT bump phase. Use when the user says "my Vercel bill is high", "optimize for Vercel", "reduce Vercel cost", "vercel-doctor", "check caching / function duration / image cost", or dev-flow routes here before a Vercel deploy. Refuses for non-Vercel / non-Next targets. Not for: legal/privacy audit (use compliance-audit), building features, or actually deploying (use setup-deploy).'
+description: 'Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor; run with `npx -y vercel-doctor@latest .`) scans the codebase for cost/performance anti-patterns across six areas — caching that defeats the CDN, unused code (dead files/exports/types), serverless function duration, image-optimization waste, excessive function invocations, and platform/deploy config — and emits a markdown report, AI-fix prompts, and a project health score. This skill wraps that run: it interprets the report, applies the safe mechanical fixes, and hands the judgment calls to the owning skill (`data-fetching` for Next 16 caching, `design-md-to-app` for image patterns, plain cleanup for dead code). Cost/performance counterpart to `compliance-audit` (which is the legal-risk pre-deploy gate). Horizontal capability; dev-flow proposes it as a pre-deploy gate at `feature_complete` and in the `deployed` maintenance loop. Records a `vercel_doctor` block in meta.json; does NOT bump phase. Use when the user says "my Vercel bill is high", "optimize for Vercel", "reduce Vercel cost", "vercel-doctor", "check caching / function duration / image cost", or dev-flow routes here before a Vercel deploy. Refuses for non-Vercel / non-Next targets. Not for: legal/privacy audit (use compliance-audit), building features, or actually deploying (use vercel-deploy).'
 ---
 
 # vercel-doctor — cost & performance pre-deploy gate for Vercel/Next.js
@@ -116,7 +116,7 @@ Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy g
 - **`compliance-audit`** — the sibling gate: legal/privacy risk (GDPR/AI-Act) vs vercel-doctor's cost/perf risk. Both are `feature_complete` pre-deploy gates, both no-phase-bump, both "auto-fix safe + route/flag the rest."
 - **`data-fetching`** — owns the real fix for the two biggest cost areas (caching, invocations). vercel-doctor **detects**, `data-fetching` **corrects** (Next 16 `"use cache"` / Server-Component reads). Don't duplicate its ladder.
 - **`shadscan`** — the third gate: UI quality + accessibility. Same shape (pre-deploy, no phase bump, auto-fix safe + route the rest), different surface. Worth noting the contrast in *precision*: shadscan reports what is present in the file it names, while the dead-code pass here resolves imports speculatively and gets it wrong most of the time.
-- **`setup-deploy`** — the actual Vercel deploy. vercel-doctor runs *before* it, not instead of it.
+- **`vercel-deploy`** — the actual Vercel deploy. vercel-doctor runs *before* it, not instead of it.
 
 ## Definition of Done
 
@@ -127,7 +127,7 @@ Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy g
 ## What this skill does NOT do
 
 - **Not a legal/privacy audit** — that's `compliance-audit`.
-- **Doesn't deploy** — that's `setup-deploy`.
+- **Doesn't deploy** — that's `vercel-deploy`.
 - **Doesn't re-implement** the caching/read rules — it routes to `data-fetching`.
 - **Doesn't bump `phase`**, and never blocks deploy by itself.
 

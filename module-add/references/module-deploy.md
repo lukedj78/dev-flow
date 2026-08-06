@@ -9,11 +9,11 @@ This module owns **the wiring**, not the shipping.
 | Concern | Owner |
 |---|---|
 | `vercel.json` / `vercel.ts`, region choice, build settings, env-var plumbing, monorepo root directory | **this module** |
-| Running the actual deploy, promotion to production, rollback, domains, post-deploy smoke | **`setup-deploy`** |
+| Running the actual deploy, promotion to production, rollback, domains, post-deploy smoke | **`vercel-deploy`** |
 | Cost/perf gate before shipping (caching, function duration, image waste, dead code) | **`vercel-doctor`** |
 | Legal/privacy gate before shipping (GDPR/AI-Act, incl. data residency) | **`compliance-audit`** |
 
-Do not duplicate `setup-deploy` here. When the user says "deploy it", this module gets the project into a deployable shape and then **hands off**. The natural order at `feature_complete` is: `module-add deploy` (config exists) → `compliance-audit` + `vercel-doctor` (the two gates) → `setup-deploy` (ship).
+Do not duplicate `vercel-deploy` here. When the user says "deploy it", this module gets the project into a deployable shape and then **hands off**. The natural order at `feature_complete` is: `module-add deploy` (config exists) → `compliance-audit` + `vercel-doctor` (the two gates) → `vercel-deploy` (ship).
 
 > **Versions checked 2026-08**: Vercel CLI `58.4.4`. Docs: <https://vercel.com/docs/project-configuration>, <https://vercel.com/docs/environment-variables>, <https://vercel.com/docs/functions/configuring-functions/region>, <https://vercel.com/docs/monorepos>.
 
@@ -197,7 +197,7 @@ pnpm dlx vercel@latest env ls                # every expected var, in every expe
 pnpm dlx vercel@latest build                 # optional: reproduce the platform build locally
 ```
 
-Do **not** run `vercel deploy` from this module — deploying is `setup-deploy`'s job, and a surprise production deploy is not a verification step. Also check `.vercel/` is gitignored and `vercel.json` parses (`$schema` gives you this in-editor).
+Do **not** run `vercel deploy` from this module — deploying is `vercel-deploy`'s job, and a surprise production deploy is not a verification step. Also check `.vercel/` is gitignored and `vercel.json` parses (`$schema` gives you this in-editor).
 
 ## Update meta.json
 
@@ -209,7 +209,7 @@ Do **not** run `vercel deploy` from this module — deploying is `setup-deploy`'
 }
 ```
 
-Phase: `module_added` (monotonic — never bump toward `deployed` here; only `setup-deploy` earns that).
+Phase: `module_added` (monotonic — never bump toward `deployed` here; only `vercel-deploy` earns that).
 
 ## Hand-off message
 
@@ -219,7 +219,7 @@ Tell the user, concretely:
 2. The env-var matrix: which vars go to which environments, and **which must differ** between production and preview.
 3. The region chosen and why — and if it's US-default, that `compliance-audit` R3 will flag it.
 4. The two gates to run before shipping: **`vercel-doctor`** (cost/perf) and **`compliance-audit`** (GDPR/AI-Act).
-5. Then `setup-deploy` to actually ship.
+5. Then `vercel-deploy` to actually ship.
 
 ## Known caveats
 

@@ -1,11 +1,11 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 42 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r4.png)
+![dev-flow v1.0.0 — map of the 43 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r5.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **42 skills (5 core + 14 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **43 skills (5 core + 15 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -26,7 +26,7 @@
               │                                   │
               ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
               │                                   │
-              │   WEB FAMILY (13 skills)           MOBILE FAMILY (15 skills)
+              │   WEB FAMILY (15 skills)           MOBILE FAMILY (16 skills)
               │                                   │
    ┌──────────┼──────────┐               ┌────────┼─────────┐
    │          │          │               │        │         │
@@ -38,7 +38,7 @@
  figma-to-  write-tests                  rn-      write-    realtime,
  design-md                                expo-    tests     push,
  image-to-                                router   …         payments)
- design-md                                                  rn-eas-deploy
+ design-md              vercel-deploy                       rn-eas-deploy
               │                                   │
               └─────────────────┬─────────────────┘
                                 │
@@ -89,7 +89,7 @@ Two ways in, two philosophies. The **plugin** subscribes you to the suite as a m
 /plugin install dev-flow@dev-flow
 ```
 
-All 42 skills arrive namespaced (`dev-flow:forms`, `dev-flow:rn-bootstrap`, …), and `/plugin marketplace update` pulls new releases. The shipped set is generated from the canonical taxonomy, so what you install always matches [`skills.json`](./skills.json) and the [CHANGELOG](./CHANGELOG.md).
+All 43 skills arrive namespaced (`dev-flow:forms`, `dev-flow:rn-bootstrap`, …), and `/plugin marketplace update` pulls new releases. The shipped set is generated from the canonical taxonomy, so what you install always matches [`skills.json`](./skills.json) and the [CHANGELOG](./CHANGELOG.md).
 
 #### Option B — bundled `install.sh` (editable copies, all runtimes)
 
@@ -101,7 +101,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies all 42 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies all 43 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -136,7 +136,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 42. Restart Claude Code if you don't see them in /skills.
+# Should print 43. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -155,8 +155,9 @@ The **core happy-path** skills (the web flow most projects start with):
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
 | `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
+| `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
-`install.sh` installs **all 42 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`heroicons-animated` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 42 skills, in detail](#the-42-skills-in-detail).
+`install.sh` installs **all 43 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`heroicons-animated` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 43 skills, in detail](#the-43-skills-in-detail).
 
 ### 2. Create a project
 
@@ -673,10 +674,10 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
-- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 42 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
+- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 43 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 - 📇 **[Knowledge index](./docs/knowledge-index.md)** — the map of every doc-grounded how-to: which domain, which reference, which upstream to re-verify. Start here when wiring a library or running a knowledge refresh.
-- 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 42 skills.
+- 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 43 skills.
 - 🔤 **[CONTEXT.md](./CONTEXT.md)** — the ubiquitous language: what *skill*, *family*, *phase*, *reference*, *gate*, *module* mean here, and the words to avoid (three different things are called "registry" — always qualify it).
 - 📋 **[CHANGELOG.md](./CHANGELOG.md)** — semver on the suite as a whole; what a major/minor/patch bump means for the contract.
 - 🚫 **[.out-of-scope/](./.out-of-scope/)** — decisions *not* to build, each with what would change our mind. Read before proposing something that was already evaluated.
@@ -686,7 +687,7 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 ## Repository layout
 
 ```
-<skill-name>/                42 skill folders, FLAT at the root
+<skill-name>/                43 skill folders, FLAT at the root
 ├── SKILL.md                 the skill (frontmatter: name + description)
 ├── references/*.md          its doc-grounded how-tos, recipes, vendored contract
 └── scripts/*                its executable helpers + tests
@@ -704,9 +705,9 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ---
 
-## The 42 skills, in detail
+## The 43 skills, in detail
 
-> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 14 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 5 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, and `compliance-audit` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -728,10 +729,15 @@ phase=scaffolded       → "next"    → screenshot-to-page  OR  module-add
                          "expo-rn" → rn-add-screen  OR  rn-module-add  OR  rn-write-tests
 phase=page_generated   → module-add (next)  OR  rn-module-add (expo-rn)  OR  more screen-gen
 phase=module-added     → write-tests / rn-write-tests  OR  iterate
-                         (expo-rn) → eventually  rn-eas-deploy  once feature-complete
-phase=feature_complete → (expo-rn only) rn-eas-deploy
-phase=deployed         → (expo-rn only) maintenance loop: rn-add-screen for new features,
-                         rn-eas-build-submit-update for OTA hotfixes
+                         → eventually the stack's deploy skill, once feature-complete
+phase=feature_complete → gates (any stack): compliance-audit  +  vercel-doctor (web on Vercel)
+                         "next"    → vercel-deploy
+                         "expo-rn" → rn-eas-deploy
+                         eve agent → eve deploy
+phase=deployed         → "next"    → maintenance loop: screenshot-to-page / module-add,
+                                     re-run the gates after material changes
+                         "expo-rn" → maintenance loop: rn-add-screen for new features,
+                                     rn-eas-build-submit-update for OTA hotfixes
 ```
 
 `dev-flow` does not do specialist work itself — it **only routes** and updates state. If you find it doing PRD drafting or scaffolding directly, that's a bug.
@@ -843,7 +849,7 @@ The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs
 | `voice` | Realtime voice over the Vercel AI Gateway (`@ai-sdk/gateway` + `experimental_useRealtime`); STT → agent → TTS topology | ✅ shipped (experimental API) |
 | `realtime` | App-level WebSockets (Vercel Functions `experimental_upgradeWebSocket`); presence / chat / collab, external store for shared state | ✅ shipped (experimental API) |
 | `storage` | Vercel Blob (default: server + client uploads, auth-gated, `files` table); UploadThing / S3 + presigned URLs as alternatives | ✅ shipped |
-| `deploy` | Vercel project config (link, `vercel.json`, per-environment env vars, EU region, monorepo root directory); `setup-deploy` does the actual shipping | ✅ shipped |
+| `deploy` | Vercel project config (link, `vercel.json`, per-environment env vars, EU region, monorepo root directory); `vercel-deploy` does the actual shipping | ✅ shipped |
 
 The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing. Cross-module dependencies are resolved automatically (`auth` requires `db`; `payments` requires both — the skill prompts before chaining).
 
@@ -983,6 +989,13 @@ This is the **third pre-deploy gate**, and the one that closes a real hole: `com
 
 **The discipline: never optimise for the score.** shadscan says this itself — *do not add unused infrastructure solely to increase the audit score*. A command menu nobody asked for is a regression that scores well. Web only (DOM/React rules); no phase bump; never blocks the deploy on its own.
 
+### `vercel-deploy` — ship the web app to production
+
+**Input**: "deploy" / "ship it" / "manda in produzione", on a project at `feature_complete`.
+**Output**: the app live on its production domain, `meta.json#phase = "deployed"`, and a rollback runbook in the user's hands.
+
+**How it works**: the web counterpart of `rn-eas-deploy`, and the **only** skill that moves a web project to `deployed`. It ships; it does not configure — `vercel.json`, the region and the env-var matrix belong to `module-add deploy`, and if they're missing it routes there instead of improvising. The shape is dictated by two documented Vercel behaviours: *the first deployment of a new project is always a production deployment* (so "preview first" doesn't exist on day one, and the skill branches), and a production deploy can be **staged** — `vercel --prod --skip-domain` builds with production env vars while serving no traffic, then `vercel promote` makes it Current without a rebuild. That triad (`--skip-domain` → `promote` → `rollback`) is what Vercel's own docs name as the preferred production commands, over `vercel alias`. Then domains + DNS (apex A record, project-specific CNAME for `www`, never hardcoded), and a rollback runbook that leads with the trap: **after a rollback Vercel turns off auto-assignment of production domains**, so pushes to `main` stop going live until someone promotes. Sets `phase = "deployed"` only once the production domain actually serves the deployment.
+
 ### Mobile stack (Expo + React Native)
 
 The 16 mobile skills mirror the web stack philosophy: opinionated defaults, idempotent operations, contract-driven state. Activate by saying "mobile" / "iOS" / "Android" at the target-platform question in `prd-from-idea` — that sets `meta.json#stack.framework="expo-rn"`.
@@ -1076,7 +1089,7 @@ The 3 monorepo skills compose a single repo where both a Next.js web app AND an 
 5. screenshot-to-page (web) + rn-add-screen (mobile) → screens for both
 6. rn-module-add payments revenuecat (apps/mobile/) + module-add payments stripe (apps/web/)
 7. monorepo-add-shared-package forms → shared form validators between apps
-8. setup-deploy → Vercel for apps/web/; rn-eas-deploy → EAS for apps/mobile/
+8. vercel-deploy → Vercel for apps/web/; rn-eas-deploy → EAS for apps/mobile/
 9. (live!) one PRD, one DESIGN, two apps in production, shared backend + types.
 ```
 
@@ -1236,12 +1249,12 @@ The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 # sibling cross-references, installer coverage, capability reachability)
 python3 scripts/lint_skills.py
 
-# Regenerate skills.json (the machine-readable registry of all 42 skills)
+# Regenerate skills.json (the machine-readable registry of all 43 skills)
 python3 scripts/build_skills_registry.py
 
 # Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
 # after editing any SKILL.md / references / scripts / assets)
-python3 scripts/build_skill_bundles.py          # all 42
+python3 scripts/build_skill_bundles.py          # all 43
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
 # Regenerate the plugin manifest (skills allowlist comes from the taxonomy)

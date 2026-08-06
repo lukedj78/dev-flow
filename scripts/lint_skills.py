@@ -14,6 +14,10 @@ Checks:
   8. Capabilities named in body headings / `shadcn add` commands are also named
      in the description — skills are selected on the description, so a capability
      it never mentions is unreachable.
+  9. Bare-backtick skill names at a routing marker ("invoke", "route to",
+     "hands off to", "that's") point at a skill that exists - check 6 only
+     catches the <name>/SKILL.md form, so a dangling name in prose used to
+     survive.
 
 Exit codes:
   0 = clean
@@ -223,6 +227,45 @@ def check_skill_references(path: Path, all_skills: set[str]) -> None:
             err(f"{path}: references {m.group(0)} but {rel_path} does not exist")
 
 
+# Routing markers: prose that hands work to another skill. A kebab-case token
+# in backticks right after one of these is a sibling skill, not a package —
+# which is how `setup-deploy` stayed routed-to for months without existing
+# (check_skill_references only sees `<name>/SKILL.md` paths).
+#
+# Deliberately narrow. A bare "→ `x`" is NOT a marker: this repo uses arrows
+# for token → Tailwind-class mappings ("accent → `bg-accent`"), and a bare
+# "use `x`" is almost always an npm package. Both produced only false
+# positives. Verbs that name a hand-off do not.
+ROUTING_REF_RE = re.compile(
+    r"(?:invoke|invokes|invoked|"
+    r"route to|routes to|routed to|routing to|"
+    r"hand(?:s|ed)? off to|delegate to|delegates to|defer to|defers to|"
+    r"that's|that is)\s+`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`",
+    re.IGNORECASE,
+)
+
+# Kebab-case names that appear at a routing marker but are NOT our skills —
+# external CLIs or packages. Add a line here when a legitimate external name
+# trips the check.
+ROUTING_REF_ALLOWLIST: frozenset[str] = frozenset({
+    "vercel-doctor",   # a skill AND the upstream CLI it wraps; cited both ways
+})
+
+
+def check_routing_references(path: Path, all_skills: set[str]) -> None:
+    """Check #9 — bare-backtick skill names at a routing marker must exist."""
+    text = path.read_text(errors="ignore")
+    for m in ROUTING_REF_RE.finditer(text):
+        name = m.group(1)
+        if name in all_skills or name in ROUTING_REF_ALLOWLIST:
+            continue
+        err(
+            f"{path}: routes to `{name}` but no such skill exists "
+            f"(add it to ROUTING_REF_ALLOWLIST in lint_skills.py if it is an "
+            f"external package or CLI)"
+        )
+
+
 def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
     if not installer_path.exists():
         warn(f"{installer_path}: not found (skipping installer check)")
@@ -262,6 +305,7 @@ def main() -> int:
         check_phase_normalization(skill_md)
         check_skill_references(skill_md, all_skills)
         check_capability_reachable(skill_md)
+        check_routing_references(skill_md, all_skills)
 
         refs_dir = root / skill / "references"
         if refs_dir.exists():
@@ -269,6 +313,7 @@ def main() -> int:
                 check_no_absolute_paths(ref)
                 check_phase_normalization(ref)
                 check_skill_references(ref, all_skills)
+                check_routing_references(ref, all_skills)
 
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)

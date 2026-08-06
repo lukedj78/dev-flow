@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-04T19:27:13Z",
+  "generated_at": "2026-08-06T19:19:26Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 42,
+  "skill_count": 43,
   "families": {
     "core": [
       "compliance-audit",
@@ -24,6 +24,7 @@
       "shadscan",
       "state-discipline",
       "transitions",
+      "vercel-deploy",
       "vercel-doctor",
       "write-tests"
     ],
@@ -241,7 +242,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 439,
+      "skill_md_lines": 491,
       "bundle": "dist/forms.skill"
     },
     {
@@ -325,7 +326,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 216,
+      "skill_md_lines": 287,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -360,6 +361,22 @@
       ],
       "skill_md_lines": 133,
       "bundle": "dist/transitions.skill"
+    },
+    {
+      "name": "vercel-deploy",
+      "family": "web",
+      "role": "operative",
+      "description": "Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: verify the pre-deploy gates ran, reproduce the platform build locally, deploy a preview and smoke-test it, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to...",
+      "skill_file": "vercel-deploy/SKILL.md",
+      "references": [
+        "contracts.md",
+        "deploy-checklist.md",
+        "domains-dns.md",
+        "rollback-runbook.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 251,
+      "bundle": "dist/vercel-deploy.skill"
     },
     {
       "name": "vercel-doctor",

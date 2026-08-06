@@ -19,7 +19,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `ci` | husky + lint-staged + GitHub Actions | `references/module-ci.md` | ✅ implemented |
 | `motion` | Motion (rebranded framer-motion) + opinionated wrappers | `references/module-motion.md` | ✅ implemented |
 | `storage` | Vercel Blob (UploadThing / S3 as alternatives) | `references/module-storage.md` | ✅ implemented |
-| `deploy` | Vercel (project config — `setup-deploy` ships it) | `references/module-deploy.md` | ✅ implemented |
+| `deploy` | Vercel (project config — `vercel-deploy` ships it) | `references/module-deploy.md` | ✅ implemented |
 | `voice` | AI Gateway realtime (`@ai-sdk/gateway` + `experimental_useRealtime`) | `references/module-voice.md` | ✅ implemented — experimental API |
 | `realtime` | Vercel Functions WebSockets (`experimental_upgradeWebSocket`) | `references/module-realtime.md` | ✅ implemented — experimental API |
 

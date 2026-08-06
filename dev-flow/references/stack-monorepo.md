@@ -41,7 +41,7 @@ When `stack.framework="monorepo"`, the full `stack` object looks like:
 | `scaffolded` | `screenshot-to-page` (operates in `apps/web/`), `rn-add-screen` (operates in `apps/mobile/`), `eve-agent` (operates in `apps/agent/` — optional agent engine, see below), `monorepo-add-shared-package`, `monorepo-sync-types` |
 | `page_generated` | `module-add` (web side) or `rn-module-add` (mobile side) — both check `stack.framework="monorepo"` and operate in the right sub-folder |
 | `module_added` | iterative: more screens, more modules, more shared packages |
-| `feature_complete` | (mobile side) `rn-eas-deploy`; (web side) Vercel deploy via `setup-deploy` |
+| `feature_complete` | (mobile side) `rn-eas-deploy`; (web side) Vercel deploy via `vercel-deploy` |
 | `deployed` | both stores + Vercel live; maintenance via EAS Update for mobile + Vercel redeploys for web |
 
 ## New phase introduced
@@ -121,7 +121,7 @@ After `monorepo-bootstrap`:
 
 6. user says "siamo feature complete, deploy"
    → mobile side: rn-eas-deploy
-   → web side: setup-deploy (Vercel)
+   → web side: vercel-deploy (Vercel)
    → phase: feature_complete → deployed
 ```
 
