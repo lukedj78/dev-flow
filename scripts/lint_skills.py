@@ -49,29 +49,18 @@ SKILL_NAMES: set[str] = set()
 # "a bit long" — it silently does not exist for the agent.
 #
 # This collides with our own style guide, which asks every description to carry
-# its triggers and a "Not for:" clause: that is what pushed 14 of them over.
-# Shortening those is a judgement call per skill (fewer triggers = the skill
-# fires less often), so they are listed below rather than fixed in one sweep.
+# its triggers and a "Not for:" clause: that is what pushed 14 of the 42 over.
+# All 14 have since been cut back, and not one trigger phrase was lost — the
+# length was explanation duplicated from the body, not triggers. So the escape
+# hatch below is EMPTY, and shortening is the only remedy.
 #
-# GRANDFATHERED may only SHRINK. A skill not on the list going over the cap is
-# an error, and an entry that no longer needs the exemption is an error too —
-# so the list cannot go stale, and empties itself as the descriptions are cut.
+# GRANDFATHERED may only SHRINK, never grow. A skill not on the list going over
+# the cap is an error, and an entry that no longer needs the exemption is an
+# error too — so the list cannot go stale.
 DESC_MAX = 1024
 DESC_WARN = 900
 
-GRANDFATHERED_LONG_DESC: set[str] = {
-    "compliance-audit",
-    "coss-ui",
-    "data-fetching",
-    "eve-registry-porting",
-    "forms",
-    "heroicons-animated",
-    "monorepo-bootstrap",
-    "promote-component",
-    "rn-upgrade",
-    "state-discipline",
-    "vercel-doctor",
-}
+GRANDFATHERED_LONG_DESC: set[str] = set()
 
 
 def err(msg: str) -> None:
