@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-06T20:02:19Z",
+  "generated_at": "2026-08-06T20:09:35Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 42,
   "families": {
@@ -181,7 +181,7 @@
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
-      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Rou...",
+      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match. Canonical target Next.js 16 + App Router; pre-16 refused. Supports four UI libraries — shadcn/ui, Base UI, MUI and Coss/UI (via `coss-ui`) — a...",
       "skill_file": "design-md-to-app/SKILL.md",
       "references": [
         "anti-slop-fallbacks.md",
@@ -346,7 +346,7 @@
       "name": "transitions",
       "family": "web",
       "role": "knowledge",
-      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, spring presets, distances) plus a curated library of production-ready, tokenized micro-interactions — entrance/exit, stagger, layout resize, modal/dropdown/panel/toast/accordion toggles, hover (lift/tilt/avatar-gr...",
+      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdown/toast/accordion, hover, feedback and route/page transitions. Four modes: Setup (scaffold `lib/motion/` from ...",
       "skill_file": "transitions/SKILL.md",
       "references": [
         "audit-recipe.md",

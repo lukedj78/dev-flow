@@ -63,7 +63,6 @@ GRANDFATHERED_LONG_DESC: set[str] = {
     "compliance-audit",
     "coss-ui",
     "data-fetching",
-    "design-md-to-app",
     "eve-registry-porting",
     "forms",
     "heroicons-animated",
@@ -71,7 +70,6 @@ GRANDFATHERED_LONG_DESC: set[str] = {
     "promote-component",
     "rn-upgrade",
     "state-discipline",
-    "transitions",
     "vercel-doctor",
 }
 
