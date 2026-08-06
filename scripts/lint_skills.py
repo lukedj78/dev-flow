@@ -11,6 +11,9 @@ Checks:
   6. All cross-references to sibling skills (`<name>/SKILL.md` style) point at
      a sibling that actually exists.
   7. Every skill listed in install.sh / uninstall.sh exists on disk.
+  8. Capabilities named in body headings / `shadcn add` commands are also named
+     in the description — skills are selected on the description, so a capability
+     it never mentions is unreachable.
 
 Exit codes:
   0 = clean
@@ -110,6 +113,80 @@ def check_phase_normalization(path: Path) -> None:
         warn(f"{path}: cites legacy kebab `module-added` (use `module_added`)")
 
 
+# --- check 8: capabilities must be reachable from the description ---------
+#
+# Skills are selected on the frontmatter `description:`, never on the body. A
+# capability documented in a section whose name never appears in the description
+# is unreachable — the skill will not load for the request that needs it, and we
+# will hand-roll the thing the section exists to prevent. (This is not
+# hypothetical: `<Questionnaire />` shipped that way.)
+#
+# Signal: an artifact NAMED IN A HEADING, or installed by an explicit `add`
+# command, is the author declaring "this skill delivers this thing" — so a user
+# will one day ask for it by that name.
+#
+# Distinguishing a user-invocable capability from an internal artifact is not
+# mechanically decidable, so internals are listed explicitly below rather than
+# guessed at — same principle as TAXONOMY in build_skills_registry.py.
+INTERNAL_ARTIFACTS: dict[str, set[str]] = {
+    # <skill>: {tokens that are implementation details, not things a user asks for}
+    "forms": {"formactions"},  # internal toolkit component, never requested by name
+}
+
+HEADING_RE = re.compile(r"^#{2,3}\s+(.+)$", re.M)
+BACKTICKED_RE = re.compile(r"`([^`]+)`")
+ADD_CMD_RE = re.compile(r"shadcn(?:@latest)?\s+add\s+([@\w/-]+)")
+JSX_RE = re.compile(r"^<\s*(\w+)\s*/?>$")
+IDENT_RE = re.compile(r"^[A-Za-z][\w-]{2,}$")
+
+
+def _capability_tokens(text: str) -> set[str]:
+    """Artifacts this skill declares it delivers, as lowercase tokens."""
+    tokens: set[str] = set()
+    for heading in HEADING_RE.findall(text):
+        for raw in BACKTICKED_RE.findall(heading):
+            raw = raw.strip()
+            jsx = JSX_RE.match(raw)
+            if jsx:
+                tokens.add(jsx.group(1).lower())
+            elif IDENT_RE.match(raw) and "." not in raw:
+                tokens.add(raw.lower())
+    for item in ADD_CMD_RE.findall(text):
+        if item.startswith("-"):  # a flag, not an item
+            continue
+        # `@ns/item` is reachable if the description names either half
+        tokens.add(item.lstrip("@").replace("/", " ").strip().lower())
+    return tokens
+
+
+def check_capability_reachable(skill_md: Path) -> None:
+    name = skill_md.parent.name
+    text = skill_md.read_text()
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return  # frontmatter check already reported it
+    try:
+        fm = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+        return
+    if not isinstance(fm, dict) or not fm.get("description"):
+        return
+    desc = fm["description"].lower()
+    allowed = INTERNAL_ARTIFACTS.get(name, set())
+
+    for token in sorted(_capability_tokens(text)):
+        if token in allowed:
+            continue
+        # a multi-word token (from `@ns/item`) is reachable if any part is named
+        if any(part in desc for part in token.split()):
+            continue
+        warn(
+            f"{skill_md}: body documents `{token}` but the description never names it — "
+            f"the skill will not load for a request that asks for it by name "
+            f"(add the trigger word, or list it in INTERNAL_ARTIFACTS)"
+        )
+
+
 SKILL_REF_RE = re.compile(r"`([a-z][a-z0-9-]+)/(SKILL\.md|references/[a-z0-9-]+\.md)`")
 
 
@@ -163,6 +240,7 @@ def main() -> int:
         check_no_absolute_paths(skill_md)
         check_phase_normalization(skill_md)
         check_skill_references(skill_md, all_skills)
+        check_capability_reachable(skill_md)
 
         refs_dir = root / skill / "references"
         if refs_dir.exists():

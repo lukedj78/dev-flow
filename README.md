@@ -1233,7 +1233,7 @@ The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 
 ```bash
 # Sanity-check every skill (frontmatter YAML, portable paths, snake_case phases,
-# sibling cross-references, installer coverage)
+# sibling cross-references, installer coverage, capability reachability)
 python3 scripts/lint_skills.py
 
 # Regenerate skills.json (the machine-readable registry of all 42 skills)
@@ -1241,7 +1241,7 @@ python3 scripts/build_skills_registry.py
 
 # Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
 # after editing any SKILL.md / references / scripts / assets)
-python3 scripts/build_skill_bundles.py          # all 41
+python3 scripts/build_skill_bundles.py          # all 42
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
 # Regenerate the plugin manifest (skills allowlist comes from the taxonomy)
