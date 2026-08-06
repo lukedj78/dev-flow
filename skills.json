@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-04T19:27:13Z",
+  "generated_at": "2026-08-06T20:02:19Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 42,
   "families": {
@@ -241,7 +241,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 439,
+      "skill_md_lines": 491,
       "bundle": "dist/forms.skill"
     },
     {
@@ -319,13 +319,13 @@
       "name": "shadscan",
       "family": "web",
       "role": "operative",
-      "description": "Run shadscan on a React/shadcn app to find missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — then route each fix to the dev-flow skill that owns it. shadscan (https://www.shadscan.com/, an independent open-source CLI ...",
+      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. The third pre-deploy gate, alongside `compliance-audit...",
       "skill_file": "shadscan/SKILL.md",
       "references": [
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 216,
+      "skill_md_lines": 287,
       "bundle": "dist/shadscan.skill"
     },
     {
