@@ -1,6 +1,6 @@
 ---
 name: forms
-description: 'Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. Supports two equally-supported underlying form libraries: **TanStack Form + Zod** (default when no preference is set) or **react-hook-form + Zod** (auto-detected and used as-is when already present in the project). Use when the user says "form", "edit panel", "create dialog", "settings page", "save button", "dirty state", or when they reach for `useState` to hold field values, raw `useForm`, hand-rolled dirty tracking, or inline `toast.success/error` on submit. Refuses to apply if `meta.json#stack.framework != "next"` (or monorepo web side) or `stack.nextjs_version != "16"` — Pages Router and pre-16 are out of scope. Not for: React Native forms (RN uses a different ecosystem — refer to RN-side tooling), search boxes that only filter without persisting (no backend write = not a form), reads of data to populate a form (use `data-fetching`), or React state that is not bound to form fields (use `state-discipline`).'
+description: 'Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. Supports two equally-supported underlying form libraries: **TanStack Form + Zod** (default when no preference is set) or **react-hook-form + Zod** (auto-detected and used as-is when already present in the project). Use when the user says "form", "edit panel", "create dialog", "settings page", "save button", "dirty state", or when they reach for `useState` to hold field values, raw `useForm`, hand-rolled dirty tracking, or inline `toast.success/error` on submit. **Also owns multi-step question flows** — "questionnaire", "questionario", "survey", "sondaggio", "quiz", "poll", "onboarding flow", "intake form", "wizard", "step-by-step questions", "one question at a time": those route to the first-party shadcn `<Questionnaire />` component (`pnpm dlx shadcn@latest add questionnaire`), never to a hand-rolled `useState` step machine. Refuses to apply if `meta.json#stack.framework != "next"` (or monorepo web side) or `stack.nextjs_version != "16"` — Pages Router and pre-16 are out of scope. Not for: React Native forms (RN uses a different ecosystem — refer to RN-side tooling), search boxes that only filter without persisting (no backend write = not a form), reads of data to populate a form (use `data-fetching`), or React state that is not bound to form fields (use `state-discipline`).'
 ---
 
 # forms — one toolkit, dirty-gated Save, shared error mapping
@@ -78,6 +78,58 @@ Write the resolved value to `meta.json#stack.forms` immediately (Step 1 of the [
 | anything else (Chakra, Radix vanilla, …) | Not covered by this skill's reference implementations | — | Refuse to silently invent a mapping. Either ask the user which primitives to wire (then treat the result as a project-specific `FormField`/`FormActions` implementation, still behind the same hook contract), or use the raw [escape hatch](#escape-hatch--raw-library-field) until the project has one. |
 
 When scaffolding (`scripts/scaffold_lib_forms.py`) or hand-writing `lib/forms/FormField.tsx` for a `stack.ui = "mui"` project, keep the render-prop shape identical to the shadcn version — only the JSX inside changes.
+
+## Multi-step question flows — `<Questionnaire />`
+
+shadcn ships a first-party component for the one shape this skill's two patterns don't cover: a
+**sequence of questions asked one at a time** (onboarding, intake, quiz, survey). Don't hand-roll it, and
+don't force it into the edit/create form patterns above — it has its own state machine.
+
+```bash
+pnpm dlx shadcn@latest add questionnaire
+```
+
+Available for **Base UI, React Aria and Radix** (the unstyled behaviour lives in `@shadcn/react`), so it
+follows `stack.ui_base` without extra work.
+
+```
+Questionnaire                  ← root
+├── QuestionnaireProgress
+├── QuestionnaireItem          ← renders a <fieldset>
+│   ├── QuestionnaireTitle     ← becomes its <legend>
+│   ├── QuestionnaireDescription
+│   ├── QuestionnaireChoices
+│   │   ├── QuestionnaireChoice
+│   │   └── QuestionnaireInput ← freeform answer
+│   └── QuestionnaireError
+└── QuestionnaireActions
+    ├── QuestionnairePrevious · QuestionnaireSkip · QuestionnaireNext · QuestionnaireSubmit
+```
+
+| You want | You do |
+|---|---|
+| more than one answer | `multiple` on the `QuestionnaireItem` |
+| a freeform "other" | add a `QuestionnaireInput` beside the choices (`input: { label, placeholder }`) |
+| a skippable question | `required: false` on the item **and** render `<QuestionnaireSkip />` |
+| keyboard shortcuts | `shortcuts` on the item (letters or numbers) |
+| conditional questions | the **host app** disables items that don't apply to earlier answers — the component doesn't branch for you |
+
+⚠️ **It serialises natively, which is a real tension with [The Rule](#the-rule).** Answers come back as
+`FormData` — `answers.get("field")` for single, `answers.getAll("field")` for `multiple` — so a standalone
+questionnaire needs **no form library at all**. That is a legitimate exception, not a violation: the rule
+exists to stop hand-rolled `useState` form state, and here the state machine is the component's. Two
+consequences to keep straight:
+
+- **Standalone flow** (onboarding, survey) → use it as-is, read `FormData` on submit, validate with the
+  same Zod schema you'd have used (see [Schemas](#schemas)). Don't wrap it in `useCreateForm` for show.
+- **A questionnaire step *inside* a larger toolkit form** → the `FormData` does not flow into the hook by
+  itself. Read it on the step's submit and push the values through the hook's field API, exactly as the
+  `stack.ui = "mui"` row does for primitives. Never keep two sources of truth for the same answer.
+
+**Accessibility is mostly free, with one exception.** The `fieldset`/`legend` structure and native
+radio/checkbox behaviour come from the component; failed validation moves focus to an answer control. But
+**`QuestionnaireInput` has no implicit name** — give it a visible label, `aria-label`, or
+`aria-labelledby`. Ship it without one and `shadscan`'s `forms-have-labels` will find it, correctly.
 
 ## Edit form pattern (manual save, dirty-gated)
 

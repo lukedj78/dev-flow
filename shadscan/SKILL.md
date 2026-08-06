@@ -25,10 +25,18 @@ that the form errors `forms` specifies are really rendered, that a route has a l
 ## Verified invocation + flags
 
 ```bash
-npx --yes @shadscan/cli                                  # scan ./ , human output
-npx --yes @shadscan/cli --json > docs/ui/shadscan.json   # machine-readable report — USE THIS
-npx --yes @shadscan/cli --fail-under 80                  # CI gate: non-zero below the threshold
+npx --yes @shadscan/cli                                       # explore: latest, human output
+npx --yes @shadscan/cli@0.9.0 --json --no-interactive \
+  > docs/ui/shadscan.json                                     # audit: PINNED — the mode this skill uses
+npx --yes @shadscan/cli@0.9.0 --fail-under 70 --no-interactive # CI gate: pinned + ratcheted
 ```
+
+⚠️ **Pin the version for anything you will compare.** `npx --yes @shadscan/cli` resolves to latest *on
+every call* — during a single session it went 0.9.0 → 0.10.0 (ruleset `2026.07.41` → `2026.07.42`, 59
+rules → 60), silently making a before/after diff a comparison across two different rulesets. shadscan
+knows this: the `verification.shadscanCommand` it emits in its own acceptance criteria is **already
+pinned** (`pnpm dlx @shadscan/cli@0.9.0 --json`). Follow it. Pin the baseline run, pin the re-run, and
+only drop the pin when you deliberately want the newer ruleset — then re-baseline instead of diffing.
 
 `pnpm dlx @shadscan/cli` and `bunx @shadscan/cli` work identically. Supported frameworks (per the README):
 **Next.js, Vite, TanStack Start, Laravel, Astro, React Router** — it auto-detects the adapter and reports
@@ -79,7 +87,7 @@ the first thing in dev-flow that can *prove* those landed.
    (`components.json` present). Refuse for `expo-rn` — the rules are DOM/React-web only. In a monorepo,
    `--list-projects` first, then `--project <path>` per app; pooling every package produces one
    meaningless blended score.
-2. **Run** `npx --yes @shadscan/cli --json --no-interactive > docs/ui/shadscan.json`. Read
+2. **Run** `npx --yes @shadscan/cli@<pinned> --json --no-interactive > docs/ui/shadscan.json`. Read
    `score`, `grade`, `categories[]`, and — critically — **`coverage.source`**. If coverage is not
    `"complete"`, the scan saw only part of the source and the score is not comparable to a previous run;
    say so instead of reporting a number.
@@ -204,7 +212,9 @@ narrower of the two — follow the user's interest, not the score.
 ```
 
 ⚠️ **Only compare scores within the same `rulesetVersion`.** A new ruleset adds rules; a score that
-"dropped" across versions may be the same app measured against more checks.
+"dropped" across versions may be the same app measured against more checks. This is not theoretical — see
+the pinning warning above; it fired on the very first real before/after. **Assert `rulesetVersion` equality
+in code before reporting a delta**, rather than trusting that two runs minutes apart used the same tool.
 
 ## dev-flow hook
 

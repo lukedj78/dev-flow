@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-04T20:43:40Z",
+  "generated_at": "2026-08-06T19:19:26Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 43,
   "families": {
@@ -242,7 +242,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 439,
+      "skill_md_lines": 491,
       "bundle": "dist/forms.skill"
     },
     {
@@ -326,7 +326,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 277,
+      "skill_md_lines": 287,
       "bundle": "dist/shadscan.skill"
     },
     {
