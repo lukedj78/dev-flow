@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-06T20:21:57Z",
+  "generated_at": "2026-08-06T20:26:48Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 42,
+  "skill_count": 43,
   "families": {
     "core": [
       "compliance-audit",
@@ -24,6 +24,7 @@
       "shadscan",
       "state-discipline",
       "transitions",
+      "vercel-deploy",
       "vercel-doctor",
       "write-tests"
     ],
@@ -360,6 +361,22 @@
       ],
       "skill_md_lines": 133,
       "bundle": "dist/transitions.skill"
+    },
+    {
+      "name": "vercel-deploy",
+      "family": "web",
+      "role": "operative",
+      "description": "Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to Current (`verc...",
+      "skill_file": "vercel-deploy/SKILL.md",
+      "references": [
+        "contracts.md",
+        "deploy-checklist.md",
+        "domains-dns.md",
+        "rollback-runbook.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 251,
+      "bundle": "dist/vercel-deploy.skill"
     },
     {
       "name": "vercel-doctor",

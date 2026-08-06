@@ -182,7 +182,7 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 | `scaffolded` | all | `app/` exists with framework + UI library installed | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
 | `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |
 | `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; leads to `feature_complete` when the build is done (all stacks) |
-| `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gate `compliance-audit`, then deploy: web → `setup-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
+| `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gate `compliance-audit`, then deploy: web → `vercel-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
 | `deployed` | all | Live in production (web on Vercel / mobile on App Store + Play Store / agent via `eve deploy`) | maintenance loop (web: `screenshot-to-page` / `module-add`; mobile: `rn-add-screen` / `rn-eas-build-submit-update`; re-run `compliance-audit` after material changes) |
 
 **Notes**:

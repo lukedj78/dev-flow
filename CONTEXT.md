@@ -1,6 +1,6 @@
 # CONTEXT — the language of dev-flow
 
-The suite is 42 skills and ~260 markdown files written over months. Words drift. This is the **ubiquitous language**: use these terms exactly, and avoid the listed alternatives, so a phrase means the same thing in every skill.
+The suite is 43 skills and ~260 markdown files written over months. Words drift. This is the **ubiquitous language**: use these terms exactly, and avoid the listed alternatives, so a phrase means the same thing in every skill.
 
 Each entry gives the meaning, then `_Avoid_:` — wordings that are ambiguous or already mean something else here.
 
@@ -9,8 +9,8 @@ Each entry gives the meaning, then `_Avoid_:` — wordings that are ambiguous or
 ## The unit of work
 
 **Skill**
-One directory at the repo root containing a `SKILL.md`. The thing a coding agent loads. There are 42.
-_Avoid_: command, plugin (a **plugin** is the packaging of all 42 — see below), prompt, agent.
+One directory at the repo root containing a `SKILL.md`. The thing a coding agent loads. There are 43.
+_Avoid_: command, plugin (a **plugin** is the packaging of all 43 — see below), prompt, agent.
 
 **SKILL.md**
 The skill itself: YAML frontmatter (`name`, `description`) plus the instructions. The `description` is what makes the skill trigger, so it carries the `Triggers:` and `Not for:` markers.
@@ -108,7 +108,7 @@ _Avoid_: bare "the registry".
 
 ## ⚠️ "Skill" — ours vs eve's
 
-An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of our 42 skills. Write "an eve agent skill" in full whenever both could be meant.
+An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of our 43 skills. Write "an eve agent skill" in full whenever both could be meant.
 
 ## ⚠️ "Module"
 
@@ -120,7 +120,7 @@ _Avoid_: integration, package, feature.
 ## Distribution
 
 **Plugin**
-The whole suite packaged for Claude Code (`.claude-plugin/plugin.json`), installed from the marketplace. Singular — there is one plugin containing 42 skills.
+The whole suite packaged for Claude Code (`.claude-plugin/plugin.json`), installed from the marketplace. Singular — there is one plugin containing 43 skills.
 _Avoid_: extension, bundle, pack.
 
 **Marketplace**

@@ -75,6 +75,6 @@ Operative skills in this stack (all shipped):
 - `design-md-to-app` — Next.js scaffolder, would produce a web app.
 - `module-add` — Next.js module wirer.
 - `screenshot-to-page` — Next.js screen generator.
-- `setup-deploy` — Vercel/Render/Fly, not EAS.
+- `vercel-deploy` — ships a web app to Vercel, not EAS.
 
 (These are reserved for `stack.framework="next"` and other web stacks.)

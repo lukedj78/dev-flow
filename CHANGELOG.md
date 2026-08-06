@@ -20,10 +20,15 @@ What a bump means here:
 
   It also records the case where **the fix is real and the rule stays red**: a header that hid its whole `<nav>` below `sm` left one route unreachable on a phone; keeping the links visible fixed it, but `mobile-nav-present` still fails because the detector wants a trigger+panel pair. Ship the fix, leave the rule red, write down why — adding a hamburger for two links is the anti-gaming rule in textbook form.
 - **`docs/knowledge-index.md` §Pre-deploy gates** — the two gates that wrap an external CLI now have a row each, because their flags and report schema move independently of us.
+- **`vercel-deploy`** (web · operative) — the skill that actually ships a Next.js 16 project to Vercel, and the only one that sets `phase = "deployed"` for web. Preview → smoke → **staged** production (`vercel --prod --skip-domain`) → `vercel promote` → domains + DNS, plus a rollback runbook. It ships; it does not configure — `vercel.json`, region and the env-var matrix stay with `module-add deploy`, and a missing config routes there instead of being improvised. Grounded in the CLI docs' own *Preferred production commands*, which name `--skip-domain` / `promote` / `rollback` over `vercel alias`. References: `deploy-checklist.md`, `domains-dns.md`, `rollback-runbook.md`. **43 skills** now: 5 core · **15 web** · 2 agent · 16 mobile · 3 monorepo · 2 refactor.
+- **Lint check #8** — bare-backtick skill references at a routing marker (`→ \`x\``, `invoke \`x\``, `use \`x\``…) are now verified against the skills on disk. Check #6 only saw `` `<name>/SKILL.md` `` paths, which is why a dangling reference could survive in prose.
 
 ### Changed
-- The suite is **42 skills** (14 web). `dev-flow` proposes all three gates at `feature_complete` and re-runs them in the `deployed` loop.
+- The suite is **43 skills** (15 web). `dev-flow` proposes all three gates at `feature_complete` and re-runs them in the `deployed` loop.
 - `transitions` non-negotiable #2 (`prefers-reduced-motion`) is now labelled **machine-checkable**, pointing at the rule that verifies it; `forms` audit mode notes that passing *our conventions* does not imply passing the *user-facing outcome* (a textbook TanStack Form with no `<FormLabel>` passes the greps and fails the gate).
+- **Contract**: the `feature_complete` row now routes web to `vercel-deploy`. Re-vendored to all 30 skills.
+- Every reference to `setup-deploy` — a skill that was routed to but **never existed**, in `dev-flow`, `module-add`, `vercel-doctor` and the contract — now points at `vercel-deploy`. The name changed for two reasons: `setup-deploy` collides with an unrelated third-party skill of the same name that installs to `~/.claude/skills/`, and the *setup* has always belonged to `module-add deploy`.
+- `dev-flow`'s README routing block no longer marks `feature_complete` / `deployed` as "(expo-rn only)" — web and the eve agent have owners there too.
 
 ## [1.0.0] — 2026-08-02
 
