@@ -79,6 +79,58 @@ Write the resolved value to `meta.json#stack.forms` immediately (Step 1 of the [
 
 When scaffolding (`scripts/scaffold_lib_forms.py`) or hand-writing `lib/forms/FormField.tsx` for a `stack.ui = "mui"` project, keep the render-prop shape identical to the shadcn version — only the JSX inside changes.
 
+## Multi-step question flows — `<Questionnaire />`
+
+shadcn ships a first-party component for the one shape this skill's two patterns don't cover: a
+**sequence of questions asked one at a time** (onboarding, intake, quiz, survey). Don't hand-roll it, and
+don't force it into the edit/create form patterns above — it has its own state machine.
+
+```bash
+pnpm dlx shadcn@latest add questionnaire
+```
+
+Available for **Base UI, React Aria and Radix** (the unstyled behaviour lives in `@shadcn/react`), so it
+follows `stack.ui_base` without extra work.
+
+```
+Questionnaire                  ← root
+├── QuestionnaireProgress
+├── QuestionnaireItem          ← renders a <fieldset>
+│   ├── QuestionnaireTitle     ← becomes its <legend>
+│   ├── QuestionnaireDescription
+│   ├── QuestionnaireChoices
+│   │   ├── QuestionnaireChoice
+│   │   └── QuestionnaireInput ← freeform answer
+│   └── QuestionnaireError
+└── QuestionnaireActions
+    ├── QuestionnairePrevious · QuestionnaireSkip · QuestionnaireNext · QuestionnaireSubmit
+```
+
+| You want | You do |
+|---|---|
+| more than one answer | `multiple` on the `QuestionnaireItem` |
+| a freeform "other" | add a `QuestionnaireInput` beside the choices (`input: { label, placeholder }`) |
+| a skippable question | `required: false` on the item **and** render `<QuestionnaireSkip />` |
+| keyboard shortcuts | `shortcuts` on the item (letters or numbers) |
+| conditional questions | the **host app** disables items that don't apply to earlier answers — the component doesn't branch for you |
+
+⚠️ **It serialises natively, which is a real tension with [The Rule](#the-rule).** Answers come back as
+`FormData` — `answers.get("field")` for single, `answers.getAll("field")` for `multiple` — so a standalone
+questionnaire needs **no form library at all**. That is a legitimate exception, not a violation: the rule
+exists to stop hand-rolled `useState` form state, and here the state machine is the component's. Two
+consequences to keep straight:
+
+- **Standalone flow** (onboarding, survey) → use it as-is, read `FormData` on submit, validate with the
+  same Zod schema you'd have used (see [Schemas](#schemas)). Don't wrap it in `useCreateForm` for show.
+- **A questionnaire step *inside* a larger toolkit form** → the `FormData` does not flow into the hook by
+  itself. Read it on the step's submit and push the values through the hook's field API, exactly as the
+  `stack.ui = "mui"` row does for primitives. Never keep two sources of truth for the same answer.
+
+**Accessibility is mostly free, with one exception.** The `fieldset`/`legend` structure and native
+radio/checkbox behaviour come from the component; failed validation moves focus to an answer control. But
+**`QuestionnaireInput` has no implicit name** — give it a visible label, `aria-label`, or
+`aria-labelledby`. Ship it without one and `shadscan`'s `forms-have-labels` will find it, correctly.
+
 ## Edit form pattern (manual save, dirty-gated)
 
 The `save` callback calls a **Server Action** from `lib/actions/<entity>.actions.ts` — never the service layer directly. Per the `data-fetching` skill's contract, `lib/services/` is server-only code with no `"use server"` directive; a Client Component cannot import it. The Server Action re-validates with the same Zod schema, calls the service, and revalidates:

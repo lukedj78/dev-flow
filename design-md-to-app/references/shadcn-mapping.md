@@ -152,6 +152,41 @@ The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or intera
 
 Standard dependencies installed by `init`: `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, plus `@base-ui/react` (or `@radix-ui/react-*` if `--base radix` was chosen) packages added per-component. In theme-only mode (no `init` run), you can assume these are present if `package.json` lists them; if not, document the gap in `STYLE_NOTES.md`.
 
+### Serving a registry: search is opt-in, and the opt-in is the response itself
+
+Only relevant when you **publish** a registry (ours: `@coss/*`, the eve registry). Consuming one needs
+nothing here.
+
+The CLI sends search as query params on the registry URL:
+
+```
+GET https://acme.com/r/registry.json?q=button&type=registry:ui,registry:block&limit=50&offset=0
+```
+
+`q` (query), `type` (comma-separated item types), `limit`, `offset` — all optional. A **static**
+`registry.json` simply **ignores them** and returns everything; the CLI then filters locally. Nothing
+breaks, no configuration, no version negotiation.
+
+To move filtering server-side, return a `pagination` object next to `items`:
+
+```json
+{
+  "name": "acme",
+  "homepage": "https://acme.com",
+  "items": [{ "name": "button", "type": "registry:ui", "description": "A button component." }],
+  "pagination": { "total": 12, "offset": 0, "limit": 2, "hasMore": true }
+}
+```
+
+**The presence of `pagination` *is* the opt-in signal** — it tells the CLI "I already filtered, don't
+filter again". There is no flag to set and nothing to declare. The corollary matters more than the
+feature: **if you return `pagination` you own the filtering**, so a registry that echoes a `pagination`
+object while ignoring `q` will silently serve unfiltered results as if they were matches. Either
+implement `q`/`type` properly or omit `pagination` entirely and let the CLI do it.
+
+Worth reaching for only when a registry grows past what's sane to ship in one document. Below that,
+static is correct and cheaper.
+
 ### Token-first install via `registry.json` (recommended for DESIGN.md projects)
 
 shadcn's CLI accepts a **registry URL or local file path** as input to `init`. A registry is a JSON file that declares CSS variables, theme colors, dependencies, and (optionally) component recipes. When the user has a DESIGN.md, **emit a `registry.json` first**, then point `init` at it. This is more declarative, idempotent, and reproducible than running `init` and patching `globals.css` afterward.
