@@ -53,9 +53,10 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | Page | Covered in | |
 |---|---|---|
 | `/docs/connections` · `/mcp` · `/openapi` | `eve-capabilities.md` §Connection (`defineMcpClientConnection` / `defineOpenAPIConnection`) | ✅ |
-| `/docs/channels/overview` · `/eve` · `/slack` · `/discord` · `/github` · `/linear` · `/teams` · `/telegram` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
+| `/docs/channels/overview` · `/eve` · `/slack` · `/github` · `/linear` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
+| `/docs/channels/telegram` · `/discord` · `/teams` | `eve-channels.md` — per-surface guides: webhook registration, group dispatch, `onMessage` gate + the two send paths (Telegram); 3s ACK + command propagation (Discord); `onInputResponse` authorization bypass + file opt-in (Teams) | ✅ |
 | `/docs/channels/custom` | `eve-capabilities.md` §Channel (`defineChannel`) | ↪ |
-| `/docs/channels/chat-sdk` | `eve-capabilities.md` §Channel — Vercel Chat SDK adapter for Slack/Discord/Telegram/WhatsApp/email | ↪ |
+| `/docs/channels/chat-sdk` | `eve-capabilities.md` §Channel — `chatSdkChannel()` shape + the Resend worked example (official code); `eve-channels.md` — WhatsApp adapter + when an adapter's thread model doesn't fit your domain | ✅ |
 
 ## Schedules, extensions, hooks, state
 | Page | Covered in | |
