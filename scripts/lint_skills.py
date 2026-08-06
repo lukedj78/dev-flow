@@ -70,7 +70,6 @@ GRANDFATHERED_LONG_DESC: set[str] = {
     "monorepo-bootstrap",
     "promote-component",
     "rn-upgrade",
-    "shadscan",
     "state-discipline",
     "transitions",
     "vercel-doctor",
