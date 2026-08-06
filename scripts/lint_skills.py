@@ -128,6 +128,27 @@ def check_phase_normalization(path: Path) -> None:
 # Distinguishing a user-invocable capability from an internal artifact is not
 # mechanically decidable, so internals are listed explicitly below rather than
 # guessed at — same principle as TAXONOMY in build_skills_registry.py.
+#
+# DELIBERATELY NARROW — do not "improve" this by widening it. Both obvious
+# extensions were prototyped against the corpus and measured; both are
+# net-negative:
+#
+#   references/*.md headings  → 185 findings across 37 skills. ~150 of them are
+#       one cause: `references/contracts.md` is vendored into 30 skills
+#       byte-identically, and its headings (`artifacts`, `linear`/`scrum`,
+#       `phase`, `stack`) document the CONTRACT SCHEMA, not capabilities. The
+#       rest are structural or prose headings (`await`, `https`, `h-screen`).
+#       Reference headings organise a document; SKILL.md headings declare what
+#       the skill does. Only the second is a reachability signal.
+#
+#   npm/pnpm/yarn/bun install → 8 findings, almost all dependencies rather than
+#       capabilities (`next@latest`, `typescript@`, `next-themes`) plus flags
+#       leaking through the regex. `shadcn add <item>` is different in kind: its
+#       argument is always a NAMED USER-FACING COMPONENT, which is exactly the
+#       thing someone asks for by name.
+#
+# Scope is the whole value here. A check that fires 185 times is a check nobody
+# reads — see the shadscan skill on advisory fatigue for the same lesson.
 INTERNAL_ARTIFACTS: dict[str, set[str]] = {
     # <skill>: {tokens that are implementation details, not things a user asks for}
     "forms": {"formactions"},  # internal toolkit component, never requested by name
