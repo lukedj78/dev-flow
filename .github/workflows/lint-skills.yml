@@ -10,6 +10,7 @@ on:
       - "uninstall.sh"
       - "scripts/lint_skills.py"
       - "scripts/build_skills_registry.py"
+      - "scripts/build_agent_plugin.py"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - "uninstall.sh"
       - "scripts/lint_skills.py"
       - "scripts/build_skills_registry.py"
+      - "scripts/build_agent_plugin.py"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
@@ -49,3 +51,6 @@ jobs:
             exit 1
           fi
           echo "✓ skills.json is up to date (structurally)."
+
+      - name: Build the Agent Plugins package and check its manifest
+        run: python3 scripts/build_agent_plugin.py --check

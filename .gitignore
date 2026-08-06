@@ -45,3 +45,7 @@ android/.gradle/
 .obsidian/workspace-mobile.json
 .obsidian/plugins/
 .obsidian/themes/
+
+# Agent Plugins package: the manifest is tracked, the skill copies are generated
+# (they would duplicate every skill file and double the diff of every edit).
+/dist/agent-plugin/skills/
