@@ -160,22 +160,48 @@ It's `chatSdkChannel()` from `eve/channels/chat-sdk`, in a channel file named af
 (e.g. `agent/channels/resend.ts`). One channel reaches many platforms through pluggable adapters:
 
 ```ts
-// agent/channels/resend.ts   ([VERIFY] names against installed eve/@chat-adapter versions)
+// agent/channels/resend.ts   — from Vercel's official guide, not reconstructed
+import { createMemoryState } from "@chat-adapter/state-memory";
+import { createResendAdapter } from "@resend/chat-sdk-adapter";
+import type { Message, Thread } from "chat";
 import { chatSdkChannel } from "eve/channels/chat-sdk";
-import { stateMemory } from "@chat-adapter/state-memory";
-import { resendAdapter } from "@resend/chat-sdk-adapter";
 
-export default chatSdkChannel({
-  adapters: [resendAdapter({ /* creds from env */ })],
-  state: stateMemory(),
-  handler: (bot) => {
-    // register handlers on `bot` like a standalone Chat SDK app, then route to the agent:
-    bot.on("message", async (message, { send, thread }) => {
-      await send(message.text, { thread });
-    });
+export const { bot, channel, send } = chatSdkChannel({
+  userName: "Support Agent",
+  adapters: {
+    resend: createResendAdapter({
+      fromAddress: "agent@yourdomain.com",
+      fromName: "Support Agent",
+    }),
   },
+  state: createMemoryState(),
+  streaming: false,
 });
+
+bot.onNewMention(async (thread: Thread, message: Message) => {
+  await thread.subscribe();
+  await send(message.text, { thread });
+});
+
+bot.onSubscribedMessage(async (thread: Thread, message: Message) => {
+  await send(message.text, { thread });
+});
+
+export default channel;
 ```
+
+Source: <https://vercel.com/kb/guide/eve-agent-with-resend>. Four shapes differ from every
+other channel and are easy to get wrong:
+
+* `chatSdkChannel()` returns a **triple** `{ bot, channel, send }` — `channel` is the default
+  export, `bot` registers handlers, `send` starts/resumes the eve session. **Not** a
+  single-object default export like `defineChannel`.
+* `adapters` is an **object keyed by adapter name**, not an array — that key is the
+  `adapterName` used later in `channel.receive()`.
+* `streaming: false` for email: it wants one complete reply, not token-by-token deltas.
+* **`thread.subscribe()` inside `onNewMention` is what makes threading work.** `onNewMention`
+  fires for a new inbound conversation, `onSubscribedMessage` for follow-ups in a subscribed
+  thread. Skip the subscribe and every reply looks like a brand-new conversation.
 
 It gives you out of the box: a **webhook route per adapter**, typing indicators + automatic
 reply posting, **HITL input requests rendered as cards with buttons**, **thread persistence
