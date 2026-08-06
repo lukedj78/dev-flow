@@ -1,24 +1,16 @@
 ---
 name: eve-registry-porting
 description: >-
-  Port a component (tool, connection, or skill) from a public eve/Flue agent
-  registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the "shadcn for
-  agents" registries — into a multi-tenant eve app WITHOUT adopting the
-  registry's standalone-agent runtime model. Use when the user wants to
-  "install / use / borrow an agent from atomeve (or evex / agentcn /
-  eveagents)", "add a Stripe/PostHog/Sentry/GitHub tool or connection from a
-  registry", "reuse a skill from a shadcn-for-agents registry", or asks whether
-  a registry agent is usable and how to adapt it. The skill's core is the
-  conformance checklist that makes third-party eve code safe in a multi-tenant
-  app: tenant from the verified session (never model input), companyId in every
-  query, per-tenant encrypted secrets (never global env keys), verified npm
-  deps only, sensitive actions behind tool-grants/approval. For AgentOS
-  specifically it defers to docs/eve-registries.md. Not for: scaffolding a fresh
-  tool/connection/skill slot from scratch (use `eve-agent` for the boilerplate),
-  building the Next.js app or its pages (use design-md-to-app /
-  screenshot-to-page / module-add), or wiring the monorepo (monorepo-bootstrap).
-  This skill governs "what to port from a registry and how to make it
-  tenant-safe", not "how to write an eve primitive".
+  Port a tool, connection or skill from a public eve/Flue agent registry — atomeve.dev,
+  evex.sh, agentcn, eveagents.dev, the "shadcn for agents" registries — into a multi-tenant
+  eve app WITHOUT adopting the registry's standalone-agent runtime model. Its core is the
+  conformance checklist that makes third-party eve code tenant-safe. Use when the user wants
+  to "install / use / borrow an agent from atomeve (or evex / agentcn / eveagents)", "add a
+  Stripe/PostHog/Sentry/GitHub tool or connection from a registry", "reuse a skill from a
+  shadcn-for-agents registry", or asks whether a registry agent is usable and how to adapt it.
+  Not for: scaffolding a fresh tool/connection/skill slot (use `eve-agent`), building the
+  Next.js app or its pages (use design-md-to-app / screenshot-to-page / module-add), or wiring
+  the monorepo (monorepo-bootstrap).
 ---
 
 # eve-registry-porting — borrow the bricks, not the agent

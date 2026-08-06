@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-06T19:19:26Z",
+  "generated_at": "2026-08-06T20:26:48Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 43,
   "families": {
@@ -65,7 +65,7 @@
       "name": "compliance-audit",
       "family": "core",
       "role": "operative",
-      "description": "Run a GDPR + EU AI Act compliance audit on an EXISTING dev-flow project (web / mobile / eve agent) and remediate the risks it finds. Two modes: Audit (scan the codebase + `meta.json#stack` against a 10-point risk register — DSAR export/erasure, consent/cookies, EU data residency & transfers, retenti...",
+      "description": "Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-trans...",
       "skill_file": "compliance-audit/SKILL.md",
       "references": [
         "contracts.md",
@@ -147,7 +147,7 @@
       "name": "coss-ui",
       "family": "web",
       "role": "operative",
-      "description": "Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4, installed through the shadcn CLI via the namespaced `@coss/*` registry (copy-paste-and-own source). Two modes: Init (scaffold a new/empty project with `shadcn init @coss/style` —...",
+      "description": "Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4 and installed through the shadcn CLI via the namespaced `@coss/*` registry. Two modes: Init (`shadcn init @coss/style` on a new project) and Add (pull `@coss/ui` primitives, singl...",
       "skill_file": "coss-ui/SKILL.md",
       "references": [
         "contracts.md",
@@ -166,7 +166,7 @@
       "name": "data-fetching",
       "family": "web",
       "role": "knowledge",
-      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter/tab/range state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component genuinely needs server data, and Route Handlers + SWR/React Query only as a last resort (polling / ...",
+      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations o...",
       "skill_file": "data-fetching/SKILL.md",
       "references": [
         "anti-patterns.md",
@@ -182,7 +182,7 @@
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
-      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec). Reads the YAML tokens + markdown rationale and produces a working React app whose theme, typography, spacing, radii, and components are pre-styled to match. **Canonical target: Next.js 16 + App Router** (Pages Rou...",
+      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match. Canonical target Next.js 16 + App Router; pre-16 refused. Supports four UI libraries — shadcn/ui, Base UI, MUI and Coss/UI (via `coss-ui`) — a...",
       "skill_file": "design-md-to-app/SKILL.md",
       "references": [
         "anti-slop-fallbacks.md",
@@ -230,7 +230,7 @@
       "name": "forms",
       "family": "web",
       "role": "operative",
-      "description": "Build or edit any form in a Next.js 16 App Router app — create dialogs, edit panels, settings UIs, anything with input fields that persist to a backend — via one shared toolkit in `lib/forms/` with explicit dirty + valid Save gating, baseline reset on success, and discriminated-union error mapping. ...",
+      "description": "Build or edit any form in a Next.js 16 App Router app via one shared toolkit in `lib/forms/` with dirty + valid Save gating. Form libraries: TanStack Form + Zod (default) or react-hook-form + Zod (auto-detected if present). Use when the user says \"form\", \"edit panel\", \"create dialog\", \"settings page...",
       "skill_file": "forms/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -249,7 +249,7 @@
       "name": "heroicons-animated",
       "family": "web",
       "role": "operative",
-      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry (316 icons, MIT, by Aniket Pawar, backed by Vercel OSS) instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtim...",
+      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtime. This skill owns the install plus the two things the r...",
       "skill_file": "heroicons-animated/SKILL.md",
       "references": [
         "contracts.md",
@@ -320,7 +320,7 @@
       "name": "shadscan",
       "family": "web",
       "role": "operative",
-      "description": "Run shadscan on a React/shadcn app to find missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — then route each fix to the dev-flow skill that owns it. shadscan (https://www.shadscan.com/, an independent open-source CLI ...",
+      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. The third pre-deploy gate, alongside `compliance-audit...",
       "skill_file": "shadscan/SKILL.md",
       "references": [
         "contracts.md"
@@ -333,7 +333,7 @@
       "name": "state-discipline",
       "family": "web",
       "role": "knowledge",
-      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use a query library for server state, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `...",
+      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `useEffect`. Use when the user pastes `...",
       "skill_file": "state-discipline/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -347,7 +347,7 @@
       "name": "transitions",
       "family": "web",
       "role": "knowledge",
-      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, spring presets, distances) plus a curated library of production-ready, tokenized micro-interactions — entrance/exit, stagger, layout resize, modal/dropdown/panel/toast/accordion toggles, hover (lift/tilt/avatar-gr...",
+      "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdown/toast/accordion, hover, feedback and route/page transitions. Four modes: Setup (scaffold `lib/motion/` from ...",
       "skill_file": "transitions/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -366,7 +366,7 @@
       "name": "vercel-deploy",
       "family": "web",
       "role": "operative",
-      "description": "Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: verify the pre-deploy gates ran, reproduce the platform build locally, deploy a preview and smoke-test it, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to...",
+      "description": "Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to Current (`verc...",
       "skill_file": "vercel-deploy/SKILL.md",
       "references": [
         "contracts.md",
@@ -382,7 +382,7 @@
       "name": "vercel-doctor",
       "family": "web",
       "role": "operative",
-      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. vercel-doctor (https://www.vercel-doctor.com/, an independent open-source CLI — npm package `vercel-doctor`, MIT, github.com/Aniket-508/vercel-doctor...",
+      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. The CLI scans for cost and performance anti-patterns across six areas — caching that defeats the CDN, unused code, serverless function duration, imag...",
       "skill_file": "vercel-doctor/SKILL.md",
       "references": [
         "contracts.md"
@@ -435,11 +435,11 @@
       "name": "eve-registry-porting",
       "family": "agent",
       "role": "operative",
-      "description": "Port a component (tool, connection, or skill) from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the \"shadcn for agents\" registries — into a multi-tenant eve app WITHOUT adopting the registry's standalone-agent runtime model. Use when the user wants to \"install / u...",
+      "description": "Port a tool, connection or skill from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the \"shadcn for agents\" registries — into a multi-tenant eve app WITHOUT adopting the registry's standalone-agent runtime model. Its core is the conformance checklist that makes thi...",
       "skill_file": "eve-registry-porting/SKILL.md",
       "references": [],
       "scripts": [],
-      "skill_md_lines": 140,
+      "skill_md_lines": 132,
       "bundle": "dist/eve-registry-porting.skill"
     },
     {
@@ -674,7 +674,7 @@
       "name": "rn-upgrade",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo` and run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear `node_modules`/`.expo`/Watchman caches, and native-rebuild (`expo prebuild --clean` + `pod install` + `gradlew clean`...",
+      "description": "Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo`, run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear caches, and native-rebuild only for bare-workflow projects — skipped entirely for CNG (Continuous Native Generation) pro...",
       "skill_file": "rn-upgrade/SKILL.md",
       "references": [
         "beta-preview.md",
@@ -721,7 +721,7 @@
       "name": "monorepo-bootstrap",
       "family": "monorepo",
       "role": "operative",
-      "description": "Scaffold a turborepo monorepo, with shared packages (types, design tokens or shared UI, backend client). Uses pnpm workspaces + turborepo. Reads .workflow/meta.json with stack.framework=\"monorepo\" and phase in {prd_drafted, design_extracted}. Supports three topologies, detected/asked in Step 1: web+...",
+      "description": "Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Three topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app — the classic case), web+agent (Next.js app + an eve agent in apps/agent, no mobile), or web-onl...",
       "skill_file": "monorepo-bootstrap/SKILL.md",
       "references": [
         "contracts.md",
@@ -773,7 +773,7 @@
       "name": "promote-component",
       "family": "refactor",
       "role": "operative",
-      "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: (1) \"scan candidates\" — analyzes the entire codebase, counts usages of every component under app/**/_components/ (web) or components/<feature>/ (mobile — Expo Router has no...",
+      "description": "Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: \"scan candidates\" counts every component's usages across the codebase and reports the promotion candidates against the Rule of Three; \"promote <Component>\" moves the file t...",
       "skill_file": "promote-component/SKILL.md",
       "references": [
         "colocation-rules.md",

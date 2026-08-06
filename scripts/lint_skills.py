@@ -5,6 +5,7 @@ Checks:
   1. Every */SKILL.md has valid YAML frontmatter with `name` + `description`.
   2. The `name:` field matches the directory name.
   3. The `description:` field has both "Triggers" and "Not for:" markers (style guide).
+  3b. The `description:` fits in 1024 characters — the Agent Skills spec cap.
   4. No SKILL.md or references/*.md cites the absolute path `~/my-skills/`
      (portability — skills must work from any install dir).
   5. Phase values cited in skill text use snake_case (no `module-added` etc.).
@@ -20,7 +21,7 @@ Checks:
      survive.
 
 Exit codes:
-  0 = clean
+  0 = clean (notes are informational and never change the exit code)
   1 = warnings only
   2 = errors (broken frontmatter, missing files, etc.)
 
@@ -41,7 +42,29 @@ except ImportError:
 
 ERRORS: list[str] = []
 WARNINGS: list[str] = []
+NOTES: list[str] = []
 SKILL_NAMES: set[str] = set()
+
+# --- check 3b: description length ------------------------------------------
+#
+# The Agent Skills spec (https://agentskills.io/specification) caps
+# `description` at 1024 characters, and Agent Plugins v1.0.0 §7.1 requires a
+# client to SKIP a skill that does not conform. Over the cap, the skill is not
+# "a bit long" — it silently does not exist for the agent.
+#
+# This collides with our own style guide, which asks every description to carry
+# its triggers and a "Not for:" clause: that is what pushed 14 of the 42 over.
+# All 14 have since been cut back, and not one trigger phrase was lost — the
+# length was explanation duplicated from the body, not triggers. So the escape
+# hatch below is EMPTY, and shortening is the only remedy.
+#
+# GRANDFATHERED may only SHRINK, never grow. A skill not on the list going over
+# the cap is an error, and an entry that no longer needs the exemption is an
+# error too — so the list cannot go stale.
+DESC_MAX = 1024
+DESC_WARN = 900
+
+GRANDFATHERED_LONG_DESC: set[str] = set()
 
 
 def err(msg: str) -> None:
@@ -50,6 +73,11 @@ def err(msg: str) -> None:
 
 def warn(msg: str) -> None:
     WARNINGS.append(msg)
+
+
+def note(msg: str) -> None:
+    """Informational only — reported, but never changes the exit code."""
+    NOTES.append(msg)
 
 
 def collect_skill_names(root: Path) -> set[str]:
@@ -82,6 +110,29 @@ def check_frontmatter(skill_md: Path) -> None:
     if not desc:
         err(f"{skill_md}: empty description")
         return
+    desc_len = len(desc)
+    if desc_len > DESC_MAX:
+        if name in GRANDFATHERED_LONG_DESC:
+            note(
+                f"{skill_md}: description is {desc_len} chars, over the {DESC_MAX} cap "
+                f"(grandfathered — a spec-conforming client skips this skill entirely)"
+            )
+        else:
+            err(
+                f"{skill_md}: description is {desc_len} chars, over the {DESC_MAX} cap of "
+                f"the Agent Skills spec — a conforming client will skip this skill. Shorten it "
+                f"(do not add it to GRANDFATHERED_LONG_DESC: that list only shrinks)"
+            )
+    elif name in GRANDFATHERED_LONG_DESC:
+        err(
+            f"{skill_md}: description now fits in {desc_len}/{DESC_MAX} chars — drop "
+            f"'{name}' from GRANDFATHERED_LONG_DESC in scripts/lint_skills.py"
+        )
+    elif desc_len > DESC_WARN:
+        note(
+            f"{skill_md}: description is {desc_len} chars, close to the {DESC_MAX} cap "
+            f"(over it, a conforming client skips the skill)"
+        )
     desc_lower = desc.lower()
     has_invocation_marker = any(m in desc_lower for m in (
         "trigger", "use when", "use whenever", "use to ", "use this", "use for ",
@@ -327,8 +378,12 @@ def main() -> int:
         print(f"⚠ {len(WARNINGS)} warning(s):")
         for w in WARNINGS:
             print(f"  W {w}")
+    if NOTES:
+        print(f"· {len(NOTES)} note(s) — informational, do not fail the build:")
+        for n in NOTES:
+            print(f"  N {n}")
     if not ERRORS and not WARNINGS:
-        print("✓ All clean.")
+        print("✓ All clean." if not NOTES else "✓ Clean (notes above).")
 
     return 2 if ERRORS else (1 if WARNINGS else 0)
 
