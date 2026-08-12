@@ -1,6 +1,6 @@
 # heroicons-animated — usage, API, accessibility
 
-The real component surface (verified against a registry item; still `[VERIFY]` each generated `.tsx`, the registry evolves).
+The real component surface (verified against a registry item — the registry answered HTTP 200 on `bell.json` on 2026-08-12; still `[VERIFY]` each generated `.tsx`, since the registry evolves).
 
 ## Anatomy of one icon
 

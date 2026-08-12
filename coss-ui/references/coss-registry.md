@@ -36,7 +36,7 @@ Coss is **copy-paste-and-own**: *"instead of installing a package, you get the s
 }
 ```
 
-The registry base URL `https://coss.com/ui/r/{name}.json` was confirmed live 2026-07 — ri-controlla se cambia. `init @coss/style` on a fresh project is expected to set this up for you. `[VERIFY]` the exact `components.json#registries` shape above and whether the namespace is auto-registered vs. needs the manual entry.
+The registry base URL `https://coss.com/ui/r/{name}.json` was **re-confirmed live 2026-08-12** (HTTP 200 on `button.json`) — re-check if it changes. `init @coss/style` on a fresh project is expected to set this up for you. `[VERIFY]` the exact `components.json#registries` shape above and whether the namespace is auto-registered vs. needs the manual entry.
 
 ## AI-first claim
 

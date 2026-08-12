@@ -75,7 +75,7 @@ export default getRequestConfig(async ({requestLocale}) => {
 });
 ```
 
-> ⚠️ **On Next.js 16.3+ prefer `next/root-params` — and drop `setRequestLocale` entirely.** next-intl **4.13.5** (2026-08-04) deprecates `setRequestLocale`: Next 16.3 exposes the root `[locale]` param to any server context, so you read it **once** here instead of threading a call through every layout and page. `[VERIFY]` against the installed next-intl.
+> ⚠️ **On Next.js 16.3+ prefer `next/root-params` — and drop `setRequestLocale` entirely.** next-intl **4.13.6** (verified 2026-08-12; the note below was written against 4.13.5-04) deprecates `setRequestLocale`: Next 16.3 exposes the root `[locale]` param to any server context, so you read it **once** here instead of threading a call through every layout and page. `[VERIFY]` against the installed next-intl.
 >
 > ```ts
 > // i18n/request.ts — Next 16.3+ form

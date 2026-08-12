@@ -6,6 +6,8 @@ Goal: when a project actually needs JS-driven motion (magnetic hover, shared-ele
 
 ## Idempotency check
 
+⚠️ **Motion 13 (2026-08) has exactly one breaking change**, and it does not affect a Tailwind project: it drops `@emotion/is-prop-valid` as an optional dependency "in favour of explicit injection". If the project *does* use styled-components or Emotion, styled `motion` components will start forwarding props to the DOM that used to be filtered — supply the validator via `<MotionConfig isValidProp={…}>`, or invert the composition so the styling library owns prop forwarding. `useReducedMotion` and `animateView` both survive the major (verified in `motion@13.1.0` / `framer-motion@13.1.0`).
+
 Before doing anything, check whether Motion is already wired:
 
 1. `<project-root>/package.json` contains `"motion"` (or `"framer-motion"` for legacy projects) in `dependencies`.

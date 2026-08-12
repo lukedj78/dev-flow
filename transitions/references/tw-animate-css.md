@@ -5,7 +5,7 @@ Tier-0 entry in `references/motion-library.md`. shadcn's Tailwind v4 setup alrea
 dev-flow project it is normally **already installed** — check `globals.css` before adding it.
 
 Doc-grounded against <https://github.com/Wombosvideo/tw-animate-css> (README + the shipped
-`dist/tw-animate.css`), **v1.4.0, MIT**. `[VERIFY]` identifiers against the version in your lockfile:
+`dist/tw-animate.css`), **v1.4.0, MIT** — still `latest` on 2026-08-12. `[VERIFY]` identifiers against the version in your lockfile:
 the README carries a standing warning that **v2.0.0 will ship breaking changes** (with a migration
 script + guide).
 

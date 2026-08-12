@@ -55,7 +55,7 @@ Rate-limit and auth-gate this route — it mints billable realtime sessions.
 ```tsx
 "use client";
 
-import { experimental_useRealtime } from "@ai-sdk/react"; // [VERIFY]
+import { experimental_useRealtime } from "@ai-sdk/react"; // verified @ai-sdk/react@4.0.65
 
 export function VoiceAgent() {
   const agent = experimental_useRealtime({

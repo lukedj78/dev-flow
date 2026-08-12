@@ -1,6 +1,6 @@
 # URL state — nuqs (Next.js 16 App Router)
 
-The **how**, not just "use nuqs". Doc-grounded against [nuqs.dev](https://nuqs.dev) — verified **nuqs@2.9.4** (2026-08). Canonical library for the **URL-state rung** in both `data-fetching` (rung 2) and `state-discipline` (rung 2). `[VERIFY]` every identifier against the installed version; this surface moves (`throttleMs` was **deprecated in 2.5.0** in favour of `limitUrlUpdates`, and the generic `nuqs/adapters/react-router` import is **removed in 3.0.0**).
+The **how**, not just "use nuqs". Doc-grounded against [nuqs.dev](https://nuqs.dev) — verified **nuqs@2.9.5** (2026-08-12). Canonical library for the **URL-state rung** in both `data-fetching` (rung 2) and `state-discipline` (rung 2). `[VERIFY]` every identifier against the installed version; this surface moves (`throttleMs` was **deprecated in 2.5.0** in favour of `limitUrlUpdates`, and the generic `nuqs/adapters/react-router` import is **removed in 3.0.0**).
 
 **The division of labour**: the page stays an **async Server Component** reading the `searchParams` prop. nuqs owns the **client write side** — a typed, throttled replacement for hand-rolled `router.replace(...)`. It is not a data-fetching library.
 
