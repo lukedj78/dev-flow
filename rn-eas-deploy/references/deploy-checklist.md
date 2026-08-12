@@ -18,7 +18,7 @@ Print this to the user before deploy, asking them to confirm each. Block on miss
 - [ ] `app.json#expo.runtimeVersion = { "policy": "appVersion" }` set.
 - [ ] `app.json#expo.scheme` set to a kebab-case identifier.
 - [ ] `app.json#expo.experiments.typedRoutes = true`.
-- [ ] `app.json#expo.newArchEnabled = true`.
+- [ ] ~~`app.json#expo.newArchEnabled`~~ — nothing to check: always on since SDK 55, and the key is ignored.
 - [ ] All `expo.plugins` listed: `expo-router`, `expo-notifications` (if push), `@react-native-firebase/app` (if Firebase), `expo-build-properties` (if Firebase or RevenueCat), etc.
 - [ ] `ios.bundleIdentifier` + `android.package` set to your real reverse-DNS.
 

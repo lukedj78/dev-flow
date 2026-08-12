@@ -118,7 +118,7 @@ useMutation({
 });
 ```
 
-`[VERIFY]` recent 5.x docs show an extra trailing `context` argument on every callback (`onError: (err, vars, onMutateResult, context) => context.client.setQueryData(...)`). The `useQueryClient()` form above works on all of v5 — prefer it unless you have checked the installed version.
+**Verified against `@tanstack/query-core@5.101.4`** (`build/modern` type declarations): every mutation callback takes an extra trailing `context: MutationFunctionContext` argument, and the third parameter is named `onMutateResult` (`onError: (err, vars, onMutateResult, context) => context.client.setQueryData(...)`). The `useQueryClient()` form above works on all of v5 — prefer it unless you have checked the installed version.
 
 ## Infinite / paginated lists + FlashList
 

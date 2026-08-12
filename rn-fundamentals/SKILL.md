@@ -10,7 +10,7 @@ This skill is the prerequisite read for any RN/Expo work. It sets the four non-n
 ## The 4 non-negotiables
 
 1. **Expo managed workflow** is the default. Bare workflow / `react-native init` only if there is a documented native dependency Expo cannot wrap.
-2. **Latest stable Expo SDK** `[VERIFY]` at bootstrap time, with **New Architecture ON** (`newArchEnabled: true` in `app.json` `[VERIFY]` — this key/location can move between SDKs). Hermes is the default JS engine — leave it on.
+2. **Latest stable Expo SDK** `[VERIFY]` at bootstrap time. **New Architecture is on and not optional** from SDK 55 onward — do *not* set `newArchEnabled`: it is ignored, absent from `@expo/config-types@57`'s schema, and Expo recommends removing it. Hermes is the engine.
 3. **TypeScript** is mandatory. Template `blank-typescript` `[VERIFY]`. `tsconfig.json` extends `expo/tsconfig.base` `[VERIFY]`.
 4. **npm** is the package manager (matches Expo defaults and `npx create-expo-app` `[VERIFY]`). No Yarn, no pnpm in this set.
 

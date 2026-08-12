@@ -17,7 +17,7 @@
 - **Fabric**: the new UI renderer built on JSI. Concurrent rendering capable.
 - **TurboModules**: native modules over JSI. Lazy-loaded.
 - **Hermes**: the JS engine optimized for RN (smaller bundle, faster start). Default since SDK 49.
-- **New Architecture = Fabric + TurboModules + Hermes**. Enable via `newArchEnabled: true`. Default ON for new Expo apps at the time of writing.
+- **New Architecture = Fabric + TurboModules + Hermes**. Nothing to enable: since **SDK 55 it is always on and cannot be disabled**, and `newArchEnabled` is ignored (it is not even in `@expo/config-types@57`'s schema).
 
 ## Managed vs bare (TL;DR)
 

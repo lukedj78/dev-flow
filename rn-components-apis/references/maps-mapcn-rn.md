@@ -56,7 +56,6 @@ The MapTiler build reads the key at render time and **silently falls back to the
 ```jsonc
 {
   "expo": {
-    "newArchEnabled": true,
     "ios": {
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

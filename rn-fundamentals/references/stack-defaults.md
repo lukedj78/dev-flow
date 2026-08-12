@@ -39,7 +39,7 @@ track npm `latest`, since Expo does not manage them.
 ## Engine / runtime defaults
 
 - JS engine: **Hermes** (default).
-- Architecture: **New Architecture ON** (`newArchEnabled: true` in `app.json`).
+- Architecture: **New Architecture** — always on since SDK 55, not configurable. Do not set `newArchEnabled`; it is ignored.
 - Min iOS: 15.1 (Expo SDK 55+ default).
 - Min Android: 24 (API level for Android 7.0).
 - Bundler: Metro (Expo default).
@@ -53,4 +53,4 @@ Re-run `npm view <pkg> version` once a month for each row of the table above. If
 
 - **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. NativeWind **v5 targets Tailwind v4**, but it is still on the `preview` dist-tag (`5.0.0-preview.4`) — `latest` remains **4.2.6**. Stay on Tailwind 3.4.x until v5 leaves preview.
 - **React 19** is the default for Expo SDK 55+. Some third-party RN libraries lag — when one breaks, check its issues page before downgrading React.
-- **Reanimated 4** uses the New Architecture under the hood; it requires `newArchEnabled: true` (already our default).
+- **Reanimated 4** uses the New Architecture under the hood — which on SDK 55+ is simply always there, nothing to switch on.

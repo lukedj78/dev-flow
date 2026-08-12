@@ -61,7 +61,7 @@ Create (only if absent — idempotent):
 Also patch `app.json`:
 - `expo.scheme` — set to a kebab-case of `meta.json#project_name`.
 - `expo.experiments.typedRoutes` — `true`.
-- `expo.newArchEnabled` — `true`.
+- `expo.newArchEnabled` — **do not write it.** Always on since SDK 55; the key is ignored and absent from the config schema.
 - `expo.plugins` — add `"expo-router"`.
 
 ### Step 6 — Verify (scripts/verify.ts)
