@@ -81,7 +81,7 @@ HTTP **409** and `code: "session_not_active"` (readable as `ClientError.code`) i
 rejected as a stale token.
 
 HITL: on `input.requested` / `authorization.required`, pause the composer and answer via
-`inputResponses` keyed by `requestId`. Reconnect to a live stream with the `SessionState`
+**`respond(inputResponses, …)`** keyed by `requestId` — a separate call from `send` since 0.31.0. Reconnect to a live stream with the `SessionState`
 cursor (`sessionId` + `streamIndex`) rather than restarting it.
 
 ## The chat UI itself — use the shadcn chat primitives, not hand-rolled divs

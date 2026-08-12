@@ -93,7 +93,7 @@ approval for automated turns while still prompting humans (then pair with idempo
 since skipped approval means a replayed step can re-fire the side effect).
 
 HITL surfaces as `input.requested` / `authorization.required` stream events; the run parks
-durably at `session.waiting` and resumes when the client answers via `inputResponses` keyed
+durably at `session.waiting` and resumes when the client answers via `respond(inputResponses, …)` (a separate call from `send` since 0.31.0) keyed
 by `requestId`. The built-in `ask_question` tool (`{ prompt, options?, allowFreeform? }`)
 is the other HITL path.
 

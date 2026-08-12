@@ -79,7 +79,7 @@ Event types: lifecycle (`session.started`, `turn.started/completed`, `session.wa
 
 ## Human-in-the-loop (HITL)
 
-Two ways to durably pause for a person: **approvals** (tool sign-off — `never()`/`once()`/`always()` or a custom policy `({ session, toolName, toolInput, approvedTools, callId }) => "approved" | "user-approval" | "denied" | "not-applicable"`, from `eve/tools/approval`) and **questions** (built-in `ask_question` with `prompt`/`options`/`allowFreeform`). Both emit `input.requested`, park the turn at `session.waiting` durably (seconds or days), and resume when the client answers via `inputResponses` keyed by `requestId` (or a follow-up message). For approvals, unrelated follow-up text doesn't deny — eve holds it and replays it after the approval resolves.
+Two ways to durably pause for a person: **approvals** (tool sign-off — `never()`/`once()`/`always()` or a custom policy `({ session, toolName, toolInput, approvedTools, callId }) => "approved" | "user-approval" | "denied" | "not-applicable"`, from `eve/tools/approval`) and **questions** (built-in `ask_question` with `prompt`/`options`/`allowFreeform`). Both emit `input.requested`, park the turn at `session.waiting` durably (seconds or days), and resume when the client answers via **`respond(inputResponses, …)`** keyed by `requestId` — since 0.31.0 a **separate call** from `send`, and mutually exclusive with it (for approvals a plain follow-up message like "approve" also works). For approvals, unrelated follow-up text doesn't deny — eve holds it and replays it after the approval resolves.
 
 ## Session state — `defineState` (short-term, session-scoped)
 
