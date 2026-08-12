@@ -136,7 +136,9 @@ module.exports = withNativeWind(config, { input: './global.css' });
 
 ## TypeScript path aliases
 
-`tsconfig.base.json` at root has the aliases:
+**Not a root `tsconfig.base.json`** — `packages/typescript-config/base.json` has the aliases
+(Turborepo's own pattern: a workspace package, consumed by name, not a relative-path root file —
+see `references/structure.md` for the full rationale):
 
 ```json
 {
@@ -151,7 +153,11 @@ module.exports = withNativeWind(config, { input: './global.css' });
 }
 ```
 
-Each `apps/*/tsconfig.json` and `packages/*/tsconfig.json` extends this. **DO NOT duplicate the paths in each tsconfig** — extends is enough.
+Each `apps/*/tsconfig.json` extends `@<slug>/typescript-config/<nextjs|react-native>.json` (which
+itself extends `./base.json`); `packages/*/tsconfig.json` extends `base.json` directly. **DO NOT
+duplicate the paths in each tsconfig** — extends is enough. The consuming app also needs
+`@<slug>/typescript-config` as a `devDependency` (`workspace:*`) — without it in `package.json`,
+pnpm never symlinks the preset in and the `extends` can't resolve.
 
 ## Common pitfalls
 
@@ -167,7 +173,7 @@ Each `apps/*/tsconfig.json` and `packages/*/tsconfig.json` extends this. **DO NO
 - ✅ Run `pnpm install --recursive` from root after any package change.
 - ✅ Use `pnpm turbo dev` to run web + mobile in parallel (they don't conflict — different ports).
 - ✅ Use `pnpm --filter @<slug>/<pkg> <command>` for single-workspace operations.
-- ✅ Keep `tsconfig.base.json` as the single source of paths.
+- ✅ Keep `packages/typescript-config/base.json` as the single source of paths.
 - ✅ When adding a new shared package, immediately add it to BOTH apps' package.json with `workspace:*`.
 
 ## DON'T

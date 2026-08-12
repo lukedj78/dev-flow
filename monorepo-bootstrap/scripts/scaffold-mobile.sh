@@ -125,20 +125,23 @@ node -e "
   pkg.dependencies['@${SLUG}/shared'] = 'workspace:*';
   pkg.dependencies['@${SLUG}/design'] = 'workspace:*';
   pkg.dependencies['@${SLUG}/api'] = 'workspace:*';
+  pkg.devDependencies = pkg.devDependencies || {};
+  pkg.devDependencies['@${SLUG}/typescript-config'] = 'workspace:*';
   fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\\n');
   console.log('  ✓ apps/mobile/package.json: name + workspace deps updated');
 "
 
-# Patch tsconfig
+# Patch tsconfig to extend the shared preset package (not a relative path to a
+# root tsconfig.base.json — see scaffold-web.sh for why)
 TS_CFG="apps/mobile/tsconfig.json"
 if [[ -f "$TS_CFG" ]]; then
   node -e "
     const fs = require('fs');
     const path = '$TS_CFG';
     const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
-    cfg.extends = '../../tsconfig.base.json';
+    cfg.extends = '@${SLUG}/typescript-config/react-native.json';
     fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\\n');
-    console.log('  ✓ apps/mobile/tsconfig.json now extends ../../tsconfig.base.json');
+    console.log('  ✓ apps/mobile/tsconfig.json now extends @${SLUG}/typescript-config/react-native.json');
   "
 fi
 
