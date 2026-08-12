@@ -122,7 +122,7 @@ import {
 /**
  * Welcome email — minimal reference template.
  *
- * Uses @react-email/components which renders to HTML compatible with the
+ * Uses react-email, which renders to HTML compatible with the
  * lowest-common-denominator email clients (Gmail, Outlook 2007+, Yahoo).
  * The `Tailwind` wrapper lets you use a subset of Tailwind classes that get
  * inlined at render time — DON'T expect arbitrary CSS to work.
@@ -263,7 +263,7 @@ sendEmail({
 ## Known caveats
 
 - **Domain verification is the make-or-break step.** A verified domain with DKIM+SPF lands in inbox; an unverified one goes to spam. The user *will* skip this — flag it red in the hand-off message and re-flag every time they say "my emails aren't arriving".
-- **The Tailwind subset in @react-email is small.** Flex+grid work; transforms, animations, custom vars don't. Don't try to reuse your app's `globals.css` here — email CSS is a different beast.
+- **The Tailwind subset in react-email is small.** Flex+grid work; transforms, animations, custom vars don't. Don't try to reuse your app's `globals.css` here — email CSS is a different beast.
 - **Don't render emails from a client component.** Always invoke `sendEmail()` from server actions / route handlers / cron jobs. The Resend SDK works in client code but doing so leaks `RESEND_API_KEY` into your bundle.
 - **One-off vs. fanout**: this reference handles one-off transactional sends. For batch (e.g., "notify 10k users about an outage"), use `resend.batch.send()` and respect the rate limit (10 req/s per key by default). For very high fanout, consider a queue (BullMQ + Redis, or Resend's webhook → SQS → worker pattern).
 - **Inbound email** (replies routed back to your app, e.g., for support): Resend supports it via `addresses.create` + webhooks. Out of scope for this reference — open a separate `module-add` invocation when needed.
