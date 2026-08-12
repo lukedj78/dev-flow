@@ -123,7 +123,8 @@ Disable configured reporters with `--skip-report`. Custom reporters implement `o
 |---|---|
 | `eve eval weather smoke` | run selected evals by id / directory prefix |
 | `--url https://<app>` | target a remote deployment |
-| `--tag fast` | filter to tagged evals |
+| `--tag fast` | keep evals carrying at least one listed tag |
+| `--exclude-tag slow` | drop evals carrying an excluded tag (composes with `--tag`; a `--tag` match of zero evals is a config error, exit `2` — an `--exclude-tag` that removes everything just runs nothing, successfully) |
 | `--timeout 60000` | per-eval timeout (ms) |
 | `--max-concurrency 4` | cap concurrency (default 8) |
 | `--strict` | soft threshold misses block the exit code |
@@ -134,6 +135,8 @@ Disable configured reporters with `--skip-report`. Custom reporters implement `o
 | `--skip-report` | disable configured reporters |
 
 **Exit codes:** `0` pass · `1` failures/execution errors · `2` config problems. `t.skip` → skipped, never changes the code.
+
+**Artifacts:** every run drops `.eve/evals/<timestamp>/` — a run `summary.json`, a `results.jsonl` index, and per-eval assertion results/verdicts/captured event streams/`t.log` lines. Console output stays terse on purpose; upload this directory as a CI failure artifact for the full story behind a red run.
 
 **CI gate (the one to wire in `turbo.json`):**
 

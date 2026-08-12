@@ -23,10 +23,16 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
   // separate agent dir: withEve(nextConfig, { eveRoot: "../agent" })
   ```
 
-  Options: `eveRoot` (default = Next app root), `eveBuildCommand` (default `"eve build"`),
+  Options: `eveRoot` (default = Next app root), `eveBuildCommand` (default: **generated** — runs
+  the installed eve binary from the agent root, not literally the string `"eve build"`),
   `servicePrefix` (default `"/_eve_internal/eve"`), `devServerTimeoutMs` (default `180000`).
   `eve add channel/web` (or `eve init --channel-web-nextjs`) generates a `next.config.ts`
   already wrapped with `withEve`.
+
+  **Multi-agent:** `agents?: Record<string, string | { root, buildCommand?, servicePrefix? }>`
+  mounts several named eve agents under `/eve/agents/<name>/eve/v1/*` — for one Next.js app
+  talking to more than one agent. Use `eveRoot` **or** `agents`, never both; `eveRoot` stays the
+  shorthand for the single unnamed-agent case mounted at `/eve/v1/*`.
 
 * **`useEveAgent()` — from `eve/react`** — a hook that opens a session, streams events, and
   exposes UI state. (Also `eve/vue`, `eve/svelte`; Nuxt/SvelteKit have their own config plugins.)
@@ -51,13 +57,18 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
 | `status` | `"ready" \| "submitted" \| "streaming" \| "error"` — drives the composer |
 | `error` | last `Error`, if any |
 | `events` | raw eve stream events |
-| `session` | `SessionState` cursor: `sessionId`, `streamIndex` (⚠️ **`continuationToken` removed in 0.31.0** — the `sessionId` addresses every operation) |
+| `session` | **`ClientSessionState`** cursor (not bare `SessionState` — that name isn't exported): `sessionId`, `streamIndex` (⚠️ **`continuationToken` removed in 0.31.0** — the `sessionId` addresses every operation) |
 | `send(input)` | send text or a full turn payload |
+| `respond(inputResponses)` | answer pending HITL input requests — a distinct returned helper, not folded into `send` |
 | `stop()` | abort the active request |
 | `reset()` | clear events/data/errors + the local session cursor |
 
-Useful options: `reducer`, `initialSession`, `initialEvents`, `host`, `auth`, `prepareSend`,
-`onEvent`/`onError`/`onFinish`, `optimistic` (default `true`), `maxReconnectAttempts` (default `3`).
+Useful options: `reducer`, `initialSession`, `initialEvents`, `host` (default `""`), `auth`, `prepareSend`,
+`onEvent`/`onError`/`onFinish`/`onSessionChange`, `optimistic` (default `true`). **`maxReconnectAttempts`
+is not a real option** — checked the type declarations, no such prop exists; do not cite it.
+
+**Multi-agent:** `agent?: string` targets a named agent mounted by `withEve({ agents })` — same-origin
+routes under `/eve/agents/<name>/eve/v1/...`. Do not combine `agent` with `host`.
 
 ### Env vars (production)
 
@@ -81,7 +92,7 @@ HTTP **409** and `code: "session_not_active"` (readable as `ClientError.code`) i
 rejected as a stale token.
 
 HITL: on `input.requested` / `authorization.required`, pause the composer and answer via
-**`respond(inputResponses, …)`** keyed by `requestId` — a separate call from `send` since 0.31.0. Reconnect to a live stream with the `SessionState`
+**`respond(inputResponses, …)`** keyed by `requestId` — a separate call from `send` since 0.31.0. Reconnect to a live stream with the `ClientSessionState`
 cursor (`sessionId` + `streamIndex`) rather than restarting it.
 
 ## The chat UI itself — use the shadcn chat primitives, not hand-rolled divs
@@ -186,7 +197,7 @@ tenant/user from it. Identity stays `ctx.session.auth.current`.
 
 ## Resumable chats — persist the event log, restore with `initialEvents`
 
-`useEveAgent` exposes `session` (the `SessionState` cursor) and `events` (the raw stream log).
+`useEveAgent` exposes `session` (the `ClientSessionState` cursor) and `events` (the raw stream log).
 To make a conversation survive a reload with **no backend**, persist `events` (keyed by a chat id
 in the URL, e.g. `/chat/<id>`) and rehydrate via `initialSession` / `initialEvents`:
 
@@ -237,9 +248,10 @@ HITL answers go through a **separate** `respond(inputResponses, options)`; `mess
 ## Shared types (`packages/types`)
 
 Re-export eve's own types so the wire contract is defined once — do **not** redefine them.
-The relevant exports include `SessionState`, the stream-event type (`HandleMessageStreamEvent`),
-and `EveMessage` (AI-SDK `UIMessage` convention). Verify the exact export surface against the
-installed eve version.
+The relevant exports include **`ClientSessionState`** (not bare `SessionState`), the stream-event
+type **`MessageStreamEvent`** (not `HandleMessageStreamEvent`), and `EveMessage` (AI-SDK
+`UIMessage` convention — verified, this one export name was already right). Verify the exact
+export surface against the installed eve version.
 
 ## Boundary smells to avoid
 
