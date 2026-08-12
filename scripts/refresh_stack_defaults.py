@@ -59,20 +59,42 @@ PINNED_BELOW = {
 # So: for packages Expo bundles, the SDK is the source of truth. npm `latest`
 # still governs the rest (typescript, zustand, @tanstack/react-query…), which
 # Expo does not manage.
-EXPO_BUNDLED_URL = "https://unpkg.com/expo@{version}/bundledNativeModules.json"
-
-
+#
+# Fetched via `npm pack` (the registry tarball), NOT unpkg.com: the manifest
+# ships inside the package itself, and unpkg is a third-party CDN that some
+# network policies block outright (it failed silently here — a 403 on the
+# CONNECT tunnel — which used to make this function return {} and the caller
+# fall back to plain `npm view` for EVERY package, Expo-managed or not. That
+# fallback is the exact bug this script exists to prevent: silently
+# recommending react-native-gesture-handler ^3.1.0 against an SDK that bundles
+# ~2.32.0. `npm pack` hits registry.npmjs.org, which every environment this
+# script has run in so far allows.
 def expo_bundled(expo_version: str) -> dict[str, str]:
     """{package: version-range} that `expo install` resolves for this SDK."""
     import json
-    import urllib.request
-    url = EXPO_BUNDLED_URL.format(version=expo_version)
-    try:
-        with urllib.request.urlopen(url, timeout=20) as r:
-            return json.load(r)
-    except Exception as e:  # network, 404 on a bad version, malformed JSON
-        sys.stderr.write(f"! could not read {url}: {e}\n")
-        return {}
+    import tarfile
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        result = subprocess.run(
+            ["npm", "pack", f"expo@{expo_version}", "--silent", "--pack-destination", tmp],
+            capture_output=True, text=True, timeout=60,
+        )
+        if result.returncode != 0:
+            sys.stderr.write(f"! npm pack expo@{expo_version} failed: {result.stderr.strip()}\n")
+            return {}
+        tgz_name = result.stdout.strip().splitlines()[-1].strip()
+        try:
+            with tarfile.open(Path(tmp) / tgz_name) as tf:
+                member = tf.extractfile("package/bundledNativeModules.json")
+                if member is None:
+                    sys.stderr.write(f"! {tgz_name} has no bundledNativeModules.json\n")
+                    return {}
+                return json.load(member)
+        except (KeyError, OSError, json.JSONDecodeError) as e:
+            sys.stderr.write(f"! could not read bundledNativeModules.json from {tgz_name}: {e}\n")
+            return {}
+
 
 TARGETS = [
     "rn-fundamentals/references/stack-defaults.md",
@@ -133,7 +155,15 @@ def main() -> int:
     if bundled:
         print(f"  authority for Expo-managed packages: expo@{expo_latest} bundledNativeModules\n")
     else:
-        print("  ! bundledNativeModules unavailable — falling back to npm for every package\n")
+        # Do NOT fall back to `npm view` for Expo-managed packages here — that
+        # fallback used to run silently and recommend exactly the wrong-major
+        # drift this script exists to catch (react-native-gesture-handler
+        # ^3.1.0 against an SDK that bundles ~2.32.0). A stale report is worse
+        # than no report.
+        print("ERROR: could not read expo's bundledNativeModules.json — refusing to "
+              "guess Expo-managed versions from plain npm `latest`. Re-run when "
+              "the registry is reachable.")
+        return 1
 
     print(f"{'PACKAGE':<35} {'TARGET':>15}  SOURCE")
     print(f"{'-' * 35} {'-' * 15:>15}  ------")
