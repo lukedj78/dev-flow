@@ -120,6 +120,54 @@ vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` fr
 `@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
 Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs. The **eve integrations directory** (<https://eve.dev/integrations>) is the full channel catalog — Google Chat, WhatsApp, X, Messenger, Resend/email, and provider-official adapters beyond the CLI kinds.
 
+#### Linear concretely — **Agent Sessions**, not comments
+
+Linear gives agents a **native surface**: an *Agent Session* is a dedicated workspace where a user
+delegates work, instead of a comment thread you have to parse. Credentials go through Vercel Connect:
+
+```ts
+import { connectLinearCredentials } from "@vercel/connect/eve";
+import { linearChannel } from "eve/channels/linear";
+
+export default linearChannel({
+  credentials: connectLinearCredentials("linear/my-agent"),
+});
+```
+
+(Self-managed OAuth is the alternative: `{ accessToken: LINEAR_AGENT_ACCESS_TOKEN, webhookSecret: LINEAR_WEBHOOK_SECRET }`.)
+
+**`onAgentSession(ctx, event)`** fires on Linear's `AgentSessionEvent` webhooks (`created` / `prompted`).
+Its **return value is the admission decision** — this is the hook's whole point:
+
+```ts
+onAgentSession: (_ctx, event) => {
+  if (event.agentSession.issue?.identifier?.startsWith("OPS-") !== true) return null;
+  return {
+    auth: defaultLinearAuth(event),
+    context: ["Only make reversible changes unless the issue says otherwise."],
+  };
+}
+```
+
+| Return | Effect |
+|---|---|
+| `{ auth: defaultLinearAuth(event) }` | dispatch the agent for this session |
+| `+ context: string[]` | same, with extra per-session instructions |
+| **`null`** | **acknowledge the webhook without activating the agent** |
+
+That `null` is the scoping tool: filter by `event.agentSession.issue?.identifier` and the agent simply
+does not run outside its remit — cheaper and safer than letting it start and then refuse. Note the
+contrast with canonical `onMessage` hooks, which **since 0.31.0 can no longer drop an authorized
+delivery by returning `null`** (§Session API): here `null` still means "don't run".
+
+The channel posts **five native activity types** — `thought` (ephemeral reasoning), `action` (tool call),
+**`elicitation` (human-in-the-loop input requests)**, `response` (the durable final output), and `error`.
+So HITL on Linear renders as a first-class Linear activity, not as chat text you format yourself.
+
+Webhook security is HMAC over the `Linear-Signature` header plus a **timestamp check, 60 s by default**
+as Linear recommends. Retries can arrive later than that — widen it with **`maxSkewMs`** rather than
+disabling verification (eve 0.31.3 added this knob precisely for retry deliveries).
+
 Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
 
 ```ts

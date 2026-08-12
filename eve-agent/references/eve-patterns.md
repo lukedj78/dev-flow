@@ -89,7 +89,12 @@ async function decideTenantApproval(surface: Surface, ctx: ApprovalContext): Pro
 
 ## 3. Multi-tenant memory — durable, user-scoped, composed
 
-eve has **no built-in tenant memory**. Compose it from **auth + dynamic instructions + tools + an external store**. Do **not** use `defineState` (session-durable, not cross-session).
+eve has **no built-in tenant memory**. Compose it from **auth + dynamic instructions + tools + an external store**. Do **not** use `defineState` — the docs are explicit that it "holds conversation-scoped working memory that lives and dies with the session", and that anything needing multi-session persistence must use an external store.
+
+**For the single-user case, Vercel Blob is enough** — no database to provision, and it matches the storage default in the contract. Vercel Labs' [`kody-eve-template`](https://github.com/vercel-labs/kody-eve-template) does exactly this (`agent/lib/user-preferences.ts` + `get`/`save`/`clear_user_preferences` tools). Two details from it that generalise to *any* store here, Blob or Postgres:
+
+- **Guard the key, not just the query.** The key is built from the principal, and a shared helper validates it against a **reserved-prefix list** before touching storage. Key construction is where these stores actually leak: a preference name taken from model input and concatenated into a path is a namespace escape, and no `WHERE tenant_id = ?` protects you from it.
+- **Gate `clear`, not `save`.** Writing a preference is recoverable; wiping someone's preferences is not. Kody puts approval on the clear tool only — the same asymmetry as `forget` below.
 
 ```
 agent/

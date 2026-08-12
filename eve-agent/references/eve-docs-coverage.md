@@ -45,7 +45,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/schedules` | `eve-capabilities.md` §Schedule + `eve-patterns.md` §4 (dynamic) | ✅ |
 | `/docs/extensions` | `eve-capabilities.md` §Extension | ✅ |
 | `/docs/guides/hooks` | `eve-capabilities.md` §Hook (+ observability-sink pattern) | ✅ |
-| `/docs/guides/state` | `eve-concepts.md` §State (`defineState`) | ✅ |
+| `/docs/guides/state` | `eve-concepts.md` §State (`defineState` — session-scoped) + `eve-patterns.md` §3 (the external store it explicitly defers to) | ✅ |
 
 ## Dynamic & advanced guides
 | Page | Covered in | |
