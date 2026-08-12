@@ -51,7 +51,7 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
 | `status` | `"ready" \| "submitted" \| "streaming" \| "error"` — drives the composer |
 | `error` | last `Error`, if any |
 | `events` | raw eve stream events |
-| `session` | `SessionState` cursor: `sessionId`, `continuationToken`, `streamIndex` |
+| `session` | `SessionState` cursor: `sessionId`, `streamIndex` (⚠️ **`continuationToken` removed in 0.31.0** — the `sessionId` addresses every operation) |
 | `send(input)` | send text or a full turn payload |
 | `stop()` | abort the active request |
 | `reset()` | clear events/data/errors + the local session cursor |
@@ -72,9 +72,13 @@ Do **not** introduce an ad-hoc `AGENT_BASE_URL` + manual `fetch` — `withEve()`
 
 eve has no durable inbound queue. Send one turn per session and wait for the turn to settle
 (`status === "ready"`, i.e. the `session.waiting` stream event) before the next `send`; if
-the UI can burst, hold your own per-session queue. A session has one active
-`continuationToken` at a time — a stale token is rejected. For raw `eve/client` use,
-`await response.result()` before the next `session.send()`.
+the UI can burst, hold your own per-session queue. For raw `eve/client` use,
+`await response.result()` before the next `send()` on the same handle.
+
+⚠️ **0.31.0 replaced continuation tokens with fixed, ID-addressed handles.** There is no token
+to keep current and none to go stale; a follow-up on an inactive session now fails loudly with
+HTTP **409** and `code: "session_not_active"` (readable as `ClientError.code`) instead of being
+rejected as a stale token.
 
 HITL: on `input.requested` / `authorization.required`, pause the composer and answer via
 `inputResponses` keyed by `requestId`. Reconnect to a live stream with the `SessionState`
@@ -214,13 +218,21 @@ Gotchas worldcup-eve hit (encode these):
 `withEve()` proxies to eve's stable HTTP API. You normally never call it directly from the
 Next app, but it is the contract for non-Next consumers and `curl` verification:
 
-* `POST /eve/v1/session` — start a session (body has `continuationToken`; header `x-eve-session-id`).
+* `POST /eve/v1/session` — start a session (`sessionId` in the body **and** the `x-eve-session-id` header).
 * `POST /eve/v1/session/:sessionId` — continue (next turn).
 * `GET  /eve/v1/session/:sessionId/stream` — stream events as **NDJSON** (`?startIndex=<n>` to replay).
+* `POST /eve/v1/session/:sessionId/{clear,compact,reset}` — session control (0.31.0 moved these off the old token-body routes).
 * `GET  /eve/v1/info` — agent inspection · `GET /eve/v1/health` — public health check.
 
-The typed client is `Client` from `eve/client` (`client.session().send(...)`, `result()`,
-async-iterate for live events).
+Accepted asynchronous work returns **202**; a follow-up on an inactive session returns **409** with
+`code: "session_not_active"`.
+
+The typed client is `Client` from `eve/client`. ⚠️ **0.31.0 renamed this surface**: `client.session(...)`
+is gone. Start one with `client.sessions.create(input)`, re-attach to a known id with
+`client.sessions.attach(sessionId)`, then `send(message, options)` — **positional**, not an options bag.
+HITL answers go through a **separate** `respond(inputResponses, options)`; `message` and
+`inputResponses` are mutually exclusive, so you can no longer smuggle a reply inside a send.
+`result()` and async-iteration for live events are unchanged. `[VERIFY]` against the installed version.
 
 ## Shared types (`packages/types`)
 

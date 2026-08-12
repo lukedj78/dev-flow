@@ -66,11 +66,14 @@ Three nested levels: **session** (durable, days/weeks) → **turn** (one user me
 
 ## Sessions, runs & streaming (HTTP contract)
 
-Two handles: **`continuationToken`** (channel-owned resume handle — send a follow-up to the same conversation; only one active per session, stale ones rejected) and **`sessionId`/`runId`** (runtime-owned stream handle — attach to the event stream). Lifecycle:
-- `POST /eve/v1/session` (message) → `sessionId` + initial `continuationToken`.
-- `GET /eve/v1/session/<id>/stream` → **NDJSON** event stream; reconnect from any point with `startIndex`.
-- `POST /eve/v1/session/<id>` (updated `continuationToken` + message) → continue.
+**One handle: the `sessionId`.** ⚠️ 0.31.0 replaced the continuation-token model with fixed, ID-addressed handles — there is no token to keep current and none to go stale. Lifecycle:
+- `POST /eve/v1/session` (message) → `sessionId`, in the body **and** the `x-eve-session-id` header.
+- `GET /eve/v1/session/<id>/stream` → **NDJSON** event stream; reconnect from any point with `startIndex` (negative reads from the tail, `-1` = latest).
+- `POST /eve/v1/session/<id>` (message) → continue.
+- `POST /eve/v1/session/<id>/{clear,compact,reset}` → session control.
 - `GET /eve/v1/health` — public health route.
+
+Accepted async work returns **202**; a follow-up on an inactive session returns **409** with `code: "session_not_active"`. **"Continuation" survives in one place only** — a *custom channel* still owns a channel-local continuation **address** (`from(address)`, `channel.continuation?.rekey(rawToken)`); the framework derives nothing for you there. That is a channel address, not a client session cursor: don't conflate the two.
 
 Event types: lifecycle (`session.started`, `turn.started/completed`, `session.waiting`), content (`message.received/appended/completed`, `reasoning.appended` — incremental), processing (`step.started/completed`, `actions.requested`, `action.result`), control (`turn.cancelled/failed`, `input.requested`), delegation (`subagent.called/completed`). The web app never hand-rolls this — `withEve()` + `useEveAgent()` own it (see `eve-web-integration.md`).
 

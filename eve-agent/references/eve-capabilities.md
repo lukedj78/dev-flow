@@ -144,7 +144,7 @@ localhost — deploy first, then smoke-test with `eve dev <url>`.
 `slackChannel({ … })` options in `agent/channels/slack.ts`:
 - **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention), `ctx.isSubscribed()` (the thread already owns an active eve session), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
 - **`onAppMention(ctx)`** / **`onDirectMessage(ctx)`** — the mention- and DM-specific hooks. Don't hand-roll that gating inside `onMessage`: eve already routes it. (`onInteraction(ctx)` handles interactive components.) All the message hooks receive the same `ctx` helpers and the session controls below.
-- **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). Inside it, **`ctx.receive(...)`** starts an agent turn and can **fan one event out to multiple targets** (e.g. greet every new member).
+- **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). It can still **fan one event out to multiple targets** (e.g. greet every new member), but ⚠️ **`ctx.receive` was removed in 0.31.0**: for generic events the target is now passed **in each operation's options** — `ctx.send(message, { target, auth })`. `resolveActiveSession` is gone too; use `ctx.resolveSession(address)`.
 - **Session controls** (thread-bound, callable from the hooks) — ⚠️ **the two take different options**: **`ctx.cancel({ turnId? })`** stops the current turn but **keeps the session** (for mid-turn corrections; new input queues onto the same session) — from `onEvent` it needs the thread explicitly: `ctx.cancel({ channelId, threadTs, turnId? })`. **`ctx.reset({ reason? })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). `reason` belongs to `reset` only. These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
 
 A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
@@ -183,6 +183,51 @@ across sessions**, and in-conversation error reporting. Adapter creds go in env 
 `@chat-adapter/state-memory` is the default (swap for a durable store in production). Use this
 for reach across chat platforms; keep the default HTTP channel (`agent/channels/eve.ts`) for
 the Next.js web app via `withEve()`/`useEveAgent()`.
+
+## Session API — fixed, ID-addressed handles (0.31.0)
+
+⚠️ **eve 0.31.0 was a breaking migration of this whole surface.** Continuation tokens are gone from the
+client: a session is addressed by its **`sessionId`** and nothing else. Code written against 0.30.x will
+not compile or will fail at runtime. `[VERIFY]` against the installed version — eve is beta and this
+moved twice in a month.
+
+**Inside a channel**, three entry points and one cross-channel handoff:
+
+| Call | What it gives you |
+|---|---|
+| `from(address)` | operations bound to a **channel-local continuation address**; the first `send()` creates a session if the address is unowned |
+| `resolveSession(address)` | a fixed `Session` handle pinned to whichever session **currently owns** that address (a snapshot, not a live pointer) |
+| `attachSession(sessionId)` | an **I/O-free** handle pinned to one durable id — no lookup; the first operation reports whether the id is still active |
+| `to(channel, target)` | hand work to **another authored channel**; chain `.send(message, options)` |
+
+```ts
+const source = from(threadId);
+const session = await source.send("Hello", { auth });   // positional message, then options
+await source.respond(inputResponses, { auth });          // HITL answers — a SEPARATE call
+await source.cancel({ turnId });
+await source.reset({ reason: "Start over" });
+
+const s = attachSession(sessionId);
+await s.getEventStream({ startIndex: 12 });
+```
+
+**Four traps in the migration:**
+
+1. **`send` is positional.** `send(message, options)` — not one options bag. And `message` and
+   `inputResponses` are **mutually exclusive**: a HITL reply goes through `respond()`, so you can no
+   longer smuggle one inside a send.
+2. **`receive()`, `ctx.receive` and `resolveActiveSession` are removed.** Handoff is
+   `to(channel, target).send(...)`; for generic Slack events the target rides **in each operation's
+   options**. Channel event identity is now `ctx.session.id`.
+3. **`onMessage` can no longer veto by returning `null`.** A canonical eve `onMessage` hook cannot drop
+   an otherwise authorized delivery — if you relied on that for authorization, it is now a hole. Move the
+   check into auth.
+4. **"Continuation" still exists, but only as a channel address.** A custom channel owns its own token
+   format (`channel.continuation?.rekey(rawToken)`) — "the framework derives nothing for you". That is
+   not the old client session cursor; don't reintroduce one.
+
+Client-side the same shape applies: `client.sessions.create(input)` and
+`client.sessions.attach(sessionId)` replace `client.session(...)`. See `eve-web-integration.md`.
 
 ## Connection — `agent/connections/<service>.ts`
 
@@ -224,14 +269,14 @@ Nitro task runner under `eve start`.
 
 Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard way:
 
+⚠️ **`receive()` was removed in eve 0.31.0** — see §Session API above. Schedules now hand off with
+`to(channel, target).send(message, { auth })`.
+
 * A markdown schedule runs as the bare app principal — in a multi-tenant agent whose tools
   require a tenant id, it can't call anything. Use the handler form: enumerate tenants in
-  code, then `receive(channel, { message, target, auth })` one session per tenant with the
+  code, then `to(channel, target).send(message, { auth })` one session per tenant with the
   tenant id stamped onto `auth.attributes` (eve's "dynamic scheduling" pattern — full recipe, incl. the atomic-lease `ScheduleStore` and at-least-once idempotency, in `references/eve-patterns.md` §4).
-* **The default eve HTTP channel does not implement `receive()`** — it cannot be a handoff
-  target. Author a minimal internal channel (`defineChannel` with a `receive` hook that
-  calls `send(message, { auth, mode: "task", continuationToken: <fresh unique> })`).
-* **Give that channel at least one (inert) route.** `receive()` resolves its target by
+* **Give the handoff channel at least one (inert) route.** The target is resolved by
   module reference, falling back to a route fingerprint — and a channel with `routes: []`
   has no fingerprint, so cross-bundle module duplication makes it unresolvable at runtime
   ("channel is not registered in this agent's channels/").

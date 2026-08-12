@@ -118,8 +118,8 @@ must map `message.files` into the turn payload yourself — there is no automati
 
 ## Non-obvious gotchas
 
-- **Gate on `status === "ready"`.** eve rejects a second `send` while a turn is live (a stale
-  `continuationToken`). `PromptInputSubmit` renders a stop affordance from `status` but does **not**
+- **Gate on `status === "ready"`.** eve rejects a second `send` while a turn is live (since 0.31.0
+  that surfaces as HTTP **409** / `code: "session_not_active"`, not a stale-token error). `PromptInputSubmit` renders a stop affordance from `status` but does **not**
   block the submit — do it in your handler, as above, and wire the stop button to `agent.stop()`.
 - **HITL breaks the kit's assumptions.** eve's `input.requested` / `authorization.required` events have
   no `useChat` analogue. Render them from `agent.events` (AI Elements' `Confirmation` component is the

@@ -149,11 +149,12 @@ Static `defineSchedule` files are discovered at build time. For schedules the *a
 import { defineSchedule } from "eve/schedules";
 export default defineSchedule({
   cron: "* * * * *",
-  async run({ receive, waitUntil }) {
+  async run({ to, waitUntil }) {
     const jobs = await scheduleStore.claimDue({ now: new Date(), limit: 25, leaseForMs: 5 * 60_000 });
     for (const job of jobs) {
-      await receive(slack, { message: `Run dynamic schedule ${job.id}.`,
-        target: { channelId: job.channelId }, auth: /* tenant context stamped on attributes */ });
+      // 0.31.0: `receive()` is gone — hand off with to(channel, target).send(message, options)
+      await to(slack, { channelId: job.channelId })
+        .send(`Run dynamic schedule ${job.id}.`, { auth: /* tenant ctx on attributes */ });
       // complete()/release() per job outcome
     }
   },

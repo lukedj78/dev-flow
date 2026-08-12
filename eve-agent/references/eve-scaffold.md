@@ -69,7 +69,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
 ## 4. Set the channel auth (fail closed)
 
-* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback is `[vercelOidc(), localDev(), placeholderAuth()]` (0.30.0) and does not admit browser users in production. ⚠️ **0.30.0 security fix**: `localDev()` now grants local access based on the *deployment*, not the request `Host` — a spoofed Host could previously obtain local-dev access on a self-hosted deploy; the exported `isLoopbackRequest` helper was removed. Upgrade if you self-host. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. Auth helpers are first-class and documented (`jwtHmac`, `jwtEcdsa`, `httpBasic`, `oidc`, plus `ForbiddenError`/`UnauthenticatedError` and `withAuthChallenges`) — see the eve docs' *Auth and route protection* guide rather than guessing. `[VERIFY]` against the installed version.
+* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback is `[vercelOidc(), localDev(), placeholderAuth()]` (verified 0.30.0; current npm `latest` is **0.31.3**) and does not admit browser users in production. ⚠️ **0.30.0 security fix**: `localDev()` now grants local access based on the *deployment*, not the request `Host` — a spoofed Host could previously obtain local-dev access on a self-hosted deploy; the exported `isLoopbackRequest` helper was removed. Upgrade if you self-host. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. Auth helpers are first-class and documented (`jwtHmac`, `jwtEcdsa`, `httpBasic`, `oidc`, plus `ForbiddenError`/`UnauthenticatedError` and `withAuthChallenges`) — see the eve docs' *Auth and route protection* guide rather than guessing. `[VERIFY]` against the installed version.
 
 ## 5. Wire into the monorepo
 
@@ -113,7 +113,7 @@ pnpm --filter agent eval                      # runs `eve eval`
 Then prove the HTTP API works end-to-end. Start the agent headless (`eve dev --no-ui`), open a session and read the stream:
 
 ```bash
-# POST /eve/v1/session  -> body has continuationToken, header x-eve-session-id
+# POST /eve/v1/session  -> sessionId in body + x-eve-session-id header (no continuation token since 0.31.0)
 # GET  /eve/v1/session/:sessionId/stream  -> NDJSON (application/x-ndjson)
 ```
 

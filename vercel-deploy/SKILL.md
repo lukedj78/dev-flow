@@ -77,6 +77,23 @@ Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf) and `
 
 No gate blocks a deploy. Report and let the user decide — that is the existing policy for all three, and this skill does not tighten it.
 
+#### Also check the Next.js security floor
+
+The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines (**16.2.x Active LTS**, **15.5.x Maintenance LTS**).
+
+```bash
+pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"
+```
+
+Compare against the floor in `references/contracts.md` § `nextjs_version` (at the time of writing: **`16.2.11`**, **`15.5.21`**, or **`≥16.3.0`**). Below it, say so in one line naming the CVEs that apply to *this* project — the July set includes a DoS reachable through **any** Server Action and an SSRF through request-derived `rewrites()` destinations, so most projects we scaffold are in scope.
+
+Two things not to get wrong:
+
+- **A patch bump is not a version bump.** A project on `16.2.x` is on Active LTS and is *supported*. Move it to the current **patch**, not to 16.3 — proposing a minor upgrade as if it were the security fix is how a deploy gets postponed for the wrong reason.
+- **Hosting on Vercel is not a patch.** Vercel has deployed global WAF rules for past Next.js CVEs, and said in the same breath that they "should not be considered a complete substitute for upgrading". Report the floor for Vercel-hosted and self-hosted projects alike.
+
+Then re-check the floor itself: it moves monthly, so `[VERIFY]` it against <https://nextjs.org/blog> before quoting a number. Same rule as every gate here — report, don't block.
+
 ### Step 3 — Reproduce the platform build locally
 
 ```bash

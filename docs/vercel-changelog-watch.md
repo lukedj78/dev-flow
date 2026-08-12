@@ -24,17 +24,29 @@ post can announce a preview that has since gone stable (see the 16.3 row).
 
 ## How to run a watch pass
 
+0. **Always check <https://nextjs.org/blog> first, for the security release.** Since 2026-07-13 Next.js publishes a **pre-announced security release roughly monthly**, each naming the highest anticipated severity. This is the one item on this page with a deadline: a missed feature is a missed feature, a missed patch is a live CVE. Record the current floor in `dev-flow/references/contracts.md` § `nextjs_version` and re-vendor. Two maintained lines — **16.2.x Active LTS**, **15.5.x Maintenance LTS** — so "upgrade to latest" is the wrong instruction: move to the current *patch* of the line the project is on.
 1. Fetch <https://vercel.com/changelog> — read the newest entries since the last dated pass below.
+
+   ⚠️ The changelog renders dates as "11 August" with **no year**, and a summarising fetch will happily invent one — a pass in this repo got August 2026 entries returned as 2024. Cross-check the year against a second source before dating a log row.
 2. For each entry, classify: **relevant** (touches a skill above) vs **not relevant** (a model id, an unrelated product).
 3. For relevant items, edit the affected skill (mark new/unstable API `[VERIFY]` against the installed docs — eve is beta), and add a row to the log below with status `applied`.
 4. Update the "Last pass" date. For anything ambiguous or out of scope, ask the user.
 
-**Last pass: 2026-08-04** (changelog through 2026-07-31; also re-verified `eve.dev/docs/getting-started`+`/installation` against the skill). Previous: 2026-07-30, 2026-07-23.
+**Last pass: 2026-08-11** (Next.js blog + Vercel changelog through ~2026-08-11). Previous: 2026-08-04, 2026-07-30, 2026-07-23.
 
 ## Log
 
 | Date | Changelog item | Relevant to | Status |
 |---|---|---|---|
+| 2026-07 | **Next.js security release program** — pre-announced monthly patches; two maintained lines, **16.2.x Active LTS** / **15.5.x Maintenance LTS** | contract (`nextjs_version`), `vercel-deploy`, `compliance-audit` | ✅ applied — floor in the contract; `vercel-deploy` Step 2 checks the installed version; `compliance-audit` frames it as Art. 32 and defers |
+| 2026-07-20 | **9 CVEs** (4 high, 5 medium) fixed in **16.2.11** / **15.5.21** — DoS via any Server Action, middleware bypass on Turbopack + single locale, SSRF in `rewrites()`/Server Actions, `use cache` endpoint-ID disclosure, `fetch` cache confusion | same, plus `data-fetching` | ✅ applied — the CVEs touching what we prescribe are named in the contract, incl. that golden rule ② (≥2 locales) removes exposure to CVE-2026-64642 |
+| 2026-04 | **CVE-2026-23869** — Vercel deployed global WAF rules, stating they are "not a complete substitute for upgrading" | `vercel-deploy`, `compliance-audit` | ✅ applied — "a platform mitigation is not a patch" is written into both |
+| 2026-08-10 | CDN stops stripping the **`Server-Timing`** response header — it passes through to the client | `vercel-doctor` (perf debugging) | ⏳ noted — `[VERIFY]` before writing a recipe |
+| 2026-08-10 | **Vercel Sandbox** now runs on **Vercel Managed Images** (versioned open-source base images: Node.js, Python, coding agents) | `eve-agent` (Sandbox) | ⏳ noted — `[VERIFY]` image names/pinning against eve docs first |
+| 2026-08-10 | **Bun runtime** for Vercel Functions accepts **`Bun.serve`** as entrypoint, with native WebSocket handlers | `vercel-deploy`, `module-add deploy` | ⏳ noted — not our default runtime |
+| 2026-08-11 | **`vercel connect create`** completes connector setup in the terminal for 100+ connectors | `module-add` | ⏳ noted |
+| 2026-08-07 | **Audit Log Drains** support Datadog / Splunk / Panther (Enterprise), replacing Custom SIEM Log Streaming | `compliance-audit` (audit trail) | ⏳ noted — Enterprise-only, relevant to the audit-hook recipe |
+| 2026-08-04 | Next.js 16.3 on Vercel: leaner prefetching, immutable static assets, instant navigations | `data-fetching` §Instant Navigations | ✅ already covered by the 16.3 pass |
 | 2026-08-04 | **next-intl 4.13.5 deprecates `setRequestLocale`** — Next 16.3's `next/root-params` exposes the root `[locale]` param to any server context, so the locale is read **once** in `i18n/request.ts` (`await rootParams.locale()`) instead of calling `setRequestLocale` in every layout/page. Caveat: root-params does **not** work in Route Handlers / Server Actions. | `design-md-to-app` (golden rule 2 how-to) | ✅ **applied** — `i18n-next-intl.md` now branches: 16.3+ root-params (preferred) vs 16.0–16.2 `setRequestLocale`; the "call it in every layout" rule is scoped to the older versions. |
 | 2026-08-04 | **Motion 12.41+ graduated `animateView`** out of Motion+ — first-party choreography over the browser View Transitions (`.add()`, `.new()/.old()`, `.layout()`, `.group()`, `.crop()`, `.class()`) | `transitions` | ✅ **applied** — added on the Tier-2/Tier-3 seam in `motion-library.md`: reach for it when plain `startViewTransition` can't express the pairing, before escalating to Motion `layout`/`layoutId`. |
 | 2026-08-04 | **React 19.2**: `useEffectEvent` and `<Activity>` are **stable** (not canary) | `state-discipline` | ✅ **applied** — three `[VERIFY] stabilization version` hedges resolved to hard statements (with the 19.0/19.1 caveat). |

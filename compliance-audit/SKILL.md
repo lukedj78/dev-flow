@@ -26,6 +26,8 @@ Full checklist + article mapping + remediation recipes in `references/gdpr-ai-ac
 | **R9** | Special-category data unguarded | Art. 9 |
 | **R10** | Memory/personalization not screened for manipulation | AI Act Art. 5 |
 
+> **Art. 32 also covers keeping the software patched — that part lives in `vercel-deploy`.** "Security of processing" is not only R7 (PII in logs): running a framework version with known, published CVEs is the same article. Since 2026-07 Next.js ships pre-announced monthly security releases with two maintained lines (16.2.x Active LTS, 15.5.x Maintenance LTS), and the deploy gate checks the project against that floor — see `references/contracts.md` § `nextjs_version`. Don't duplicate the check here; when auditing a web project, **read `meta.json#history` for a recent `vercel-deploy` run** and say so if the floor has never been verified. Note for the report: a platform WAF rule is a mitigation, not a patch — Vercel says so itself.
+
 ## Read state, then pick a mode
 
 1. Read `.workflow/meta.json` (`stack.framework`, `auth`, `db`, `agent`, `deploy`, …). If none, still run — infer the stack from the codebase and tell the user.
