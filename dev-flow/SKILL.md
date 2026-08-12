@@ -148,7 +148,25 @@ When transitioning out of `prd_drafted` and into scaffolding, the user has to ch
 
 Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
 
-**Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`; this adds an `apps/agent` (eve) surface and promotes the project to a monorepo. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
+**Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
+
+### Topology policy — app first, monorepo next, agent-only for the rare case
+
+When an agent is in scope, **three shapes are possible and the project decides which**. Propose in this order, and say which one you are proposing and why:
+
+| Shape | `stack` | Choose it when |
+|---|---|---|
+| **1 · Single web app** *(default)* | `framework: "next"`, `agent: "eve"` (agent inside the app) | The product **is** the interface. One deploy, no workspace overhead — the ordinary case, and where a frontend developer does their actual work. |
+| **2 · Monorepo** | `framework: "monorepo"`, `agent: "eve"` → `apps/web` + `apps/agent` | The agent has a life of its own — its own deploy cadence, channels beyond the web UI, or a second consumer (mobile, a second app) that must share types/tokens. |
+| **3 · Agent only** | `agent: "eve"`, no web app (see `references/contracts.md` § `agent`) | Every surface is somewhere else — Slack, email, GitHub, Linear — and **nothing needs rendering**. Vercel Labs' `kody-eve-template` is this shape. |
+
+**The house default is 1, then 2.** Reach for 3 only when the product genuinely has no UI, not because the agent feels architecturally tidy on its own.
+
+**Don't fossilise the choice** — it follows the product, not a habit. Two directions matter:
+- A single app **can become** a monorepo later: that is `monorepo-bootstrap`'s job, and moving `agent/` into `apps/agent/` is a directory move, not a rewrite. Starting at 1 does not cost you 2.
+- Choosing 2 up front costs workspace overhead on every command for a second app that may never ship. Ask what the *second* consumer is; if there is no answer, it is 1.
+
+Say the shape out loud when you propose the stack — "single Next.js app with the agent inside it" is a different project from "monorepo with two deploys", and the user should be agreeing to one of them, not discovering it at scaffold time.
 
 ### shadcn create parameters (only when `ui = "shadcn"`)
 
