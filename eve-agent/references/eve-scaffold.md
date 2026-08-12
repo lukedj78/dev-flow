@@ -15,6 +15,7 @@ Goal: a runnable eve agent at `apps/agent`, wired into the Turborepo/pnpm monore
 * `eve add channel/<kind>` — install a channel (`eve channels add` was **removed in 0.29.0**); `eve channels list` — list user-authored channels.
 * `eve extension init <name>` — scaffold an installable **extension** package (bundles tools/connections/skills/instructions/hooks); `eve extension build` compiles it. Consume one from an agent via `agent/extensions/<name>.ts`. (New 2026-07 — verify against the installed docs.)
 * `eve link` — link to a Vercel project and pull AI Gateway credentials.
+* `eve set --model <id> --reasoning <level>` — change an existing agent's model settings without hand-editing `agent.ts` (new 0.33.0; also available on `eve init`). Cannot rewrite models defined with `defineDynamic`, an environment expression, or otherwise not a plain string literal.
 * `eve traces` / `eve traces ls` — inspect run traces (**renamed** from `eve trace` in 0.29.0; the singular form is gone).
 * `eve logs` / `eve logs ls` — deployment logs.
 * `eve invoke` — invoke the agent directly; `eve acp [url]` — expose it over the Agent Client Protocol (stdio).

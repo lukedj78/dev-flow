@@ -32,12 +32,13 @@ post can announce a preview that has since gone stable (see the 16.3 row).
 3. For relevant items, edit the affected skill (mark new/unstable API `[VERIFY]` against the installed docs — eve is beta), and add a row to the log below with status `applied`.
 4. Update the "Last pass" date. For anything ambiguous or out of scope, ask the user.
 
-**Last pass: 2026-08-11** (Next.js blog + Vercel changelog through ~2026-08-11). Previous: 2026-08-04, 2026-07-30, 2026-07-23.
+**Last pass: 2026-08-12** (eve package/CHANGELOG through eve@0.33.2). Previous: 2026-08-11, 2026-08-04, 2026-07-30, 2026-07-23.
 
 ## Log
 
 | Date | Changelog item | Relevant to | Status |
 |---|---|---|---|
+| 2026-08-11/12 | **eve 0.31.3 → 0.33.2** (4 releases same day as the eve-agent doc-coverage pass) — `defineDynamic` for models drops `fallback`, resolvers must return a concrete model (0.33.0, **breaking**); channel `turnPolicy` defaults to `"steer"` not queue (0.33.0); `ctx.getSandbox().stop()`, custom backends must implement it (0.32.0); `web_search` defaults to Exa not Parallel (0.32.0); tool-approval response renamed `deny`→`cancel` (0.32.0, not previously documented so nothing broke); new `eve set --model --reasoning` CLI (0.33.0); Sign in with Vercel for scaffolded Web Chat apps (0.33.1) | `eve-agent` | ✅ applied — see the same-day follow-up note in `eve-docs-coverage.md`; fixed in `eve-concepts.md`, `eve-conventions.md`, `SKILL.md`, `eve-capabilities.md`, `eve-scaffold.md`. `[VERIFY]` Sign-in-with-Vercel wiring before documenting it further — noted, not yet written up. |
 | 2026-08 | **`vercel-labs/kody-eve-template`** (MIT) — a *headless* eve agent: no web app, surfaces are GitHub + Linear + **email** | `eve-agent`, contract (topology) | ✅ applied — Chat SDK channel shape corrected from its `agent/channels/resend.ts` (ours was guessed and wrong in 4 ways); agent-only topology flagged in the contract as an open decision |
 | 2026-08 | **`@shadcn/helpers` §Human in the loop** — AI SDK-native approvals (`needsApproval`, `addToolApprovalResponse`, `sendAutomaticallyWhen`) | `ai-elements.md` | ✅ applied — documented as a **second, unrelated** HITL path: it answers AI SDK chats, not eve sessions |
 | 2026-07 | **Next.js security release program** — pre-announced monthly patches; two maintained lines, **16.2.x Active LTS** / **15.5.x Maintenance LTS** | contract (`nextjs_version`), `vercel-deploy`, `compliance-audit` | ✅ applied — floor in the contract; `vercel-deploy` Step 2 checks the installed version; `compliance-audit` frames it as Art. 32 and defers |

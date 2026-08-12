@@ -5,7 +5,7 @@ The cross-cutting concepts behind every capability. This complements `eve-conven
 ## Agent config — `agent/agent.ts` (`defineAgent`)
 
 Root-only. Fields:
-- `model` — gateway id (`"anthropic/claude-sonnet-5"` default) or a `LanguageModel`; may be a `defineDynamic({ fallback, events })` for per-session/turn/step model choice.
+- `model` — gateway id (`"anthropic/claude-sonnet-5"` default) or a `LanguageModel`; may be a `defineDynamic({ events })` for per-session/turn/step model choice. **Breaking in 0.31.3→0.33.0**: `defineDynamic` no longer accepts a `fallback` — it compiles no default model or placeholder metadata, so every matching resolver (`session.started`/`turn.started`/`step.started`) **must** return a concrete model or the turn fails before model-dependent work begins. Prefer resolving at `session.started` (prompt caches are per-model).
 - `reasoning` — `"provider-default" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh"` (availability is model/provider-dependent).
 - `compaction` — summarizes older turns near the window; **on by default**, `thresholdPercent` default `0.9` (lower = compact sooner).
 - `limits` — `{ maxInputTokensPerSession (default 40_000_000 for root), maxOutputTokensPerSession (unset) }`; set either to `false` to remove a cap. Size tight for public demos (+ Vercel Firewall rate-limit), looser for internal tools.
@@ -32,7 +32,7 @@ Layered visibility, not everything-in-the-prompt: `instructions.md` (always) + d
 
 eve runs the agent loop (model calls, tool execution, compaction) and ships built-ins:
 - Sandbox: `bash`, `read_file` (line-numbered, read-before-write), `write_file` (stale-read detection), `glob`, `grep`.
-- Network: `web_fetch` (app runtime), `web_search` (provider-managed, model-dependent).
+- Network: `web_fetch` (app runtime), `web_search` (provider-managed, model-dependent — AI Gateway models default to **Exa** since 0.32.0; select Parallel explicitly with `webSearch({ provider: "parallel" })`).
 - Session: `ask_question` (mid-turn input), `todo` (durable per-session list), `load_skill`, `connection_search` (discover/call connection tools), `agent` (delegate to a fresh instance, root-only).
 
 Customize:
@@ -59,6 +59,7 @@ export default defineSandbox({           // agent/sandbox.ts (shorthand) OR agen
 - **Network policy** (three forms): `"allow-all"` (default) · `"deny-all"` · `{ allow: ["*.github.com"], subnets: { deny: [...] } }`. Set on the backend (pre-bootstrap), in `onSession`'s `use()`, or mid-turn via `sandbox.setNetworkPolicy(...)`.
 - **Credential brokering:** secrets **never enter the sandbox** — a per-domain `transform` injects an auth header at the firewall (supported by `vercel()`/`microsandbox()`), so egress authenticates while the secret stays out of the sandbox process.
 - The default sandbox is **not** a substitute for configuring network policy, credentials, retention, or deletion (see Responsible use).
+- **`ctx.getSandbox().stop()`** (0.32.0) — authored hooks, tools, and channel callbacks can stop the active sandbox on demand; every built-in backend still preserves the durable session for a later callback. A **custom** sandbox backend handle must now implement `stop()` too.
 
 ## Execution model & durability
 

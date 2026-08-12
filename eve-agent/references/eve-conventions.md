@@ -169,7 +169,8 @@ bundler does not capture `execute: someFn` and it fails on replay.
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
 * Prereqs: **Node ≥ 24** and npm. Default scaffold model: `anthropic/claude-sonnet-5`; the
-  `model` field also accepts `defineDynamic({ fallback, … })` for per-session model choice.
+  `model` field also accepts `defineDynamic({ events })` for per-session model choice — **no
+  `fallback`** since 0.33.0, every resolver must return a concrete model.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
   Standard Schema / plain JSON Schema object. Relative imports need `.js` extensions
   (`module: NodeNext`). ([VERIFY] against the installed version.)
