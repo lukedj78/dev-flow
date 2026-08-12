@@ -9,7 +9,7 @@
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
-> The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent (`apps/agent`) as the AI engine behind a Next.js app, opted into via `stack.agent`. See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
+> The web family now includes **`eve-agent`** — scaffold and grow an [eve](https://eve.dev) agent as the AI engine behind a Next.js app, opted into via `stack.agent`. It lives inside the app, in `apps/agent`, or **alone at the repo root** when the product has no UI at all ([three topologies](#eve-agent--scaffold--grow-the-ai-agent-engine)). See [docs/example-full-walkthrough.md](./docs/example-full-walkthrough.md) and the autonomous-loop runbook [docs/loop-engineering.md](./docs/loop-engineering.md).
 >
 > **Rule zero — doc-grounded, never invent.** The skills are a second brain: when one says *"use library X"*, it ships the **how** from X's official docs, prefers the **version-matched** source the tool itself ships (`next dev` maintains an `AGENTS.md` block pointing at bundled docs; eve ships `node_modules/eve/docs`), marks fast-moving identifiers `[VERIFY]`, and gets re-verified on a cadence — logged in [docs/vercel-changelog-watch.md](./docs/vercel-changelog-watch.md). The map of every how-to is **[docs/knowledge-index.md](./docs/knowledge-index.md)**.
 >
@@ -871,10 +871,22 @@ The skill is **idempotent**: re-running `module-add db` on a project that alread
 
 **What it does NOT do**: install test packages, run a full suite, fix failing tests. A failing test is a signal — the skill surfaces it, the user decides whether to fix the test or the source.
 
-### `eve-agent` — scaffold + grow the AI agent engine (`apps/agent`)
+### `eve-agent` — scaffold + grow the AI agent engine
 
-**Input**: a monorepo with `stack.agent = "eve"` (opted into at stack-decision time, or added on demand).
-**Output**: an [eve](https://eve.dev) agent at `apps/agent` (Vercel's filesystem-first agent framework) that the web app consumes as its engine — or one new capability added to an existing agent.
+**Input**: a project with `stack.agent = "eve"` (opted into at stack-decision time, or added on demand).
+**Output**: an [eve](https://eve.dev) agent (Vercel's filesystem-first agent framework) that the product runs on — or one new capability added to an existing agent.
+
+**Three topologies, and the project picks — `dev-flow` §Topology policy proposes them in this order:**
+
+| | Shape | Choose it when |
+|---|---|---|
+| **①** | **Single web app**, agent inside it | The product **is** the interface. One deploy, no workspace overhead — the ordinary case |
+| **②** | **Monorepo** `apps/web` + `apps/agent` | The agent has its own deploy cadence, channels beyond the web UI, or a second consumer (mobile) that shares types |
+| **③** | **Agent only** (`stack.framework = "agent"`) | Every surface is elsewhere — Slack, email, GitHub, Linear — and **nothing needs rendering**. `agent/` sits at the repo root |
+
+Shape ③ is not theoretical: Vercel Labs' [`kody-eve-template`](https://github.com/vercel-labs/kody-eve-template) is exactly that. In it `eve-agent` owns the whole repo and is the **bootstrap** skill, so it bumps `phase` to `scaffolded` — the only topology where it touches phase at all. The web skills correctly refuse an agent-only project: there is no frontend for `forms`, `data-fetching` or `shadscan` to work on.
+
+**Starting at ① costs nothing** — `monorepo-bootstrap` promotes later, and moving `agent/` into `apps/agent/` is a directory move, not a rewrite. Choosing ② up front costs workspace overhead on every command for a second app that may never ship, so the question that settles it is *what is the second consumer?* No answer means ①.
 
 The agent counterpart to `design-md-to-app` + `module-add`: where those build/grow the Next.js app, `eve-agent` builds/grows the agent. **Two modes**, one logical operation per run (idempotent):
 - **Scaffold mode** (no `apps/agent` yet): `agent.ts` + `instructions.md`, the default HTTP channel, a baseline eval, and `packages/types` (re-exported eve session/event types). The web app consumes it via the official `withEve()` + `useEveAgent()` integration.

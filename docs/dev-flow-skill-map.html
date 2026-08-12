@@ -130,7 +130,9 @@
   .nd .s b{color:var(--dim); font-weight:600}
 
   /* tracks */
-  .tracks{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:1.7rem}
+  /* auto-fit: 3 across when there is room, 2 when there isn't, 1 on phones —
+     no orphaned third card the way a fixed `1fr 1fr` would leave. */
+  .tracks{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:1.7rem}
   @media (max-width:760px){ .tracks{grid-template-columns:1fr} }
   .card{background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow)}
   .trk{padding:20px}
@@ -139,6 +141,7 @@
   .trk .th h3 i{width:9px; height:9px; border-radius:50%}
   .trk.web h3 i{background:var(--c-web); box-shadow:0 0 10px -1px var(--c-web)}
   .trk.mob h3 i{background:var(--c-mobile); box-shadow:0 0 10px -1px var(--c-mobile)}
+  .trk.agt h3 i{background:var(--c-agent); box-shadow:0 0 10px -1px var(--c-agent)}
   .trk .th .lab{font-family:var(--fM); font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
   .seq{display:flex; flex-wrap:wrap; align-items:center; gap:7px 4px; margin-top:15px}
   .st{font-family:var(--fM); font-size:.76rem; color:var(--tx); background:var(--panel-2); border:1px solid var(--bd); border-radius:8px; padding:.32em .55em; white-space:nowrap}
@@ -273,8 +276,8 @@
 <section class="reveal">
   <div class="wrap">
     <div class="kick"><span class="no">02</span> execution</div>
-    <h2 class="sec-t">The two tracks</h2>
-    <p class="sec-p">Same contract, two stacks. The <code>stack.framework</code> field decides which family drives the build.</p>
+    <h2 class="sec-t">The three tracks</h2>
+    <p class="sec-p">Same contract, three stacks. The <code>stack.framework</code> field decides which family drives the build — and for an agent, <b>the project picks the shape</b>: inside a single web app (default), a monorepo, or alone with no UI at all.</p>
 
     <div class="tracks">
       <div class="card trk web">
@@ -303,6 +306,19 @@
           <span class="st">rn-eas-deploy</span>
         </div>
         <div class="foot"><b>Foundations:</b> 9 knowledge skills · <b>Maintenance:</b> <span class="o n">rn-upgrade<span class="badge">new</span></span> <span class="o">rn-eas-build-submit-update</span></div>
+      </div>
+
+      <div class="card trk agt">
+        <div class="th"><h3><i></i> Agent<span class="badge">new</span></h3><span class="lab">eve · no web app</span></div>
+        <div class="seq">
+          <span class="st">prd-from-idea</span><span class="arw">→</span>
+          <span class="st">prd-to-tasks</span><span class="arw">→</span>
+          <span class="st">eve-agent</span><span class="arw">→</span>
+          <span class="st">eve-registry-porting</span><span class="arw">→</span>
+          <span class="st">compliance-audit</span><span class="arw">→</span>
+          <span class="st">eve deploy</span>
+        </div>
+        <div class="foot"><b>Surfaces:</b> <span class="o">slack</span> <span class="o">email</span> <span class="o">github</span> <span class="o">linear</span> · nothing renders, so the web skills correctly refuse — and here <code>eve-agent</code> is the bootstrap skill</div>
       </div>
     </div>
   </div>
