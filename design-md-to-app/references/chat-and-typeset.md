@@ -335,3 +335,26 @@ Storybook, a test — through the SAME primitives above, with no tokens and no b
 NOT a source of generic utilities (`cn`, hooks — see `shadcn-mapping.md`); it is the
 demo-data counterpart to the chat components. In a real app the messages come from the
 backend hook (`useChat`, `useEveAgent`, …), not `createChat`.
+
+**You can script an approval, too** ([§Human in the loop](https://ui.shadcn.com/docs/helpers/ai-sdk#human-in-the-loop)) —
+worth knowing, because a paused-for-approval turn is the hardest chat state to build without a
+backend: you need a turn that stops mid-flight, a card, and a resume.
+
+```tsx
+chat.assistant(({ writer }) => {
+  writer.text("That will archive 3 drafts. I need your approval.")
+  writer.tool("archiveDrafts", { input: { count: 3 }, needsApproval: true, output: { archived: 3 } })
+})
+```
+
+Client side it is plain AI SDK: `useChat` exposes `addToolApprovalResponse({ id: part.approval.id,
+approved: true })`, and the turn resumes when `sendAutomaticallyWhen` includes
+`lastAssistantMessageIsCompleteWithApprovalResponses` (from `ai`). The continuation streams as a
+**new step of the same paused assistant message**, so the UI keeps one message and grows it —
+build the renderer for that shape, not for a second bubble.
+
+⚠️ **This prototypes the approval, it does not port to eve.** On an eve-backed app the approval is an
+`input.requested` / `authorization.required` event on eve's stream, answered with `respond(…)` — see
+`eve-agent/references/ai-elements.md`. Same UI, different plumbing: keep the components, swap the
+wiring when the agent lands. Don't leave `addToolApprovalResponse` in an eve app, where it has nothing
+to answer and the tool silently never resumes.
