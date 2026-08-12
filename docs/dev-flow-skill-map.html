@@ -131,8 +131,10 @@
 
   /* tracks */
   /* auto-fit: 3 across when there is room, 2 when there isn't, 1 on phones —
-     no orphaned third card the way a fixed `1fr 1fr` would leave. */
-  .tracks{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:1.7rem}
+     no orphaned third card the way a fixed `1fr 1fr` would leave. 280px, not 300:
+     the exported PNG renders at 975px viewport = a 927px container, where 3×300
+     + 2×16 gap overflows by 5px and silently drops to 2 columns + an orphan. */
+  .tracks{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-top:1.7rem}
   @media (max-width:760px){ .tracks{grid-template-columns:1fr} }
   .card{background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow)}
   .trk{padding:20px}

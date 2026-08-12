@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 43 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r5.png)
+![dev-flow v1.0.0 — map of the 43 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r6.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -1284,7 +1284,15 @@ claude plugin validate . --strict                  # the marketplace entry
 
 CI runs `lint_skills.py` + `build_skills_registry.py` on every PR (see `.github/workflows/lint-skills.yml`); a missing or stale `skills.json` will fail the workflow.
 
-**Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. **Give the file a new name every time** — `dev-flow-map-<version>-r<n>.png` — and update the `README` image path: GitHub's camo proxy caches by URL, so overwriting in place leaves everyone looking at the previous image.
+**Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. ⚠️ **Force reduced motion when you shoot it** — the sections are `.reveal` (opacity 0 until an IntersectionObserver adds `.in`), so a headless capture renders them blank; the `prefers-reduced-motion` rule is the escape hatch:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --hide-scrollbars \
+  --force-prefers-reduced-motion --force-device-scale-factor=1.5 --window-size=1300,<scrollHeight> \
+  --screenshot=docs/assets/dev-flow-map-v1-r<n>.png file://$PWD/docs/dev-flow-skill-map.html
+```
+
+And shoot at **1300 CSS px**, not at whatever width gives 1950 output pixels — 975×2 lands on the same pixel width but a narrower breakpoint, and the layout differs. **Give the file a new name every time** — `dev-flow-map-<version>-r<n>.png` — and update the `README` image path: GitHub's camo proxy caches by URL, so overwriting in place leaves everyone looking at the previous image.
 
 ---
 
