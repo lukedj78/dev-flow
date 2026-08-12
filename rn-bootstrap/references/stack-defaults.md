@@ -1,27 +1,32 @@
 > Bootstrap snapshot — kept in sync manually with `rn-fundamentals/references/stack-defaults.md`.
 > Update both files together when bumping a major version.
-> Snapshot date: 2026-07-22.
+> Snapshot date: 2026-08-12.
 
 # Stack defaults (opinionated)
 
 When bootstrapping a new RN/Expo app via `rn-bootstrap`, install these exact major versions:
 
+⚠️ **For everything Expo manages, npm `latest` is the wrong answer** — the table is generated from
+`expo@57`'s `bundledNativeModules.json` (what `expo install` resolves), with Expo's own range
+operators. **Install with `npx expo install <pkg>`, never `npm install <pkg>`.** Full rationale in
+`rn-fundamentals/references/stack-defaults.md`.
+
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
-| `expo` | `^57.0.8` | Expo SDK | Latest stable. New Architecture ON by default. |
-| `react-native` | `0.86.0` | RN core | Bumped by Expo SDK — DO NOT override manually. |
-| `react` | `19.2.8` | React | Bumped by Expo SDK — DO NOT override manually. |
+| `expo` | `^57.0.12` | Expo SDK | Latest stable. New Architecture ON by default. |
+| `react-native` | `0.86.2` | RN core | Bumped by Expo SDK — DO NOT override manually. |
+| `react` | `19.2.3` | React | Bumped by Expo SDK — DO NOT override manually. |
 | `typescript` | `^7.0.2` | TS | Template `blank-typescript` brings a compatible version. |
-| `expo-router` | `^57.0.8` | File-based routing | Mandatory for all apps in this set. |
+| `expo-router` | `~57.0.12` | File-based routing | Mandatory for all apps in this set. |
 | `nativewind` | `^4.2.6` | Tailwind for RN | Major 4 only. |
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
 | `zustand` | `^5.0.14` | Global state | Default for non-trivial global state. |
 | `@tanstack/react-query` | `^5.101.4` | Data fetching | Major 5 only. |
-| `react-native-reanimated` | `^4.5.3` | Animations | Required by Expo Router for native stack animations. |
-| `react-native-gesture-handler` | `^3.1.0` | Gestures | Required by Expo Router. |
-| `react-native-safe-area-context` | `^5.8.0` | Safe area | Required for all root screens. |
-| `expo-image` | `^57.0.1` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
-| `@shopify/flash-list` | `^2.3.2` | Performant lists | Replaces `FlatList` for long lists. |
+| `react-native-reanimated` | `^4.5.1` | Animations | Required by Expo Router for native stack animations. |
+| `react-native-gesture-handler` | `~2.32.0` | Gestures | Required by Expo Router. |
+| `react-native-safe-area-context` | `~5.7.0` | Safe area | Required for all root screens. |
+| `expo-image` | `~57.0.2` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
+| `@shopify/flash-list` | `^2.0.2` | Performant lists | Replaces `FlatList` for long lists. |
 
 ## Engine / runtime defaults
 

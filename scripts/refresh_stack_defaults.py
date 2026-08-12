@@ -44,6 +44,36 @@ PINNED_BELOW = {
     "tailwindcss": {"max_major": 3, "reason": "NativeWind v4 incompatible with TW 4"},
 }
 
+# --- npm `latest` is the WRONG authority for an Expo project -----------------
+#
+# Expo SDK ships `bundledNativeModules.json`: the version of each native module
+# that `expo install` resolves for that SDK. It is what an Expo app actually
+# gets, and it lags npm `latest` on purpose — a native module has to match the
+# SDK's compiled runtime.
+#
+# Checking these against npm produced a table where EVERY Expo-managed package
+# was wrong, including `react-native-gesture-handler` pinned a whole major above
+# what SDK 57 bundles (^3.1.0 vs ~2.32.0). Following npm here does not give you
+# a newer project, it gives you one `expo install` disagrees with.
+#
+# So: for packages Expo bundles, the SDK is the source of truth. npm `latest`
+# still governs the rest (typescript, zustand, @tanstack/react-query…), which
+# Expo does not manage.
+EXPO_BUNDLED_URL = "https://unpkg.com/expo@{version}/bundledNativeModules.json"
+
+
+def expo_bundled(expo_version: str) -> dict[str, str]:
+    """{package: version-range} that `expo install` resolves for this SDK."""
+    import json
+    import urllib.request
+    url = EXPO_BUNDLED_URL.format(version=expo_version)
+    try:
+        with urllib.request.urlopen(url, timeout=20) as r:
+            return json.load(r)
+    except Exception as e:  # network, 404 on a bad version, malformed JSON
+        sys.stderr.write(f"! could not read {url}: {e}\n")
+        return {}
+
 TARGETS = [
     "rn-fundamentals/references/stack-defaults.md",
     "rn-bootstrap/references/stack-defaults.md",
@@ -94,15 +124,30 @@ def major_of(ver: str) -> int:
 def main() -> int:
     apply = "--apply" in sys.argv[1:]
 
-    print("→ Querying npm for latest stable versions…\n")
-    print(f"{'PACKAGE':<35} {'LATEST':>15}")
-    print(f"{'-' * 35} {'-' * 15:>15}")
+    print("→ Resolving target versions…\n")
+
+    # Expo first: its SDK version selects the bundled-native-module manifest
+    # that governs every package Expo manages.
+    expo_latest = npm_view("expo")
+    bundled = expo_bundled(expo_latest) if expo_latest else {}
+    if bundled:
+        print(f"  authority for Expo-managed packages: expo@{expo_latest} bundledNativeModules\n")
+    else:
+        print("  ! bundledNativeModules unavailable — falling back to npm for every package\n")
+
+    print(f"{'PACKAGE':<35} {'TARGET':>15}  SOURCE")
+    print(f"{'-' * 35} {'-' * 15:>15}  ------")
 
     latest: dict[str, str | None] = {}
     for pkg in PACKAGES:
-        v = npm_view(pkg)
+        if pkg in bundled:
+            # Keep Expo's own range operator: `~2.32.0` is narrower than `^2.32.0`,
+            # and for a native module that difference is the whole point.
+            v, src = bundled[pkg], "expo sdk"
+        else:
+            v, src = npm_view(pkg), "npm latest"
         latest[pkg] = v
-        print(f"{pkg:<35} {v or '?':>15}")
+        print(f"{pkg:<35} {v or '?':>15}  {src}")
 
     # Parse current state of the fundamentals file (canonical source)
     fundamentals_path = Path("rn-fundamentals/references/stack-defaults.md")
@@ -112,7 +157,7 @@ def main() -> int:
     current = parse_current(fundamentals_path)
 
     print(f"\n→ Comparing against {fundamentals_path}…\n")
-    print(f"{'PACKAGE':<35} {'CURRENT':>15} {'LATEST':>15}  {'DIFF'}")
+    print(f"{'PACKAGE':<35} {'CURRENT':>15} {'TARGET':>15}  {'DIFF'}")
     print(f"{'-' * 35} {'-' * 15:>15} {'-' * 15:>15}  {'----'}")
 
     changes: list[tuple[str, str, str, str]] = []  # (pkg, current, new_pinned, prefix)
@@ -123,6 +168,12 @@ def main() -> int:
             print(f"{pkg:<35} {curr:>15} {new or '?':>15}  ? (skip)")
             continue
         prefix, bare = strip_prefix(curr)
+        # When Expo dictates the range, its operator wins over ours.
+        new_prefix, new_bare = strip_prefix(new)
+        if new_prefix:
+            prefix, new = new_prefix, new_bare
+        else:
+            new = new_bare
 
         # Honor PINNED_BELOW
         pin = PINNED_BELOW.get(pkg)
@@ -137,19 +188,24 @@ def main() -> int:
             changes.append((pkg, curr, new, prefix))
 
     print()
-    if not changes:
-        print("→ All versions current. No changes needed.")
-        return 0
-
-    print(f"→ {len(changes)} package(s) drifted.")
+    if changes:
+        print(f"→ {len(changes)} package(s) drifted.")
+    else:
+        print("→ All versions current.")
 
     if not apply:
         print("\nDry-run mode. To apply changes, re-run with --apply.")
         return 0
 
-    print("\n→ Rewriting stack-defaults.md files…")
+    # Note we still rewrite when nothing drifted: the snapshot line records when
+    # the pins were last CHECKED, not when they last changed. Returning early on
+    # a clean run left rn-bootstrap's date frozen while the versions were fine.
+    print("\n→ Rewriting stack-defaults.md files…" if changes
+          else "\n→ No version changes; refreshing the snapshot date…")
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    snapshot_re = re.compile(r"^> Snapshot date: \d{4}-\d{2}-\d{2}\.")
+    # re.M matters: in rn-bootstrap the snapshot line is the third line, not the
+    # first, so without it that file's date silently stopped updating.
+    snapshot_re = re.compile(r"^> Snapshot date: \d{4}-\d{2}-\d{2}\.", re.M)
 
     for target_str in TARGETS:
         target = Path(target_str)
@@ -158,7 +214,15 @@ def main() -> int:
             continue
         text = target.read_text()
         for pkg, curr, new, prefix in changes:
-            text = text.replace(f"`{curr}`", f"`{prefix}{new}`")
+            # Rewrite the version ON THAT PACKAGE'S ROW only. A bare
+            # text.replace() of the version string hits every row that happens
+            # to share it — `expo` and `expo-router` were both `^57.0.8`, so
+            # updating one silently rewrote the other (and with the wrong range
+            # operator, since Expo pins them differently).
+            row = re.compile(rf"^(\| `{re.escape(pkg)}` \| )`{re.escape(curr)}`", re.M)
+            text, n = row.subn(rf"\g<1>`{prefix}{new}`", text)
+            if n != 1:
+                sys.stderr.write(f"! {target}: expected 1 row for {pkg}, matched {n}\n")
         text = snapshot_re.sub(f"> Snapshot date: {today}.", text)
         target.write_text(text)
         print(f"  ✓ {target}")
