@@ -12,14 +12,23 @@ import sys
 from pathlib import Path
 
 PHASE_NEXT = {
-    "empty":            "prd-from-idea (capture idea + draft PRD)",
-    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md)",
-    "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
-    "tasks_split":      "figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
-    "design_extracted": "design-md-to-app (scaffold the app)",
-    "scaffolded":       "screenshot-to-page  OR  module-add",
-    "page_generated":   "module-add  OR  more screenshot-to-page",
-    "module-added":     "iterate — ask the user what's next",
+    "empty":                 "prd-from-idea (capture idea + draft PRD)",
+    "idea_captured":         "prd-from-idea (expand PROJECT.md into PRD.md)",
+    "prd_drafted":           "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app  OR  monorepo-bootstrap",
+    "tasks_split":           "figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
+    "design_extracted":      "design-md-to-app (web)  OR  rn-bootstrap (mobile)  OR  monorepo-bootstrap (monorepo)",
+    # Monorepo-only mid-bootstrap checkpoint — turborepo root exists, apps not yet scaffolded.
+    "monorepo_initialized":  "monorepo-bootstrap continues (design-md-to-app in apps/web/, rn-bootstrap in apps/mobile/)",
+    "scaffolded":            "screenshot-to-page / rn-add-screen  OR  module-add / rn-module-add",
+    "page_generated":        "module-add / rn-module-add  OR  more screenshot-to-page / rn-add-screen",
+    # NOTE: the canonical spelling is snake_case "module_added" — see the
+    # contract's phase enum. update_meta.py normalizes the legacy kebab-case
+    # "module-added" on write, so a real meta.json should never have the old
+    # key; keeping it here too is cheap insurance against an unmigrated file.
+    "module_added":          "write-tests / rn-write-tests, more module-add/module work, or iterate — when the build is done, advance to feature_complete",
+    "module-added":          "write-tests / rn-write-tests, more module-add/module work, or iterate — when the build is done, advance to feature_complete",
+    "feature_complete":      "pre-deploy gates (compliance-audit, + vercel-doctor/shadscan for web on Vercel), then deploy: vercel-deploy (web) / rn-eas-deploy (mobile) / eve deploy (agent)",
+    "deployed":              "maintenance loop: screenshot-to-page/module-add (web), rn-add-screen/rn-eas-build-submit-update (mobile); re-run the pre-deploy gates after material changes",
 }
 
 

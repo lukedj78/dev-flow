@@ -2,10 +2,16 @@
 """scan.py — fast first-pass GDPR/AI-Act signal scanner for a project.
 
 Walks a project tree, gathers boolean "signals" (does a control exist?), and
-maps them to the R1-R10 risk register. This is a SIGNAL, not a verdict — the
-skill's model must verify every reported hit by reading the code before putting
-it in the audit report (heuristics over-report by design; false positives are
-cheaper than misses here).
+maps them to 9 of the 10 risk-register items (R1-R5, R7-R10). This is a
+SIGNAL, not a verdict — the skill's model must verify every reported hit by
+reading the code before putting it in the audit report (heuristics
+over-report by design; false positives are cheaper than misses here).
+
+R6 (Annex III high-risk classification / DPIA) is deliberately NOT scanned
+here — "is this use case high-risk" is a product/legal judgment call, not a
+grep-able code signal. Per SKILL.md's Remediate mode, R6 is always a
+"flag only" item the model reasons about directly, never something this
+script's signals dict resolves for it.
 
     python3 scan.py <project-root>        # prints JSON findings
 """
