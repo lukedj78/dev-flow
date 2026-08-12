@@ -67,10 +67,13 @@ Decide like this — and when the signal is ambiguous, **ask the user, do not as
 
 | Signal (in this order) | Layout |
 |---|---|
+| `.workflow/meta.json#stack.framework == "agent"`, or the product has **no web app at all** and every surface is elsewhere (Slack, email, GitHub, Linear) | **C** — agent-only: `agent/` at the **repo root**, no `apps/*`, no `packages/types`. No need to ask. |
 | `.workflow/meta.json#stack.framework == "monorepo"`, or an `apps/mobile` / `apps/*` web already exists | **B** — monorepo already serves web + mobile; add the agent as `apps/agent`. No need to ask. |
 | Framework is a single `next` app AND the user confirms the agent serves **only** this app | **A** — embedded single-app |
 | Single `next` app but mobile/RN, a 2nd web, or external services are planned | **B** — start monorepo now; migrating later (`EVE_NEXT_PRODUCTION_ORIGIN`) is possible but avoidable |
 | No `.workflow/`, or intent unclear | **Ask:** *"Will this eve agent serve only this Next.js app, or also a mobile/React Native app (or other clients)? One consumer → embedded single-app; more than one → monorepo with the agent as its own deployable app."* |
+
+**Layout C — agent-only.** The zero-consumer-browsers case: nothing renders, so there is no `withEve()`, no `apps/web`, no shared types package to single-source. `agent/` sits at the repo root and the repo *is* the agent — Vercel Labs' [`kody-eve-template`](https://github.com/vercel-labs/kody-eve-template) is the reference shape. Two consequences worth stating: (1) in this layout **this skill is the bootstrap skill** and bumps `phase` to `scaffolded` once the agent exists (contract § `agent`) — in A and B it never bumps phase, because the web/mobile bootstrap owns that; (2) the channels carry the whole product, so `agent/channels/` is where the design effort goes, not a UI. Don't scaffold a Next.js app to have somewhere to put a chat box: if the users already talk to you in email or Slack, that *is* the interface.
 
 A mobile client consumes the agent over plain HTTP — `useEveAgent({ host, auth })` pointed at the agent's origin, or the `eve/client` typed client — never through `withEve()` (that wrapper is Next-only). Same durable HTTP contract, different transport; see `references/eve-web-integration.md`. `[VERIFY]` RN client specifics against the installed eve version.
 

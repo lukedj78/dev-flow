@@ -39,6 +39,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 | `next` (default if missing) | existing web skills | `design-md-to-app` | (this file) |
 | `expo-rn` | RN/Expo mobile skills | `rn-bootstrap` | `references/stack-expo-rn.md` |
 | `monorepo` | turborepo (web + mobile, shared packages) | `monorepo-bootstrap` | `references/stack-monorepo.md` |
+| `agent` | agent-only — eve at the repo root, no web app | `eve-agent` | contract § `framework` |
 
 When `meta.json#stack.framework == "expo-rn"`:
 - `prd_drafted` or `design_extracted` → invoke `rn-bootstrap`
@@ -52,6 +53,14 @@ When `meta.json#stack.framework == "monorepo"`:
 - `scaffolded` or `page_generated` or `module_added` → web side: `screenshot-to-page` / `module-add` (operate in `apps/web/`). Mobile side: `rn-add-screen` / `rn-module-add` (operate in `apps/mobile/`). Agent side: `eve-agent` (operates in `apps/agent/` — see the agent-engine track below). Cross-cutting: `monorepo-add-shared-package`, `monorepo-sync-types`
 - `feature_complete` → web: `vercel-deploy` (Vercel). Mobile: `rn-eas-deploy`. Agent: `eve-agent` ships via `eve deploy` (Vercel). Run all that apply.
 - `deployed` → maintenance loop on all sides
+
+When `meta.json#stack.framework == "agent"` (shape ③ — no web app):
+- `prd_drafted` → invoke `eve-agent`, which is the **bootstrap** skill here and bumps `phase` to `scaffolded`
+- `scaffolded` → `eve-agent` in capability mode (tools, channels, skills, schedules, subagents) and `eve-registry-porting` to borrow from a registry. No phase bump on those — they append to `history`
+- `feature_complete` → `compliance-audit` (the one gate that still applies — there is no UI for `shadscan` and no Vercel cost surface for `vercel-doctor` beyond the agent's own functions), then ship with `eve deploy`
+- `deployed` → maintenance loop: more capabilities, re-run `compliance-audit` after material changes
+
+**Don't offer the web skills here and don't apologise for their absence** — `design-md-to-app`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `shadscan` all correctly refuse a project with no frontend. `design_extracted`, `page_generated` and `module_added` are never reached.
 
 If a stack value is not recognized, refuse and ask the user which stack to use. NEVER silently fall back to Next.js when `stack.framework` is set explicitly to something else.
 
@@ -158,7 +167,7 @@ When an agent is in scope, **three shapes are possible and the project decides w
 |---|---|---|
 | **1 · Single web app** *(default)* | `framework: "next"`, `agent: "eve"` (agent inside the app) | The product **is** the interface. One deploy, no workspace overhead — the ordinary case, and where a frontend developer does their actual work. |
 | **2 · Monorepo** | `framework: "monorepo"`, `agent: "eve"` → `apps/web` + `apps/agent` | The agent has a life of its own — its own deploy cadence, channels beyond the web UI, or a second consumer (mobile, a second app) that must share types/tokens. |
-| **3 · Agent only** | `agent: "eve"`, no web app (see `references/contracts.md` § `agent`) | Every surface is somewhere else — Slack, email, GitHub, Linear — and **nothing needs rendering**. Vercel Labs' `kody-eve-template` is this shape. |
+| **3 · Agent only** | `framework: "agent"`, `agent: "eve"`, no web app | Every surface is somewhere else — Slack, email, GitHub, Linear — and **nothing needs rendering**. Vercel Labs' `kody-eve-template` is this shape. |
 
 **The house default is 1, then 2.** Reach for 3 only when the product genuinely has no UI, not because the agent feels architecturally tidy on its own.
 
