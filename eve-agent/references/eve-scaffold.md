@@ -64,7 +64,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
   reached" state (see `eve-web-integration.md` → resumable chats). Size the caps to the surface:
   a public demo wants tight caps + the Vercel Firewall rate limit; an internal tool can run looser.
   For a cheap non-reasoning path, worldcup-eve also pins `reasoning: "low"` with a near-zero
-  `providerOptions.anthropic.thinkingBudget`. `[VERIFY]` field names against the installed version.
+  `providerOptions.anthropic.thinkingBudget`. ⚠️ **`[VERIFY]` these against the AI SDK / AI Gateway provider docs, not against eve** — `providerOptions` is passed through to the provider, so these field names appear nowhere in `node_modules/eve/docs/` (checked on 0.31.3) and looking for them there will wrongly suggest they are stale.
 * Write a real `agent/instructions.md` (system prompt) that states the agent's purpose and boundaries — the baseline eval will assert against it.
 
 ## 4. Set the channel auth (fail closed)

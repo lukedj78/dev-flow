@@ -107,10 +107,18 @@ skills are invisible to the root.
 
 ## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Install from the registry: **`eve add channel/<kind>`** (kinds: `web`, `slack`,
-`discord`, `github`, `linear`, `teams`, `telegram`, `photon-imessage`) — or the `/add` browser in the
-dev TUI. ⚠️ **`eve channels add` was removed in eve 0.29.0**; only `eve channels list` (user-authored
-channels) survives. `[VERIFY]` the kind list against `eve registry list`.
+A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.31.3/docs/channels/`:
+
+| Channel | How you add it |
+|---|---|
+| `web` · `slack` · `discord` · `github` · `photon-imessage` | **`eve add channel/<kind>`** |
+| **Linear** | **`eve add linear`** — a bundle whose checklist offers the Linear *channel* **and** the Linear MCP connection (both selected by default). For the channel alone the item is **`eve add channel/linear-agent`** — ⚠️ **not `channel/linear`, which does not exist** |
+| `teams` · `telegram` · `twilio` | **authored by hand** — they ship a subpath (`eve/channels/<kind>`) and a docs page, but no registry item. Write the file; there is no `eve add` for them |
+| `chat-sdk` · custom | `chatSdkChannel()` / `defineChannel()` — see below |
+
+**`twilio` puts the agent on a phone number**: inbound SMS as a webhook, inbound *calls* answered with TwiML `<Gather input="speech">` so the transcript feeds the same session — a caller and a texter are identical downstream. Every request is checked against `X-Twilio-Signature`.
+
+Or use the `/add` browser in the dev TUI. ⚠️ **`eve channels add` was removed in eve 0.29.0**; only `eve channels list` (user-authored channels) survives. `[VERIFY]` the list against `eve registry list` — this table was wrong for months in three ways at once, so re-check it rather than trusting it.
 The file stem is the channel id and the channel is the module's **default export**
 (`defineChannel` from `eve/channels` for custom ones). The default HTTP channel
 (`agent/channels/eve.ts`) already exists from scaffold — only add a channel for another

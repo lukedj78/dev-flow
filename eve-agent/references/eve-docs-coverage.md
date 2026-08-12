@@ -1,6 +1,8 @@
 # eve docs coverage map
 
-Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/`.
+Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/` — the published package ships its full docs **and a CHANGELOG**, which is the only place the breaking-change history exists (eve.dev has no changelog page). `npm pack eve@<version>` is enough; you do not need to install it.
+
+> **Verification pass 2026-08-12 against eve@0.31.3.** All 15 cited subpaths and all 16 cited exports exist; `eve add` / `eve registry` / `eve extension build` / `eve channels list` confirmed (and no `eve channels add`, as documented). The Slack hook set and `ctx.*` surface match. **One table was wrong**: the channel-kind list — `channel/linear` does not exist (it is `channel/linear-agent`, or the `eve add linear` bundle), `teams`/`telegram`/`twilio` are hand-authored rather than registry items, and `twilio` was missing entirely.
 
 Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read) · **⛔ out of scope** (with reason).
 
