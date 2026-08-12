@@ -1,6 +1,46 @@
 # Maps (mobile) — mapcn-rn
 
-The **how**, not just "use mapcn-rn". Doc-grounded against [mapcn-rn.dev/docs](https://mapcn-rn.dev/docs), the published registry items (`https://mapcn-rn.dev/maps/map.json` and siblings — read them, they contain the full component source) and the `mapcn-rn` CLI (npm, v0.1.1). mapcn-rn is the ecosystem-first default when an **Expo/React Native** project needs a map: copy-paste map components on **MapLibre React Native v11** *or* **Mapbox React Native**, styled with **NativeWind/Uniwind**, sitting alongside **React Native Reusables** (shadcn/ui for RN). `stack.maps = "mapcn-rn"`. `[VERIFY]` after each install — the file you own *is* the API.
+> ## ⚠️ STALE — this file describes mapcn-rn v0.1.1. The published CLI is now v2.0.0, a rewrite.
+>
+> Checked 2026-08-12: `npm view mapcn-rn version` → **2.0.0** (published 2026-08-08), not the
+> `0.1.1` this file was written against. Confirmed from the actual shipped package
+> (`npm pack mapcn-rn@2.0.0`, its README, and `dist/commands/`) — not guessed:
+>
+> - **The CLI surface is different.** Commands are now `init` (interactive setup — renderer,
+>   provider, components, config plugin, permissions, in one step), `add <component...>`,
+>   `list`, `diff`, `doctor`, `provider <target>`, `migrate`. The line below — *"There is no
+>   `mapcn-rn init`"* — is now **false**; `init` is the documented quick-start.
+> - **Install target changed.** v2 writes a whole folder, `components/ui/mapcn/` + a generated
+>   `index.ts` (`import { Map, MapMarker } from "@/components/ui/mapcn"`), not the single
+>   `components/ui/map.tsx` this file describes throughout.
+> - **New config file**, `mapcn.json`, tracks renderer/provider/styling/aliases and a hash per
+>   installed file — nothing like it existed in v0.1.1.
+> - **Default registry base moved** to `https://mapcn-rn.dev/r`, not the per-file
+>   `mapcn-rn.dev/maps/map.json`-style URLs cited below.
+> - **The component set expanded**, and this contradicts a specific claim below: v2's own quick-start
+>   example imports `MapClusterLayer`, and its component list includes `geojson`, `cluster`,
+>   `heatmap`, `choropleth`, `polygon`, `legend`, `location-puck`, `style-switcher` — none of
+>   which existed in v0.1.1. **§"What's missing vs web" is wrong for v2**: clustering and GeoJSON
+>   are no longer things you drop to raw MapLibre for.
+> - mapcn-rn itself ships a `migrate` command purpose-built for v1→v2 projects — the authors
+>   treat this as a hard break, not a patch.
+> - Also confirmed stale in the table below: `expo-location@^19.0.8` is not just behind, it
+>   predates Expo's SDK-aligned versioning entirely — SDK 57 bundles `expo-location@~57.0.9`
+>   (verified against `expo@57.0.12`'s own `bundledNativeModules.json`). `@maplibre/maplibre-react-native`
+>   (latest `11.3.6` vs `11.2.1` here) and `@rnmapbox/maps` (latest `10.3.5` vs `^10.2.10` here)
+>   are also both behind, though less dramatically.
+>
+> **What this means:** don't follow this file's CLI invocations, file paths, or "what's missing"
+> claims as-is against a fresh `npx mapcn-rn` install — verify live against `mapcn-rn.dev/docs`
+> (blocked from this sandbox's egress proxy, but not from a normal dev machine) or `npx mapcn-rn
+> --help` / `list` / `doctor` first. The component props further down (`Map`, `MapMarker`,
+> `MapControls`, …) were verified against v0.1.1's registry source and may still describe v2's
+> `map`/`marker`/`controls` components reasonably well — v2 wasn't checked component-by-component,
+> because that requires the same source-reading rigor this file's own header demands, and doing
+> it half-way would be worse than flagging it plainly. Treat this whole file as needing the full
+> re-verification pass, not a patch.
+
+The **how**, not just "use mapcn-rn". Doc-grounded against [mapcn-rn.dev/docs](https://mapcn-rn.dev/docs), the published registry items (`https://mapcn-rn.dev/maps/map.json` and siblings — read them, they contain the full component source) and the `mapcn-rn` CLI (npm, v0.1.1 — **see the stale-content warning above, this is now v2.0.0**). mapcn-rn is the ecosystem-first default when an **Expo/React Native** project needs a map: copy-paste map components on **MapLibre React Native v11** *or* **Mapbox React Native**, styled with **NativeWind/Uniwind**, sitting alongside **React Native Reusables** (shadcn/ui for RN). `stack.maps = "mapcn-rn"`. `[VERIFY]` after each install — the file you own *is* the API.
 
 > ⚠️ **Different project from the web `mapcn`.** Different author (`aikenahac` vs `AnmolSaini16`), different repo, deliberately similar API but **not** a port. Do not assume a web component exists on mobile — several don't (see "What's missing vs web").
 
