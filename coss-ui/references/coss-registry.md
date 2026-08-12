@@ -6,7 +6,7 @@ How Coss/UI is installed through the **shadcn CLI**. **Verify every command and 
 
 Coss is **copy-paste-and-own**: *"instead of installing a package, you get the source code."* You pull TSX source into your repo via the shadcn CLI, or copy it by hand. It ships three tiers:
 
-- **primitives / atoms** — the 60+ base components (Button, Dialog, Combobox, Table, …), built on `@base-ui/react`.
+- **primitives / atoms** — ~54 base components (Button, Dialog, Combobox, Table, …), built on `@base-ui/react`. Counted directly from the live `registry.json` manifest (2026-08-12): 56 `registry:ui` entries, 2 of which (`ui`, `fonts`) are meta/barrel entries rather than components.
 - **particles** — ~500 pre-built variations/compositions.
 - **style** — the whole design system bundle (components + neutral tokens + sidebar vars + base styles + fonts).
 

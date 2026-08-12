@@ -44,6 +44,8 @@ Below is the schema for the design tokens defined in the front matter:
 version: <string>          # optional, current version: "alpha"
 name: <string>
 description: <string>      # optional
+omitted: <string[]|{section: string, reason?: string}[]>   # optional — sections intentionally
+                            # absent (e.g. "spacing"); suppresses linter warnings for them
 colors:
   <token-name>: <Color>
 typography:
@@ -59,7 +61,7 @@ components:
 
 The `<scale-level>` placeholder represents a named level in a sizing or spacing scale. Common level names include `xs`, `sm`, `md`, `lg`, `xl`, and `full`. Any descriptive string key is valid.
 
-**Color**: A color value must start with "#" followed by a hex color code in the SRGB color space.
+**Color**: any valid CSS color string. Supported formats per the upstream spec: hex (`#RGB`, `#RGBA`, `#RRGGBB`, `#RRGGBBAA`), named colors (`red`, `cornflowerblue`, `transparent`), functional (`rgb()`, `rgba()`, `hsl()`, `hsla()`, `hwb()`), wide-gamut (`oklch()`, `oklab()`, `lch()`, `lab()`), and `color-mix(in srgb, ...)`. Hex remains the **recommended default** for simplicity and tooling support — that's a recommendation, not a requirement, so don't reject a hand-written DESIGN.md for using `rgb()` or a named color. **Our own generation defaults to hex** (see `SKILL.md`'s color rules) — that's our house convention, not an upstream constraint.
 
 - `fontFamily` (string)
 - `fontSize` (Dimension)

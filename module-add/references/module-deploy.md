@@ -15,7 +15,7 @@ This module owns **the wiring**, not the shipping.
 
 Do not duplicate `vercel-deploy` here. When the user says "deploy it", this module gets the project into a deployable shape and then **hands off**. The natural order at `feature_complete` is: `module-add deploy` (config exists) → `compliance-audit` + `vercel-doctor` (the two gates) → `vercel-deploy` (ship).
 
-> **Versions checked 2026-08**: Vercel CLI `58.4.4`. Docs: <https://vercel.com/docs/project-configuration>, <https://vercel.com/docs/environment-variables>, <https://vercel.com/docs/functions/configuring-functions/region>, <https://vercel.com/docs/monorepos>.
+> **Versions checked 2026-08-12**: Vercel CLI `58.9.4`. Docs: <https://vercel.com/docs/project-configuration>, <https://vercel.com/docs/environment-variables>, <https://vercel.com/docs/functions/configuring-functions/region>, <https://vercel.com/docs/monorepos>.
 
 ## Idempotency check
 

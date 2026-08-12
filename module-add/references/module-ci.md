@@ -4,6 +4,8 @@ Wire a **continuous-integration scaffold**: pre-commit hooks (husky + lint-stage
 
 The aim is to fail fast locally (so CI doesn't waste minutes catching what husky could have caught in seconds) and to give the user a clean green check on every PR.
 
+Checked 2026-08-12: `actions/checkout`, `actions/setup-node`, `actions/upload-artifact` bumped to their current major (`v7`; were pinned at `v4`, three majors behind) — pure orchestration actions with no compatibility trade-off, safe to track current. `node-version` bumped `20` → `24`: Node 20 is past end-of-life (only 22-maintenance and 24-active are current supported lines), and `24` matches the `engines.node >= 24` floor `monorepo-bootstrap` sets elsewhere in this repo. **`pnpm/action-setup@v4` + `version: 9` deliberately left alone** — pnpm's own docs say `action-setup` supports installing pnpm v10 and older only; v11+ requires switching to the newer `pnpm/setup` action. Bumping just this file's pin to a newer pnpm major would silently diverge from `monorepo-bootstrap/references/structure.md`'s root `packageManager: "pnpm@9.0.0"`, which is what actually governs lockfile format for a scaffolded project — a coordinated version bump across both, not a doc typo fix.
+
 ## Idempotency check
 
 Before doing anything:
@@ -75,15 +77,15 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -129,13 +131,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -157,7 +159,7 @@ jobs:
           BETTER_AUTH_URL: http://localhost:3000
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report

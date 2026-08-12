@@ -91,7 +91,7 @@ For each component you identified in Step 2, decide:
 - **Use an existing primitive** first. Prefer this over hand-rolling. What "existing primitive" means depends on `stack.ui`:
   - `"shadcn"` — copy-pasted source in `components/ui/` (e.g. `Button`, `Card`). Import from `@/components/ui/<name>`.
   - `"mui"` — runtime-themed components from `@mui/material` (e.g. `Card`, `Stack`).
-  - `"base-ui"` (standalone Base UI, no shadcn CLI, no `components/ui/` folder) — import headless primitives directly from `@base-ui-components/react` (e.g. `@base-ui-components/react/dialog`) and style them with the project's Tailwind classes/tokens. There is no pre-styled component to fetch — the styling is part of what you write.
+  - `"base-ui"` (standalone Base UI, no shadcn CLI, no `components/ui/` folder) — import headless primitives directly from `@base-ui/react` (e.g. `@base-ui/react/dialog`) and style them with the project's Tailwind classes/tokens. There is no pre-styled component to fetch — the styling is part of what you write.
   - `"coss"` — primitives live in `components/ui/` just like shadcn, but originate from the `@coss/*` registry (Cal.com design system on Base UI). Treat them exactly like shadcn primitives for import purposes (`@/components/ui/<name>`); if a needed component/particle hasn't been pulled into `components/ui/` yet, **hand off to the `coss-ui` skill** to fetch it via `pnpm dlx shadcn@latest add @coss/<name>` rather than hand-rolling it here.
 - **Compose primitives** if no exact match (e.g., a "stat card" = `Card` + headline typography + body).
 - **Hand-roll a small custom component** only if necessary, and only if it'll be reusable. One-off custom JSX in the page file is fine for unique sections.

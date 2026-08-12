@@ -4,7 +4,7 @@ Wire **Vercel Blob** as the file-storage layer of an existing scaffold. Defaults
 
 **Why Blob is the default here, not UploadThing or S3.** dev-flow's default deploy target is Vercel (`stack.deploy = "vercel"`). Blob is same-platform: no second vendor, no second dashboard or billing relationship, no extra sub-processor to add to the GDPR register that `compliance-audit` builds, and credentials arrive automatically on the linked Vercel project (OIDC — no long-lived secret in your env). UploadThing and S3 remain documented alternatives at the bottom of this file — pick them only when the user explicitly asks.
 
-> **Versions checked 2026-08**: `@vercel/blob@2.6.1`. Docs: <https://vercel.com/docs/vercel-blob> and <https://vercel.com/docs/vercel-blob/using-blob-sdk>.
+> **Versions checked 2026-08-12**: `@vercel/blob@2.8.0`. Docs: <https://vercel.com/docs/vercel-blob> and <https://vercel.com/docs/vercel-blob/using-blob-sdk>.
 
 ## Idempotency check
 

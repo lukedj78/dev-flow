@@ -126,7 +126,7 @@ Default to (1) when `module-add db` has run AND a test seed exists. Fall back to
 - **Network race conditions**: a page that fetches data on the client may not have the data rendered yet when assertions fire. Use `page.waitForResponse(...)` before asserting on fetched content, or `page.waitForLoadState("networkidle")` for the conservative approach.
 - **Skipping `webServer`**: forgetting that `playwright.config.ts` needs `webServer: { command: "pnpm dev", ... }` means tests run against nothing. Already configured by `module-add test`; only an issue if the user customized.
 
-## Asserting an *instant* navigation (Next **16.3 preview**) `[VERIFY]`
+## Asserting an *instant* navigation (Next **16.3**, stable) `[VERIFY]`
 
 Only relevant when the project has opted into Instant Navigations (`cacheComponents` + `partialPrefetching` — see `data-fetching/SKILL.md` §Instant Navigations). Next ships an `instant()` helper from **`@next/playwright`** that asserts what is visible **without waiting for the network** — i.e. the prefetched shell:
 

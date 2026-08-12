@@ -11,6 +11,11 @@
 
 Base UI is the unstyled component library from the MUI team (formerly known as Base UI / MUI Base, relaunched as standalone in 2025). It ships **headless, accessible primitives** — you bring the styling, like Radix Primitives, but with a different API and a more focused component set.
 
+⚠️ **Package renamed.** `@base-ui-components/react` is the old name — npm marks it deprecated
+("Package was renamed to @base-ui/react"), last published at `1.0.0-rc.0`. The current package is
+**`@base-ui/react`** (verified 2026-08-12, latest `1.7.0`), same import shape and subpaths. Every
+command/import below already uses the current name.
+
 **When to pick Base UI over shadcn vs MUI**:
 - vs **shadcn**: similar philosophy (headless, you own the styles), but Base UI is a *real library* (installed as a dep) rather than copy-pasted source. You don't have to maintain CLI updates and `components.json`. Use Base UI when you want headless + library, with a slightly smaller surface (no `Calendar`, no `Drawer` out of the box yet).
 - vs **MUI**: Base UI has the same accessibility quality but **no** built-in look — the entire visual layer is yours. Use Base UI when you like MUI's a11y but want a *distinctive* visual identity that Material Design themes don't reach.
@@ -26,17 +31,17 @@ Base UI works with any React framework. The recommended pairing in 2025+ is **Ba
 ```bash
 pnpm create next-app@latest <dir> --typescript --tailwind --eslint --app --no-src-dir --import-alias "@/*" --use-pnpm --turbopack --yes
 cd <dir>
-pnpm add @base-ui-components/react
+pnpm add @base-ui/react
 ```
 
-That's the entire install. No CLI step, no `components.json`, no `--all` import — you `import` each component on demand from `@base-ui-components/react`.
+That's the entire install. No CLI step, no `components.json`, no `--all` import — you `import` each component on demand from `@base-ui/react`.
 
 ### Vite + React
 
 ```bash
 pnpm create vite@latest <dir> --template react-ts
 cd <dir>
-pnpm add tailwindcss @tailwindcss/vite @base-ui-components/react
+pnpm add tailwindcss @tailwindcss/vite @base-ui/react
 ```
 
 Then enable the Tailwind v4 Vite plugin in `vite.config.ts` and import the CSS:
@@ -122,7 +127,7 @@ Then `font-sans`, `font-display`, `font-mono` Tailwind classes are available. Lo
 Base UI components are split into "parts". A Dialog looks like this:
 
 ```tsx
-import * as Dialog from "@base-ui-components/react/dialog";
+import * as Dialog from "@base-ui/react/dialog";
 
 export function ConfirmDialog({ open, onClose, children }: Props) {
   return (
@@ -170,7 +175,7 @@ Same 9 sections as shadcn version. Compose using the table above + Tailwind for 
 ## Anti-patterns to avoid
 
 - ❌ Mixing Base UI and shadcn primitives in the same project. Either-or.
-- ❌ Importing all of `@base-ui-components/react` upfront. Each primitive imports cleanly tree-shakes.
+- ❌ Importing all of `@base-ui/react` upfront. Each primitive imports cleanly tree-shakes.
 - ❌ Using Base UI's `Provider` (deprecated) — it does nothing; remove if you find it.
 - ❌ Skipping the styling — Base UI without styles is a screenreader's dream and a user's nightmare.
 - ❌ Using Base UI for design systems that match Material exactly — go MUI for that.
