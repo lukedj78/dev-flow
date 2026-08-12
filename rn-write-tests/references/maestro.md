@@ -1,6 +1,6 @@
 # Maestro — E2E flows for Expo + RN
 
-The **how**, not just "use Maestro". Doc-grounded against `docs.maestro.dev` (CLI install, CLI commands & options, React Native platform page, command reference, selectors, nested flows, parameters, workspace config, Cloud + GitHub Actions) and `docs.expo.dev` (EAS Workflows `maestro` job). Checked 2026-08. `[VERIFY]` CLI flags against `maestro --help` for the installed build.
+The **how**, not just "use Maestro". Doc-grounded against `docs.maestro.dev` (CLI install, CLI commands & options, React Native platform page, command reference, selectors, nested flows, parameters, workspace config, Cloud + GitHub Actions) and `docs.expo.dev` (EAS Workflows `maestro` job). Checked 2026-08, re-verified 2026-08-12 (all 12 top-level CLI subcommands below confirmed current; `action-maestro-cloud` was on a stale major — see CI section). `[VERIFY]` CLI flags against `maestro --help` for the installed build.
 
 **Scope**: this file is the E2E complement to `references/rntl-patterns.md`. RNTL renders components in a Node/Jest environment; Maestro drives the **real binary on a real device/simulator** through the accessibility tree, with zero instrumentation and no npm package inside the app. One user journey per flow. Component rendering, hooks, and query/mutation logic stay in Jest + RNTL — do not re-test them here.
 
@@ -181,7 +181,7 @@ maestro cloud --app-file build/app-release.apk --flows .maestro/ \
   --device-os android-34 --format JUNIT -e PASSWORD="$TEST_PASSWORD"
 ```
 
-The official GitHub Action wraps the same thing: `mobile-dev-inc/action-maestro-cloud@v2.0.2` with `api-key: ${{ secrets.MAESTRO_API_KEY }}`, `project-id`, `app-file` `[VERIFY] the action tag`. Cloud runs have a ~15-minute soft limit per execution — split long journeys into parallelizable flows. Free alternative: run `maestro test --format JUNIT` on a self-hosted emulator.
+The official GitHub Action wraps the same thing: `mobile-dev-inc/action-maestro-cloud@v3` (major **v3**, not v2 — the README's own example pins `@v3.0.1`) with `api-key: ${{ secrets.MAESTRO_API_KEY }}`, `project-id`, `app-file`. Note `android-api-level` / `ios-version` inputs are **deprecated**, replaced by `device-os` (matches the CLI flag used above). Cloud runs have a ~15-minute soft limit per execution — split long journeys into parallelizable flows. Free alternative: run `maestro test --format JUNIT` on a self-hosted emulator.
 
 ## Integration in dev-flow
 
