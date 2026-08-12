@@ -123,7 +123,11 @@ def detect_feature_mobile(file_path: Path, scan_root: Path) -> str | None:
 
 def count_imports(component_name: str, scan_root: Path) -> set:
     importers = set()
-    pattern = re.compile(r'from\s+["\'][^"\']*' + re.escape(component_name) + r'["\']')
+    # The name must be the whole import specifier or immediately follow a "/" —
+    # an unanchored `[^"']*NAME["']` also matches "PostCard" when searching for
+    # "Card" (any component name that's a suffix of another's), inflating the
+    # usage count and mis-triggering promotion on an unrelated component.
+    pattern = re.compile(r'from\s+["\'](?:[^"\']*/)?' + re.escape(component_name) + r'["\']')
     candidates = list(scan_root.glob("app/**/*.tsx")) + list(scan_root.glob("components/**/*.tsx"))
     for tsx in candidates:
         try:
