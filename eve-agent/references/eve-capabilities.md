@@ -159,30 +159,68 @@ any surface with an adapter), use the **Chat SDK channel** instead of a bespoke 
 It's `chatSdkChannel()` from `eve/channels/chat-sdk`, in a channel file named after the surface
 (e.g. `agent/channels/resend.ts`). One channel reaches many platforms through pluggable adapters:
 
-```ts
-// agent/channels/resend.ts   ([VERIFY] names against installed eve/@chat-adapter versions)
-import { chatSdkChannel } from "eve/channels/chat-sdk";
-import { stateMemory } from "@chat-adapter/state-memory";
-import { resendAdapter } from "@resend/chat-sdk-adapter";
+Shape verified against Vercel Labs' [`kody-eve-template`](https://github.com/vercel-labs/kody-eve-template)
+(`agent/channels/resend.ts`, MIT) — an earlier version of this reference guessed it and got four
+things wrong, so copy this, don't improvise:
 
-export default chatSdkChannel({
-  adapters: [resendAdapter({ /* creds from env */ })],
-  state: stateMemory(),
-  handler: (bot) => {
-    // register handlers on `bot` like a standalone Chat SDK app, then route to the agent:
-    bot.on("message", async (message, { send, thread }) => {
-      await send(message.text, { thread });
-    });
+```ts
+// agent/channels/resend.ts — email in and out
+import { createRedisState } from "@chat-adapter/state-redis";
+import { createResendAdapter } from "@resend/chat-sdk-adapter";
+import type { Message, Thread } from "chat";
+import { chatSdkChannel } from "eve/channels/chat-sdk";
+
+export const { bot, channel, send } = chatSdkChannel({
+  adapters: {                                   // an OBJECT keyed by name, not an array
+    resend: createResendAdapter({
+      fromAddress: requireEnv("RESEND_FROM_ADDRESS", "kody@yourdomain.com"),
+      fromName: process.env.RESEND_FROM_NAME ?? "Kody",
+    }),
   },
+  state: createRedisState(),                    // durable thread state
+  streaming: false,                             // email has no incremental rendering
+  userName: "Kody Agent",
 });
+
+bot.onNewMention(async (thread: Thread, message: Message) => {
+  await thread.subscribe();                     // opt this thread into follow-ups
+  await send(message.text, { thread });
+});
+
+bot.onSubscribedMessage(async (thread: Thread, message: Message) => {
+  await send(message.text, { thread });
+});
+
+export default channel;                          // the channel is the default export
 ```
+
+The four things worth reading twice:
+
+1. **`adapters` is an object keyed by name**, not an array — the key is how the adapter is addressed.
+2. **Factories are `create*`**: `createResendAdapter`, `createRedisState`. There is no `handler:`
+   callback — you **destructure `{ bot, channel, send }`** from the call and register hooks on `bot`,
+   then `export default channel` separately.
+3. **`bot.onNewMention` / `bot.onSubscribedMessage`** are the two hooks. The mention handler calls
+   `thread.subscribe()` first — without it the agent answers once and never hears the reply.
+4. **`streaming: false` for email.** There is nothing to render incrementally in an inbox; each reply is
+   delivered as one message. Leaving streaming on is a silent-quality bug, not an error.
+
+Set `fromAddress` from the **same env var the system prompt and any digest task use**, so channel
+replies and agent-sent mail share one identity — otherwise the agent answers from two addresses.
 
 It gives you out of the box: a **webhook route per adapter**, typing indicators + automatic
 reply posting, **HITL input requests rendered as cards with buttons**, **thread persistence
-across sessions**, and in-conversation error reporting. Adapter creds go in env vars;
-`@chat-adapter/state-memory` is the default (swap for a durable store in production). Use this
-for reach across chat platforms; keep the default HTTP channel (`agent/channels/eve.ts`) for
-the Next.js web app via `withEve()`/`useEveAgent()`.
+across sessions**, and in-conversation error reporting. Adapter creds go in env vars; state has
+pluggable backends (`@chat-adapter/state-redis` for durability, `state-memory` only for local
+dev — memory state loses every thread on redeploy). Use this for reach across chat platforms;
+keep the default HTTP channel (`agent/channels/eve.ts`) for the Next.js web app via
+`withEve()`/`useEveAgent()`.
+
+**Email is a first-class inbound surface, not just an outbox.** The template's whole loop is a
+scheduled digest emailed out, a human replying in natural language ("create Linear issues for #1
+and #2"), and the agent acting and confirming by email. If a product already has an email
+relationship with its users, that is a channel — don't build a web UI to get a conversation you
+already have.
 
 ## Session API — fixed, ID-addressed handles (0.31.0)
 

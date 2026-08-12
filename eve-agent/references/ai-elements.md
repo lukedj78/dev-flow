@@ -121,9 +121,24 @@ must map `message.files` into the turn payload yourself — there is no automati
 - **Gate on `status === "ready"`.** eve rejects a second `send` while a turn is live (since 0.31.0
   that surfaces as HTTP **409** / `code: "session_not_active"`, not a stale-token error). `PromptInputSubmit` renders a stop affordance from `status` but does **not**
   block the submit — do it in your handler, as above, and wire the stop button to `agent.stop()`.
-- **HITL breaks the kit's assumptions.** eve's `input.requested` / `authorization.required` events have
-  no `useChat` analogue. Render them from `agent.events` (AI Elements' `Confirmation` component is the
-  natural surface) and answer via `inputResponses` keyed by `requestId` — not through `PromptInput`.
+- **HITL breaks the kit's assumptions, and there are now TWO unrelated HITL mechanisms — don't cross them.**
+  eve's `input.requested` / `authorization.required` events have **no `useChat` analogue**. Render them
+  from `agent.events` (AI Elements' `Confirmation` component is the natural surface) and answer via
+  `respond(inputResponses, …)` keyed by `requestId` — not through `PromptInput`.
+
+  Meanwhile **AI SDK has its own approval flow**, documented in
+  [`@shadcn/helpers` §Human in the loop](https://ui.shadcn.com/docs/helpers/ai-sdk#human-in-the-loop):
+  a tool declares `needsApproval: true`, the client answers with
+  `addToolApprovalResponse({ id: part.approval.id, approved: true })`, and `useChat` resumes on
+  `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` — "the continuation
+  streams as a new step of the paused assistant message".
+
+  **That path is for chats whose transport is the AI SDK, not eve sessions.** In an eve-backed app the
+  approval lives in eve's event stream and its durable session, so `addToolApprovalResponse` has nothing
+  to answer and the tool never resumes. Reach for the shadcn helper when you are prototyping a chat
+  **without** a backend (which is what it is for — `createChat()` scripts a conversation in code and runs
+  it through the `useChat` lifecycle); reach for `agent.events` + `respond()` the moment eve is the
+  runtime. Mixing them produces a UI that renders an approval card nobody is listening to.
 - **The widget protocol may not survive.** `MessageResponse` is built on Streamdown and forwards
   `components` / `remarkPlugins` / `rehypePlugins`, but its documented prop list does **not** include
   streamdown's `plugins` — which is what the widget protocol uses for custom fence renderers
