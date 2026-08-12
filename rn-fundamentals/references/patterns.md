@@ -37,7 +37,7 @@ my-app/
 - ❌ Use `Image` from `react-native` — use `expo-image`.
 - ❌ Use `FlatList` for long lists — use `FlashList`.
 - ❌ Use `react-navigation` directly — Expo Router wraps it.
-- ❌ Use `console.log` in shipped code — use `expo-dev-tools` logging.
+- ❌ Use `console.log` in shipped code — `expo-dev-tools` is not a real package (never published). Gate with `if (__DEV__)` instead.
 - ❌ Use `dimensions = Dimensions.get('window')` at module top-level — recompute on `useWindowDimensions` to handle rotation/foldables.
 
 ## When the rules clash with the course (codewithbeto)

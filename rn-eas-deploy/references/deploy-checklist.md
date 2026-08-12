@@ -9,7 +9,7 @@ Print this to the user before deploy, asking them to confirm each. Block on miss
 - [ ] `npx tsc --noEmit` passes (zero errors).
 - [ ] `npm test -- --runInBand --bail` passes.
 - [ ] `npx expo doctor` exits 0 (or only documented warnings).
-- [ ] No `console.log` in shipped code (use `expo-dev-tools` logging, dev-only).
+- [ ] No `console.log` in shipped code — `expo-dev-tools` does not exist as a package (never published; do not cite it). Gate with `if (__DEV__)` (built into RN, zero setup), or a babel plugin that strips `console.*` in production builds if you want it compiled out entirely — audit any such plugin for maintenance before adopting.
 - [ ] No hardcoded localhost URLs or dev secrets.
 
 ## Configuration
