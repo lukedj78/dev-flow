@@ -83,10 +83,11 @@ post can announce a preview that has since gone stable (see the 16.3 row).
 
 **Skills that track shadcn:** `design-md-to-app` (+ `references/shadcn-mapping.md`, `library-choice.md`, `base-ui-mapping.md`, `chat-and-typeset.md`), `coss-ui` (rides the shadcn CLI + `@coss/*` registry), `screenshot-to-page`, `module-add`, `forms`, `dev-flow` (shadcn create params + `stack.ui_base`), the `.workflow` contract (`ui_base` enum/default).
 
-**Last pass: 2026-08-06.**
+**Last pass: 2026-08-12** (changelog + npm registry through 2026-08-11). Previous: 2026-08-06.
 
 | Date | Changelog item | Relevant to | Status |
 |---|---|---|---|
+| 2026-08-11 | **`shadcn` CLI 4.16.2 → 4.17.0**, **`@shadcn/helpers` → 0.2.0** — checked the published package for anything past the Questionnaire row below (new commands, flags, preset keys). Found none: the bump is internal/CLI-side plumbing for the already-logged Questionnaire component, not a new documented surface. `rtl`/`menuAccent`/`menuColor` visible in the bundle are the Jan/Apr-2026 RTL-support and preset features, already predating this log — not new. | — | ✅ **no change** — verified via `npm pack shadcn@4.17.0`, no CHANGELOG shipped in the package; official changelog page confirms Questionnaire (2026-08-10) is still the newest entry |
 | 2026-08 | **`<Questionnaire />`** — multi-step question flows (single/multiple, freeform, skip, conditional, shortcuts, native `FormData` serialization); Base UI + React Aria + Radix, behaviour in `@shadcn/react` | `forms` | ✅ applied — new §Multi-step question flows, incl. the tension with The Rule (it needs no form library) and the `QuestionnaireInput` label gap |
 | 2026-07 | **Dynamic registry search** — CLI sends `?q=&type=&limit=&offset=`; returning a `pagination` object is itself the opt-in, static registries ignore the params | `shadcn-mapping.md`, anyone publishing a registry (`@coss/*`, eve) | ✅ applied — new §Serving a registry, incl. the trap: echo `pagination` without implementing `q` and you serve unfiltered results as matches |
 | 2026-07 | **Base UI is now the default** for new shadcn projects (`npx shadcn init` → Base UI; Radix still supported, not deprecated) | contract, `dev-flow`, `design-md-to-app`, `library-choice.md` | ✅ applied — flipped `stack.ui_base` default `radix` → `base` everywhere |
