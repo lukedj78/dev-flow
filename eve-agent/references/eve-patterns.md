@@ -288,6 +288,40 @@ Factories (not exported tool instances) let each agent mount the same capability
 
 ---
 
+## 8. Autonomous pipeline — stations, and what an unattended run may do
+
+Distilled from Vercel Labs' MIT template **[eve-software-factory-template](https://github.com/vercel-labs/eve-software-factory-template)** ("Foreman"): an orchestrator that moves a GitHub issue through four declared subagent *stations* — classifier → analyst → implementer → reviewer — and opens a **draft** PR. It extends #7 with the part #7 doesn't answer: what happens when **nobody is watching**.
+
+**a. Disable the built-in `agent` tool once you have stations.** eve ships a generic `agent` tool that runs a fresh copy of the root agent. On a pipeline that is a hole, not a feature: the orchestrator can delegate to an undifferentiated clone of itself and **bypass every station**. One file closes it.
+
+```ts
+// agent/tools/agent.ts
+import { disableTool } from "eve/tools";
+export default disableTool();   // all delegation goes through the declared subagents
+```
+
+**b. An unattended run must be DENIED, not parked.** This is the counter-intuitive one, and it's a correctness argument before a safety one: an approval card needs somebody to answer it, and an autonomous turn has nobody — so gating it doesn't protect anything, it **strands the session forever**. A denial resolves server-side in one step. Give the unattended principal a narrow allowlist (labels, a progress comment, close/reopen, draft PRs) and deny the rest outright.
+
+**c. Make the autonomous principal impossible to impersonate.** Foreman's is `"github:foreman-factory"` — real GitHub actors project as numeric `github:<id>`, so a fixed login **can never collide** with one. Construct the principal so the namespace itself rules out a clash.
+
+**d. Decide trust once, at dispatch, on the signed webhook.** A channel stamps a `trusted` attribute next to the authorization decision itself "so the stamp and the gate can never drift apart" — GitHub stamps it only for `author_association` OWNER/MEMBER/COLLABORATOR, Linear for every Agent Session (workspace membership is the gate). **Nothing downstream re-derives trust from model-readable content.**
+
+**e. Scope a tool's arguments from auth, not from model input.** The sharpest injection defence in the template: an unattended run may comment, but only on **the issue it was dispatched from** — and that issue number is stamped into the session auth at dispatch, from the signed webhook. So instructions injected through the issue body *cannot make the run comment anywhere else in the repo*. Generalise it: when a tool takes a target, take the target from auth wherever it is knowable there.
+
+**f. Gate on reversibility, and remove what should never happen.** Three different answers, deliberately:
+
+| Action | Treatment | Why |
+|---|---|---|
+| Close an issue | **ungated for everyone** | reversible triage — a reopen undoes it |
+| Mark a PR ready for review | **stops the session for approval** | leaves the machine's remit |
+| **Merge** | **absent from the tool surface entirely** | not approval-gated — simply not a capability |
+
+Approval is for decisions a human should make. For actions that should never happen, **remove the capability** rather than gating it: a gate is a prompt away from being argued with, an absent tool is not.
+
+**g. Give the reviewer a different model vendor.** The station that judges the work runs on a different provider than the one that produced it, with up to 2 revision cycles. Two agents from the same family agree with each other far too easily; the vendor split is what makes the verdict worth reading.
+
+**h. One sandbox per station.** Analyst, implementer and reviewer each declare their own `sandbox.ts` with their own repo checkout, and their own `tools/`. The analyst plans against a checkout and **never writes**; the implementer has `checkout_branch` + `push_branch`; the reviewer has `checkout_branch` but no push. The tool surface *is* the job description — enforce the boundary there, not in the prompt.
+
 ## When to reach for these
 
-Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
+Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. **#8 (autonomous pipeline)** is #7 plus unattended execution — reach for it the moment anything triggers the agent without a human in the room (a webhook, a label, a schedule), because that is when "park for approval" silently becomes "hang forever". They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
