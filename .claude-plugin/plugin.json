@@ -29,6 +29,7 @@
     "./linear-scrum",
     "./prd-from-idea",
     "./prd-to-tasks",
+    "./spec-review",
     "./coss-ui",
     "./data-fetching",
     "./design-md-to-app",

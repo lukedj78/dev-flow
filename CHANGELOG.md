@@ -10,6 +10,11 @@ What a bump means here:
 ## [Unreleased]
 
 ### Added
+- **`spec-review`** (core · operative) — reviews a **diff** on the two axes a dev-flow project can check that a generic reviewer cannot: **Spec** (does it implement what `.workflow/PRD.md` + `tasks.md` asked?) and **Standards** (does it obey the golden rules, the declared `meta.json#stack`, the discipline skills, with a Fowler smell baseline as the floor). Two parallel sub-agents, reported side by side and **never merged** — a change can follow every convention while building the wrong feature, or build the right feature ignoring the declared stack, and one verdict lets either hide behind the other. **44 skills** now: **6 core** · 15 web · 2 agent · 16 mobile · 3 monorepo · 2 refactor.
+
+  Adapted from [Matt Pocock's `code-review`](https://github.com/mattpocock/skills) (MIT) and [the essay behind it](https://www.aihero.dev/skills-code-review); the two-axis split, the parallel sub-agents and the smell baseline are his. What is ours is the half his skill has to search for — his step 2 is four fallbacks ending in "ask the user where the spec is", while a dev-flow project keeps the spec and the standards **at known paths**. Deliberately **not** named `code-review`: Claude Code ships that name, and his own write-up lists the collision as a known problem — the same class of clash `setup-deploy` had with a third-party skill.
+
+  It is **not a fourth pre-deploy gate**. The three gates read the finished artefact; this reads the *change*, so dev-flow proposes it at `page_generated` / `module_added` — a spec finding is cheapest while the branch is still open.
 - **`framework: "agent"`** — the agent-only topology is now a first-class contract value: an eve agent at the repo root, no web app, surfaces elsewhere (Slack, email, GitHub, Linear). Closes a decision left open when `kody-eve-template` showed that `agent: "eve"` does **not** imply a monorepo. `eve-agent` gains **layout C** (agent at root, no `apps/*`, no `packages/types`) and, uniquely in this topology, **bumps `phase` to `scaffolded`** — it is the bootstrap skill there, the counterpart of `design-md-to-app` and `rn-bootstrap`, and without it the phase would never advance. Subsequent capability additions still only append to `history`.
 
   The 17 skills that guard on `framework` were **deliberately left untouched**: refusing an agent-only project is the correct answer, not a bug — `forms`, `data-fetching`, `shadscan` and the rest exist to build and audit a frontend that isn't there. `dev-flow` gains a routing row and is told not to apologise for their absence.
@@ -28,7 +33,7 @@ What a bump means here:
 - **Lint check #8** — bare-backtick skill references at a routing marker (`→ \`x\``, `invoke \`x\``, `use \`x\``…) are now verified against the skills on disk. Check #6 only saw `` `<name>/SKILL.md` `` paths, which is why a dangling reference could survive in prose.
 
 ### Changed
-- The suite is **43 skills** (15 web). `dev-flow` proposes all three gates at `feature_complete` and re-runs them in the `deployed` loop.
+- The suite is **44 skills** (6 core · 15 web). `dev-flow` proposes all three gates at `feature_complete` and re-runs them in the `deployed` loop, and proposes `spec-review` earlier — when a chunk of work lands.
 - `transitions` non-negotiable #2 (`prefers-reduced-motion`) is now labelled **machine-checkable**, pointing at the rule that verifies it; `forms` audit mode notes that passing *our conventions* does not imply passing the *user-facing outcome* (a textbook TanStack Form with no `<FormLabel>` passes the greps and fails the gate).
 - **Contract**: the `feature_complete` row now routes web to `vercel-deploy`. Re-vendored to all 30 skills.
 - Every reference to `setup-deploy` — a skill that was routed to but **never existed**, in `dev-flow`, `module-add`, `vercel-doctor` and the contract — now points at `vercel-deploy`. The name changed for two reasons: `setup-deploy` collides with an unrelated third-party skill of the same name that installs to `~/.claude/skills/`, and the *setup* has always belonged to `module-add deploy`.

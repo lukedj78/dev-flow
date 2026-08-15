@@ -1,15 +1,16 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-06T20:26:48Z",
+  "generated_at": "2026-08-15T10:03:36Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 43,
+  "skill_count": 44,
   "families": {
     "core": [
       "compliance-audit",
       "dev-flow",
       "linear-scrum",
       "prd-from-idea",
-      "prd-to-tasks"
+      "prd-to-tasks",
+      "spec-review"
     ],
     "web": [
       "coss-ui",
@@ -75,7 +76,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 97,
+      "skill_md_lines": 99,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -95,7 +96,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 247,
+      "skill_md_lines": 274,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -142,6 +143,19 @@
       "scripts": [],
       "skill_md_lines": 135,
       "bundle": "dist/prd-to-tasks.skill"
+    },
+    {
+      "name": "spec-review",
+      "family": "core",
+      "role": "operative",
+      "description": "Review a diff along the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack` conventions). Two axes, two parallel sub-agents, reported side by si...",
+      "skill_file": "spec-review/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 167,
+      "bundle": "dist/spec-review.skill"
     },
     {
       "name": "coss-ui",
@@ -375,7 +389,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 251,
+      "skill_md_lines": 268,
       "bundle": "dist/vercel-deploy.skill"
     },
     {
@@ -428,7 +442,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 177,
+      "skill_md_lines": 180,
       "bundle": "dist/eve-agent.skill"
     },
     {

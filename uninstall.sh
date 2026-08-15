@@ -38,6 +38,7 @@ SKILLS=(
   prd-to-tasks
   linear-scrum
   compliance-audit
+  spec-review
 
   # Web stack
   figma-to-design-md
