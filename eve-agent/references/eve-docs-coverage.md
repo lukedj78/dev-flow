@@ -3,6 +3,22 @@
 Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/` — the published package ships its full docs **and a CHANGELOG**, which is the only place the breaking-change history exists (eve.dev has no changelog page). `npm pack eve@<version>` is enough; you do not need to install it.
 
 > **Verification pass 2026-08-12 against eve@0.31.3.** All 15 cited subpaths and all 16 cited exports exist; `eve add` / `eve registry` / `eve extension build` / `eve channels list` confirmed (and no `eve channels add`, as documented). The Slack hook set and `ctx.*` surface match. **One table was wrong**: the channel-kind list — `channel/linear` does not exist (it is `channel/linear-agent`, or the `eve add linear` bundle), `teams`/`telegram`/`twilio` are hand-authored rather than registry items, and `twilio` was missing entirely.
+>
+> **Verification pass 2026-08-16 against eve@0.38.3** (eve shipped 0.32.0 through 0.38.3 in the four
+> days since the last pass — pulled `npm pack eve@0.38.3` and read `CHANGELOG.md` + `docs/`, same
+> technique). CLI surface, auth fallback, and channel-kind list from the previous pass all still hold.
+> **Four things had drifted**: ① **eve's own scaffold default model changed in 0.36.0** from
+> `anthropic/claude-sonnet-5` to `zai/glm-5.2` — this skill's *recommendation* is unchanged, but three
+> files described it as "the scaffold default," which stopped being true; ② **`defineDynamic` dropped
+> `fallback`** in 0.33.0 — every matching handler must now return a concrete model/tool/instruction,
+> no compiled fallback; ③ **frontend agent bindings renamed `stop()` → `cancel()`** in 0.38.0; ④
+> separately (not itself a change this pass — shipped 0.33.0, just never logged before), the `eve`
+> channel's default `turnPolicy` (**`"steer"`**, cancel-and-replace on an overlapping send) was
+> documented backwards as a hard reject/queue in two files. All four fixed, across six files:
+> `eve-scaffold.md`, `eve-conventions.md`, `eve-concepts.md`, `SKILL.md`, `ai-elements.md`, and
+> `eve-web-integration.md`. Not re-verified this pass (logged for the next one): the 0.31.0
+> session/channel API surface already covered by the 08-12 pass, and the newer 0.37.x background-tasks
+> / MCP-channel-route / Vercel-Sandbox-Drives surfaces, which this skill doesn't document yet.
 
 Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read) · **⛔ out of scope** (with reason).
 

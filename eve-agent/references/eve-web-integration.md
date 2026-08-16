@@ -70,10 +70,15 @@ Do **not** introduce an ad-hoc `AGENT_BASE_URL` + manual `fetch` — `withEve()`
 
 ## Message discipline (one turn at a time)
 
-eve has no durable inbound queue. Send one turn per session and wait for the turn to settle
-(`status === "ready"`, i.e. the `session.waiting` stream event) before the next `send`; if
-the UI can burst, hold your own per-session queue. For raw `eve/client` use,
-`await response.result()` before the next `send()` on the same handle.
+Gate the composer on `status === "ready"` (i.e. the `session.waiting` stream event) so the UI
+doesn't invite overlapping sends — good UX regardless of server behavior. `[VERIFY]` the
+underlying policy against your installed eve version: since **0.33.0** the `eve` channel that
+`withEve()` mounts defaults to `turnPolicy: "steer"`, **not** a queue or a hard reject — a `send`
+that arrives while a turn is active is durably buffered, then cooperatively cancels that turn and
+starts as its replacement (`turn.cancelled` → new turn ID; already-streamed output and completed
+side effects are not rolled back). Set `turnPolicy: "queue"` on `eveChannel(...)` (or per `send`)
+if you need each turn to finish before the next one starts instead. For raw `eve/client` use,
+`await response.result()` before the next `send()` on the same handle regardless of policy.
 
 ⚠️ **0.31.0 replaced continuation tokens with fixed, ID-addressed handles.** There is no token
 to keep current and none to go stale; a follow-up on an inactive session now fails loudly with
