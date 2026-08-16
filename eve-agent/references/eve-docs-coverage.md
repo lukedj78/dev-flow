@@ -19,6 +19,16 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > `eve-web-integration.md`. Not re-verified this pass (logged for the next one): the 0.31.0
 > session/channel API surface already covered by the 08-12 pass, and the newer 0.37.x background-tasks
 > / MCP-channel-route / Vercel-Sandbox-Drives surfaces, which this skill doesn't document yet.
+>
+> **Rebase note, 2026-08-16, landing the standalone `eve-channels.md`** (per-surface Telegram /
+> Discord / Teams / WhatsApp guides, proposed 2026-08-06, predates the 08-12 channel-table fix
+> above). Its three section headers claimed `eve add channel/telegram` and `eve add channel/teams`
+> and `eve add channel/chat-sdk-whatsapp` — checked against `eve@0.38.3`'s own docs (`telegram.mdx`
+> / `teams.mdx` show hand-authored setup only, `channel/discord` is the one of the three that is
+> real and documented, `chat-sdk.mdx` confirms WhatsApp rides the Chat SDK with no registry item
+> of its own) and corrected to match §Channel's already-verified table instead of re-diverging
+> from it. The Linear §Channel subsection this branch predates was kept in place rather than
+> dropped by the merge.
 
 Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read) · **⛔ out of scope** (with reason).
 

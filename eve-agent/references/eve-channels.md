@@ -1,9 +1,10 @@
 # eve-channels — per-surface guides
 
 Deep dives for the platform channels that `eve-capabilities.md` §Channel only names. Read
-§Channel first for the shared rules (install via `eve add channel/<kind>`, default export, the
-kind list, Vercel Connect). **Slack**, the **Chat SDK / Resend** channel and **custom**
-`defineChannel` channels stay in `eve-capabilities.md` — they are already written up there.
+§Channel first for the shared rules — including **which of these are a registry item
+(`eve add channel/<kind>`) and which are authored by hand**, default export, Vercel Connect.
+**Slack**, the **Chat SDK / Resend** channel, **Linear** and **custom** `defineChannel` channels
+stay in `eve-capabilities.md` — they are already written up there.
 
 Every channel here mounts at **`/eve/v1/<kind>`** by default: inside eve's protocol prefix, so
 `withEve()` proxies it and no extra Next.js rewrite is needed. Routes *outside* that prefix do
@@ -18,7 +19,11 @@ fast-moving surfaces, and the sections below were written against the published 
 
 ---
 
-## Telegram — `eve add channel/telegram`
+## Telegram — authored by hand, no registry item
+
+⚠️ Per §Channel: `telegram` ships a subpath (`eve/channels/telegram`) and a docs page, but there
+is **no `eve add channel/telegram`** — write the file yourself, as below. `[VERIFY]` against
+`eve registry list` before assuming otherwise; the kind list has been wrong before.
 
 ```ts
 // agent/channels/telegram.ts
@@ -134,7 +139,10 @@ Gotchas in the order they bite:
 
 ---
 
-## Microsoft Teams — `eve add channel/teams`
+## Microsoft Teams — authored by hand, no registry item
+
+⚠️ Same as Telegram: `teams` ships a subpath (`eve/channels/teams`) and a docs page, but **no
+`eve add channel/teams`** — write the file yourself.
 
 ```ts
 // agent/channels/teams.ts
@@ -171,10 +179,11 @@ teamsChannel({ files: { enabled: true, allowedHosts: ["..."] } })
 
 ---
 
-## WhatsApp — `eve add channel/chat-sdk-whatsapp`
+## WhatsApp — no channel and no registry item, hand-author on the Chat SDK
 
-WhatsApp has no first-class eve channel: it rides the **Chat SDK** (see `eve-capabilities.md`
-§Channel → Chat SDK for the shared shape and the Resend worked example).
+WhatsApp has no first-class eve channel and nothing under `eve add channel/…` installs it: it
+rides the **Chat SDK** (see `eve-capabilities.md` §Channel → Chat SDK for the shared shape and
+the Resend worked example) with a WhatsApp adapter, authored by hand like the Resend example.
 
 ```ts
 // agent/channels/whatsapp.ts
