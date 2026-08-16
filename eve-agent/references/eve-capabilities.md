@@ -107,7 +107,7 @@ skills are invisible to the root.
 
 ## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.31.3/docs/channels/`:
+A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.38.3/docs/channels/`:
 
 | Channel | How you add it |
 |---|---|

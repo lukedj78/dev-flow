@@ -56,7 +56,7 @@ package; you write the ~15-line mapping yourself.
 | `messages` | `agent.data.messages` | eve's default reducer projects `{ messages }`; a custom `reducer` changes this |
 | `status` | `agent.status` | both are `"ready" \| "submitted" \| "streaming" \| "error"` — passes straight into `PromptInputSubmit`. `[VERIFY]` against the installed AI Elements `ChatStatus` type |
 | `sendMessage({ text })` | `agent.send(text)` | eve takes text **or** a full turn payload |
-| `stop()` | `agent.stop()` | 1:1 |
+| `stop()` | `agent.cancel()` | eve renamed `stop()` → `cancel()` on frontend agent bindings in **0.38.0**; not 1:1 in name, same role |
 | `error` | `agent.error` | 1:1 |
 | `regenerate()` | *(none)* | re-`send` the previous user text yourself |
 | `setMessages([])` | `agent.reset()` | also clears events + the local session cursor |
@@ -118,9 +118,13 @@ must map `message.files` into the turn payload yourself — there is no automati
 
 ## Non-obvious gotchas
 
-- **Gate on `status === "ready"`.** eve rejects a second `send` while a turn is live (since 0.31.0
-  that surfaces as HTTP **409** / `code: "session_not_active"`, not a stale-token error). `PromptInputSubmit` renders a stop affordance from `status` but does **not**
-  block the submit — do it in your handler, as above, and wire the stop button to `agent.stop()`.
+- **Gate on `status === "ready"`.** Don't rely on the server to reject an overlapping `send` — since
+  **0.33.0** the eve channel defaults to `turnPolicy: "steer"`, so a `send` while a turn is live is
+  accepted and **cancels + replaces** the active turn rather than erroring (409/`session_not_active`
+  is for a `send`/`respond` on an *inactive* session — unknown or terminal ID — a different case).
+  `PromptInputSubmit` renders a stop affordance from `status` but does **not** block the submit — do
+  it in your handler, as above, and wire the stop button to `agent.cancel()` (renamed from `stop()`
+  in eve 0.38.0).
 - **HITL breaks the kit's assumptions, and there are now TWO unrelated HITL mechanisms — don't cross them.**
   eve's `input.requested` / `authorization.required` events have **no `useChat` analogue**. Render them
   from `agent.events` (AI Elements' `Confirmation` component is the natural surface) and answer via

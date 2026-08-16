@@ -168,8 +168,11 @@ bundler does not capture `execute: someFn` and it fails on replay.
   (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. Default scaffold model: `anthropic/claude-sonnet-5`; the
-  `model` field also accepts `defineDynamic({ fallback, … })` for per-session model choice.
+* Prereqs: **Node ≥ 24** and npm. `[VERIFY]` **eve's scaffold default changed in 0.36.0**: `eve init`
+  and config-less agents now default to `zai/glm-5.2`, not `anthropic/claude-sonnet-5` — this skill
+  still recommends pinning `anthropic/claude-sonnet-5` explicitly, don't rely on the scaffold default.
+  The `model` field also accepts `defineDynamic({ events })` for per-session model choice — since
+  0.33.0 there is no `fallback`; every matching handler must return a concrete model.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
   Standard Schema / plain JSON Schema object. Relative imports need `.js` extensions
   (`module: NodeNext`). ([VERIFY] against the installed version.)
