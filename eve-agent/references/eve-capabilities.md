@@ -128,6 +128,12 @@ vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` fr
 `@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
 Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs. The **eve integrations directory** (<https://eve.dev/integrations>) is the full channel catalog — Google Chat, WhatsApp, X, Messenger, Resend/email, and provider-official adapters beyond the CLI kinds.
 
+**Per-surface deep dives live in `references/eve-channels.md`** — Telegram (webhook registration,
+group dispatch rules, the `onMessage` gate, the two send paths), Discord (3-second ACK, command
+propagation), Teams (the `onInputResponse` authorization bypass), WhatsApp via Chat SDK, and when
+an adapter's threading model does *not* fit your domain. Slack, Chat SDK/Resend, Linear and custom
+channels stay here.
+
 #### Linear concretely — **Agent Sessions**, not comments
 
 Linear gives agents a **native surface**: an *Agent Session* is a dedicated workspace where a user
