@@ -9,6 +9,12 @@ primitives. This is a **standard**, not a suggestion.
 Verify names/versions against the changelog (<https://ui.shadcn.com/docs/changelog>) and
 the installed registry — the surface is young and grows.
 
+> **The reference implementation is official and MIT**: [`shadcn-ui/chatbot-template`](https://github.com/shadcn-ui/chatbot-template)
+> — Next.js + AI SDK + shadcn/ui + `@shadcn/react` + shadcn/typeset on the Vercel AI Gateway.
+> When you need to know *how these pieces fit*, read it rather than inferring. Its pinned stack
+> (verified 2026-08): `next@16.2.6`, `ai@^7`, `@ai-sdk/react@^4`, `@shadcn/react@^0.3`,
+> `@base-ui/react@^1.7`, `react@19.2.4`, `tw-animate-css@^1.4`.
+
 ## 1. Chat components (shadcn, June 2026)
 
 Install into the shared UI location (`packages/ui` in a monorepo, else the app):
@@ -213,6 +219,69 @@ paired with typeset). `align="start|end"` on both `Message` and `Bubble`.
 ### `@shadcn/helpers` — prototype the conversation in code (shadcn, July 2026)
 
 For AI chat specifically, **`@shadcn/helpers`** ships **AI SDK** and **TanStack AI** helpers that let you write a conversation in code and run it through the `useChat` lifecycle **without a backend** — ideal for building and iterating the chat UI before the agent is wired. Pair it with the chat components above (the components render; the helpers drive the message flow). `[VERIFY]` the package name + API against the installed version. When the app is backed by an **eve** agent, keep eve as the single source of truth (see the two-brains note in `module-add/references/module-voice.md`) — use these helpers only for local prototyping, never as a second runtime.
+
+### Ask-the-user HITL — a tool with **no `execute`**
+
+The `chatbot-template` answers a question our other references leave open: how does a model *ask the
+human something* mid-stream and get a typed answer back? Not with a special API — with an ordinary tool
+that simply **has no `execute` function**:
+
+```ts
+// tools/ask_user.ts — inputSchema + outputSchema, and NO execute
+export const askUser = tool({
+  description: "Ask the user clarifying questions when their request is ambiguous. …",
+  inputSchema: z.object({ questions: z.array(z.object({
+    question: z.string(),
+    choices: z.array(z.string()).length(3),      // exactly three, short and distinct
+  })).min(1) }),
+  outputSchema: z.array(z.object({ question: z.string(), answer: z.string() })),
+})
+```
+
+With no `execute`, the call **parks on the client**. The UI reads the tool part's state, renders the
+question, and the human's answer *becomes the tool output*:
+
+```tsx
+const { messages, addToolOutput } = useChat<ChatUIMessage>({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,   // resume once answered
+})
+
+// part.state === "input-available" → render; "output-available" → it's answered
+<QuestionCard part={pendingQuestion} onAnswer={(toolCallId, answer) =>
+  addToolOutput({ tool: "ask_user", toolCallId, output: answer })
+} />
+```
+
+**And the surface it renders is the `<Questionnaire />`** the `forms` skill documents — same component,
+used as a chat affordance rather than a page. That is the join between the two skills: `forms` owns the
+component and its accessibility, this owns the wiring that turns it into a model-driven question.
+
+**There are now three unrelated HITL mechanisms. Pick by runtime, don't mix them:**
+
+| | The model wants | Answered with | Resumes on |
+|---|---|---|---|
+| **Ask** (this) | *information* — a tool with `outputSchema`, no `execute` | `addToolOutput({ tool, toolCallId, output })` | `lastAssistantMessageIsCompleteWithToolCalls` |
+| **Approval** ([`@shadcn/helpers`](https://ui.shadcn.com/docs/helpers/ai-sdk#human-in-the-loop)) | *permission* — `needsApproval: true` on a tool | `addToolApprovalResponse({ id, approved })` | `lastAssistantMessageIsCompleteWithApprovalResponses` |
+| **eve** (`eve-agent/references/ai-elements.md`) | either — `input.requested` / `authorization.required` | `respond(inputResponses)` | eve's durable session |
+
+The first two are AI SDK and compose freely; **the third is not** — in an eve-backed app the approval
+lives in eve's event stream, so `addToolOutput` and `addToolApprovalResponse` have nothing to answer.
+
+### Two things the template does that a demo wouldn't
+
+**The chat route is public and spends money.** Its own comment is the warning worth copying: *"This
+endpoint is public and spends your AI Gateway credits on every request. Before exposing it to real
+traffic, add a rate limit (Vercel Firewall / WAF or `@upstash/ratelimit`), authentication, and an AI
+Gateway spend limit."* A chat route without those three is a funded denial-of-wallet.
+
+**It validates before it trusts.** `validateUIMessages()` checks the shape of every message and tool
+part arriving from the client, and `isModelAllowed()` rejects any model outside an explicit allowlist
+with a 400 — otherwise the client picks the model, and picks the expensive one.
+
+**On Vercel the Gateway needs no configuration at all**: deployments authenticate via **OIDC** and usage
+runs on the team's AI Gateway credits. Locally you either `vercel env pull` an OIDC token or set
+`AI_GATEWAY_API_KEY`. Nothing to wire, which is worth knowing before someone builds a key-management
+story that Vercel already handles.
 
 ## 2. typeset (shadcn, July 2026) — for RENDERED markdown/HTML
 

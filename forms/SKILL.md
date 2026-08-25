@@ -126,6 +126,15 @@ consequences to keep straight:
   itself. Read it on the step's submit and push the values through the hook's field API, exactly as the
   `stack.ui = "mui"` row does for primitives. Never keep two sources of truth for the same answer.
 
+**It is also the surface a model asks questions through.** In a chat, an AI SDK tool declared with an
+`outputSchema` and **no `execute`** parks its call on the client; the UI renders a `<Questionnaire />`
+from the tool input, and the human's answer is returned as the tool output via
+`addToolOutput({ tool, toolCallId, output })`. That is how shadcn's own
+[`chatbot-template`](https://github.com/shadcn-ui/chatbot-template) does clarifying questions — same
+component, same accessibility rules as below, driven by a model instead of a route. Wiring in
+`design-md-to-app/references/chat-and-typeset.md` §Ask-the-user HITL; **don't** reach for it in an
+eve-backed app, where questions arrive on eve's event stream instead.
+
 **Accessibility is mostly free, with one exception.** The `fieldset`/`legend` structure and native
 radio/checkbox behaviour come from the component; failed validation moves focus to an answer control. But
 **`QuestionnaireInput` has no implicit name** — give it a visible label, `aria-label`, or
