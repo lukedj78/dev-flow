@@ -19,6 +19,9 @@ Checks:
      "hands off to", "that's") point at a skill that exists - check 6 only
      catches the <name>/SKILL.md form, so a dangling name in prose used to
      survive.
+  10. Every skill in the taxonomy is mentioned in the README catalogue, in
+     either form it uses (a `### \`name\`` prose section or a `| \`name\` |`
+     table row). Adding a skill and forgetting the README is silent otherwise.
 
 Exit codes:
   0 = clean (notes are informational and never change the exit code)
@@ -317,6 +320,51 @@ def check_routing_references(path: Path, all_skills: set[str]) -> None:
         )
 
 
+# --- check 10: the README catalogue covers every skill ----------------------
+#
+# The catalogue is 400+ lines of HAND-WRITTEN prose — Input / Output / how it
+# works — plus compact table rows for the families where a section each would
+# be 160 lines of scroll. That prose is an asset; generating it from
+# skills.json would trade it for a thinner table. So this does NOT generate
+# anything. It checks the one thing that silently rots: a skill gets added and
+# nobody adds it to the README. (`coss-ui` had been missing for months.)
+#
+# Both documentation depths count. The reverse direction is deliberately NOT
+# checked: those tables also list `module-add` module names (auth, db, ci, …)
+# which are not skills, so "extra" rows are normal and flagging them would be
+# noise.
+CATALOGUE_START = "## The 44 skills, in detail"
+CATALOGUE_END = "## How the skills compose"
+PROSE_RE = re.compile(r"^### `([a-z][a-z0-9-]+)`", re.M)
+ROW_RE = re.compile(r"^\| `([a-z][a-z0-9-]+)`", re.M)
+
+
+def check_readme_catalogue(readme: Path, all_skills: set[str]) -> None:
+    if not readme.exists():
+        warn(f"{readme}: not found (skipping catalogue check)")
+        return
+    text = readme.read_text()
+    # The heading carries the count, so match on the stable half.
+    m = re.search(r"^## The (\d+) skills, in detail$", text, re.M)
+    if not m:
+        warn(f"{readme}: no '## The N skills, in detail' heading (skipping catalogue check)")
+        return
+    claimed = int(m.group(1))
+    if claimed != len(all_skills):
+        err(f"{readme}: catalogue heading says {claimed} skills, {len(all_skills)} exist on disk")
+    try:
+        section = text[m.start():text.index(CATALOGUE_END, m.start())]
+    except ValueError:
+        warn(f"{readme}: catalogue has no '{CATALOGUE_END}' terminator (skipping)")
+        return
+    documented = set(PROSE_RE.findall(section)) | set(ROW_RE.findall(section))
+    for skill in sorted(all_skills - documented):
+        err(
+            f"{readme}: `{skill}` exists but the catalogue never mentions it — "
+            f"add a `### `{skill}`` section or a table row to its family"
+        )
+
+
 def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
     if not installer_path.exists():
         warn(f"{installer_path}: not found (skipping installer check)")
@@ -366,6 +414,7 @@ def main() -> int:
                 check_skill_references(ref, all_skills)
                 check_routing_references(ref, all_skills)
 
+    check_readme_catalogue(root / "README.md", all_skills)
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)
 

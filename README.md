@@ -826,6 +826,15 @@ The skill is explicit about confidence: every guess is flagged in the prose. A 1
 
 The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs/conventions.md).
 
+### `coss-ui` — Coss/UI, the Cal.com design system on Base UI
+
+**Input**: a project that wants the Cal.com aesthetic, or `meta.json#stack.ui = "coss"`.
+**Output**: components installed from the namespaced `@coss/*` shadcn registry, with DESIGN.md tokens reconciled on top.
+
+**How it works**: two modes — **Init** (`shadcn init @coss/style` on a new or empty project: components, the neutral colour system, sidebar variables, base styles, Inter + Geist Mono) and **Add** (pull `@coss/ui`, a single `@coss/<name>`, or particles into a project that already exists). Because Coss ships **the same CSS variable names as shadcn/ui**, the DESIGN.md → tokens pipeline works unchanged: your tokens override theirs in `globals.css`, no bridging layer.
+
+It is a deliberate fourth choice inside the shadcn/Base-UI family, not a default, and it carries two caveats worth stating before you pick it: **Tailwind CSS v4 is required**, and the licence is **mixed MIT / AGPLv3** (`references/deps-and-license.md`). Offer it when someone wants the Cal.com look or an AI-first Base UI kit; `design-md-to-app` still owns the generic scaffold, this skill owns the Coss-specific install and token reconciliation.
+
 ### `screenshot-to-page` — screenshot → working route
 
 **Input**: one image from `.workflow/screenshots/` + `DESIGN.md` + `meta.json#stack`.
