@@ -108,6 +108,16 @@ export default experimental_workflow({ maxSubagents: 4 });   // WORKFLOW_SUBAGEN
 
 It's a **coordination layer only** — no filesystem/network/shell, only calls to the built-in `agent`, declared subagents, and remote agents. The whole orchestration is one step, so it resumes after a restart even if a child is long-running or human-gated.
 
+### The general form: model-written code, and what makes it safe
+
+`experimental_workflow` is eve's narrow version of a broader idea — **let the model write a program instead of emitting one tool call at a time**. The general mechanism is [`run`](https://github.com/vercel-labs/run) (`run@2.0.1`, *"secure QuickJS-backed JavaScript runtime with host functions and continuations"*), which is also what powers **code-mode tool execution in the AI SDK**. Worth understanding even if you only ever use eve's version, because it names the three properties that make model-written code safe at all:
+
+- **Isolation is in-process, not OS-level.** The code runs in a QuickJS context inside a worker thread — `eval` with the plug pulled, not a VM. Cheap enough to run per tool call; **not** a substitute for Vercel Sandbox when you need OS-level isolation, and the blog says so itself.
+- **`hostFunctions` is the entire egress surface.** The sandboxed program can reach exactly what you hand it and nothing else — no ambient secrets, no internal services, no `fetch` you didn't pass in. This is #6's read-vs-egress boundary expressed as a *mechanism* rather than a policy: not "the agent shouldn't call that", but "there is nothing to call".
+- **A host function can interrupt, and resumption replays.** Settled host-function calls return their **recorded** results when the program resumes, so a pause for human approval mid-program is durable rather than a re-run. Same replay contract as eve's own step boundaries — which is why `experimental_workflow` can be one durable step at all.
+
+Config is `run({ source, hostFunctions, limits: { timeoutMs, memoryLimitBytes } })`, or `createRunner()` for a shared budget. Node 22.13+ / Bun. `[VERIFY]` before wiring it directly into an eve agent — eve exposes the workflow tool, not `run`, and whether you should reach past it is a design decision, not a default.
+
 ## Responsible use (deployer obligations — do this before production)
 
 eve's defaults are **permissive** (unsupervised tools, unrestricted egress). As the deployer you must configure: **approval policies, tool restrictions, connection scopes, route/session authorization, sandbox controls, telemetry exports**, and ensure legal compliance. Before shipping with sensitive data, review the full action surface (default/custom/MCP tools, shell/file/web tools, connected services, subagents, schedules, external actions). **Require human approval** for sensitive/irreversible/regulated/financial/healthcare/employment/housing/legal/safety- or user-impacting/external-side-effecting actions. **Never rely on model behavior alone** to prevent them.

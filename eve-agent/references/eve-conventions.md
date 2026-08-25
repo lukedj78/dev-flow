@@ -162,7 +162,9 @@ Two consequences worth planning for rather than discovering:
   the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
 
 `[VERIFY]` whether eve's `vercel()` backend forwards `region`/`failoverRegions` through `defineSandbox`, or whether
-they have to be set as the project default — the platform exposes them, eve's passthrough is a separate question. (`roprgm/worldcup-eve` uses `just-bash`
+they have to be set as the project default — the platform exposes them, eve's passthrough is a separate question.
+
+**Not the same axis as `run`.** [`run`](https://github.com/vercel-labs/run) isolates *model-written JavaScript* in an in-process QuickJS context whose only egress is the `hostFunctions` you pass it; a sandbox backend isolates *shell and code tools* at the OS level. One is for "the model wrote a program", the other for "a tool needs a machine". Reaching for a VM when you meant the first is startup cost for nothing — and reaching for QuickJS when you meant the second gives you no OS isolation at all. See `eve-concepts.md` §The general form. (`roprgm/worldcup-eve` uses `just-bash`
 for exactly this reason.) `[VERIFY]` the `eve/sandbox/just-bash` subpath against installed docs.
 
 ## State & per-session context
