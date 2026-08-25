@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""lint_skills.py — sanity-check every skill in the repo
+r"""lint_skills.py — sanity-check every skill in the repo
 
 Checks:
   1. Every */SKILL.md has valid YAML frontmatter with `name` + `description`.
@@ -25,7 +25,8 @@ Checks:
   11. Skill counts stated in prose (README, CONTEXT, the map, the installers)
      match reality — total and per family.
 
-(`docs/site/` is generated separately — run `python3 scripts/build_site.py --check`.)
+(The published site — `docs/index.html` + `docs/skills/` — is generated separately:
+run `python3 scripts/build_site.py --check`.)
 
 Exit codes:
   0 = clean (notes are informational and never change the exit code)
@@ -385,6 +386,13 @@ def check_readme_catalogue(readme: Path, all_skills: set[str]) -> None:
 # is the vendored-contract copy count, not a skill count. Adding a new phrasing
 # here is a one-line change; drowning the check in false positives is not
 # recoverable.
+#
+# One quirk to know when writing ABOUT this check: it scans prose, so prose
+# that quotes a stale count as an example trips it — the README described
+# check 11 by reproducing two of the phrasings it had caught, and the check
+# dutifully flagged them. Describe such examples rather than reproducing them
+# verbatim. The alternative (teaching the check to recognise an example) makes
+# it cleverer and less trustworthy, which is the wrong trade for a guard.
 FAMILIES = "core|web|agent|mobile|monorepo|refactor"
 COUNT_FILES = ["README.md", "CONTEXT.md", "docs/dev-flow-skill-map.html",
                "install.sh", "uninstall.sh"]
