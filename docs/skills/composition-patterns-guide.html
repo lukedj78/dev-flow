@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>composition-patterns-guide — dev-flow</title>
-<meta name="description" content="Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state.">
+<meta name="description" content="Use when refactoring React or React Native components that suffer from boolean prop proliferation, missing compound structure, prop drilling, or unclear ownership of state.">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -115,7 +115,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">composition-patterns-guide</h1>
   <ul class="meta"><li class="chip">Refactor</li><li class="chip">knowledge — teaches; changes nothing</li><li class="chip">226 lines</li><li class="chip">2 references</li></ul>
-  <p class="lede">Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules adapted to our web + RN stack: avoid boolean props (use composition or explicit variants), prefer compound components with shared context, lift state into providers, use children over render props, modern React 19 patterns (no forwardRef). Also enforces our colocation rules (Rule of Three for promotion, L0/L1/L2 hierarchy, _components/ naming). Triggers on: &quot;refactor this component&quot;, &quot;questo componente ha troppi prop booleani&quot;, &quot;rendi questo componente più componibile&quot;, &quot;compound component&quot;, &quot;context provider per X&quot;, &quot;design del componente&quot;. Not for: scaffolding new components from scratch (use design-md-to-app, screenshot-to-page, rn-add-screen), or moving components up the hierarchy (use promote-component).</p>
+  <p class="lede">Use when refactoring React or React Native components that suffer from boolean prop proliferation, missing compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules for our web + RN stack — composition or explicit variants over boolean props, compound components with shared context, state lifted into providers, children over render props, React 19 (no forwardRef) — plus our colocation rules (Rule of Three, L0/L1/L2, <code>_components/</code>). Triggers on: &quot;refactor this component&quot;, &quot;questo componente ha troppi prop booleani&quot;, &quot;rendi questo componente più componibile&quot;, &quot;compound component&quot;, &quot;context provider per X&quot;, &quot;design del componente&quot;. Not for: scaffolding new components (use design-md-to-app, screenshot-to-page, rn-add-screen), or moving components up the hierarchy (use promote-component).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>

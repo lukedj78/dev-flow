@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-25T20:46:04Z",
+  "generated_at": "2026-08-25T20:55:23Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -103,7 +103,7 @@
       "name": "linear-scrum",
       "family": "core",
       "role": "operative",
-      "description": "Take a dev-flow project into Linear and run it with agile scrum. Creates/links a Linear Project under the workspace team, pushes `.workflow/tasks.md` into issues (story-point estimates, `area:web`/`area:agent` labels, milestones), sets up cycles/sprints (2-week cadence), and keeps Linear as the sour...",
+      "description": "Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprin...",
       "skill_file": "linear-scrum/SKILL.md",
       "references": [
         "contracts.md",
@@ -244,7 +244,7 @@
       "name": "forms",
       "family": "web",
       "role": "operative",
-      "description": "Build or edit any form in a Next.js 16 App Router app via one shared toolkit in `lib/forms/` with dirty + valid Save gating, on TanStack Form + Zod (default) or react-hook-form (auto-detected). Use when the user says \"form\", \"edit panel\", \"create dialog\", \"settings page\", \"save button\", \"dirty state...",
+      "description": "Build or edit any form in a Next.js 16 App Router app through one shared toolkit in `lib/forms/`, with dirty + valid Save gating — on TanStack Form + Zod (default) or react-hook-form (auto-detected). Use when the user says \"form\", \"edit panel\", \"create dialog\", \"settings page\", \"save button\", \"dirty...",
       "skill_file": "forms/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -775,7 +775,7 @@
       "name": "composition-patterns-guide",
       "family": "refactor",
       "role": "knowledge",
-      "description": "Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules adapted to our web + RN stack: avoid boolean props (use composition or explici...",
+      "description": "Use when refactoring React or React Native components that suffer from boolean prop proliferation, missing compound structure, prop drilling, or unclear ownership of state. Codifies the 7 Vercel composition-patterns rules for our web + RN stack — composition or explicit variants over boolean props, ...",
       "skill_file": "composition-patterns-guide/SKILL.md",
       "references": [
         "colocation-rules.md",

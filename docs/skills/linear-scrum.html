@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>linear-scrum — dev-flow</title>
-<meta name="description" content="Take a dev-flow project into Linear and run it with agile scrum.">
+<meta name="description" content="Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -115,7 +115,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">linear-scrum</h1>
   <ul class="meta"><li class="chip">Core</li><li class="chip">operative — changes the codebase</li><li class="chip">77 lines</li><li class="chip">3 references</li><li class="chip">3 scripts</li></ul>
-  <p class="lede">Take a dev-flow project into Linear and run it with agile scrum. Creates/links a Linear Project under the workspace team, pushes <code>.workflow/tasks.md</code> into issues (story-point estimates, <code>area:web</code>/<code>area:agent</code> labels, milestones), sets up cycles/sprints (2-week cadence), and keeps Linear as the source of truth: sync pushes only new tasks, pulls status/velocity, plans the active sprint up to the velocity target, and reports. Triggers: &quot;porta il progetto in Linear&quot;, &quot;crea le issue in Linear&quot;, &quot;setup scrum&quot;, &quot;pianifica lo sprint&quot;, &quot;report di velocity&quot;, &quot;adotta questo progetto in Linear&quot;, or dev-flow routing from <code>prd_drafted</code>/<code>tasks_split</code>. Modes: Setup (new project), Adopt (existing Linear project), Sync (ongoing). Not for: writing or estimating the tasks themselves (use <code>prd-to-tasks</code>), building the app or agent (use design-md-to-app / eve-agent), or the headless server loop wiring (see docs/loop-engineering.md).</p>
+  <p class="lede">Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes <code>.workflow/tasks.md</code> into estimated, labelled issues, sets up 2-week cycles, then keeps <strong>Linear as the source of truth</strong> — syncing new tasks up, status and velocity down, planning each sprint to the velocity target. Triggers: &quot;porta il progetto in Linear&quot;, &quot;crea le issue in Linear&quot;, &quot;setup scrum&quot;, &quot;pianifica lo sprint&quot;, &quot;report di velocity&quot;, &quot;adotta questo progetto in Linear&quot;, or dev-flow routing from <code>prd_drafted</code>/<code>tasks_split</code>. Modes: Setup, Adopt, Sync. Not for: writing or estimating the tasks themselves (use <code>prd-to-tasks</code>), building the app or agent (design-md-to-app / eve-agent), or the headless server loop (docs/loop-engineering.md).</p>
 </div>
 <section><div class="wrap prose">
   <h3>What it does not do</h3>
