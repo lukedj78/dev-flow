@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-16T14:53:01Z",
+  "generated_at": "2026-08-25T17:29:27Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -76,7 +76,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 99,
+      "skill_md_lines": 108,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -180,7 +180,7 @@
       "name": "data-fetching",
       "family": "web",
       "role": "knowledge",
-      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `Promise<T>` + `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations o...",
+      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations only — never rea...",
       "skill_file": "data-fetching/SKILL.md",
       "references": [
         "anti-patterns.md",
@@ -244,7 +244,7 @@
       "name": "forms",
       "family": "web",
       "role": "operative",
-      "description": "Build or edit any form in a Next.js 16 App Router app via one shared toolkit in `lib/forms/` with dirty + valid Save gating. Form libraries: TanStack Form + Zod (default) or react-hook-form + Zod (auto-detected if present). Use when the user says \"form\", \"edit panel\", \"create dialog\", \"settings page...",
+      "description": "Build or edit any form in a Next.js 16 App Router app via one shared toolkit in `lib/forms/` with dirty + valid Save gating, on TanStack Form + Zod (default) or react-hook-form (auto-detected). Use when the user says \"form\", \"edit panel\", \"create dialog\", \"settings page\", \"save button\", \"dirty state...",
       "skill_file": "forms/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -256,7 +256,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 491,
+      "skill_md_lines": 500,
       "bundle": "dist/forms.skill"
     },
     {
@@ -347,7 +347,7 @@
       "name": "state-discipline",
       "family": "web",
       "role": "knowledge",
-      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use event handlers for one-shot side effects, use `key` to reset state, use `useMountEffect` for one-time external sync, never bare `useEffect`. Use when the user pastes `...",
+      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use `key` to reset state, `useMountEffect` for one-time external sync, never bare `useEffect`. Use when the user pastes `useState + useEffect + fetch`, reaches for `useSta...",
       "skill_file": "state-discipline/SKILL.md",
       "references": [
         "audit-recipe.md",
@@ -396,7 +396,7 @@
       "name": "vercel-doctor",
       "family": "web",
       "role": "operative",
-      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills. The CLI scans for cost and performance anti-patterns across six areas — caching that defeats the CDN, unused code, serverless function duration, imag...",
+      "description": "Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the owning dev-flow skill (`data-fetching` for caching, `design-md-to-app` for images). The cost counterpart to `compliance-audit` (legal gate); dev-flow proposes it before a V...",
       "skill_file": "vercel-doctor/SKILL.md",
       "references": [
         "contracts.md"
@@ -426,10 +426,11 @@
       "name": "eve-agent",
       "family": "agent",
       "role": "operative",
-      "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app. Use this skill whenever the user wants to create, set up, or initialize an eve agent; add a tool, skill, channel, connection, schedule, subagent, or hook to an eve agen...",
+      "description": "Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) — inside a Next.js app, as `apps/agent` in a monorepo, or alone at the repo root when the product has no UI. Use whenever the user wants to create, set up or initialize an eve agent; add a tool, skill, channel, connection, ...",
       "skill_file": "eve-agent/SKILL.md",
       "references": [
         "ai-elements.md",
+        "contracts.md",
         "eve-capabilities.md",
         "eve-channels.md",
         "eve-concepts.md",
@@ -443,7 +444,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 181,
+      "skill_md_lines": 178,
       "bundle": "dist/eve-agent.skill"
     },
     {
