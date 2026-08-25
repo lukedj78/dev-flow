@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 44 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r10.png)
+![dev-flow v1.0.0 — map of the 44 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r11.png)
 
 **📖 [Browse the 44 skills →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
 
@@ -1290,8 +1290,10 @@ To add a new module variant to `module-add` (e.g., Clerk auth, Supabase db), dro
 The repo ships three top-level scripts (in `scripts/`) you can run anytime:
 
 ```bash
-# Sanity-check every skill (frontmatter YAML, portable paths, snake_case phases,
-# sibling cross-references, installer coverage, capability reachability)
+# Sanity-check every skill — 11 checks (frontmatter YAML + the 1024-char
+# description cap, portable paths, snake_case phases, sibling cross-references,
+# installer coverage, capability reachability, README catalogue coverage,
+# and every skill count stated in prose)
 python3 scripts/lint_skills.py
 
 # Regenerate skills.json (the machine-readable registry of all 44 skills)
@@ -1319,7 +1321,9 @@ claude plugin validate . --strict                  # the marketplace entry
 ./scripts/refresh-stack-defaults.sh --apply  # rewrite the stack-defaults.md files
 ```
 
-CI runs `lint_skills.py` + `build_skills_registry.py` on every PR (see `.github/workflows/lint-skills.yml`); a missing or stale `skills.json` will fail the workflow.
+CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --check` and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
+
+**Three of the eleven checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings (`There are 43.`, `packaging of all 43`) that a grep for "43 skills" never matched.
 
 **Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. ⚠️ **Force reduced motion when you shoot it** — the sections are `.reveal` (opacity 0 until an IntersectionObserver adds `.in`), so a headless capture renders them blank; the `prefers-reduced-motion` rule is the escape hatch:
 
