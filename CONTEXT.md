@@ -120,12 +120,36 @@ _Avoid_: integration, package, feature.
 ## Distribution
 
 **Plugin**
-The whole suite packaged for Claude Code (`.claude-plugin/plugin.json`), installed from the marketplace. Singular — there is one plugin containing 43 skills.
+The whole suite packaged for Claude Code (`.claude-plugin/plugin.json`), installed from the marketplace. Singular — there is one plugin containing 44 skills.
 _Avoid_: extension, bundle, pack.
 
 **Marketplace**
 The catalogue entry (`.claude-plugin/marketplace.json`) that makes this repo installable with `/plugin marketplace add`.
 _Avoid_: store, repo.
+
+## ⚠️ The vendored contract is duplication **on purpose**
+
+`references/contracts.md` is **byte-identical in 33 skills** — roughly 1 MB of the same file. It looks
+like waste, and sooner or later someone will try to "fix" it with a symlink, a single shared copy, or a
+build step that injects it.
+
+**Don't.** A skill has to work when it is installed *alone* — as `dist/<name>.skill`, or by copying one
+folder into `~/.claude/skills/`. There is no repo around it then, and nothing to resolve a symlink
+against. The duplication is what makes single-skill installs possible; removing it trades a megabyte for
+a broken install path.
+
+What keeps it honest is the invariant, not the count: **every copy must be byte-identical to
+`dev-flow/references/contracts.md`**, which is canonical. Change it there, re-vendor to all of them, and
+verify one hash comes back:
+
+```bash
+for f in */references/contracts.md; do md5 -q "$f"; done | sort -u | wc -l   # must print 1
+```
+
+The **eleven skills without one are also deliberate**: the ten mobile `knowledge` skills teach a stack
+and never touch `.workflow/`, and `eve-registry-porting` cites it zero times. Carrying a contract they
+never read would be the real noise. The rule is *"vendor it where the skill reads or writes
+`.workflow/`"* — not *"vendor it everywhere"*.
 
 ---
 

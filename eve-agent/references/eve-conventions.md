@@ -143,7 +143,10 @@ export default defineSandbox({ backend: justbash() });   // no VM: this agent ru
 ```
 
 Reach for a real backend only once a tool actually shells out or executes untrusted code; then
-apply the network policy from the Security model below. (`roprgm/worldcup-eve` uses `just-bash`
+apply the network policy from the Security model below. When you do pick `vercel()`, note that **Vercel Sandbox
+went globally available on 2026-08-24**: regions `iad1`, `sfo1`, `cle1`, `cdg1`, selectable **per sandbox**, with a
+project default and a **failover region**. Put the sandbox where the data it reaches already is — a sandbox in
+`iad1` calling an EU-resident database is both slow and a transfer question `compliance-audit` will ask about (R3). `[VERIFY]` the region list against the Vercel docs; it grew once and will again. (`roprgm/worldcup-eve` uses `just-bash`
 for exactly this reason.) `[VERIFY]` the `eve/sandbox/just-bash` subpath against installed docs.
 
 ## State & per-session context

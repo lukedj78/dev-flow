@@ -79,17 +79,17 @@ No gate blocks a deploy. Report and let the user decide — that is the existing
 
 #### Also check the Next.js security floor
 
-The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines (**16.2.x Active LTS**, **15.5.x Maintenance LTS**).
+The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-08-25 they are **16.3.x Active LTS** and **15.5.x Maintenance LTS**.
 
 ```bash
 pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"
 ```
 
-Compare against the floor in `references/contracts.md` § `nextjs_version` (at the time of writing: **`16.2.11`**, **`15.5.21`**, or **`≥16.3.0`**). Below it, say so in one line naming the CVEs that apply to *this* project — the July set includes a DoS reachable through **any** Server Action and an SSRF through request-derived `rewrites()` destinations, so most projects we scaffold are in scope.
+Compare against the floor in `references/contracts.md` § `nextjs_version` (**`16.3.3`** Active LTS or **`15.5.24`** Maintenance LTS, as of 2026-08-25 — and note the Active LTS line **moved from 16.2 to 16.3**: 16.2 stopped at `16.2.12` and did not get the August patch). Below it, say so in one line naming the CVEs that apply to *this* project. The August 2026 set is two **critical, unauthenticated RCEs** — one through the Image Optimization API on attacker-supplied **AVIF** (the patch disables AVIF outright), one on **Windows** hosts mixing Pages and App Router. The July set includes a DoS reachable through **any** Server Action and an SSRF through request-derived `rewrites()` destinations, so most projects we scaffold are in scope.
 
 Two things not to get wrong:
 
-- **A patch bump is not a version bump.** A project on `16.2.x` is on Active LTS and is *supported*. Move it to the current **patch**, not to 16.3 — proposing a minor upgrade as if it were the security fix is how a deploy gets postponed for the wrong reason.
+- **Move to the current patch of a line that is still patched — and check which line that is.** In July, `16.2.x` was Active LTS and telling someone to jump to 16.3 was wrong. In August the label moved: 16.2 stopped at `16.2.12`, the criticals were fixed in `16.3.3`, and a project still on 16.2 is now unpatched. Read the line labels in the latest release post; never carry them from memory.
 - **Hosting on Vercel is not a patch.** Vercel has deployed global WAF rules for past Next.js CVEs, and said in the same breath that they "should not be considered a complete substitute for upgrading". Report the floor for Vercel-hosted and self-hosted projects alike.
 
 Then re-check the floor itself: it moves monthly, so `[VERIFY]` it against <https://nextjs.org/blog> before quoting a number. Same rule as every gate here — report, don't block.
