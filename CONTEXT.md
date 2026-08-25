@@ -9,8 +9,8 @@ Each entry gives the meaning, then `_Avoid_:` — wordings that are ambiguous or
 ## The unit of work
 
 **Skill**
-One directory at the repo root containing a `SKILL.md`. The thing a coding agent loads. There are 43.
-_Avoid_: command, plugin (a **plugin** is the packaging of all 43 — see below), prompt, agent.
+One directory at the repo root containing a `SKILL.md`. The thing a coding agent loads. There are 44.
+_Avoid_: command, plugin (a **plugin** is the packaging of all 44 — see below), prompt, agent.
 
 **SKILL.md**
 The skill itself: YAML frontmatter (`name`, `description`) plus the instructions. The `description` is what makes the skill trigger, so it carries the `Triggers:` and `Not for:` markers.

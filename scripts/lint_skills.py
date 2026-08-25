@@ -22,6 +22,8 @@ Checks:
   10. Every skill in the taxonomy is mentioned in the README catalogue, in
      either form it uses (a `### \`name\`` prose section or a `| \`name\` |`
      table row). Adding a skill and forgetting the README is silent otherwise.
+  11. Skill counts stated in prose (README, CONTEXT, the map, the installers)
+     match reality — total and per family.
 
 (`docs/site/` is generated separately — run `python3 scripts/build_site.py --check`.)
 
@@ -34,6 +36,7 @@ Run from the repo root.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -367,6 +370,63 @@ def check_readme_catalogue(readme: Path, all_skills: set[str]) -> None:
         )
 
 
+# --- check 11: stated counts must match reality ----------------------------
+#
+# The count is written out in ~20 places across five files, and it went stale
+# three times in one week — each time only partly, because a grep for "43
+# skills" misses "There are 43.", "packaging of all 43" and "Install all 43
+# dev-flow skills (5 core + ...)". The family breakdown rots on its own too:
+# adding `spec-review` moved the total to 44 everywhere and left "5 core" in
+# both installers.
+#
+# Totals are matched by an EXPLICIT list of phrasings rather than a generic
+# `(\d+) skills` regex. That regex was tried and is unusable: family counts use
+# the same wording ("the 15 web-stack skills"), and CONTEXT.md's "33 skills"
+# is the vendored-contract copy count, not a skill count. Adding a new phrasing
+# here is a one-line change; drowning the check in false positives is not
+# recoverable.
+FAMILIES = "core|web|agent|mobile|monorepo|refactor"
+COUNT_FILES = ["README.md", "CONTEXT.md", "docs/dev-flow-skill-map.html",
+               "install.sh", "uninstall.sh"]
+TOTAL_PATTERNS = [
+    r"\b(\d+) skills \(", r"containing (\d+) skills", r"[Ss]hould print (\d+)",
+    r"all (\d+) skills", r"map of the (\d+) skills", r"my-skills — (\d+) skills",
+    r'class="g">(\d+) skills', r"The (\d+) skills, in detail", r"All (\d+), by function",
+    r"registry of all (\d+) skills", r"across all (\d+) skills", r"There are (\d+)\.",
+    r"(\d+) skill folders", r"Install all (\d+) dev-flow skills",
+    r"Remove all (\d+) dev-flow skills", r"suite is (\d+) skills",
+    r"packaging of all (\d+)", r"one of our (\d+) skills", r"exercising all (\d+) skills",
+]
+# A family name followed by a dash introduces a list, not a count ("2 agent — eve").
+FAMILY_COUNT_RE = re.compile(rf"\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I)
+
+
+def check_stated_counts(root: Path, all_skills: set[str]) -> None:
+    try:
+        registry = json.loads((root / "skills.json").read_text())
+    except Exception:
+        warn("skills.json unreadable — skipping the stated-count check")
+        return
+    total = len(all_skills)
+    per_family: dict[str, int] = {}
+    for entry in registry.get("skills", []):
+        per_family[entry["family"]] = per_family.get(entry["family"], 0) + 1
+
+    for rel in COUNT_FILES:
+        path = root / rel
+        if not path.exists():
+            continue
+        text = path.read_text(errors="ignore")
+        for pattern in TOTAL_PATTERNS:
+            for m in re.finditer(pattern, text):
+                if int(m.group(1)) != total:
+                    err(f"{path}: \"{m.group(0).strip()}\" — there are {total} skills")
+        for m in FAMILY_COUNT_RE.finditer(text):
+            fam = m.group(2).lower()
+            if fam in per_family and int(m.group(1)) != per_family[fam]:
+                err(f"{path}: \"{m.group(0)}\" — there are {per_family[fam]} {fam} skills")
+
+
 def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
     if not installer_path.exists():
         warn(f"{installer_path}: not found (skipping installer check)")
@@ -417,6 +477,7 @@ def main() -> int:
                 check_routing_references(ref, all_skills)
 
     check_readme_catalogue(root / "README.md", all_skills)
+    check_stated_counts(root, all_skills)
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)
 
