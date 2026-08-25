@@ -11,6 +11,9 @@ on:
       - "scripts/lint_skills.py"
       - "scripts/build_skills_registry.py"
       - "scripts/build_agent_plugin.py"
+      - "scripts/build_site.py"
+      - "docs/index.html"
+      - "docs/skills/**"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -21,6 +24,9 @@ on:
       - "scripts/lint_skills.py"
       - "scripts/build_skills_registry.py"
       - "scripts/build_agent_plugin.py"
+      - "scripts/build_site.py"
+      - "docs/index.html"
+      - "docs/skills/**"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
@@ -54,3 +60,13 @@ jobs:
 
       - name: Build the Agent Plugins package and check its manifest
         run: python3 scripts/build_agent_plugin.py --check
+
+      - name: Check the published site is regenerated
+        run: |
+          # The site is generated from skills.json + the SKILL.md frontmatter.
+          # Adding a skill without re-running this leaves a page missing from
+          # lukedj78.github.io/dev-flow — invisible until someone looks for it.
+          if ! python3 scripts/build_site.py --check; then
+            echo "::error::docs/ site is stale. Run scripts/build_site.py and commit the result."
+            exit 1
+          fi
