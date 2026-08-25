@@ -143,10 +143,26 @@ export default defineSandbox({ backend: justbash() });   // no VM: this agent ru
 ```
 
 Reach for a real backend only once a tool actually shells out or executes untrusted code; then
-apply the network policy from the Security model below. When you do pick `vercel()`, note that **Vercel Sandbox
-went globally available on 2026-08-24**: regions `iad1`, `sfo1`, `cle1`, `cdg1`, selectable **per sandbox**, with a
-project default and a **failover region**. Put the sandbox where the data it reaches already is — a sandbox in
-`iad1` calling an EU-resident database is both slow and a transfer question `compliance-audit` will ask about (R3). `[VERIFY]` the region list against the Vercel docs; it grew once and will again. (`roprgm/worldcup-eve` uses `just-bash`
+apply the network policy from the Security model below. When you do pick `vercel()`, Vercel Sandbox went **globally available on 2026-08-24** and the region is now a
+decision, not a given:
+
+| | |
+|---|---|
+| Regions | `iad1` · `sfo1` · `cle1` · `cdg1` ("all Vercel regions coming soon") |
+| **Default** | **`iad1`** — US East. An EU project gets a US sandbox unless someone says otherwise |
+| Project default | Settings → Sandboxes, or `--sandbox-region` |
+| Per sandbox | `region` (SDK) / `--region` (CLI) |
+| Failover | `failoverRegions` (SDK) / `--sandbox-failover-regions` (CLI) — **Pro and Enterprise only**, so don't design around it on Hobby |
+
+Two consequences worth planning for rather than discovering:
+
+- **The default is US.** A sandbox in `iad1` reaching an EU-resident database is both slow and a transfer question
+  `compliance-audit` asks under **R3**. Put the sandbox where the data already is, and record the choice.
+- **Snapshots are region-locked** — *"snapshots stay in the region where they were created and can't be moved."* So
+  the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
+
+`[VERIFY]` whether eve's `vercel()` backend forwards `region`/`failoverRegions` through `defineSandbox`, or whether
+they have to be set as the project default — the platform exposes them, eve's passthrough is a separate question. (`roprgm/worldcup-eve` uses `just-bash`
 for exactly this reason.) `[VERIFY]` the `eve/sandbox/just-bash` subpath against installed docs.
 
 ## State & per-session context
