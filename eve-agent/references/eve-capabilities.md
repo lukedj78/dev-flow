@@ -115,6 +115,13 @@ A new entrypoint. Not every channel is a registry item — verified against `nod
 | **Linear** | **`eve add linear`** — a bundle whose checklist offers the Linear *channel* **and** the Linear MCP connection (both selected by default). For the channel alone the item is **`eve add channel/linear-agent`** — ⚠️ **not `channel/linear`, which does not exist** |
 | `teams` · `telegram` · `twilio` | **authored by hand** — they ship a subpath (`eve/channels/<kind>`) and a docs page, but no registry item. Write the file; there is no `eve add` for them |
 | `chat-sdk` · custom | `chatSdkChannel()` / `defineChannel()` — see below |
+| **a machine caller** (alerting, CI, a webhook) | **authored by hand**, and kept *separate from the human channels* — see below |
+
+**A webhook channel is its own thing — don't bolt machine traffic onto a human one.** Vercel's [SRE agent guide](https://vercel.com/kb/guide/eve-incident-sre-agent) authors `agent/channels/webhook.ts` beside its Slack channel, exposing `POST /v1/investigate` for incident tooling. Three differences make it a separate channel rather than a route on the existing one:
+
+- **The auth is a secret, not a person.** It verifies `x-sre-webhook-secret`, or `Authorization: Bearer` — the header wins when both are present. There is no principal to stamp trust onto the way a Slack `author_association` gives you one.
+- **The caller wants an ack, not a turn.** The session starts under **`waitUntil`**, so the HTTP request returns immediately instead of holding the connection open for the length of an investigation.
+- **Nobody is reading the reply.** Which is exactly the unattended case `eve-patterns.md` §8b covers: approvals must be *denied* rather than parked, because a card nobody can answer parks the session forever.
 
 **`twilio` puts the agent on a phone number**: inbound SMS as a webhook, inbound *calls* answered with TwiML `<Gather input="speech">` so the transcript feeds the same session — a caller and a texter are identical downstream. Every request is checked against `X-Twilio-Signature`.
 
