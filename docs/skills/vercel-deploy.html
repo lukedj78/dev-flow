@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>vercel-deploy — dev-flow</title>
-<meta name="description" content="Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* ">
+<meta name="description" content="Ship a Next.js 16 App Router project to production on Vercel end-to-end: preview → smoke test → a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet → ">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -115,7 +115,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">vercel-deploy</h1>
   <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">268 lines</li><li class="chip">4 references</li></ul>
-  <p class="lede">Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* production deployment (<code>vercel --prod --skip-domain</code>) that serves no traffic yet, promote it to Current (<code>vercel promote</code>), attach and verify the custom domains + DNS, and hand back a rollback runbook. Requires <code>stack.framework</code> in {<code>next</code>, <code>monorepo</code>} and <code>phase &gt;= feature_complete</code>; sets <code>phase = &quot;deployed&quot;</code> on success. Idempotent. Triggers on: &quot;deploy&quot;, &quot;ship it&quot;, &quot;go live&quot;, &quot;push to production&quot;, &quot;manda in produzione&quot;, &quot;attacca il dominio&quot;, &quot;rollback the deploy&quot;. Not for: the Vercel project config — <code>vercel.json</code>, region, env-var matrix, monorepo root directory are <code>module-add deploy</code> (run it first); the pre-deploy gates (<code>vercel-doctor</code>, <code>compliance-audit</code>, <code>shadscan</code>); CI and git hooks (<code>module-add ci</code>); an Expo/RN app (<code>rn-eas-deploy</code>); an eve agent (<code>eve deploy</code>).</p>
+  <p class="lede">Ship a Next.js 16 App Router project to production on Vercel end-to-end: preview → smoke test → a *staged* production deployment (<code>vercel --prod --skip-domain</code>) that serves no traffic yet → <code>vercel promote</code> → domains and DNS, plus a rollback runbook. Requires <code>stack.framework</code> in {<code>next</code>, <code>monorepo</code>} and <code>phase &gt;= feature_complete</code>; sets <code>phase = &quot;deployed&quot;</code> on success. Idempotent. Triggers on: &quot;deploy&quot;, &quot;ship it&quot;, &quot;go live&quot;, &quot;push to production&quot;, &quot;manda in produzione&quot;, &quot;attacca il dominio&quot;, &quot;rollback the deploy&quot;. Not for: the Vercel project config — <code>vercel.json</code>, region, env-var matrix, monorepo root directory are <code>module-add deploy</code> (run it first); the pre-deploy gates (<code>vercel-doctor</code>, <code>compliance-audit</code>, <code>shadscan</code>); CI and git hooks (<code>module-add ci</code>); an Expo/RN app (<code>rn-eas-deploy</code>); an eve agent (<code>eve deploy</code>).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>

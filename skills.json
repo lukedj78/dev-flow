@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-25T17:29:27Z",
+  "generated_at": "2026-08-25T20:32:05Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -380,7 +380,7 @@
       "name": "vercel-deploy",
       "family": "web",
       "role": "operative",
-      "description": "Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet, promote it to Current (`verc...",
+      "description": "Ship a Next.js 16 App Router project to production on Vercel end-to-end: preview → smoke test → a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet → `vercel promote` → domains and DNS, plus a rollback runbook. Requires `stack.framework` in {`next`, `monorepo`...",
       "skill_file": "vercel-deploy/SKILL.md",
       "references": [
         "contracts.md",
