@@ -2,7 +2,9 @@
 
 ![dev-flow v1.0.0 — map of the 44 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r9.png)
 
-<sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
+**📖 [Browse the 44 skills →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
+
+<sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
 > One folder (`.workflow/`), one state file (`meta.json`), and **44 skills (6 core + 15 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
@@ -671,6 +673,8 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 ---
 
 ## Documentation
+
+- 🌐 **[lukedj78.github.io/dev-flow](https://lukedj78.github.io/dev-flow/)** — the browsable index, one page per skill. Generated from the taxonomy by `scripts/build_site.py`; `--check` keeps it from going stale.
 
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
