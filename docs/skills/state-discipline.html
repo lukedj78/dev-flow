@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>state-discipline — dev-flow</title>
-<meta name="description" content="Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default.">
+<meta name="description" content="Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default: derive from props/URL/data, `key` to reset, `useMountEffect` for one-time external sync, never ">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -115,7 +115,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">state-discipline</h1>
   <ul class="meta"><li class="chip">Web</li><li class="chip">knowledge — teaches; changes nothing</li><li class="chip">457 lines</li><li class="chip">2 references</li></ul>
-  <p class="lede">Apply React 19 / Next.js 16 state discipline — <code>useState</code> is the last resort, not the default. Derive state from props/URL/data, use <code>key</code> to reset state, <code>useMountEffect</code> for one-time external sync, never bare <code>useEffect</code>. Use when the user pastes <code>useState + useEffect + fetch</code>, reaches for <code>useState</code> to mirror a prop, hand-rolls a derived value via <code>useEffect + setState</code>, syncs state with URL via <code>useEffect</code>, or asks &quot;should I add useState here?&quot;. Also owns the React 19 concurrent-state APIs — <code>useTransition</code>, <code>useOptimistic</code>, <code>useActionState</code> and <code>&lt;Activity&gt;</code>: use when the user names one of them, asks how to keep the UI responsive during a pending update, wants an optimistic UI, wants form action state, or wants to keep a hidden subtree mounted. Refuses outside Next.js 16 App Router. Not for: server-data reads (use <code>data-fetching</code>), form field values (use <code>forms</code>), or React Native state patterns.</p>
+  <p class="lede">Apply React 19 / Next.js 16 state discipline — <code>useState</code> is the last resort, not the default: derive from props/URL/data, <code>key</code> to reset, <code>useMountEffect</code> for one-time external sync, never bare <code>useEffect</code>. Use when the user pastes <code>useState + useEffect + fetch</code>, reaches for <code>useState</code> to mirror a prop, hand-rolls a derived value via <code>useEffect + setState</code>, syncs state with URL via <code>useEffect</code>, or asks &quot;should I add useState here?&quot;. Also owns the React 19 concurrent-state APIs — <code>useTransition</code>, <code>useOptimistic</code>, <code>useActionState</code>, <code>&lt;Activity&gt;</code> — including when described rather than named: keeping the UI responsive during a pending update, an optimistic UI, form action state, a hidden subtree that stays mounted. Refuses outside Next.js 16 App Router. Not for: server-data reads (use <code>data-fetching</code>), form field values (use <code>forms</code>), or React Native state patterns.</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>

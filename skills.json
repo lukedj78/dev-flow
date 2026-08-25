@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-25T20:32:05Z",
+  "generated_at": "2026-08-25T20:36:41Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -347,7 +347,7 @@
       "name": "state-discipline",
       "family": "web",
       "role": "knowledge",
-      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default. Derive state from props/URL/data, use `key` to reset state, `useMountEffect` for one-time external sync, never bare `useEffect`. Use when the user pastes `useState + useEffect + fetch`, reaches for `useSta...",
+      "description": "Apply React 19 / Next.js 16 state discipline — `useState` is the last resort, not the default: derive from props/URL/data, `key` to reset, `useMountEffect` for one-time external sync, never bare `useEffect`. Use when the user pastes `useState + useEffect + fetch`, reaches for `useState` to mirror a ...",
       "skill_file": "state-discipline/SKILL.md",
       "references": [
         "audit-recipe.md",
