@@ -1298,7 +1298,7 @@ python3 scripts/build_skills_registry.py
 python3 scripts/build_skill_bundles.py          # all 43
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
-# Regenerate the browsable site at docs/site/ (one page per skill, from skills.json)
+# Regenerate the browsable site (docs/index.html + docs/skills/, from skills.json)
 python3 scripts/build_site.py           # write
 python3 scripts/build_site.py --check   # CI: fail if stale
 

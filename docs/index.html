@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>dev-flow — 44 skills, one contract</title>
+<meta name="description" content="A contract-driven skill suite that takes a product idea to production: PRD, design, scaffold, modules, tests, gates, deploy.">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#eef1f8; --panel:#fff; --panel-2:#f3f6fd;
+  --bd:rgba(30,45,110,.12); --bd-2:rgba(30,45,110,.22);
+  --tx:#0f1526; --dim:#4a5573; --faint:#8590ac;
+  --ac:#3a53e6; --ac-soft:rgba(58,83,230,.10);
+  --c-core:#c07d17; --c-web:#3a53e6; --c-agent:#7c4fe0;
+  --c-mobile:#0c9f92; --c-monorepo:#1c86a6; --c-refactor:#e0475f;
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 12px 26px -20px rgba(20,30,80,.35);
+  --fS:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --fM:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --maxw:1080px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a0c13; --panel:#111524; --panel-2:#151a2b;
+  --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+  --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+  --ac:#6f8bff; --ac-soft:rgba(111,139,255,.16);
+  --c-core:#f0b64d; --c-web:#6f8bff; --c-agent:#b487ff;
+  --c-mobile:#33d3c2; --c-monorepo:#4ec6e6; --c-refactor:#ff7d92;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+}}
+:root[data-theme="dark"]{
+  --bg:#0a0c13; --panel:#111524; --panel-2:#151a2b;
+  --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+  --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+  --ac:#6f8bff; --ac-soft:rgba(111,139,255,.16);
+  --c-core:#f0b64d; --c-web:#6f8bff; --c-agent:#b487ff;
+  --c-mobile:#33d3c2; --c-monorepo:#4ec6e6; --c-refactor:#ff7d92;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--fS);
+  line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+a{color:var(--ac);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:4px}
+code{font-family:var(--fM);font-size:.9em;background:var(--ac-soft);
+  padding:.12em .38em;border-radius:5px}
+pre{background:var(--panel-2);border:1px solid var(--bd);border-radius:12px;
+  padding:14px 16px;overflow-x:auto;font-family:var(--fM);font-size:13px;line-height:1.55}
+pre code{background:none;padding:0}
+header.top{border-bottom:1px solid var(--bd);background:var(--panel);position:sticky;top:0;z-index:5}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:56px}
+.brand{font-weight:650;letter-spacing:-.01em;color:var(--tx)}
+.brand:hover{text-decoration:none}
+.top nav{margin-left:auto;display:flex;gap:18px;font-size:14px}
+.hero{padding:56px 0 30px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.025em;margin:0 0 14px;
+  text-wrap:balance;font-weight:680}
+h1 .g{color:var(--ac)}
+.lede{font-size:17px;color:var(--dim);max-width:62ch;margin:0}
+.eyebrow{font-family:var(--fM);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 10px}
+section{padding:34px 0}
+h2{font-size:23px;letter-spacing:-.015em;margin:0 0 6px;font-weight:660}
+.sub{color:var(--dim);margin:0 0 20px;max-width:64ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:16px 17px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:7px}
+a.card:hover{border-color:var(--bd-2);text-decoration:none}
+.card .nm{font-family:var(--fM);font-size:14px;font-weight:600;color:var(--tx);
+  display:flex;align-items:center;gap:8px}
+.card .nm i{width:7px;height:7px;border-radius:99px;flex:0 0 auto}
+.card p{margin:0;font-size:13.5px;color:var(--dim);line-height:1.5}
+.role{font-family:var(--fM);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);margin-left:auto}
+.fam-core i{background:var(--c-core)} .fam-web i{background:var(--c-web)}
+.fam-agent i{background:var(--c-agent)} .fam-mobile i{background:var(--c-mobile)}
+.fam-monorepo i{background:var(--c-monorepo)} .fam-refactor i{background:var(--c-refactor)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 18px;padding:0;list-style:none}
+.chip{font-family:var(--fM);font-size:11.5px;border:1px solid var(--bd);border-radius:99px;
+  padding:3px 10px;color:var(--dim);background:var(--panel)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:0;list-style:none}
+.prose h3{font-size:16px;margin:26px 0 8px;letter-spacing:-.01em}
+.prose ul{padding-left:20px;margin:8px 0}
+.prose li{margin:5px 0;color:var(--dim)}
+.prose li strong,.prose li code{color:var(--tx)}
+.back{font-size:14px;color:var(--dim)}
+footer{border-top:1px solid var(--bd);margin-top:40px;padding:22px 0 40px;
+  color:var(--faint);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px}
+footer a{color:var(--dim)}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.hero{padding:36px 0 22px}}
+</style>
+<script>
+(function(){var k='devflow-theme',d=document.documentElement;
+function get(){try{return localStorage.getItem(k)}catch(e){return null}}
+function set(v){try{localStorage.setItem(k,v)}catch(e){}}
+var s=get(); if(s){d.setAttribute('data-theme',s)}
+window.__t=function(){var c=d.getAttribute('data-theme');
+if(!c){c=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}
+var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
+</script>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="index.html">dev-flow</a>
+  <nav>
+    <a href="https://github.com/lukedj78/dev-flow">GitHub</a>
+    <a href="https://github.com/lukedj78/dev-flow/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="#" onclick="__t();return false">Theme</a>
+  </nav>
+</div></header>
+<div class="wrap hero">
+  <p class="eyebrow">github.com/lukedj78/dev-flow · MIT</p>
+  <h1><span class="g">44 skills</span> that take an idea<br>all the way to production.</h1>
+  <p class="lede">Every project lives in one folder — <code>.workflow/</code> — with one state file.
+  The skills read and write it, so each one knows what the last one did. The contract is the product;
+  the skills are replaceable consumers of it.</p>
+</div>
+
+<section><div class="wrap">
+  <h2>Install</h2>
+  <p class="sub">As a Claude Code plugin, or as plain files for Codex, Gemini, Copilot and Cursor.</p>
+  <pre><code>/plugin marketplace add lukedj78/dev-flow
+/plugin install dev-flow@dev-flow</code></pre>
+  <pre><code>git clone https://github.com/lukedj78/dev-flow.git &amp;&amp; cd dev-flow
+./install.sh --platform claude   # or codex | gemini | cursor</code></pre>
+</div></section>
+
+<section><div class="wrap">
+  <h2>The 44 skills</h2>
+  <p class="sub">6 core · 15 web · 2 agent · 16 mobile · 3 monorepo · 2 refactor. A <strong>knowledge</strong> skill teaches and changes nothing;
+  an <strong>operative</strong> one edits the codebase; <strong>discovery</strong> turns intent into
+  artefacts; the <strong>orchestrator</strong> only routes.</p>
+</div></section>
+<section id="core"><div class="wrap">
+  <h2>Core <span style="color:var(--faint);font-weight:400">· 6</span></h2>
+  <p class="sub">Stack-agnostic. Every project uses these.</p>
+  <div class="grid">
+    <a class="card fam-core" href="skills/dev-flow.html">
+      <span class="nm"><i></i>dev-flow<span class="role">orchestrator</span></span>
+      <p>Orchestrate an end-to-end product-development workflow built on atomic skills.</p>
+    </a>
+    <a class="card fam-core" href="skills/compliance-audit.html">
+      <span class="nm"><i></i>compliance-audit<span class="role">operative</span></span>
+      <p>Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds.</p>
+    </a>
+    <a class="card fam-core" href="skills/linear-scrum.html">
+      <span class="nm"><i></i>linear-scrum<span class="role">operative</span></span>
+      <p>Take a dev-flow project into Linear and run it with agile scrum.</p>
+    </a>
+    <a class="card fam-core" href="skills/prd-from-idea.html">
+      <span class="nm"><i></i>prd-from-idea<span class="role">discovery</span></span>
+      <p>Turn a raw product idea (a paragraph, a Notion dump, a half-formed thought) into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project&#x27;s `.wo</p>
+    </a>
+    <a class="card fam-core" href="skills/prd-to-tasks.html">
+      <span class="nm"><i></i>prd-to-tasks<span class="role">discovery</span></span>
+      <p>Break down a PRD.md into a concrete, executable <code>tasks.md</code> checklist that a developer or an AI agent can pick up and ship.</p>
+    </a>
+    <a class="card fam-core" href="skills/spec-review.html">
+      <span class="nm"><i></i>spec-review<span class="role">operative</span></span>
+      <p>Review a diff along the two axes a dev-flow project can check that a generic reviewer cannot: the <strong>spec</strong> it was built from (<code>.workflow/PRD.md</code> + <code>tasks.md</code>) and the <strong>contract</strong> it was bui</p>
+    </a>
+  </div>
+</div></section>
+<section id="web"><div class="wrap">
+  <h2>Web <span style="color:var(--faint);font-weight:400">· 15</span></h2>
+  <p class="sub">Next.js 16 · App Router · shadcn / Base UI / MUI / Coss.</p>
+  <div class="grid">
+    <a class="card fam-web" href="skills/coss-ui.html">
+      <span class="nm"><i></i>coss-ui<span class="role">operative</span></span>
+      <p>Set up or extend a Next.js web app with Coss/UI — the official Cal.com design system, built on Base UI + Tailwind CSS v4 and installed through the shadcn CLI via the namespaced <code>@coss/*</code> reg</p>
+    </a>
+    <a class="card fam-web" href="skills/data-fetching.html">
+      <span class="nm"><i></i>data-fetching<span class="role">knowledge</span></span>
+      <p>Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL <code>searchParams</code> for filter state, <code>Promise&lt;T&gt;</code> + <code>use()</code> + <code>&lt;Suspense&gt;</code> when a Client Component</p>
+    </a>
+    <a class="card fam-web" href="skills/design-md-to-app.html">
+      <span class="nm"><i></i>design-md-to-app<span class="role">operative</span></span>
+      <p>Generate or customize a frontend application from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match.</p>
+    </a>
+    <a class="card fam-web" href="skills/figma-to-design-md.html">
+      <span class="nm"><i></i>figma-to-design-md<span class="role">discovery</span></span>
+      <p>Use when the user provides a Figma URL and wants to export/extract/generate design tokens, colors, typography, or system documentation into DESIGN.md format—a portable, AI-readable design st</p>
+    </a>
+    <a class="card fam-web" href="skills/forms.html">
+      <span class="nm"><i></i>forms<span class="role">operative</span></span>
+      <p>Build or edit any form in a Next.js 16 App Router app via one shared toolkit in <code>lib/forms/</code> with dirty + valid Save gating.</p>
+    </a>
+    <a class="card fam-web" href="skills/heroicons-animated.html">
+      <span class="nm"><i></i>heroicons-animated<span class="role">operative</span></span>
+      <p>Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG.</p>
+    </a>
+    <a class="card fam-web" href="skills/image-to-design-md.html">
+      <span class="nm"><i></i>image-to-design-md<span class="role">discovery</span></span>
+      <p>Generate a DESIGN.md (Google design.md spec) from 1+ raster images — PNG / JPG screenshots, mockups, Pinterest pins, Dribbble shots, competitor app captures.</p>
+    </a>
+    <a class="card fam-web" href="skills/module-add.html">
+      <span class="nm"><i></i>module-add<span class="role">operative</span></span>
+      <p>Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app.</p>
+    </a>
+    <a class="card fam-web" href="skills/screenshot-to-page.html">
+      <span class="nm"><i></i>screenshot-to-page<span class="role">operative</span></span>
+      <p>Generate a real, working page (route + components) inside an already-scaffolded app from a single UI screenshot, applying the project&#x27;s DESIGN.md tokens and the existing UI library (shadcn, </p>
+    </a>
+    <a class="card fam-web" href="skills/shadscan.html">
+      <span class="nm"><i></i>shadscan<span class="role">operative</span></span>
+      <p>Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then </p>
+    </a>
+    <a class="card fam-web" href="skills/state-discipline.html">
+      <span class="nm"><i></i>state-discipline<span class="role">knowledge</span></span>
+      <p>Apply React 19 / Next.js 16 state discipline — <code>useState</code> is the last resort, not the default.</p>
+    </a>
+    <a class="card fam-web" href="skills/transitions.html">
+      <span class="nm"><i></i>transitions<span class="role">knowledge</span></span>
+      <p>Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdow</p>
+    </a>
+    <a class="card fam-web" href="skills/vercel-deploy.html">
+      <span class="nm"><i></i>vercel-deploy<span class="role">operative</span></span>
+      <p>Use to ship a Next.js 16 App Router project to production on Vercel end-to-end: check the pre-deploy gates ran, reproduce the platform build locally, smoke-test a preview, create a *staged* </p>
+    </a>
+    <a class="card fam-web" href="skills/vercel-doctor.html">
+      <span class="nm"><i></i>vercel-doctor<span class="role">operative</span></span>
+      <p>Run vercel-doctor on a Next.js project to find costly Vercel patterns BEFORE they inflate the bill, then route the fixes to the right dev-flow skills.</p>
+    </a>
+    <a class="card fam-web" href="skills/write-tests.html">
+      <span class="nm"><i></i>write-tests<span class="role">operative</span></span>
+      <p>Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query).</p>
+    </a>
+  </div>
+</div></section>
+<section id="agent"><div class="wrap">
+  <h2>Agent <span style="color:var(--faint);font-weight:400">· 2</span></h2>
+  <p class="sub">The eve engine — inside the app, beside it, or alone.</p>
+  <div class="grid">
+    <a class="card fam-agent" href="skills/eve-agent.html">
+      <span class="nm"><i></i>eve-agent<span class="role">operative</span></span>
+      <p>Scaffold and manage an eve agent (Vercel&#x27;s filesystem-first agent framework) inside a monorepo, as the engine behind a Next.js app.</p>
+    </a>
+    <a class="card fam-agent" href="skills/eve-registry-porting.html">
+      <span class="nm"><i></i>eve-registry-porting<span class="role">operative</span></span>
+      <p>Port a tool, connection or skill from a public eve/Flue agent registry — atomeve.dev, evex.sh, agentcn, eveagents.dev, the &quot;shadcn for agents&quot; registries — into a multi-tenant eve app WITHOU</p>
+    </a>
+  </div>
+</div></section>
+<section id="mobile"><div class="wrap">
+  <h2>Mobile <span style="color:var(--faint);font-weight:400">· 16</span></h2>
+  <p class="sub">Expo + React Native. Nine teach the stack, seven operate on it.</p>
+  <div class="grid">
+    <a class="card fam-mobile" href="skills/rn-add-screen.html">
+      <span class="nm"><i></i>rn-add-screen<span class="role">operative</span></span>
+      <p>Use to add a new screen to an existing Expo + RN app: from a description, a wireframe, or a screenshot, generate the route file in app/ (Expo Router file-based), wire up data fetching via Ta</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-animations-gestures.html">
+      <span class="nm"><i></i>rn-animations-gestures<span class="role">knowledge</span></span>
+      <p>Use when adding animations or gestures to a React Native + Expo app: scale/opacity/translation transitions, layout animations (FadeIn/SlideIn/FadeOut), shared-value driven motion, swipe-to-d</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-backend.html">
+      <span class="nm"><i></i>rn-backend<span class="role">knowledge</span></span>
+      <p>Use to connect an Expo + RN app to a backend (auth, database, storage, realtime), agnostic of the provider.</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-bootstrap.html">
+      <span class="nm"><i></i>rn-bootstrap<span class="role">operative</span></span>
+      <p>Scaffold a new Expo + React Native app from a PROJECT.md + PRD.md + DESIGN.md using the opinionated stack (Expo Router, TypeScript, NativeWind v4, Zustand, TanStack Query, Reanimated, expo-i</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-components-apis.html">
+      <span class="nm"><i></i>rn-components-apis<span class="role">knowledge</span></span>
+      <p>Use when working with React Native core components (View, Text, ScrollView, FlatList, TextInput, Pressable, Modal, KeyboardAvoidingView, SafeAreaView) or platform APIs (Platform, Dimensions,</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-data-fetching.html">
+      <span class="nm"><i></i>rn-data-fetching<span class="role">knowledge</span></span>
+      <p>Use when fetching data from APIs in React Native: choosing between fetch+useEffect (didactic only) and TanStack Query (production default), wiring the QueryClient provider, building queries </p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-eas-build-submit-update.html">
+      <span class="nm"><i></i>rn-eas-build-submit-update<span class="role">knowledge</span></span>
+      <p>Use for cloud builds and OTA updates of an Expo + RN app via EAS: configuring eas.json profiles (development/preview/production), managing credentials (APNs key, Android keystore) without co</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-eas-deploy.html">
+      <span class="nm"><i></i>rn-eas-deploy<span class="role">operative</span></span>
+      <p>Use to deploy an Expo + RN app end-to-end: initialize eas.json with 3 profiles (development/preview/production), set up credentials (APNs key, Android keystore) via <code>eas credentials</code>, build </p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-expo-router.html">
+      <span class="nm"><i></i>rn-expo-router<span class="role">knowledge</span></span>
+      <p>Use when working with navigation in an Expo + React Native app: adding routes, building tab/stack/drawer layouts, modal routes, dynamic segments (e.g.</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-fundamentals.html">
+      <span class="nm"><i></i>rn-fundamentals<span class="role">knowledge</span></span>
+      <p>Use at the start of any React Native or Expo task to lock in foundational choices: Expo managed workflow as default, latest Expo SDK with New Architecture ON, TypeScript, npm.</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-module-add.html">
+      <span class="nm"><i></i>rn-module-add<span class="role">operative</span></span>
+      <p>Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app.</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-publishing-payments.html">
+      <span class="nm"><i></i>rn-publishing-payments<span class="role">knowledge</span></span>
+      <p>Use when preparing an Expo + RN app for store submission (metadata, screenshots, localized listings, privacy nutrition label, age rating) and integrating monetization (In-App Purchases via R</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-push-notifications.html">
+      <span class="nm"><i></i>rn-push-notifications<span class="role">knowledge</span></span>
+      <p>Use when adding push or local notifications to an Expo + RN app: requesting permissions at the right moment, registering for push (Expo push service in dev, APNs/FCM direct in prod), handlin</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-styling.html">
+      <span class="nm"><i></i>rn-styling<span class="role">knowledge</span></span>
+      <p>Use when styling React Native + Expo components: choosing between StyleSheet/NativeWind/inline, wiring NativeWind v4 from DESIGN.md tokens, handling Flexbox in RN (column-by-default, not row</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-upgrade.html">
+      <span class="nm"><i></i>rn-upgrade<span class="role">operative</span></span>
+      <p>Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump <code>expo</code>, run <code>npx expo install --fix</code> to align every dependency, run <code>npx expo-doctor</code> for diagnostics, clear caches, an</p>
+    </a>
+    <a class="card fam-mobile" href="skills/rn-write-tests.html">
+      <span class="nm"><i></i>rn-write-tests<span class="role">operative</span></span>
+      <p>Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigatio</p>
+    </a>
+  </div>
+</div></section>
+<section id="monorepo"><div class="wrap">
+  <h2>Monorepo <span style="color:var(--faint);font-weight:400">· 3</span></h2>
+  <p class="sub">turborepo + shared packages across web, mobile and agent.</p>
+  <div class="grid">
+    <a class="card fam-monorepo" href="skills/monorepo-add-shared-package.html">
+      <span class="nm"><i></i>monorepo-add-shared-package<span class="role">operative</span></span>
+      <p>Extract logic from apps/web/ or apps/mobile/ into a new or existing shared package under packages/ in a turborepo monorepo, OR create a fresh empty shared package skeleton.</p>
+    </a>
+    <a class="card fam-monorepo" href="skills/monorepo-bootstrap.html">
+      <span class="nm"><i></i>monorepo-bootstrap<span class="role">operative</span></span>
+      <p>Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client).</p>
+    </a>
+    <a class="card fam-monorepo" href="skills/monorepo-sync-types.html">
+      <span class="nm"><i></i>monorepo-sync-types<span class="role">operative</span></span>
+      <p>Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface.</p>
+    </a>
+  </div>
+</div></section>
+<section id="refactor"><div class="wrap">
+  <h2>Refactor <span style="color:var(--faint);font-weight:400">· 2</span></h2>
+  <p class="sub">Stack-agnostic composition and colocation.</p>
+  <div class="grid">
+    <a class="card fam-refactor" href="skills/composition-patterns-guide.html">
+      <span class="nm"><i></i>composition-patterns-guide<span class="role">knowledge</span></span>
+      <p>Use when refactoring React or React Native components that suffer from boolean prop proliferation, lack of compound structure, prop drilling, or unclear ownership of state.</p>
+    </a>
+    <a class="card fam-refactor" href="skills/promote-component.html">
+      <span class="nm"><i></i>promote-component<span class="role">operative</span></span>
+      <p>Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages.</p>
+    </a>
+  </div>
+</div></section>
+<footer><div class="wrap">
+  <span>44 skills, one contract. MIT.</span>
+  <a href="https://github.com/lukedj78/dev-flow">github.com/lukedj78/dev-flow</a>
+  <span>Generated from <code>skills.json</code> — do not edit by hand.</span>
+</div></footer>
+</body>
+</html>

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""build_site.py — generate docs/site/ from skills.json + the SKILL.md files
+"""build_site.py — generate the docs/ site from skills.json + the SKILL.md files
 
-The browsable index: one page listing every skill by family, plus one page per
-skill. Served by GitHub Pages from docs/.
+The browsable index at docs/index.html (the Pages root), plus one page per
+skill under docs/skills/. The skill pages are foldered rather than loose in
+docs/ so that 44 HTML files do not sit among the hand-written .md docs.
 
 GENERATED, never hand-edited. The catalogue in README.md is hand-written prose
 and stays that way (see lint check 10); this is the other thing — a complete,
@@ -25,7 +26,8 @@ import sys
 import yaml
 from pathlib import Path
 
-OUT = Path("docs/site")
+OUT = Path("docs")
+SKILLS_DIR = "skills"
 REPO = "https://github.com/lukedj78/dev-flow"
 
 FAMILY_LABEL = {
@@ -268,7 +270,7 @@ def build() -> dict[str, str]:
             continue
         label, blurb = FAMILY_LABEL[fam]
         cards = "\n".join(
-            f"""    <a class="card fam-{fam}" href="{s['name']}.html">
+            f"""    <a class="card fam-{fam}" href="{SKILLS_DIR}/{s['name']}.html">
       <span class="nm"><i></i>{e(s['name'])}<span class="role">{e(s['role'])}</span></span>
       <p>{inline_md(first_sentence(s['description']))}</p>
     </a>""" for s in group
@@ -302,7 +304,7 @@ def build() -> dict[str, str]:
                         f'{"s" if len(s["scripts"]) != 1 else ""}</li>')
 
         body = [f'<div class="wrap hero">',
-                f'  <p class="eyebrow"><a class="back" href="index.html">← all skills</a></p>',
+                f'  <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>',
                 f'  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">{e(name)}</h1>',
                 f'  <ul class="meta">{"".join(meta)}</ul>',
                 f'  <p class="lede">{inline_md(full_description(Path(s["skill_file"])) or s["description"])}</p>',
@@ -323,8 +325,8 @@ def build() -> dict[str, str]:
 ./install.sh --platform claude        # or drop {e(s['bundle'])} into Claude Code</code></pre>
   <p class="sub"><a href="{REPO}/blob/main/{e(s['skill_file'])}">Read {e(s['skill_file'])} on GitHub →</a></p>
 </div></section>""")
-        pages[f"{name}.html"] = shell(f"{name} — dev-flow",
-                                      first_sentence(s["description"]), "\n".join(body), "")
+        pages[f"{SKILLS_DIR}/{name}.html"] = shell(f"{name} — dev-flow",
+                                      first_sentence(s["description"]), "\n".join(body), "../")
     return pages
 
 
@@ -343,22 +345,25 @@ def main() -> int:
         else:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content)
-    existing = {f.name for f in OUT.glob("*.html")} if OUT.exists() else set()
+    # Only ever consider pages we own: docs/ also holds the hand-made
+    # dev-flow-skill-map.html, which must never be swept up as an orphan.
+    sd = OUT / SKILLS_DIR
+    existing = {f"{SKILLS_DIR}/{f.name}" for f in sd.glob("*.html")} if sd.exists() else set()
     orphans = sorted(existing - set(pages))
     if check:
         if stale or orphans:
             for r in stale:
-                sys.stderr.write(f"✗ stale: docs/site/{r}\n")
+                sys.stderr.write(f"✗ stale: docs/{r}\n")
             for r in orphans:
-                sys.stderr.write(f"✗ orphan page (skill removed?): docs/site/{r}\n")
+                sys.stderr.write(f"✗ orphan page (skill removed?): docs/{r}\n")
             sys.stderr.write("Run: python3 scripts/build_site.py\n")
             return 2
-        print(f"✓ docs/site/ up to date ({len(pages)} pages)")
+        print(f"✓ docs/ site up to date ({len(pages)} pages)")
         return 0
     for r in orphans:
         (OUT / r).unlink()
         print(f"  removed orphan {r}")
-    print(f"✓ docs/site/ regenerated ({len(pages)} pages)")
+    print(f"✓ docs/ site regenerated ({len(pages)} pages)")
     return 0
 
 
