@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-25T20:36:41Z",
+  "generated_at": "2026-08-25T20:46:04Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -83,7 +83,7 @@
       "name": "dev-flow",
       "family": "core",
       "role": "orchestrator",
-      "description": "Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, figures out what phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests), and delegates to the right specialist skill: `prd-from-idea`,...",
+      "description": "Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, works out which phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests → pre-deploy gates → deployed), and delegates to whichever speci...",
       "skill_file": "dev-flow/SKILL.md",
       "references": [
         "contracts.md",
@@ -148,7 +148,7 @@
       "name": "spec-review",
       "family": "core",
       "role": "operative",
-      "description": "Review a diff along the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack` conventions). Two axes, two parallel sub-agents, reported side by si...",
+      "description": "Review a diff on the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack`). Two parallel sub-agents, reported side by side and never merged, with...",
       "skill_file": "spec-review/SKILL.md",
       "references": [
         "contracts.md"
@@ -180,7 +180,7 @@
       "name": "data-fetching",
       "family": "web",
       "role": "knowledge",
-      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations only — never rea...",
+      "description": "Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations, never reads. Us...",
       "skill_file": "data-fetching/SKILL.md",
       "references": [
         "anti-patterns.md",
