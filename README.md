@@ -1298,6 +1298,10 @@ python3 scripts/build_skills_registry.py
 python3 scripts/build_skill_bundles.py          # all 43
 python3 scripts/build_skill_bundles.py dev-flow # or just one
 
+# Regenerate the browsable site at docs/site/ (one page per skill, from skills.json)
+python3 scripts/build_site.py           # write
+python3 scripts/build_site.py --check   # CI: fail if stale
+
 # Regenerate the plugin manifest (skills allowlist comes from the taxonomy)
 python3 scripts/build_plugin_manifest.py
 python3 scripts/build_plugin_manifest.py --check   # CI: fail if stale

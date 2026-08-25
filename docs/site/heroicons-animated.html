@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>heroicons-animated — dev-flow</title>
+<meta name="description" content="Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG.">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#eef1f8; --panel:#fff; --panel-2:#f3f6fd;
+  --bd:rgba(30,45,110,.12); --bd-2:rgba(30,45,110,.22);
+  --tx:#0f1526; --dim:#4a5573; --faint:#8590ac;
+  --ac:#3a53e6; --ac-soft:rgba(58,83,230,.10);
+  --c-core:#c07d17; --c-web:#3a53e6; --c-agent:#7c4fe0;
+  --c-mobile:#0c9f92; --c-monorepo:#1c86a6; --c-refactor:#e0475f;
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 12px 26px -20px rgba(20,30,80,.35);
+  --fS:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --fM:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --maxw:1080px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a0c13; --panel:#111524; --panel-2:#151a2b;
+  --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+  --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+  --ac:#6f8bff; --ac-soft:rgba(111,139,255,.16);
+  --c-core:#f0b64d; --c-web:#6f8bff; --c-agent:#b487ff;
+  --c-mobile:#33d3c2; --c-monorepo:#4ec6e6; --c-refactor:#ff7d92;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+}}
+:root[data-theme="dark"]{
+  --bg:#0a0c13; --panel:#111524; --panel-2:#151a2b;
+  --bd:rgba(139,163,255,.11); --bd-2:rgba(139,163,255,.22);
+  --tx:#eef1fb; --dim:#9aa4c0; --faint:#5c6688;
+  --ac:#6f8bff; --ac-soft:rgba(111,139,255,.16);
+  --c-core:#f0b64d; --c-web:#6f8bff; --c-agent:#b487ff;
+  --c-mobile:#33d3c2; --c-monorepo:#4ec6e6; --c-refactor:#ff7d92;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px -18px rgba(0,0,0,.8);
+}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--fS);
+  line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+a{color:var(--ac);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:4px}
+code{font-family:var(--fM);font-size:.9em;background:var(--ac-soft);
+  padding:.12em .38em;border-radius:5px}
+pre{background:var(--panel-2);border:1px solid var(--bd);border-radius:12px;
+  padding:14px 16px;overflow-x:auto;font-family:var(--fM);font-size:13px;line-height:1.55}
+pre code{background:none;padding:0}
+header.top{border-bottom:1px solid var(--bd);background:var(--panel);position:sticky;top:0;z-index:5}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:56px}
+.brand{font-weight:650;letter-spacing:-.01em;color:var(--tx)}
+.brand:hover{text-decoration:none}
+.top nav{margin-left:auto;display:flex;gap:18px;font-size:14px}
+.hero{padding:56px 0 30px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.025em;margin:0 0 14px;
+  text-wrap:balance;font-weight:680}
+h1 .g{color:var(--ac)}
+.lede{font-size:17px;color:var(--dim);max-width:62ch;margin:0}
+.eyebrow{font-family:var(--fM);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 10px}
+section{padding:34px 0}
+h2{font-size:23px;letter-spacing:-.015em;margin:0 0 6px;font-weight:660}
+.sub{color:var(--dim);margin:0 0 20px;max-width:64ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:16px 17px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:7px}
+a.card:hover{border-color:var(--bd-2);text-decoration:none}
+.card .nm{font-family:var(--fM);font-size:14px;font-weight:600;color:var(--tx);
+  display:flex;align-items:center;gap:8px}
+.card .nm i{width:7px;height:7px;border-radius:99px;flex:0 0 auto}
+.card p{margin:0;font-size:13.5px;color:var(--dim);line-height:1.5}
+.role{font-family:var(--fM);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);margin-left:auto}
+.fam-core i{background:var(--c-core)} .fam-web i{background:var(--c-web)}
+.fam-agent i{background:var(--c-agent)} .fam-mobile i{background:var(--c-mobile)}
+.fam-monorepo i{background:var(--c-monorepo)} .fam-refactor i{background:var(--c-refactor)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 18px;padding:0;list-style:none}
+.chip{font-family:var(--fM);font-size:11.5px;border:1px solid var(--bd);border-radius:99px;
+  padding:3px 10px;color:var(--dim);background:var(--panel)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:0;list-style:none}
+.prose h3{font-size:16px;margin:26px 0 8px;letter-spacing:-.01em}
+.prose ul{padding-left:20px;margin:8px 0}
+.prose li{margin:5px 0;color:var(--dim)}
+.prose li strong,.prose li code{color:var(--tx)}
+.back{font-size:14px;color:var(--dim)}
+footer{border-top:1px solid var(--bd);margin-top:40px;padding:22px 0 40px;
+  color:var(--faint);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px}
+footer a{color:var(--dim)}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.hero{padding:36px 0 22px}}
+</style>
+<script>
+(function(){var k='devflow-theme',d=document.documentElement;
+function get(){try{return localStorage.getItem(k)}catch(e){return null}}
+function set(v){try{localStorage.setItem(k,v)}catch(e){}}
+var s=get(); if(s){d.setAttribute('data-theme',s)}
+window.__t=function(){var c=d.getAttribute('data-theme');
+if(!c){c=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}
+var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
+</script>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="index.html">dev-flow</a>
+  <nav>
+    <a href="https://github.com/lukedj78/dev-flow">GitHub</a>
+    <a href="https://github.com/lukedj78/dev-flow/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="#" onclick="__t();return false">Theme</a>
+  </nav>
+</div></header>
+<div class="wrap hero">
+  <p class="eyebrow"><a class="back" href="index.html">← all skills</a></p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">heroicons-animated</h1>
+  <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">91 lines</li><li class="chip">2 references</li></ul>
+  <p class="lede">Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with <code>shadcn add @heroicons-animated/&lt;name&gt;</code>, built on the <code>motion</code> runtime. This skill owns the install plus the two things the raw components lack: a <code>prefers-reduced-motion</code> guard and timing aligned to the project motion tokens (<code>lib/motion/</code>). Use when the user says &quot;animated icon&quot;, &quot;animate this icon&quot;, &quot;make the bell/heart/menu icon animate on hover&quot;, &quot;aggiungi un icona animata&quot;, or wants an icon micro-interaction. Refuses outside Next.js web (<code>stack.framework</code> next/monorepo) — for React Native use <code>rn-animations-gestures</code>. Not for: static icons (use the plain heroicons/lucide set), a whole motion system (use <code>transitions</code>), or installing the animation runtime itself (use <code>module-add motion</code>).</p>
+</div>
+<section><div class="wrap prose">
+  <h3>When it applies</h3>
+  <ul><li>&quot;animated icon&quot;, &quot;animate this icon&quot;, &quot;make the bell/heart/menu icon animate on hover&quot;, &quot;aggiungi un&#x27;icona animata&quot;, an icon micro-interaction (notification bell shake, menu↔close morph, heart like).</li></ul>
+  <h3>What it does not do</h3>
+  <ul><li><strong>Doesn&#x27;t install the runtime</strong> — that&#x27;s <code>module-add motion</code>.</li><li><strong>Doesn&#x27;t define a motion system</strong> — that&#x27;s <code>transitions</code>.</li><li><strong>Doesn&#x27;t do React Native</strong> — use <code>rn-animations-gestures</code>.</li><li><strong>Doesn&#x27;t replace static icons</strong> — it adds a few animated affordances; most icons stay static.</li></ul>
+  <h3>References it ships</h3>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/references/usage.md"><code>usage.md</code></a></li></ul>
+  <h3>Get it</h3>
+  <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
+./install.sh --platform claude        # or drop dist/heroicons-animated.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/SKILL.md">Read heroicons-animated/SKILL.md on GitHub →</a></p>
+</div></section>
+<footer><div class="wrap">
+  <span>44 skills, one contract. MIT.</span>
+  <a href="https://github.com/lukedj78/dev-flow">github.com/lukedj78/dev-flow</a>
+  <span>Generated from <code>skills.json</code> — do not edit by hand.</span>
+</div></footer>
+</body>
+</html>

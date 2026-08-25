@@ -23,6 +23,8 @@ Checks:
      either form it uses (a `### \`name\`` prose section or a `| \`name\` |`
      table row). Adding a skill and forgetting the README is silent otherwise.
 
+(`docs/site/` is generated separately — run `python3 scripts/build_site.py --check`.)
+
 Exit codes:
   0 = clean (notes are informational and never change the exit code)
   1 = warnings only
