@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 44 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r8.png)
+![dev-flow v1.0.0 — map of the 44 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r9.png)
 
 <sub>↑ Interactive version (dark/light, opens locally in a browser): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -819,6 +819,10 @@ The skill is explicit about confidence: every guess is flagged in the prose. A 1
 
 - **i18n from day one** (golden rule 2): next-intl wired at scaffold — `[locale]` routing, `messages/{en,it}.json`, provider — so no copy is ever hardcoded. How-to: `references/i18n-next-intl.md`.
 - **Visual defaults, opt-in**: maps via [mapcn](https://mapcn.dev/) (`references/maps-mapcn.md`) and illustrations via [Koboyo](https://koboyo.com/icons) (`references/illustrations.md`) — the latter deliberately sparing: `stack.illustrations` defaults to `null`, and hand-drawn art is added only when DESIGN.md's visual language admits it, at emotional moments (first empty state, onboarding, 404), a handful per product.
+
+- **Conversational surfaces are a standard, not a suggestion** (`references/chat-and-typeset.md`): any chat, inbox, comment thread or agent console composes the official shadcn primitives — `MessageScroller`, `Message`, `Bubble`, `InputGroup` — and any rendered markdown goes through **typeset**, never `whitespace-pre-wrap`. The reference implementation is shadcn's own MIT [`chatbot-template`](https://github.com/shadcn-ui/chatbot-template); read it rather than inferring how the pieces fit.
+
+  It also carries the **three human-in-the-loop mechanisms**, which are easy to cross and produce a UI nobody is listening to. *Ask* — a tool with an `outputSchema` and **no `execute`** parks on the client, renders a `<Questionnaire />` (the same component `forms` owns) and returns the human's answer as the tool output. *Approval* — `needsApproval` + `addToolApprovalResponse`. *eve* — `input.requested` on the agent's event stream, answered with `respond()`, and **not** interchangeable with the first two.
 
 The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs/conventions.md).
 
