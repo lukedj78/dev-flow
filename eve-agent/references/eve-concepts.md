@@ -32,7 +32,9 @@ Layered visibility, not everything-in-the-prompt: `instructions.md` (always) + d
 
 eve runs the agent loop (model calls, tool execution, compaction) and ships built-ins:
 - Sandbox: `bash`, `read_file` (line-numbered, read-before-write), `write_file` (stale-read detection), `glob`, `grep`.
-- Network: `web_fetch` (app runtime), `web_search` (provider-managed, model-dependent).
+- Network: `web_fetch` (app runtime), `web_search` (**provider-managed, model-dependent** — which model you route to decides whether you get search at all, and how good it is).
+
+  Two ways around that dependency, both worth knowing before hand-rolling a search tool: the **provider's own** built-in search (what shadcn's `chatbot-template` uses, one `tools/web_search.ts` per provider), or a **Gateway-level tool** — since 2026-08 the AI Gateway ships `gateway.tools.exaSearch()`, which needs **no separate account**: the gateway runs the search, hands results back to the model and loops until the model stops searching, billed beside your model usage at list price with no markup. That makes search a property of the *gateway* rather than of whichever model you happen to route to. `[VERIFY]` whether an eve agent can be handed an AI SDK Gateway tool directly, or whether it has to be wrapped in a `defineTool` — eve is built on the AI SDK but its tool surface is its own, and I have not confirmed the passthrough.
 - Session: `ask_question` (mid-turn input), `todo` (durable per-session list), `load_skill`, `connection_search` (discover/call connection tools), `agent` (delegate to a fresh instance, root-only).
 
 Customize:

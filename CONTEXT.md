@@ -1,6 +1,6 @@
 # CONTEXT — the language of dev-flow
 
-The suite is 43 skills and ~260 markdown files written over months. Words drift. This is the **ubiquitous language**: use these terms exactly, and avoid the listed alternatives, so a phrase means the same thing in every skill.
+The suite is 44 skills and ~260 markdown files written over months. Words drift. This is the **ubiquitous language**: use these terms exactly, and avoid the listed alternatives, so a phrase means the same thing in every skill.
 
 Each entry gives the meaning, then `_Avoid_:` — wordings that are ambiguous or already mean something else here.
 
@@ -108,7 +108,7 @@ _Avoid_: bare "the registry".
 
 ## ⚠️ "Skill" — ours vs eve's
 
-An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of our 43 skills. Write "an eve agent skill" in full whenever both could be meant.
+An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of our 44 skills. Write "an eve agent skill" in full whenever both could be meant.
 
 ## ⚠️ "Module"
 
