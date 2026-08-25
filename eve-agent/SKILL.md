@@ -1,18 +1,15 @@
 ---
 name: eve-agent
 description: >-
-  Scaffold and manage an eve agent (Vercel's filesystem-first agent framework)
-  inside a monorepo, as the engine behind a Next.js app. Use this skill whenever
-  the user wants to create, set up, or initialize an eve agent; add a tool, skill,
-  channel, connection, schedule, subagent, or hook to an eve agent; wire a Next.js
-  (or any) frontend to consume an eve agent; or evolve the `apps/agent` part of a
-  project. Trigger this for ANY mention of "eve", "the agent engine", "agent tools",
-  "agent backend", or building the agentic core of an app — even if the user does
-  not say the word "skill". This is the eve counterpart to dev-flow's Next.js skills
-  (design-md-to-app / module-add); use it for the agent the same way you'd use those
-  for the web app. Not for: building the Next.js app itself or its pages/forms (use
-  design-md-to-app / screenshot-to-page / module-add), scaffolding the monorepo (use
-  monorepo-bootstrap), or React Native (eve is a server-side engine, not an RN concern).
+  Scaffold and manage an eve agent (Vercel's filesystem-first agent framework) — inside a Next.js app,
+  as `apps/agent` in a monorepo, or alone at the repo root when the product has no UI. Use whenever
+  the user wants to create, set up or initialize an eve agent; add a tool, skill, channel, connection,
+  schedule, subagent or hook to one; or wire a frontend to consume one. Trigger for ANY mention of
+  "eve", "the agent engine", "agent tools", "agent backend", or building the agentic core of an app —
+  even without the word "skill". The eve counterpart to design-md-to-app / module-add. Not for:
+  building the Next.js app itself or its pages/forms (use design-md-to-app / screenshot-to-page /
+  module-add), scaffolding the monorepo (use monorepo-bootstrap), or React Native (eve is
+  server-side).
 ---
 
 # eve-agent

@@ -1,6 +1,15 @@
 ---
 name: compliance-audit
-description: 'Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-transparency Art.50, high-risk Annex III, sub-processors — into a report with severity, evidence and article mapping) and Remediate (apply the safe mechanical mitigations, flag the ones needing a legal decision as TODOs, never deciding legal basis or high-risk for the user). A pre-deploy gate; run it any time. Triggers: "audit GDPR", "compliance check", "AI Act", "siamo conformi?", "DSAR / cancellazione account / cookie consent / data residency". Not for: legal advice or a DPIA sign-off (it produces engineering findings and a DPIA template; a DPO confirms materiality), building features (use design-md-to-app / module-add / rn-*), or writing the PRD (use prd-from-idea).'
+description: >-
+  Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent)
+  and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a
+  10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing,
+  AI-transparency Art.50, high-risk Annex III, sub-processors — into a report with severity, evidence
+  and article mapping) and Remediate (apply the safe mechanical mitigations, flag the ones needing a
+  legal decision, never deciding legal basis or high-risk for the user). A pre-deploy gate; run it any
+  time. Triggers: "audit GDPR", "compliance check", "AI Act", "siamo conformi?", "DSAR / cancellazione
+  account / cookie consent / data residency". Not for: legal advice or DPIA sign-off (a DPO confirms),
+  building features, or writing the PRD (use prd-from-idea).
 ---
 
 # compliance-audit — GDPR + EU AI Act audit & remediation for existing projects
@@ -26,7 +35,7 @@ Full checklist + article mapping + remediation recipes in `references/gdpr-ai-ac
 | **R9** | Special-category data unguarded | Art. 9 |
 | **R10** | Memory/personalization not screened for manipulation | AI Act Art. 5 |
 
-> **Art. 32 also covers keeping the software patched — that part lives in `vercel-deploy`.** "Security of processing" is not only R7 (PII in logs): running a framework version with known, published CVEs is the same article. Since 2026-07 Next.js ships pre-announced monthly security releases with two maintained lines (16.2.x Active LTS, 15.5.x Maintenance LTS), and the deploy gate checks the project against that floor — see `references/contracts.md` § `nextjs_version`. Don't duplicate the check here; when auditing a web project, **read `meta.json#history` for a recent `vercel-deploy` run** and say so if the floor has never been verified. Note for the report: a platform WAF rule is a mitigation, not a patch — Vercel says so itself.
+> **Art. 32 also covers keeping the software patched — that part lives in `vercel-deploy`.** "Security of processing" is not only R7 (PII in logs): running a framework version with known, published CVEs is the same article. Since 2026-07 Next.js ships pre-announced monthly security releases with two maintained lines **whose labels move** (2026-08-25: 16.3.x Active LTS, 15.5.x Maintenance LTS — 16.2 stopped receiving patches), and the deploy gate checks the project against that floor — see `references/contracts.md` § `nextjs_version`. Don't duplicate the check here; when auditing a web project, **read `meta.json#history` for a recent `vercel-deploy` run** and say so if the floor has never been verified. Note for the report: a platform WAF rule is a mitigation, not a patch — Vercel says so itself.
 
 ## Read state, then pick a mode
 
