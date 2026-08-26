@@ -1,4 +1,4 @@
-> Snapshot date: 2026-07-23. Command flags can change between Expo SDK majors — re-verify `[VERIFY]`-tagged items against `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` or MCP Expo (`https://mcp.expo.dev/mcp`) before running on an unfamiliar SDK.
+> Snapshot date: 2026-07-23 (link targets re-checked 2026-08-26). Command flags can change between Expo SDK majors — re-verify `[VERIFY]`-tagged items against `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` or MCP Expo (`https://mcp.expo.dev/mcp`) before running on an unfamiliar SDK.
 
 # Native rebuild: CNG vs bare workflow
 

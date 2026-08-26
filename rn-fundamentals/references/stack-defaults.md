@@ -1,4 +1,4 @@
-> Snapshot date: 2026-08-12. Refresh with `python3 scripts/refresh_stack_defaults.py` (dry-run) — **not** by hand.
+> Snapshot date: 2026-08-26. Refresh with `python3 scripts/refresh_stack_defaults.py` (dry-run) — **not** by hand.
 
 # Stack defaults (opinionated)
 
@@ -21,19 +21,19 @@ track npm `latest`, since Expo does not manage them.
 
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
-| `expo` | `^57.0.12` | Expo SDK | Latest stable. New Architecture ON by default. |
+| `expo` | `^57.0.16` | Expo SDK | Latest stable. New Architecture ON by default. |
 | `react-native` | `0.86.2` | RN core | Bumped by Expo SDK — DO NOT override manually. |
 | `react` | `19.2.3` | React | Bumped by Expo SDK — DO NOT override manually. |
 | `typescript` | `^7.0.2` | TS | Template `blank-typescript` brings a compatible version. |
-| `expo-router` | `~57.0.12` | File-based routing | Mandatory for all apps in this set. |
+| `expo-router` | `~57.0.16` | File-based routing | Mandatory for all apps in this set. |
 | `nativewind` | `^4.2.6` | Tailwind for RN | Major 4 only. |
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
-| `zustand` | `^5.0.14` | Global state | Default for non-trivial global state. |
-| `@tanstack/react-query` | `^5.101.4` | Data fetching | Major 5 only. |
+| `zustand` | `^5.0.15` | Global state | Default for non-trivial global state. |
+| `@tanstack/react-query` | `^5.102.6` | Data fetching | Major 5 only. |
 | `react-native-reanimated` | `^4.5.1` | Animations | Required by Expo Router for native stack animations. |
 | `react-native-gesture-handler` | `~2.32.0` | Gestures | Required by Expo Router. |
 | `react-native-safe-area-context` | `~5.7.0` | Safe area | Required for all root screens. |
-| `expo-image` | `~57.0.2` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
+| `expo-image` | `~57.0.3` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
 | `@shopify/flash-list` | `^2.0.2` | Performant lists | Replaces `FlatList` for long lists. |
 
 ## Engine / runtime defaults

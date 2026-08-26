@@ -1,4 +1,4 @@
-> Snapshot date: 2026-07-23. This table is illustrative, not exhaustive — the per-SDK breaking-changes list is only correct on `https://docs.expo.dev/changelog/` for the exact versions being crossed. Re-verify `[VERIFY]` rows before relying on them.
+> Snapshot date: **2026-08-26** (rows re-checked against `expo@57.0.16`'s `bundledNativeModules.json` and the packages' own `exports`). This table is illustrative, not exhaustive — the per-SDK breaking-changes list is only correct on `https://expo.dev/changelog` for the exact versions being crossed. Re-verify `[VERIFY]` rows before relying on them.
 
 # Breaking-changes checklist
 
@@ -8,9 +8,9 @@ Walk this before declaring an upgrade done. For every row that applies to the pr
 
 | Old | New | Notes |
 |---|---|---|
-| `expo-av` | `expo-audio` + `expo-video` | `expo-av` was deprecated in SDK 53 and **removed in SDK 54**, replaced by two focused packages: `expo-audio` for playback/recording, `expo-video` for video playback. Audio and video code must be split when migrating — they're no longer one API surface. |
+| `expo-av` | `expo-audio` + `expo-video` | `expo-av` was deprecated in SDK 53 and **removed in SDK 54** — confirmed: it is absent from `expo@57.0.16`'s `bundledNativeModules.json` (123 packages), where `expo-video` and `expo-audio` both appear, replaced by two focused packages: `expo-audio` for playback/recording, `expo-video` for video playback. Audio and video code must be split when migrating — they're no longer one API surface. |
 | `expo-permissions` | per-module permission APIs | Long deprecated; each module (camera, location, notifications) now exposes its own `usePermissions`/`requestPermissionsAsync`. If still present in a project, this is a stale leftover, not a recent-SDK concern. |
-| `expo-file-system` (legacy API) | `expo-file-system/next` (new API) | Some SDKs ship a parallel modern API alongside the legacy one before a full cutover. `[VERIFY]` which is current/required for the target SDK. |
+| `expo-file-system/next` (was the new API) → **plain `expo-file-system`** · old code → **`expo-file-system/legacy`** | | ⚠️ **This row used to point the wrong way, and the cutover is done.** At `expo-file-system@57.0.5` the package exports exactly two entry points: `.` — which is now **the new API** — and `./legacy`. **There is no `/next` subpath any more**, so an import from `expo-file-system/next` fails outright, while an untouched legacy import from `expo-file-system` keeps resolving and silently gets the *new* API. Crossing into SDK 57: move old call sites to `/legacy` to buy time, or migrate them; leaving them bare is the one option that looks fine and isn't. |
 | Old Expo Router APIs (e.g. pre-file-based conventions) | current Expo Router conventions | If the project predates Expo Router stabilizing, check `rn-expo-router/SKILL.md` for the current file-based routing shape. |
 
 ## Import-path and API shape changes to check every upgrade
@@ -32,6 +32,6 @@ Walk this before declaring an upgrade done. For every row that applies to the pr
 
 Do not rely on memory or on this file's table alone for a specific SDK crossing — always cross-check:
 
-1. `https://docs.expo.dev/changelog/` — the target SDK's full release notes, "Breaking Changes" section.
+1. `https://expo.dev/changelog` — the target SDK's full release notes, "Breaking Changes" section.
 2. MCP Expo (`https://mcp.expo.dev/mcp`), if available, for current guidance.
 3. The official `expo/skills` repo's `expo-upgrade` skill, if installed — it's the closest thing to a maintained per-SDK source.

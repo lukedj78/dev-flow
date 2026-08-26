@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-26T06:14:18Z",
+  "generated_at": "2026-08-26T19:07:13Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -699,7 +699,7 @@
         "native-rebuild.md"
       ],
       "scripts": [],
-      "skill_md_lines": 177,
+      "skill_md_lines": 186,
       "bundle": "dist/rn-upgrade.skill"
     },
     {

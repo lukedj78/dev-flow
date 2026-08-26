@@ -30,7 +30,8 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 
 Expo SDKs ship roughly every quarter and change command surface, deprecations, and config shape release to release. **This skill's workflow shape is stable; the exact command flags and package names are not.** Before executing anything marked `[VERIFY]`:
 
-1. Check the live Expo docs for the **target** SDK: `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` and `https://docs.expo.dev/changelog/`.
+1. Check the live Expo docs for the **target** SDK: `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` (200 on 2026-08-26) and the changelog at **`https://expo.dev/changelog`**, per-SDK at `https://expo.dev/changelog/sdk-57`.
+   ⚠️ **Not `docs.expo.dev/changelog` — that 404s**, and this skill pointed at it in five places until 2026-08-26. A source-of-truth link is worth a `curl -o /dev/null -w '%{http_code}'` now and then; a dead one sends the reader to guess exactly where you meant them not to.
 2. If MCP tools are available, query **MCP Expo** (`https://mcp.expo.dev/mcp`) for the current upgrade guidance and API status — it is more current than any static doc snapshot.
 3. Cross-check against the official `expo/skills` repo's `expo-upgrade` skill if installed/available — this skill is modeled on it but does not vendor its per-SDK specifics, since those go stale.
 
@@ -57,12 +58,15 @@ See `references/native-rebuild.md` for the exact per-mode commands and rationale
 
 ```bash
 npx expo install expo@latest
-npx expo install --fix
+npx expo install --check     # dry run: which packages are on invalid versions
+npx expo install --fix       # actually re-resolve them
 ```
 
 `expo install --fix` re-resolves every Expo-adjacent package (`react-native`, `react`, `expo-router`, `react-native-reanimated`, etc.) to the versions the newly-installed SDK expects — this is the step that actually fixes the dependency graph, not just the `expo` package itself.
 
-`[VERIFY]` — on some SDKs the second command's exact flag name has changed historically (`--fix` vs interactive prompt-only); confirm against the live docs for the target SDK.
+**Confirmed at `@expo/cli@57.0.18`** (`npm pack`, then the command's own help text): `--check` — *"Check which installed packages need to be updated"* — and `--fix` — *"Automatically update any invalid package versions"* — both exist. Run `--check` first on a project you don't own: it tells you the size of the blast radius before you take it.
+
+`[VERIFY]` on a different SDK major: this flag surface has moved historically (`--fix` vs interactive-prompt-only), so confirm against the live docs for the target SDK rather than against this line.
 
 ### Step 4 — Diagnose with expo-doctor
 
@@ -114,18 +118,23 @@ After migrating any deprecated module, manually test:
 If the user wants to target a not-yet-stable SDK:
 
 ```bash
-npx expo install expo@next --fix
+npm view expo dist-tags          # ALWAYS first — see below
+npx expo install expo@<tag> --fix
 ```
 
-- Beta packages use the `@next` dist-tag or `.preview` prerelease versions (`x.y.z-preview.n`) — `[VERIFY]` the exact tag naming for the target beta against `https://docs.expo.dev/changelog/`.
-- Check available runtime versions/manifests via `https://exp.host/--/api/v2/versions` when diagnosing beta-channel compatibility issues.
-- Beta SDKs are inherently less stable — NEVER move a production app to `@next` without the user's explicit, informed confirmation (this is user-facing risk, not a default).
+- ⚠️ **`@next` does not mean "beta".** On 2026-08-26 `next` and `latest` were **the same version**
+  (`57.0.16`), so `expo install expo@next` installs *stable*. Between cycles that is normal. The
+  prerelease channel is **`canary`** / **`canary-sdk-NN`**; `-preview.N` versions appear during a
+  cycle; `sdk-NN` tags pin an SDK line. Read the tags, then pick — `[VERIFY]` against
+  `npm view expo dist-tags` and `https://expo.dev/changelog`.
+- Check available runtime versions/manifests via `https://exp.host/--/api/v2/versions` (live, 200 on 2026-08-26) when diagnosing beta-channel compatibility issues.
+- Beta SDKs are inherently less stable — NEVER move a production app onto a prerelease tag without the user's explicit, informed confirmation (this is user-facing risk, not a default). And say **which** tag you are proposing and what it currently resolves to: "the beta" is not a version.
 
 Full walkthrough (version checks, reverting, third-party compatibility caveats): `references/beta-preview.md`.
 
 ### Step 9 — Review release notes and refresh doc links
 
-Read the target SDK's entry on `https://docs.expo.dev/changelog/` (or `expo.dev/changelog`) end to end — not just the breaking-changes section, since deprecation notices for the *next* upgrade often appear early. If the project's own docs (`.workflow/DESIGN.md`, README, code comments) link to version-pinned Expo docs URLs (e.g. `docs.expo.dev/versions/v53.0.0/...`), update them to the new SDK's version path.
+Read the target SDK's entry on `https://expo.dev/changelog` (per-SDK pages: `https://expo.dev/changelog/sdk-57`) end to end — not just the breaking-changes section, since deprecation notices for the *next* upgrade often appear early. If the project's own docs (`.workflow/DESIGN.md`, README, code comments) link to version-pinned Expo docs URLs (e.g. `docs.expo.dev/versions/v53.0.0/...`), update them to the new SDK's version path.
 
 ### Step 10 — Verify
 
@@ -171,7 +180,7 @@ Note there is deliberately **no `set-phase` call** in this skill's usage of the 
 ## Sources
 
 - Official: https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/
-- Official: https://docs.expo.dev/changelog/
+- Official: https://expo.dev/changelog
 - Official: https://docs.expo.dev/versions/latest/
 - MCP Expo: https://mcp.expo.dev/mcp
 - Modeled on the official `expo-upgrade` skill from the `expo/skills` repo (consult it directly for per-SDK specifics — not vendored here since it goes stale).

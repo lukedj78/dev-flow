@@ -1,4 +1,4 @@
-> Snapshot date: 2026-07-23. Beta/preview tag conventions are the most volatile part of this workflow — `[VERIFY]` every command here against `https://docs.expo.dev/changelog/` before running on a real project.
+> Snapshot date: **2026-08-26** (dist-tags read off npm that day; `expo@57.0.16` stable). Beta/preview tag conventions are the most volatile part of this workflow — and the tags themselves move without a release note. `[VERIFY]` with `npm view expo dist-tags` **and** `https://expo.dev/changelog` before running any of this on a real project.
 
 # Upgrading to a beta / preview Expo SDK
 
@@ -15,8 +15,27 @@ Only follow this path on **explicit user request**. A beta SDK is, by definition
 npx expo install expo@next --fix
 ```
 
-- `@next` is the dist-tag Expo publishes prerelease SDK builds under. `[VERIFY]` this tag name for the cycle in question — Expo has used `@next` consistently but always confirm against current docs before typing it into a real project.
-- Package versions during a beta cycle often look like `x.y.z-preview.N` (prerelease semver). `expo install --fix` should resolve the compatible prerelease versions of every Expo-adjacent package automatically once `expo@next` is installed — do not hand-pin individual `-preview.N` versions unless `expo install --fix` fails to resolve one.
+**The dist-tag map, read off npm on 2026-08-26** (`npm view expo dist-tags`) — and the headline is a trap:
+
+| Tag | Then | Now |
+|---|---|---|
+| `latest` | stable | `57.0.16` |
+| `next` | "the beta" | **`57.0.16` — the same build as `latest`** |
+| `canary` | — | `58.0.0-canary-20260812-27f94d4` |
+| `canary-sdk-NN` | — | one canary line per upcoming SDK |
+| `sdk-NN` | — | `sdk-52` … `sdk-56`: the way to pin an SDK **line** and still get its patches |
+
+⚠️ **`expo@next` is not a synonym for "beta".** Between cycles it tracks `latest`, which is exactly
+where it sits today — so `npx expo install expo@next` right now installs **stable 57**, and a user who
+asked for "the beta" gets nothing of the sort while believing they took a risk. Read the tag before
+running the command, every time; the answer is one `npm view expo dist-tags` away and changes without
+notice.
+
+`-preview.N` versions are real (`56.0.0-preview.13`, `57.0.0-preview.1` are both published), but they
+appear **during** a cycle. As of today SDK 58 exists only as canaries — there is no 58 preview yet.
+
+- `expo install --fix` should resolve the compatible prerelease versions of every Expo-adjacent package once the right `expo` is installed.
+- Do not hand-pin individual `-preview.N` or `-canary-*` versions unless `expo install --fix` fails to resolve one.
 
 ## Checking available versions and manifests
 
