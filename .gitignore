@@ -49,3 +49,6 @@ android/.gradle/
 # Agent Plugins package: the manifest is tracked, the skill copies are generated
 # (they would duplicate every skill file and double the diff of every edit).
 /dist/agent-plugin/skills/
+
+# Python build artefacts (pip install -e . leaves these)
+*.egg-info/
