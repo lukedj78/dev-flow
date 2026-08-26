@@ -74,7 +74,7 @@ export default defineTool({
   (threshold amounts, cross-tenant guards). See eve-conventions.md for the full shape.
 * Optional: `outputSchema` (return typing / task mode), `toModelOutput(output)` to project
   what the model sees vs what channels receive.
-* Override a built-in tool by re-importing from `eve/tools/defaults`; disable via `disableTool()`.
+* Override a built-in tool by re-importing it from **its own** subpath — `eve/tools/write_file`, `eve/tools/bash`, … (`eve/tools/defaults` was removed in 0.45.0); disable via `disableTool()`.
 
 ### Prebuilt toolsets (don't hand-write what a preset already gives)
 
@@ -107,11 +107,12 @@ skills are invisible to the root.
 
 ## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.38.3/docs/channels/`:
+A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.45.0/docs/channels/`:
 
 | Channel | How you add it |
 |---|---|
-| `web` · `slack` · `discord` · `github` · `photon-imessage` | **`eve add channel/<kind>`** |
+| `web` · `slack` · `discord` · `github` · `photon-imessage` · **`linq`** | **`eve add channel/<kind>`** |
+| **Linq** (iMessage **and SMS**, new in 0.41.0) | **`eve add channel/linq`** — two setup paths: Vercel Connect (eve provisions or links a Linq account and line, then you pick which of the account's phone numbers the agent answers on) or portable credentials (`LINQ_API_KEY` + `LINQ_WEBHOOK_SECRET` in `.env.local`). **Photon is still the iMessage-only option**; Linq is the one that also carries SMS |
 | **Linear** | **`eve add linear`** — a bundle whose checklist offers the Linear *channel* **and** the Linear MCP connection (both selected by default). For the channel alone the item is **`eve add channel/linear-agent`** — ⚠️ **not `channel/linear`, which does not exist** |
 | `teams` · `telegram` · `twilio` | **authored by hand** — they ship a subpath (`eve/channels/<kind>`) and a docs page, but no registry item. Write the file; there is no `eve add` for them |
 | `chat-sdk` · custom | `chatSdkChannel()` / `defineChannel()` — see below |
@@ -209,9 +210,9 @@ path must be `/eve/v1/slack`, not Connect's default `/slack`; re-running `create
 duplicate Slack app. Slack delivers over the public internet, so it cannot be tested on
 localhost — deploy first, then smoke-test with `eve dev <url>`.
 
-**Slack event hooks + session controls** ([VERIFY] against installed docs) — configured on the
+**Slack event hooks + session controls** (verified against `eve@0.45.0`'s `slackChannel.d.ts`) — configured on the
 `slackChannel({ … })` options in `agent/channels/slack.ts`:
-- **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention), `ctx.isSubscribed()` (the thread already owns an active eve session), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
+- **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention — the only **sync** one), `await ctx.isSubscribed()` (the thread already owns an active eve session), `await ctx.isDMOrPrivateChannel()` (DM, group DM **or** private channel — added in 0.39.1, and it **fails closed**: an unknown conversation type returns `true`, so treat it as "assume private" rather than "assume public"), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
 - **`onAppMention(ctx)`** / **`onDirectMessage(ctx)`** — the mention- and DM-specific hooks. Don't hand-roll that gating inside `onMessage`: eve already routes it. (`onInteraction(ctx)` handles interactive components.) All the message hooks receive the same `ctx` helpers and the session controls below.
 - **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). It can still **fan one event out to multiple targets** (e.g. greet every new member), but ⚠️ **`ctx.receive` was removed in 0.31.0**: for generic events the target is now passed **in each operation's options** — `ctx.send(message, { target, auth })`. `resolveActiveSession` is gone too; use `ctx.resolveSession(address)`.
 - **Session controls** (thread-bound, callable from the hooks) — ⚠️ **the two take different options**: **`ctx.cancel({ turnId? })`** stops the current turn but **keeps the session** (for mid-turn corrections; new input queues onto the same session) — from `onEvent` it needs the thread explicitly: `ctx.cancel({ channelId, threadTs, turnId? })`. **`ctx.reset({ reason? })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). `reason` belongs to `reset` only. These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
@@ -322,7 +323,16 @@ await s.getEventStream({ startIndex: 12 });
 
 1. **`send` is positional.** `send(message, options)` — not one options bag. And `message` and
    `inputResponses` are **mutually exclusive**: a HITL reply goes through `respond()`, so you can no
-   longer smuggle one inside a send.
+   longer smuggle one inside a send. **Since 0.42.0 `respond()` also refuses a widened
+   `InputResponse[]`** — it takes exact response literals, or a value *proved* by
+   `parseInputResponses()` from `eve/client`. That bites exactly where a custom channel decodes a
+   platform payload, because decoding is what widens the type; the strict parse is there so a
+   channel-local extra key can't ride into the session inbox:
+
+   ```ts
+   import { parseInputResponses } from "eve/client";
+   await source.respond(parseInputResponses(decoded), { auth });
+   ```
 2. **`receive()`, `ctx.receive` and `resolveActiveSession` are removed.** Handoff is
    `to(channel, target).send(...)`; for generic Slack events the target rides **in each operation's
    options**. Channel event identity is now `ctx.session.id`.
@@ -397,6 +407,13 @@ Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard 
 * **Remote:** `agent/subagents/<name>.ts` with `defineRemoteAgent` from `eve` (`url`,
   `description`, `auth` from `eve/agents/auth`) to call a separately-deployed eve agent as
   if it were a local subagent.
+
+**Subagent sessions are persistent, and that is now the default** (0.45.0 — `experimental.subagentPersistentSessions`
+is gone, and `false` is no longer an opt-out). The delegation tool exposes an **`agentId`**, a finished child
+stays reachable for follow-up messages instead of ending at its first answer, and eve publishes the `<agents>`
+listing to the parent by itself. Two consequences for how you write the child: its instructions should survive
+a second question about the same work, and the parent's prompt shouldn't re-explain context the child already
+has — the point of persistence is that the second turn is cheaper than the first.
 
 Prefer a **skill** when a subagent would be overkill (a skill is lighter).
 

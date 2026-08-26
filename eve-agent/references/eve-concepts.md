@@ -31,20 +31,28 @@ Layered visibility, not everything-in-the-prompt: `instructions.md` (always) + d
 ## Default harness — the built-in tools + loop
 
 eve runs the agent loop (model calls, tool execution, compaction) and ships built-ins:
-- Sandbox: `bash`, `read_file` (line-numbered, read-before-write), `write_file` (stale-read detection), `glob`, `grep`.
+- Sandbox: `bash`, `read_file` (line-numbered, read-before-write), `write_file` (stale-read detection). **`glob` and `grep` are no longer default** — dropped from the set in **0.39.0**; opt in with a one-line file (below).
 - Network: `web_fetch` (app runtime), `web_search` (**provider-managed, model-dependent** — which model you route to decides whether you get search at all, and how good it is).
 
-  Two ways around that dependency, both worth knowing before hand-rolling a search tool: the **provider's own** built-in search (what shadcn's `chatbot-template` uses, one `tools/web_search.ts` per provider), or a **Gateway-level tool** — since 2026-08 the AI Gateway ships `gateway.tools.exaSearch()`, which needs **no separate account**: the gateway runs the search, hands results back to the model and loops until the model stops searching, billed beside your model usage at list price with no markup. That makes search a property of the *gateway* rather than of whichever model you happen to route to. `[VERIFY]` whether an eve agent can be handed an AI SDK Gateway tool directly, or whether it has to be wrapped in a `defineTool` — eve is built on the AI SDK but its tool surface is its own, and I have not confirmed the passthrough.
+  **eve already solved this, and it's one line.** `web_search` has no local executor — the provider runs it — and on **AI Gateway models eve defaults to Exa**, with no separate account. Switch providers by exporting the config helper, not by writing a tool:
+
+  ```ts title="agent/tools/web_search.ts"
+  import { webSearch } from "eve/tools/web_search";
+  export default webSearch({ provider: "parallel" });   // "exa" (Gateway default) | "parallel"
+  ```
+
+  Direct provider models keep their own native search instead. So the older worry — *which model you route to decides whether you get search* — holds for direct providers and **not** for the Gateway, where search is a property of the gateway. Only reach for `defineTool()` when you want your own implementation; the provider's own built-in search (one `tools/web_search.ts` per provider, as shadcn's `chatbot-template` does) is the pattern for the non-Gateway case.
 - Session: `ask_question` (mid-turn input), `todo` (durable per-session list), `load_skill`, `connection_search` (discover/call connection tools), `agent` (delegate to a fresh instance, root-only).
 
 Customize:
-- **Override** — `agent/tools/<slug>.ts` spreading the default: `import { writeFile } from "eve/tools/defaults"; export default defineTool({ ...writeFile, async execute(i, ctx) {…} });`
+- **Override** — `agent/tools/<slug>.ts` spreading the default: `import { writeFile } from "eve/tools/write_file"; export default defineTool({ ...writeFile, async execute(i, ctx) {…} });` — **`eve/tools/defaults` was removed in 0.45.0**; every built-in now lives on its own subpath, named after the *tool* (`eve/tools/read_file`, `/write_file`, `/web_fetch`, `/load_skill`, `/todo`, `/bash`) while the export keeps camelCase (`readFile`, `writeFile`, `webFetch`, `loadSkill`).
+- **Opt in** — the framework tools that are *not* registered by default are one re-export each: `export { glob as default } from "eve/tools/glob"` (same for `grep`), `experimental_workflow()` from `eve/tools/workflow`, `sleep()` from `eve/tools/sleep`. **The filename is what names the tool**, not the export.
 - **Disable** — `agent/tools/bash.ts` → `export default disableTool();` (from `eve/tools`).
 - **Extend** — new tools with fresh slugs join the built-ins.
 
 ## Sandbox — the agent's isolated `/workspace`
 
-Every agent has exactly one sandbox: an isolated bash filesystem rooted at `/workspace`, where the built-in `bash`/`read_file`/`write_file`/`glob`/`grep` run and which custom code reaches via `ctx.getSandbox()`. It **never touches your app runtime** (authored tools keep full `process.env`; only sandbox-targeted tools run inside). Backends (`defaultBackend()` picks best-available): **Vercel Sandbox** (hosted), **Docker** (local containers), **microsandbox** (local VM, Apple Silicon/Linux KVM), **just-bash** (pure-JS interpreter, no isolation — the cheap fallback).
+Every agent has exactly one sandbox: an isolated bash filesystem rooted at `/workspace`, where `bash`/`read_file`/`write_file` (and the opt-in `glob`/`grep`) run and which custom code reaches via `ctx.getSandbox()`. It **never touches your app runtime** (authored tools keep full `process.env`; only sandbox-targeted tools run inside). Backends (`defaultBackend()` picks best-available): **Vercel Sandbox** (hosted), **Docker** (local containers), **microsandbox** (local VM, Apple Silicon/Linux KVM), **just-bash** (pure-JS interpreter, no isolation — the cheap fallback).
 
 ```ts
 import { defineSandbox } from "eve/sandbox";
@@ -102,7 +110,7 @@ Resolve **model, tools, skills, and instructions** at runtime from a session eve
 Let the **model write JavaScript** that coordinates the agent's own subagents as **one durable step** — programmatic fan-out where the program decides how many subagents to run, which output feeds which call, and how to combine results.
 
 ```ts
-import { experimental_workflow } from "eve/tools";
+import { experimental_workflow } from "eve/tools/workflow";   // 0.45.0: era eve/tools
 export default experimental_workflow({ maxSubagents: 4 });   // WORKFLOW_SUBAGENT_LIMIT_REACHED past the budget
 ```
 

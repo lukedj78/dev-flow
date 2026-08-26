@@ -13,9 +13,10 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | Helper | Module |
 |---|---|
 | `defineAgent`, `defineRemoteAgent` | `eve` |
-| `defineTool`, `disableTool`, `ExperimentalWorkflow` | `eve/tools` |
+| `defineTool`, `disableTool`, `defineDynamic`, `toolOutput`, background-task types | `eve/tools` |
 | approval policies `always` / `once` / `never` (+ `Approval`/`ApprovalContext`/`ApprovalStatus` types) | `eve/tools/approval` (types also on `eve/tools`) |
-| built-in tool defaults (`bash`, `readFile`, …) | `eve/tools/defaults` |
+| built-in tool definitions — `bash`, `readFile`, `writeFile`, `todo`, `webFetch`, `loadSkill` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/todo`, `/web_fetch`, `/load_skill`. **`eve/tools/defaults` was removed in 0.45.0** |
+| the opt-in ones, not registered by default — `glob`, `grep`, `experimental_workflow`, `sleep`, `webSearch` | `eve/tools/glob`, `/grep`, `/workflow`, `/sleep`, `/web_search` |
 | `defineSkill` | `eve/skills` |
 | `defineInstructions` | `eve/instructions` |
 | `defineDynamic` | `eve/tools` · `eve/skills` · `eve/instructions` |
@@ -123,11 +124,24 @@ principal. **Never derive tenant/user from model input** — only from verified
 
 ## Built-in default harness
 
-The model already has ~12 tools with zero code: `bash`, `read_file`, `write_file`, `glob`,
-`grep`, `web_fetch`, `web_search`, `todo`, `ask_question`, `agent` (subagents), `load_skill`
-(only when skills are declared), `connection_search` (only when connections are declared).
-Override a default by creating `agent/tools/<name>.ts` re-importing from `eve/tools/defaults`;
-disable one with the `disableTool()` sentinel. Don't re-implement what the harness gives you.
+The model already has up to ten tools with zero code — and **the set is smaller than it used to
+be**. Always on: `bash`, `read_file`, `write_file`, `web_fetch`, `todo`. Conditional: `agent`
+(root session only), `ask_question` (only where the session can request input), `web_search` (only
+on a provider that supports it), `load_skill` (only when skills are declared), `connection_search`
+(only when connections are declared). **The harness advertises only what the current session
+actually has**, so "it's built in" and "the model can see it right now" are two different claims.
+
+**`glob` and `grep` left the default set in 0.39.0.** They are still framework tools, but an agent
+that wants them has to say so — one line each:
+
+```ts title="agent/tools/glob.ts"
+export { glob as default } from "eve/tools/glob";   // same shape for grep
+```
+
+Override a default by creating `agent/tools/<name>.ts` that re-imports the definition **from its own
+subpath** (`eve/tools/write_file`, `eve/tools/bash`, …) and spreads it; disable one with the
+`disableTool()` sentinel. **The filename picks the tool**, both to override and to disable — not the
+export name. Don't re-implement what the harness gives you.
 
 ## Sandbox backend — don't spin up a VM you don't use
 
@@ -142,6 +156,12 @@ import { defineSandbox } from "eve/sandbox";
 import { justbash } from "eve/sandbox/just-bash";
 export default defineSandbox({ backend: justbash() });   // no VM: this agent runs no shell/code tools
 ```
+
+**A child can share the parent's live sandbox** (0.39.0): return `parent.sandbox` from the child's
+`defineSandbox` callback and both see the same files, processes, workspace and home across sessions — the
+right shape when a specialist continues work the lead started, and the wrong one when the child is meant to
+be isolated. eve rejects the combination of `parent.sandbox` with the child's own managed workspace or skill
+resources **before execution**, so this fails at deploy rather than mid-turn.
 
 Reach for a real backend only once a tool actually shells out or executes untrusted code; then
 apply the network policy from the Security model below. When you do pick `vercel()`, Vercel Sandbox went **globally available on 2026-08-24** and the region is now a

@@ -340,6 +340,31 @@ Distilled from Vercel's [eve incident/SRE agent guide](https://vercel.com/kb/gui
 
 **f. Watches are state, so they are approval-gated.** Asking the bot to watch a channel writes to a private Blob — and it asks first. Same asymmetry as #3: writing a preference is recoverable, and *what the agent will act on unprompted from now on* deserves a human yes.
 
+## 10. Cross-channel notification — `to()` starts a turn, and that's the problem
+
+`ctx.to(channel, target).send(...)` hands a message to another channel — **and starts or resumes an
+agent session there**. That is exactly right for handoff and exactly wrong for a notification: you
+wanted to tell a Slack channel that a review finished, and you paid for a model call and a new
+session to do it.
+
+eve does not ship a cross-channel message queue or a provider outbox, so the notification path is
+deliberately *not* an eve primitive:
+
+- **Post through the destination platform's API**, not through `to()` — no turn, no model call. If
+  the channel uses Vercel Connect, pass the connector's `botToken` resolver rather than reading an
+  env var, so the credential stays brokered.
+- **Record the intent before attempting delivery**, in a store your app owns. That is what survives
+  a crash between "the turn finished" and "Slack accepted the post".
+- **Attach the side effect to the channel that caused it** — a `onTurnEnd`-style hook on the GitHub
+  channel — instead of filtering a global hook for "was this GitHub?". Same instinct as #5: the hook
+  belongs where its condition is already true.
+
+**An outbox buys at-least-once, and that is all it buys.** If the provider accepts the request and
+the response is lost, the dispatcher cannot tell a delivered message from a dropped one. So use a
+provider idempotency key where one exists, and where none does, pick deliberately: make duplicates
+harmless, or reconcile the destination before retrying an ambiguous request. Deciding this *after*
+the first duplicate reaches a customer is not a decision, it's an incident.
+
 ## When to reach for these
 
-Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. **#9 (investigation)** is the shape to reach for when the deliverable is a *conclusion* rather than a change — and its evidence rule generalises past agents entirely. **#8 (autonomous pipeline)** is #7 plus unattended execution — reach for it the moment anything triggers the agent without a human in the room (a webhook, a label, a schedule), because that is when "park for approval" silently becomes "hang forever". They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
+Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. **#9 (investigation)** is the shape to reach for when the deliverable is a *conclusion* rather than a change — and its evidence rule generalises past agents entirely. **#10 (cross-channel notification)** is the one to remember the moment someone says "just have the agent ping Slack" — `to()` is a handoff, not a notification. **#8 (autonomous pipeline)** is #7 plus unattended execution — reach for it the moment anything triggers the agent without a human in the room (a webhook, a label, a schedule), because that is when "park for approval" silently becomes "hang forever". They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.

@@ -63,7 +63,12 @@ messages over 4096 chars are split. Don't write the splitter — `eve/channels/t
 `splitTelegramMessageText` and `TELEGRAM_MESSAGE_TEXT_MAX_LENGTH`.
 
 **HITL.** Option requests render as inline buttons, freeform ones as `ForceReply`. Callback data
-is capped at 64 bytes, so eve keeps compact ids in channel state.
+is capped at 64 bytes, so eve keeps compact ids in channel state. **Since 0.45.0 Telegram also
+carries authorization challenges** — the "sign in to continue" flow, not just answer-a-question —
+which Chat SDK direct messages gained in 0.44.4. The set of surfaces where a connection can ask a
+user to authorize mid-turn is widening release by release, so **check the version before assuming a
+channel can only ask questions**: on a surface without challenge support the same flow fails rather
+than degrading to a question.
 
 **Attachments** — opt in with an upload policy:
 

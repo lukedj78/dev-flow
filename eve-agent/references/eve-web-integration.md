@@ -189,7 +189,20 @@ export default defineDynamic({
 Only send **non-sensitive** UI context this way (it is client-asserted, not verified) — never derive
 tenant/user from it. Identity stays `ctx.session.auth.current`.
 
-## Resumable chats — persist the event log, restore with `initialEvents`
+## Resumable chats — first `resume`, then the no-backend fallback
+
+**Since 0.44.1 eve resumes for you.** `useEveAgent` takes `resume?: boolean` (default `false`,
+and it **requires `initialSession` or `session`**) and returns a `resume()` helper — *"replays the
+attached durable session and follows its in-flight turn, if any."* So the durable history lives
+server-side and the client only needs the session id, which is why eve's own generated Web Chat
+keeps it in the URL as `/s/{sessionId}` and serves a sessionless `/s` for a fresh chat.
+
+**Reach for that first.** It resumes a turn that is *still running*, which the persisted-log
+pattern below cannot do: a reload mid-answer rejoins the stream instead of showing a dead
+half-message. Keep the session id, not the transcript.
+
+The pattern below is still the right one when you deliberately have **no backend** and want the
+transcript in the browser — and its gotchas still apply to the `initialEvents` path.
 
 `useEveAgent` exposes `session` (the `SessionState` cursor) and `events` (the raw stream log).
 To make a conversation survive a reload with **no backend**, persist `events` (keyed by a chat id
