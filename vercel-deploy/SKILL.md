@@ -92,7 +92,16 @@ Two things not to get wrong:
 - **Move to the current patch of a line that is still patched — and check which line that is.** In July, `16.2.x` was Active LTS and telling someone to jump to 16.3 was wrong. In August the label moved: 16.2 stopped at `16.2.12`, the criticals were fixed in `16.3.3`, and a project still on 16.2 is now unpatched. Read the line labels in the latest release post; never carry them from memory.
 - **Hosting on Vercel is not a patch.** Vercel has deployed global WAF rules for past Next.js CVEs, and said in the same breath that they "should not be considered a complete substitute for upgrading". Report the floor for Vercel-hosted and self-hosted projects alike.
 
-Then re-check the floor itself: it moves monthly, so `[VERIFY]` it against <https://nextjs.org/blog> before quoting a number. Same rule as every gate here — report, don't block.
+Then re-check the floor itself before quoting a number — it moves monthly. **Checked 2026-08-26: the
+floor still holds.** `16.3.3` is both the newest `16.3.x` and the newest 16.x stable (it is `latest`),
+and `15.5.24` is the newest `15.5.x` — nothing has shipped past either since the 08-25 record in
+`references/contracts.md`.
+
+**`npm view next versions --json` settles this in one command**, and settles it better than the blog:
+the blog tells you what was announced, the registry tells you what you can actually install today.
+Read the blog for *which line is still patched* — that label moves and the registry cannot tell you —
+then take the patch number from npm. `[VERIFY]` against <https://nextjs.org/blog>. Same rule as every
+gate here — report, don't block.
 
 ### Step 3 — Reproduce the platform build locally
 

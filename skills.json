@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-26T19:33:37Z",
+  "generated_at": "2026-08-26T19:41:58Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -389,7 +389,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 268,
+      "skill_md_lines": 277,
       "bundle": "dist/vercel-deploy.skill"
     },
     {

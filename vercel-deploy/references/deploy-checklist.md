@@ -99,7 +99,26 @@ pnpm dlx vercel@latest project protection enable <project> --skew
 pnpm dlx vercel@latest project protection enable <project> --skew --skew-max-age 604800
 ```
 
-`[VERIFY]` the default max age against the project before relying on it: the Skew Protection docs state the default is **one day**, while the CLI's `--skew-max-age` documents a default of **2592000 seconds (30 days)** when enabling this way. Read the value back with `project protection --format json` rather than assuming either.
+**The two numbers are both real, and they belong to different doors.** Confirmed against
+`vercel@59.6.2`'s own flag definition: `--skew-max-age` is documented as *"When enabling with
+`--skew`, max age in seconds for skew protection (**default 2592000, 30 days**)"* — while the Skew
+Protection docs give **one day** for the dashboard. So enabling through the CLI and enabling through
+the dashboard do not land on the same value, and neither page is wrong. **Read the value back rather
+than assuming either**, and prefer passing `--skew-max-age` explicitly so the number is in the diff
+instead of in whoever's memory enabled it.
+
+Three more things the CLI enforces, worth knowing before an autonomous loop tries them:
+
+- **`--skew-max-age` only works with `enable`.** With `disable` the CLI refuses outright — *"can only
+  be used with `project protection enable`"* — and points at `project protection disable … --skew`.
+- **The value is a positive integer of seconds**, nothing else: no `7d`, no float. The error text's own
+  example is `604800`.
+- **What you read back is `skewProtectionMaxAge`**, one of six protection keys the command reports
+  (`passwordProtection`, `ssoProtection`, `skewProtectionMaxAge`, `customerSupportCodeVisibility`,
+  `gitForkProtection`, `protectionBypass`).
+
+`[VERIFY]` again on a CLI major — this surface gained agent-shaped errors (structured reason + a
+suggested next command) recently, so it is being actively worked on.
 
 ## 8. Ready
 
