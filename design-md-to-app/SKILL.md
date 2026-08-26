@@ -1,6 +1,15 @@
 ---
 name: design-md-to-app
-description: 'Generate or customize a frontend application from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match. Canonical target Next.js 16 + App Router; pre-16 refused. Supports four UI libraries — shadcn/ui, Base UI, MUI and Coss/UI (via `coss-ui`) — and two form libraries, TanStack Form + Zod (default) or react-hook-form. Bumps phase to `scaffolded`. Use whenever the user has a DESIGN.md and wants to scaffold an app, set up a theme, or customize shadcn / Base UI / MUI from these tokens: "use this DESIGN.md to start an app", "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI", "crea l''app dal DESIGN.md", "init shadcn con questo DESIGN.md". Not for: scaffolding mobile apps (use rn-bootstrap for Expo + RN), writing PRDs (use prd-from-idea), or generating individual pages after the scaffold exists (use screenshot-to-page).'
+description: >-
+  Generate or customize a frontend app from a DESIGN.md (Google design.md spec): reads its tokens and
+  produces a working React app pre-styled to match. Next.js 16 + App Router only; pre-16 refused. Four UI
+  libraries — shadcn/ui, Base UI, MUI, Coss/UI (via `coss-ui`) — and TanStack Form + Zod (default) or
+  react-hook-form. Bumps phase to `scaffolded`. Use when the user has a DESIGN.md and wants to scaffold an
+  app, set up a theme, or customize shadcn / Base UI / MUI from its tokens: "use this DESIGN.md to start
+  an app", "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI",
+  "crea l'app dal DESIGN.md", "init shadcn con questo DESIGN.md". Not for: mobile apps (use rn-bootstrap),
+  writing PRDs (use prd-from-idea), or generating pages after the scaffold exists (use
+  screenshot-to-page).
 ---
 
 ## Dev-flow contract

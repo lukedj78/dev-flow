@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-25T20:55:23Z",
+  "generated_at": "2026-08-26T06:14:18Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -196,7 +196,7 @@
       "name": "design-md-to-app",
       "family": "web",
       "role": "operative",
-      "description": "Generate or customize a frontend application from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match. Canonical target Next.js 16 + App Router; pre-16 refused. Supports four UI libraries — shadcn/ui, Base UI, MUI and Coss/UI (via `coss-ui`) — a...",
+      "description": "Generate or customize a frontend app from a DESIGN.md (Google design.md spec): reads its tokens and produces a working React app pre-styled to match. Next.js 16 + App Router only; pre-16 refused. Four UI libraries — shadcn/ui, Base UI, MUI, Coss/UI (via `coss-ui`) — and TanStack Form + Zod (default)...",
       "skill_file": "design-md-to-app/SKILL.md",
       "references": [
         "anti-slop-fallbacks.md",
@@ -216,7 +216,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1126,
+      "skill_md_lines": 1135,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
