@@ -1287,9 +1287,19 @@ The skills are **plain folders** with a `SKILL.md` + `references/` + optional `s
 
 To add a new module variant to `module-add` (e.g., Clerk auth, Supabase db), drop a new `references/module-<name>.md` following the same pattern as `module-auth.md` / `module-db.md`. The orchestrator picks it up automatically.
 
+### Writing the `description`
+
+The description is the **only** thing a skill is selected on — the body is never read until it loads. Five rules, all learned the hard way and all enforced by the linter:
+
+1. **It must fit in 1024 characters.** Over the cap a conforming client **skips the skill entirely** — it does not truncate. Seven descriptions once sat within 40 characters of that line; one added sentence would have made a skill silently cease to exist.
+2. **Triggers are load-bearing; explanation is not.** Keep every phrase somebody would actually type — in both languages where it matters (`"questionnaire"` *and* `"questionario"`) — and let the body carry the how. Every shortening in this repo came out of duplicated explanation, never out of a trigger.
+3. **Anything the body promises, the description must name.** A capability documented in a section whose words never appear here is unreachable: the skill won't load for the request that needs it. Check 8 enforces this; `<Questionnaire />` shipped that way before it existed.
+4. **Prefer a folded block — `description: >-`.** An apostrophe inside a single-quoted YAML scalar closes it and breaks the frontmatter, which means the skill fails to load at all. A folded block needs no escaping, so Italian prose (`"crea l'app dal DESIGN.md"`) is safe in it.
+5. **Don't list sibling skills.** `dev-flow` enumerated sixteen of them and the list was wrong within weeks. Describe the shape; let the body name names.
+
 ### Maintenance scripts
 
-The repo ships three top-level scripts (in `scripts/`) you can run anytime:
+The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
 
 ```bash
 # Sanity-check every skill — 11 checks (frontmatter YAML + the 1024-char
