@@ -32,9 +32,16 @@ Follows the dev-flow contract — see `references/contracts.md`. Key facts:
    // components.json
    "registries": { "@heroicons-animated": "https://www.heroicons-animated.com/r/{name}.json" }
    ```
-3. **Add the icon** — `pnpm dlx shadcn@latest add @heroicons-animated/<name>` (e.g. `bell`, `heart`, `bars-3`). It writes one `.tsx` to your components dir and installs `motion` if needed. `--overwrite` to replace. `[VERIFY]` the exact CLI flags against the installed shadcn version.
+3. **Add the icon** — `pnpm dlx shadcn@latest add @heroicons-animated/<name>` (e.g. `bell`, `heart`, `bars-3`). It writes one `.tsx` to your components dir and installs `motion` (the item's only dependency).
 
-## Use it (real component API — `[VERIFY]` against the generated `.tsx`)
+**Flags confirmed at `shadcn@4.19.0`** from the CLI's own `add` definition: `-o, --overwrite`
+(*"overwrite existing files"*), plus three worth knowing for a copy-in registry —
+**`--view [path]`** (*"show file contents"*), **`--diff [path]`** (*"show diff for a file"*) and
+**`--dry-run`** (*"preview changes without writing files"*). Since the component becomes *your* file
+the moment it lands, `--view` before the first add and `--diff` before an `--overwrite` are the two
+that save you. Also available: `-y/--yes`, `-a/--all`, `-p/--path`, `-s/--silent`, `-c/--cwd`.
+
+## Use it (real component API — read off the registry source, 2026-08-26)
 
 Each icon exports a `<Name>Icon` component **and** a `<Name>IconHandle` ref type. Props extend `HTMLAttributes<HTMLDivElement>` plus `size` (default `28`).
 
