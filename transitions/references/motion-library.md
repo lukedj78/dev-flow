@@ -125,7 +125,16 @@ document.startViewTransition?.(() => flushSync(() => setState(next)));
 ```
 Reduced-motion: guard with `if (!matchMedia("(prefers-reduced-motion: reduce)").matches)` — else swap instantly.
 
-**Sitting on the Tier-2/Tier-3 seam: Motion's `animateView`** (graduated from Motion+ into the main library in 12.41.0; still present in **`motion@13.1.0`**, verified in the package). It's a first-party choreography layer *over* the browser's View Transitions — `.add()`, `.new()`/`.old()`, `.layout()`, `.group()`, `.crop()`, `.class()` — so you keep the native API's cheapness but get scriptable control over which elements pair up and how. Reach for it when a plain `document.startViewTransition` can't express the pairing you need, **before** escalating to Motion `layout`/`layoutId` (which re-renders through React). Requires the `motion` runtime (`module-add motion`). `[VERIFY]` the API against the installed version — it's young.
+**Sitting on the Tier-2/Tier-3 seam: Motion's `animateView`** (graduated from Motion+ into the main library in 12.41.0; confirmed present at **`motion@13.1.1`** — reached through two `export *` hops, `motion` → `framer-motion/dom` → **`motion-dom`**, which is where the declaration actually lives, so grepping the `motion` tarball alone finds nothing but the browser bundle). `animateView(update, options?)` returns a builder whose full method set at 13.1.1 is `.add()`, `.crop()`,
+`.group()`, `.class()`, `.layout()`, `.enter()`, `.exit()`, `.new()`, `.old()`, `.updateTarget()` and
+`.then()` — a first-party choreography layer *over* the browser's View Transitions, so you keep the
+native API's cheapness but get scriptable control over which elements pair up and how.
+
+⚠️ **`.new()`/`.old()` and `.enter()`/`.exit()` are not synonyms**, and the library says so in its own
+types: `.old()` animates the old view *"whether the element is leaving or persisting"*, while `.exit()`
+*"only fires for a pure leaver"* — same asymmetry for `.new()` vs `.enter()`. A crossfade or a
+slide-through wants the `.new()`/`.old()` pair; reaching for `.enter()`/`.exit()` there gives you an
+animation that silently skips every element that survives the transition, which is usually most of them. Reach for it when a plain `document.startViewTransition` can't express the pairing you need, **before** escalating to Motion `layout`/`layoutId` (which re-renders through React). Requires the `motion` runtime (`module-add motion`). Signature and builder surface verified against **`motion@13.1.1`** (2026-08-26). `[VERIFY]` again on a minor — it's young, and **the declarations live in `motion-dom`**, so check there rather than concluding from the `motion` package that it's gone.
 
 
 ## Route / page transitions (Tier 2)

@@ -5,7 +5,7 @@ Tier-0 entry in `references/motion-library.md`. shadcn's Tailwind v4 setup alrea
 dev-flow project it is normally **already installed** — check `globals.css` before adding it.
 
 Doc-grounded against <https://github.com/Wombosvideo/tw-animate-css> (README + the shipped
-`dist/tw-animate.css`), **v1.4.0, MIT** — still `latest` on 2026-08-12. `[VERIFY]` identifiers against the version in your lockfile:
+`dist/tw-animate.css`), **v1.4.0, MIT** — still `latest` on **2026-08-26**, and every claim below re-checked against the shipped `dist/tw-animate.css` that day. `[VERIFY]` identifiers against the version in your lockfile:
 the README carries a standing warning that **v2.0.0 will ship breaking changes** (with a migration
 script + guide).
 
@@ -22,7 +22,12 @@ pnpm add -D tw-animate-css
 ```
 
 A prefixed build is exposed as `tw-animate-css/prefix` (package `exports` → `dist/tw-animate-prefix.css`)
-for Tailwind setups using a class prefix — `[VERIFY]` usage against the docs before relying on it.
+for Tailwind setups using a class prefix. **Diffed the two shipped files at v1.4.0: the utility set is
+identical** — same names, same count — and the *only* difference is 24 fragments where the prefixed
+build writes `--spacing(--value(integer))` instead of `calc(--value(integer) * var(--spacing))`, all on
+the `slide-in-*` / `slide-out-*` translate values. So **you type the same class names either way**;
+what the prefixed build avoids is the bare `var(--spacing)` reference, which is the thing a class prefix
+renames out from under it.
 Unused animations are tree-shaken by Tailwind, so importing the whole thing costs nothing.
 
 ## Base classes — nothing animates without these
@@ -65,7 +70,10 @@ The modifiers alone are inert — they only set custom properties (`--tw-enter-o
 > ⚠️ **`delay-*` is redefined.** In the shipped v1.4.0 CSS, `delay-*` is an `@utility` that sets
 > `animation-delay` — not Tailwind core's `transition-delay`. If you need a *transition* delay in a
 > file that also imports this package, use an arbitrary property or inline style instead of assuming
-> `delay-150` still delays a transition. `[VERIFY]` in your build if you depend on it.
+> `delay-150` still delays a transition. **Proved at v1.4.0**: the shipped `dist/tw-animate.css`
+> contains **zero occurrences of `transition-delay`** — its `@utility delay-*` sets `animation-delay`
+> and `--tw-animation-delay`, nothing else. Two definitions of the same utility name now exist in the
+> build; the one that ships nothing for transitions is the package's.
 >
 > ⚠️ **There is no built-in shimmer.** The only ready-made animations are `animate-accordion-down` /
 > `animate-accordion-up`, `animate-collapsible-down` / `animate-collapsible-up`, and
@@ -99,8 +107,20 @@ For a named utility, register the easing in the **documented Tailwind `--ease-*`
 @theme { --ease-standard: cubic-bezier(0.2, 0, 0, 1); }   /* → `ease-standard` utility */
 ```
 
-A matching `--duration-*` theme namespace is `[VERIFY]` against your Tailwind version — until
-confirmed, keep durations in the arbitrary `duration-[var(--motion-duration-*)]` form.
+**Durations answered at v1.4.0, and the answer is better than the question.** There is no `--duration-*`
+namespace here, and the `--animation-duration-*` namespace the `animation-duration-*` utility reads from
+**ships empty** — so `animation-duration-500` resolves nothing from the theme.
+
+But you don't need it: every animation in the package is declared as
+
+```css
+--animate-in: enter var(--tw-animation-duration, var(--tw-duration, .15s)) …
+```
+
+— so **Tailwind core's own `duration-*` drives it**, through `--tw-duration`, with `.15s` as the final
+fallback (`.2s` for the accordion/collapsible pairs). `duration-300 animate-in fade-in` works with no
+theme entry and no arbitrary value. Reach for `animation-duration-[…]` only when you need the animation
+to run at a different length than the element's transitions.
 
 ## Composing with `data-[state]` on Radix / Base UI primitives
 
