@@ -107,7 +107,7 @@ module.exports = withNativeWind(config, { input: "./global.css" });
 function writeNativewindEnvDts(projectRoot: string) {
   // NativeWind v4 requires this ambient type declaration so JSX components have a
   // typed `className` prop. Without it, tsc fails on every NativeWind className.
-  // See: https://www.nativewind.dev/v4/getting-started/typescript
+  // See: https://www.nativewind.dev/docs/getting-started/typescript  (the /v4/ path 404s since the docs restructure)
   fs.writeFileSync(
     path.join(projectRoot, "nativewind-env.d.ts"),
     `/// <reference types="nativewind/types" />\n`,

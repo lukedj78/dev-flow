@@ -95,7 +95,12 @@ The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.
 
 ## Folder structure rules (canonical — Expo Router hybrid)
 
-**Non-negotiable Expo Router constraint**: `app/` is **file-based routing only**. Unlike Next.js App Router, Expo Router has no private-folder convention — there is no `_`-prefix skip rule, so every file placed under `app/` (aside from reserved names like `_layout.tsx`, `+not-found.tsx`) becomes a real route. A previous revision of this skeleton put `_components/` folders inside `app/`, copied from the Next.js convention — that was wrong for Expo (it creates ghost routes) and is corrected below. **[VERIFY]** against the installed `expo-router` version: there's an open upstream request for an underscore-skip convention; until it ships, assume `app/` has zero tolerance for non-route files.
+**Non-negotiable Expo Router constraint**: `app/` is **file-based routing only**. Unlike Next.js App Router, Expo Router has no private-folder convention — there is no `_`-prefix skip rule, so every file placed under `app/` (aside from reserved names like `_layout.tsx`, `+not-found.tsx`) becomes a real route. A previous revision of this skeleton put `_components/` folders inside `app/`, copied from the Next.js convention — that was wrong for Expo (it creates ghost routes) and is corrected below. **Still true at `expo-router@57.0.16`**, read off the shipped `build/getRoutesCore.js`: the entire
+ignore list is `+html`, `+native-intent`, `+api`, `+middleware` and whatever you pass as
+`options.ignore` — **no underscore rule anywhere**. The only underscore-aware names in the build are
+`_layout` and `_sitemap`. So `app/` still has zero tolerance for non-route files, and `_components/`
+still becomes a ghost route. `[VERIFY]` on a major: the upstream request for an underscore-skip
+convention is still open, and `options.ignore` is the escape hatch that exists today.
 
 This skill scaffolds the canonical RN structure, hybrid model (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`, adapted for Expo Router):
 
@@ -136,4 +141,4 @@ Components follow Rule of Three for promotion (L0 → L1 → L2), targeting `com
 
 - Course: codewithbeto.dev/rnCourse — free lessons 5-6 (Creating Your First App, Project Structure).
 - Official: https://docs.expo.dev/get-started/create-a-project/
-- Official: https://www.nativewind.dev/v4/getting-started/expo-router
+- Official: https://www.nativewind.dev/docs/getting-started/installation — ⚠️ the old `nativewind.dev/v4/getting-started/expo-router` URL **404s** as of 2026-08-26 (the site dropped the `/v4/` prefix and no longer has an Expo-Router-specific page); Expo Router setup is folded into Installation.

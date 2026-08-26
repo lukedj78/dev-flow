@@ -2,19 +2,27 @@
 
 The **how**, not just "use i18next". Doc-grounded (docs.expo.dev, i18next.com, react.i18next.com) so we scaffold it right the first time. Golden rule 2: every frontend ships i18n from day one, minimum locales **en + it**, `stack.locales = ["en","it"]`, default `en`, **zero hardcoded user-facing strings**. Web sibling: `design-md-to-app/references/i18n-next-intl.md`.
 
-Verified versions (npm registry, 2026-08-02) — `[VERIFY]` on every bump:
+Verified **2026-08-26** — npm registry for the plain packages, and `expo@57.0.16`'s
+`bundledNativeModules.json` for anything installed with `expo install`. `[VERIFY]` on every bump:
 
 | Package | Version | Install with |
 |---|---|---|
-| `expo-localization` | `57.0.1` (SDK 57 line) | `npx expo install` |
-| `i18next` | `26.3.6` | `npm install` |
-| `react-i18next` | `17.0.11` | `npm install` |
+| `expo-localization` | `~57.0.1` (SDK 57 line) | `npx expo install` |
+| `i18next` | `26.4.0` | `npm install` |
+| `react-i18next` | `17.0.12` | `npm install` |
 | `@formatjs/intl-pluralrules` | `6.3.13` | `npm install` |
-| `@react-native-async-storage/async-storage` | `3.1.1` | `npx expo install` |
+| `@react-native-async-storage/async-storage` | **`2.2.0`** — see below | `npx expo install` |
+
+⚠️ **The async-storage row was wrong, and wrong in the way this repo has a rule against.** It said
+`3.1.1` — which *is* npm `latest` — next to `npx expo install`, and those two cannot both be right:
+**`expo install` resolves from `bundledNativeModules.json`, and `expo@57.0.16` pins `2.2.0`**. Run the
+documented command and you get 2.x, a full major below the number the table promised. For anything
+`expo install` touches, **the SDK's pin is the authority and npm `latest` is a distraction** — the 3.x
+line belongs to a later SDK.
 
 ## Library choice
 
-Expo's localization guide does **not** crown one winner: its worked example uses `i18n-js`, and it lists as alternatives **Lingui**, **fbtee**, **React i18next** ("stable, well-maintained library based on i18next") and **Intlayer**. So "i18next is the officially recommended path" is *not* something the docs say — `[VERIFY]` if you ever cite it that way.
+Expo's localization guide does **not** crown one winner: its worked example uses `i18n-js`, and it lists as alternatives **Lingui**, **fbtee**, **React i18next** ("stable, well-maintained library based on i18next") and **Intlayer**. So "i18next is the officially recommended path" is *not* something the docs say. **Re-read live on 2026-08-26 and unchanged**: the guide still says it *"uses `i18n-js` as an example"*, and still lists React i18next as one of four alternatives — *"a stable, well-maintained library based on i18next"* — alongside Lingui, fbtee and Intlayer. We pick i18next because it fits our stack, not because Expo endorses it; say it that way.
 
 Our default is **i18next + react-i18next** anyway, deliberately:
 
@@ -25,7 +33,7 @@ Our default is **i18next + react-i18next** anyway, deliberately:
 
 ## ⚠️ The gotcha: Hermes has no `Intl.PluralRules` — plurals silently degrade
 
-Hermes gives you `Intl` on all platforms (Expo guide: "If you're using Hermes in your app, you can use the `Intl` API on all platforms"), **but `Intl.PluralRules` is still unimplemented** — `facebook/hermes#1462` is open as of this writing (`[VERIFY]`, it may land). i18next's docs are blunt: "In environments without Intl.PluralRules support you need to polyfill it (notably React Native: the Hermes engine still does not implement `Intl.PluralRules`)" and "Since i18next v24 there is no fallback: without Intl only English-style `_one`/`_other` forms resolve."
+Hermes gives you `Intl` on all platforms (Expo guide: "If you're using Hermes in your app, you can use the `Intl` API on all platforms"), **but `Intl.PluralRules` is still unimplemented** — `facebook/hermes#1462` (*"Intl.PluralRules support"*) — **checked via the GitHub API on 2026-08-26: still `open`, zero comments, last touched 2024-07-23**, so the polyfill is not going away soon. `[VERIFY]` again before removing it. i18next's docs are blunt: "In environments without Intl.PluralRules support you need to polyfill it (notably React Native: the Hermes engine still does not implement `Intl.PluralRules`)" and "Since i18next v24 there is no fallback: without Intl only English-style `_one`/`_other` forms resolve."
 
 The old escape hatch is gone too: in i18next 26 the type for `compatibilityJSON` accepts **only `'v4'`** — `compatibilityJSON: 'v3'` is no longer valid. So: **polyfill, always**, imported *before* the init runs, using `/polyfill-force` because "The polyfill conditional detection code runs very slowly on Android" (FormatJS).
 
@@ -208,7 +216,7 @@ if (shouldBeRTL !== I18nManager.isRTL && Platform.OS !== 'web') {
 }
 ```
 
-`[VERIFY] SDK boundary`: the Expo guide's RTL section says it "describes the behavior in **SDK 58 and later**. On previous versions, RTL support was enabled by default, except in Expo Go where it was disabled." We are on **SDK 57** → RTL is on by default but **disabled inside Expo Go**; test RTL in a dev build. The plugin props `supportsRTL: false` / `forcesRTL: true` appear on the unversioned guide but are **not** in the SDK 57 API reference — `[VERIFY]` against your installed `expo-localization` first.
+**SDK boundary, re-checked 2026-08-26 and still current** (SDK 58 exists only as canaries — `npm view expo dist-tags` shows `latest: 57.0.16`): the Expo guide's RTL section says it "describes the behavior in **SDK 58 and later**. On previous versions, RTL support was enabled by default, except in Expo Go where it was disabled." We are on **SDK 57** → RTL is on by default but **disabled inside Expo Go**; test RTL in a dev build. The plugin props `supportsRTL: false` / `forcesRTL: true` appear on the unversioned guide but are **not** in the SDK 57 API reference — `[VERIFY]` against your installed `expo-localization` first.
 
 en + it are both LTR, so RTL is dormant for the default set — but write layouts with `start`/`end` (not `left`/`right`) so adding `ar`/`he` is a locale-file job, not a re-layout.
 
