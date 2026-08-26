@@ -500,7 +500,7 @@ Braintrust), and every `eve eval` flag + exit code — is in **`references/eve-e
 
 ## Extension — `agent/extensions/<name>.ts` (installable capability bundle)
 
-An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; `[VERIFY]` every identifier below against `node_modules/eve/docs/` — this surface is new.)
+An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; core identifiers re-verified at 0.45.0 — `defineExtension` on `eve/extension`, `extension/extension.ts`, `eve extension init` / `build`. `[VERIFY]` the rest against `node_modules/eve/docs/` — this surface is still young.)
 
 **Consume an installed extension** (the common case) — `eve add extension/<name>` (from the registry — see the "Install from the registry FIRST" section at the top; it writes the mount + installs the package), or add the ONE file under `agent/extensions/` by hand:
 
