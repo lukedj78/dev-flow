@@ -20,6 +20,12 @@ on:
       - "README.md"
       - "CONTEXT.md"
       - "docs/dev-flow-skill-map.html"
+      # The generated artefacts themselves. CI asserts these are in sync with
+      # their sources, so a hand-edit or a bad merge that touches ONLY a
+      # generated file must still be checked — otherwise the check that owns
+      # the file is the one thing that never sees it.
+      - "skills.json"
+      - ".claude-plugin/**"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -39,6 +45,12 @@ on:
       - "README.md"
       - "CONTEXT.md"
       - "docs/dev-flow-skill-map.html"
+      # The generated artefacts themselves. CI asserts these are in sync with
+      # their sources, so a hand-edit or a bad merge that touches ONLY a
+      # generated file must still be checked — otherwise the check that owns
+      # the file is the one thing that never sees it.
+      - "skills.json"
+      - ".claude-plugin/**"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
