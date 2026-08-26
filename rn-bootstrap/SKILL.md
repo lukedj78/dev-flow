@@ -99,8 +99,10 @@ The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.
 ignore list is `+html`, `+native-intent`, `+api`, `+middleware` and whatever you pass as
 `options.ignore` — **no underscore rule anywhere**. The only underscore-aware names in the build are
 `_layout` and `_sitemap`. So `app/` still has zero tolerance for non-route files, and `_components/`
-still becomes a ghost route. `[VERIFY]` on a major: the upstream request for an underscore-skip
-convention is still open, and `options.ignore` is the escape hatch that exists today.
+still becomes a ghost route. And it is **settled, not pending** — I wrote "the request is still open" here earlier today without
+checking, and it is wrong: [expo/expo#44696](https://github.com/expo/expo/issues/44696) was closed
+**`won't fix`** on 2026-06-01, because Expo Router wants components outside `app/` by design.
+`options.ignore` is the escape hatch that exists today, and it is configuration rather than convention.
 
 This skill scaffolds the canonical RN structure, hybrid model (spec: `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`, adapted for Expo Router):
 

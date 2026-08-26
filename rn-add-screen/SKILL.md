@@ -119,7 +119,7 @@ The script enforces phase monotonicity, normalizes legacy kebab-case aliases (e.
 
 **Non-negotiable Expo Router constraint**: `app/` is **file-based routing only**. Unlike Next.js App Router, Expo Router has no convention for "private", non-routable folders — there is no `_`-prefix skip rule. Every `.tsx`/`.ts` file placed under `app/` (aside from a few reserved names like `_layout.tsx`, `+not-found.tsx`) is registered as a real route. Putting a component at `app/<route>/_components/PostCard.tsx` creates a ghost route at that path, not a private folder.
 
-**[VERIFY]** this against the `expo-router` version actually installed in the project before relying on it: there's an open upstream feature request for an underscore-skip convention (matching Next.js). If it ships, this rule may relax — until then, assume no private folders exist inside `app/`.
+**This is Expo Router's settled design, not a gap.** The request ([expo/expo#44696](https://github.com/expo/expo/issues/44696)) was closed **`won't fix`** on 2026-06-01: the maintainers *"explicitly want people to fall into a pit of success where screens / UI / business logic … are moved into a separate folder"*, and consider filename conventions brittle because `_`, `+` and `-` are all legal in pathnames. Confirmed mechanically at `expo-router@57.0.16`: the route scanner has no underscore rule. So assume no private folders inside `app/` — permanently, not provisionally. Detail in `promote-component/references/colocation-rules.md`.
 
 Given that constraint, the rule for this skill is:
 

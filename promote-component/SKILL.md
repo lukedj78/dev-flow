@@ -29,7 +29,7 @@ Orchestrator does NOT route here automatically — invoked on demand.
 
 ## Web vs mobile targets (read this first)
 
-**Next.js App Router** supports `_`-prefixed private folders — `app/<route>/_components/` is a valid non-routable convention there. **Expo Router does not**: every file under `app/` (aside from a short reserved list) becomes a real route, so `app/<route>/_components/` would create a ghost route on mobile, not a private folder. **[VERIFY]** this against the installed `expo-router` version — there's an open upstream issue requesting an underscore-skip convention; until it ships, treat mobile `app/` as routes-only.
+**Next.js App Router** supports `_`-prefixed private folders — `app/<route>/_components/` is a valid non-routable convention there. **Expo Router does not**: every file under `app/` (aside from a short reserved list) becomes a real route, so `app/<route>/_components/` would create a ghost route on mobile, not a private folder. **Settled upstream, not pending**: the request ([expo/expo#44696](https://github.com/expo/expo/issues/44696)) was closed **`won't fix`** on 2026-06-01 — Expo Router wants components outside `app/` by design. Confirmed mechanically at `expo-router@57.0.16`: no underscore rule in the route scanner. Treat mobile `app/` as routes-only, permanently. See `references/colocation-rules.md`.
 
 Consequently this skill uses **different scan/target paths per platform** — see `references/colocation-rules.md` for the full model and rationale. Summary:
 

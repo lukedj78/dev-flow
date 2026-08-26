@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-26T20:12:35Z",
+  "generated_at": "2026-08-26T20:18:29Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -524,7 +524,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 144,
+      "skill_md_lines": 146,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {

@@ -6,8 +6,28 @@
 
 The **Rule of Three promotion model** (L0 → L1 → L2, promote at the 3rd use) is identical on web and mobile. The **physical target paths are NOT identical**, because of one hard platform fact:
 
-- **Next.js App Router** treats any `_`-prefixed folder under `app/` as non-routable. `app/<route>/_components/` is a valid, first-class private-folder convention there.
-- **Expo Router has no equivalent convention.** Every file placed under `app/` (aside from a short reserved list — `_layout.tsx`, `+not-found.tsx`, etc.) is registered as a real route. `app/<route>/_components/PostCard.tsx` does not create a private folder on Expo — it creates a ghost route at that path. **[VERIFY]** against the installed `expo-router` version: there is an open upstream issue requesting an underscore-skip convention matching Next.js; until it ships, treat `app/` as zero-tolerance for non-route files.
+- **Next.js App Router** treats any `_`-prefixed folder under `app/` as non-routable. Confirmed from `next@16.3.3`'s own shipped docs: a private folder opts *"the folder **and all its subfolders**"* out of routing, and the project-structure page uses **our exact shape** as its example — `app/blog/_components/Post.tsx` → URL `—`, *"Not routable; safe place for UI utilities."*
+- **Expo Router has no equivalent convention.** Every file placed under `app/` (aside from a short reserved list — `_layout.tsx`, `+not-found.tsx`, etc.) is registered as a real route. `app/<route>/_components/PostCard.tsx` does not create a private folder on Expo — it creates a ghost route at that path. **This is settled, not pending — and this file said the opposite.** The upstream request
+([expo/expo#44696](https://github.com/expo/expo/issues/44696), *"support excluding non-route files
+inside `app/`"*) was **closed `won't fix` on 2026-06-01**, labelled *invalid issue: feature request*,
+after 14 comments. So "until it ships" described a wait that is not happening.
+
+A maintainer's reason, in their words, is worth reading because it is an argument and not an
+oversight: *"implementing this pattern doesn't set users up for success. We explicitly want people to
+fall into a pit of success where screens / UI / business logic … are moved into a separate folder … We
+don't see components being separated from the `app` folder as failed reuse or a systemic issue, but an
+explicit pattern that prevents creating brittle `app` code that has to be altered drastically when its
+structure needs to change."* On the mechanism: *"filename conventions are brittle (both `_`, `+`, and
+`-` are technically allowed in pathnames, which then necessitates configurability)."*
+
+Read that as **agreement with this skill's own recommendation**, arrived at from the other direction:
+on mobile, a component outside `app/` is the intended shape, not a workaround for a missing feature.
+
+Mechanically confirmed at **`expo-router@57.0.16`** (`build/getRoutesCore.js`): the entire ignore list
+is `+html`, `+native-intent`, `+api`, `+middleware` and whatever you pass as `options.ignore` — **no
+underscore rule**. The only underscore-aware names in the build are `_layout` and `_sitemap`, and the
+special `+` names are `+not-found`, `+api`, `+middleware`, `+html`. `options.ignore` is the escape
+hatch that exists today, and it is configuration, not convention.
 
 This is why the two platforms need distinct target paths for the same conceptual levels:
 
