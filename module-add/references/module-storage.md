@@ -52,8 +52,11 @@ BLOB_STORE_ID=store_xxxxxxxxxxxx
 VERCEL_OIDC_TOKEN=<pulled by `vercel env pull`, rotates automatically>
 # Fallback: long-lived static token. Required for `handleUpload` (client uploads) — OIDC is NOT accepted there.
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxxxxx
-# Only when using presigned-URL uploads / webhook callbacks — `[VERIFY]` against the
-# current docs before relying on it; this path is newer than the two above.
+# Only for presigned-URL uploads. Confirmed at `@vercel/blob@2.8.0`: it is the default of the
+# `webhookPublicKey` option on `handlePresignedUpload` (the `@vercel/blob/client` subpath — the
+# other three vars live in the core chunk, this one does not), and it verifies the
+# upload-completed callback with **Ed25519 over the `x-vercel-signature` header**.
+# Not needed for plain `handleUpload`.
 BLOB_WEBHOOK_PUBLIC_KEY=
 ```
 

@@ -36,19 +36,36 @@ npm install @ai-sdk/gateway @ai-sdk/react
 ### `app/api/realtime/token/route.ts` — mint the ephemeral token (server-only)
 
 ```ts
-import { gateway } from "@ai-sdk/gateway"; // [VERIFY] import + method names
+import { gateway } from "@ai-sdk/gateway"; // verificato su @ai-sdk/gateway@4.0.67
 
 export async function POST() {
   // The gateway key (AI_GATEWAY_API_KEY) stays server-side; the browser only
   // ever receives a short-lived token + the connection URL.
-  const { token, url } = await gateway.experimental_realtime.getToken({
-    model: "openai/gpt-realtime-2", // [VERIFY] current model id
+  const { token, url, expiresAt } = await gateway.experimental_realtime.getToken({
+    model: "openai/gpt-realtime-2",
   });
-  return Response.json({ token, url });
+  return Response.json({ token, url, expiresAt });
 }
 ```
 
 Rate-limit and auth-gate this route — it mints billable realtime sessions.
+
+**Verified against `@ai-sdk/gateway@4.0.67` + `@ai-sdk/provider@4.0.8`** (2026-08-26), which is where
+the shape actually lives:
+
+```ts
+interface RealtimeFactoryV4 {
+  (modelId: string): RealtimeModelV4;
+  getToken(options: { model: string } & RealtimeModelV4ClientSecretOptions):
+    Promise<{ token: string; url: string; expiresAt?: number }>;
+}
+```
+
+`expiresAt` is the field worth not dropping: it is what lets the client re-mint **before** the socket
+dies instead of after. The model ids are a typed union, not free strings —
+`GatewayRealtimeModelId` is `openai/gpt-realtime-1.5 | -2 | -2.1 | -mini`,
+`spacexai/grok-voice-think-fast-1.0 | -2.0`, plus `(string & {})`. So `openai/gpt-realtime-2` is valid,
+and **`-2.1` and `-mini` exist** — pick deliberately rather than inheriting this line.
 
 ### `components/voice/voice-agent.tsx` — client component
 
@@ -103,9 +120,21 @@ export default function VoiceDemoPage() {
 ## Wiring voice over an eve agent (the recommended topology)
 
 When eve is the brain, don't point the realtime model at its own tools. Instead:
-1. STT (`openai/whisper-1`) turns speech into text. For low-latency partial transcripts, the AI Gateway also supports **streaming transcription** via the AI SDK's `streamTranscribe` (new 2026-07-22) — stream mic audio and receive incremental transcript updates instead of one final blob; prefer it for live captions / barge-in. `[VERIFY]` the method name + import against the installed `ai` / `@ai-sdk/*`.
+1. STT (`openai/whisper-1`) turns speech into text. For low-latency partial transcripts, the AI Gateway also supports **streaming transcription** — stream mic audio and receive incremental transcript updates instead of one final blob; prefer it for live captions / barge-in.
+
+   ⚠️ **The name you import is not the name in the announcement.** Checked against `ai@7.0.82`: the function is declared `streamTranscribe`, but the package exports it as
+   **`streamTranscribe as experimental_streamTranscribe`** — the bare name does not resolve.
+
+   ```ts
+   import { experimental_streamTranscribe } from "ai";
+   ```
+
+   Its siblings are not symmetrical, which is the trap: `transcribe` and `generateSpeech` are exported
+   under **both** their plain names and `experimental_` aliases; `streamTranscribe` is exported under
+   the experimental name **only**. Signature: `{ model, audio, inputAudioFormat, providerOptions,
+   abortSignal, headers, includeRawChunks }`.
 2. Send that text to the eve agent (its HTTP session API, via the same web integration `useEveAgent` uses).
-3. Stream the agent's text reply to TTS (`xai/grok-tts`) and play it.
+3. Stream the agent's text reply to TTS (**`spacexai/grok-tts`** — ⚠️ not `xai/`, see below) and play it.
 
 This keeps eve's durable session + tools as the single source of truth; voice is purely the microphone/speaker channel.
 
@@ -121,7 +150,18 @@ This keeps eve's durable session + tools as the single source of truth; voice is
 
 ## Known caveats
 
-- **Experimental + provider-limited**: `experimental_*` API, OpenAI/xAI only at launch (`openai/gpt-realtime-2`, `openai/whisper-1`, `xai/grok-tts`). Re-check availability and pin SDK versions.
+- **Experimental + provider-limited**: `experimental_*` API. Model ids checked against
+  `@ai-sdk/gateway@4.0.67`'s typed unions on 2026-08-26 — `openai/gpt-realtime-2` (realtime) and
+  `openai/whisper-1` (transcription) are both valid.
+
+  ⚠️ **The TTS id was wrong: it is `spacexai/grok-tts`, not `xai/grok-tts`.** The gateway namespace is
+  **`spacexai/`** — there is not a single `'xai/` string in the package, and six `'spacexai/` ones. A
+  wrong namespace fails at call time, not at build time, so it survives every check that isn't a real
+  request. `GatewaySpeechModelId` also offers `openai/tts-1`, `openai/tts-1-hd` and the `fish-audio/s*`
+  family; `GatewayTranscriptionModelId` offers `openai/gpt-4o-transcribe`,
+  `openai/gpt-4o-mini-transcribe`, `openai/gpt-realtime-whisper`, `spacexai/grok-stt` and the
+  `fish-audio/transcribe-*` pair. All three unions end in `(string & {})`, so **TypeScript will not
+  catch a typo** — the union documents, it does not enforce. Re-check availability and pin SDK versions.
 - **Never expose the gateway key client-side** — only the minted token.
 - **Two-brains trap**: with an eve agent present, voice is I/O, not a second agent loop (see top).
 - **Billing**: realtime audio bills through the Vercel AI Gateway, separate from any Claude Code tooling — and audio sessions are not cheap; gate the token endpoint.
