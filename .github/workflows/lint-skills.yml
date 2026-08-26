@@ -14,6 +14,12 @@ on:
       - "scripts/build_site.py"
       - "docs/index.html"
       - "docs/skills/**"
+      # Checks 10 and 11 READ these three. Without them here, editing the
+      # README could break the lint and CI would never run — which is exactly
+      # what those checks exist to prevent.
+      - "README.md"
+      - "CONTEXT.md"
+      - "docs/dev-flow-skill-map.html"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -27,6 +33,12 @@ on:
       - "scripts/build_site.py"
       - "docs/index.html"
       - "docs/skills/**"
+      # Checks 10 and 11 READ these three. Without them here, editing the
+      # README could break the lint and CI would never run — which is exactly
+      # what those checks exist to prevent.
+      - "README.md"
+      - "CONTEXT.md"
+      - "docs/dev-flow-skill-map.html"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
