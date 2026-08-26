@@ -29,6 +29,18 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > of its own) and corrected to match §Channel's already-verified table instead of re-diverging
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
+>
+> **Spot check 2026-08-26 against eve@0.45.0 — sandbox surface only, not a full pass.** Closed the
+> `eve-conventions.md` `[VERIFY]` on Vercel Sandbox regions. Answer: eve's `vercel()` options are a
+> structural passthrough of the SDK's create params minus a fixed exclusion list (`region` is not on
+> it), but eve compiles in `@vercel/sandbox` **2.8.0**, and `region`/`failoverRegions` only exist from
+> **3.x** — so the region is a project-level setting today, and it will start working through
+> `vercel()` the moment eve revendors, with nothing to announce it. **One table was wrong**: the module
+> map put `vercel()`/`docker()` on `eve/sandbox`; each backend has **its own subpath**
+> (`eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox`), and only `defineSandbox` +
+> `defaultBackend` come from `eve/sandbox` itself. The `just-bash` `[VERIFY]` is confirmed and dropped.
+> **Note for the next full pass: eve is at 0.45.0**, seven minors past the 08-16 pass; everything in
+> this skill outside the sandbox surface is still only verified against 0.38.3.
 
 Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read) · **⛔ out of scope** (with reason).
 

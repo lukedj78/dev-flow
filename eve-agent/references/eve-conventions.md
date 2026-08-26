@@ -25,7 +25,8 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineHook` | `eve/hooks` |
 | `defineSchedule` | `eve/schedules` |
 | `defineState` | `eve/context` |
-| `defineSandbox` + backends `defaultBackend()`/`vercel()`/`docker()`/… | `eve/sandbox` |
+| `defineSandbox`, `defaultBackend()` | `eve/sandbox` |
+| the other backends — `vercel`, `docker`, `justbash`, `microsandbox` | `eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox` — **one subpath each**, not `eve/sandbox` |
 | channel authenticators `localDev`/`vercelOidc`/`placeholderAuth` | `eve/channels/auth` |
 | `slackChannel` (+ per-platform channels) | `eve/channels/slack` (etc.) |
 | Connect credentials `connectSlackCredentials`/`connectGitHubCredentials` | `@vercel/connect/eve` |
@@ -161,11 +162,30 @@ Two consequences worth planning for rather than discovering:
 - **Snapshots are region-locked** — *"snapshots stay in the region where they were created and can't be moved."* So
   the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
 
-`[VERIFY]` whether eve's `vercel()` backend forwards `region`/`failoverRegions` through `defineSandbox`, or whether
-they have to be set as the project default — the platform exposes them, eve's passthrough is a separate question.
+**Can you set the region from `vercel()`? Not today** — checked against `eve@0.45.0` (`npm pack`, `.d.ts`):
+
+- **eve's side is already open.** `VercelSandboxCreateOptions` is a structural passthrough of the SDK's
+  `Sandbox.create` params minus a fixed exclusion list — `mounts`, `name`, `onResume`, `persistent`,
+  `runtime`, `signal`. `region` and `failoverRegions` are not excluded, so eve forwards them *by
+  construction*, with nothing to add on its side.
+- **The vendored SDK is what's behind.** eve compiles `@vercel/sandbox` **2.8.0** into
+  `#compiled/@vercel/sandbox`; the fields landed in **3.x** (`@vercel/sandbox@3.1.0` has `region?: SandboxRegion`
+  and `failoverRegions?: SandboxRegion[]` on `BaseCreateSandboxParams`, and on `update()`). Against 2.8.0 the
+  passthrough resolves to a type that has neither — so the option doesn't typecheck, and the client that
+  actually calls the API is 2.8.0 either way. Bumping your own `@vercel/sandbox` does not change this:
+  the copy eve calls is bundled at eve's build, not resolved from your `node_modules`.
+- **So set it as the project default** (Settings → Sandboxes, or `--sandbox-region`) until eve revendors 3.x,
+  and **re-check the exclusion list**, not the docs, when it does — the day the vendored SDK moves, the
+  passthrough starts working with no eve release note to announce it.
+
+Two facts worth taking from the SDK rather than the changelog, because they're stated in the types:
+`DEFAULT_SANDBOX_REGION = "iad1"` (the US default is the SDK's, not a Vercel-side setting), and
+`SandboxRegion = "iad1" | "sfo1" | "cle1" | "cdg1" | (string & {})` — the open union means a new region works
+the moment the platform has it, without an SDK bump. The Pro/Enterprise gate on `failoverRegions` is the
+changelog's claim only; a type can't express a plan tier.
 
 **Not the same axis as `run`.** [`run`](https://github.com/vercel-labs/run) isolates *model-written JavaScript* in an in-process QuickJS context whose only egress is the `hostFunctions` you pass it; a sandbox backend isolates *shell and code tools* at the OS level. One is for "the model wrote a program", the other for "a tool needs a machine". Reaching for a VM when you meant the first is startup cost for nothing — and reaching for QuickJS when you meant the second gives you no OS isolation at all. See `eve-concepts.md` §The general form. (`roprgm/worldcup-eve` uses `just-bash`
-for exactly this reason.) `[VERIFY]` the `eve/sandbox/just-bash` subpath against installed docs.
+for exactly this reason.) The `eve/sandbox/just-bash` subpath is confirmed against `eve@0.45.0`'s `exports`.
 
 ## State & per-session context
 
