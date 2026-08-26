@@ -1,6 +1,6 @@
 # i18n — next-intl (Next.js App Router)
 
-The **how**, not just the "use next-intl". Doc-grounded (next-intl.dev, v3/v4) so we scaffold it right the first time. Golden rule 2: every frontend ships i18n from day one, minimum locales **en + it**. `[VERIFY]` every identifier against the installed next-intl version — this surface moves (e.g. `middleware.ts` was **renamed `proxy.ts`** in recent versions).
+The **how**, not just the "use next-intl". Doc-grounded (next-intl.dev, v3/v4) so we scaffold it right the first time. Golden rule 2: every frontend ships i18n from day one, minimum locales **en + it**. Verified end-to-end against **`next-intl@4.13.7`** and **`next@16.3.3`** (2026-08-26). `[VERIFY]` again on upgrade — this surface moves, and it moves in ways that look cosmetic: the *project file* `middleware.ts` became `proxy.ts` (Next 16) while the *package subpath* `next-intl/middleware` did not.
 
 ## Decide the mode first
 
@@ -47,7 +47,7 @@ export const {Link, redirect, usePathname, useRouter, getPathname} =
 ```
 
 ```ts
-// proxy.ts  (project root — formerly middleware.ts; [VERIFY] the filename for your version)
+// proxy.ts  (project root — Next 16's new name for middleware.ts; see the note below)
 import createMiddleware from 'next-intl/middleware';
 import {routing} from './i18n/routing';
 
@@ -58,6 +58,27 @@ export const config = {
   matcher: '/((?!api|trpc|_next|_vercel|.*\\..*).*)',
 };
 ```
+
+**Two names, and only one of them moved.** From `next@16.3.3`'s own shipped docs
+(`dist/docs/…/file-conventions/proxy.md`): *"the `middleware` file convention is deprecated and has
+been renamed to `proxy`"*, in **v16.0.0**. Both constants still exist in the build, so the old file is
+recognised — deprecated, not removed — and there is a codemod:
+
+```bash
+npx @next/codemod@canary middleware-to-proxy .
+```
+
+Two things the rename drags along, and neither is cosmetic:
+
+- **The exported function renames too** — `export function middleware()` → `export function proxy()`.
+  Not an issue for the next-intl file above, which is a `export default createMiddleware(routing)`.
+- **Proxy defaults to the Node.js runtime** (middleware defaulted to Edge), and the `runtime`
+  config option **is not available in a Proxy file — setting it throws**. If you had pinned a runtime
+  in `middleware.ts`, the codemod's rename is the easy half.
+
+What did **not** rename is the **package subpath**: at `next-intl@4.13.7` the import is still
+`createMiddleware from 'next-intl/middleware'`. Renaming that import because you renamed the file is
+the mistake this note exists to prevent.
 
 ```ts
 // i18n/request.ts — per-request config the plugin loads
@@ -75,7 +96,16 @@ export default getRequestConfig(async ({requestLocale}) => {
 });
 ```
 
-> ⚠️ **On Next.js 16.3+ prefer `next/root-params` — and drop `setRequestLocale` entirely.** next-intl **4.13.6** (verified 2026-08-12; the note below was written against 4.13.5-04) deprecates `setRequestLocale`: Next 16.3 exposes the root `[locale]` param to any server context, so you read it **once** here instead of threading a call through every layout and page. `[VERIFY]` against the installed next-intl.
+> ⚠️ **On Next.js 16.3+ prefer `next/root-params`.** Next 16.3 exposes the root `[locale]` param to any
+> server context, so you read it **once** in `i18n/request.ts` instead of threading a call through every
+> layout and page.
+>
+> **Correction, verified against `next-intl@4.13.7` (2026-08-26): the deprecated thing is
+> `requestLocale`, not `setRequestLocale`.** The `@deprecated` tag sits on the **`requestLocale` param of
+> `getRequestConfig`** — *"Please migrate to `next/root-params`"* — while `setRequestLocale` is still
+> exported clean from `next-intl/server` with no deprecation marker. This file previously named the wrong
+> one, which sends you grepping for a symbol that still works and concluding the note is stale. What to
+> remove is the `{requestLocale}` destructure below; what to keep working with is the export.
 >
 > ```ts
 > // i18n/request.ts — Next 16.3+ form

@@ -218,7 +218,15 @@ paired with typeset). `align="start|end"` on both `Message` and `Bubble`.
 
 ### `@shadcn/helpers` — prototype the conversation in code (shadcn, July 2026)
 
-For AI chat specifically, **`@shadcn/helpers`** ships **AI SDK** and **TanStack AI** helpers that let you write a conversation in code and run it through the `useChat` lifecycle **without a backend** — ideal for building and iterating the chat UI before the agent is wired. Pair it with the chat components above (the components render; the helpers drive the message flow). `[VERIFY]` the package name + API against the installed version. When the app is backed by an **eve** agent, keep eve as the single source of truth (see the two-brains note in `module-add/references/module-voice.md`) — use these helpers only for local prototyping, never as a second runtime.
+For AI chat specifically, **`@shadcn/helpers`** ships **AI SDK** and **TanStack AI** helpers that let you write a conversation in code and run it through the `useChat` lifecycle **without a backend** — ideal for building and iterating the chat UI before the agent is wired. Pair it with the chat components above (the components render; the helpers drive the message flow). **Verified against `@shadcn/helpers@0.2.0` (2026-08-26)**: the package exports exactly two subpaths,
+`@shadcn/helpers/ai-sdk` and `@shadcn/helpers/tanstack-ai`, and both expose the same entry point —
+**`createChat(options)`** (`CreateChatOptions` → `AiSdkChat` / `TanStackChat`).
+
+⚠️ **Read its peer ranges before adding it.** They are unusually tight:
+`ai >=7.0.0 <8` is normal, but `@tanstack/ai >=0.40.0 <0.41.0` and
+`@tanstack/ai-client >=0.20.0 <0.21.0` pin **a single minor each** — a pre-1.0 dependency that will
+refuse to install against the next minor of the thing it wraps. Fine for a prototype you throw away,
+a standing install-time hazard in a repo that lives. When the app is backed by an **eve** agent, keep eve as the single source of truth (see the two-brains note in `module-add/references/module-voice.md`) — use these helpers only for local prototyping, never as a second runtime.
 
 ### Ask-the-user HITL — a tool with **no `execute`**
 

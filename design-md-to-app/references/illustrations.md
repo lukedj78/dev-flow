@@ -1,6 +1,22 @@
 # Illustrations — when, and only then, Koboyo
 
-The **how**, doc-grounded against [koboyo.com/icons](https://koboyo.com/icons) and its [license](https://koboyo.com/icons/license). Koboyo is our default *illustration* source — **not** our icon set. `stack.illustrations = "koboyo"`. `[VERIFY]` license terms before shipping commercially; they're custom, not a standard OSS licence.
+The **how**, doc-grounded against [koboyo.com/icons](https://koboyo.com/icons) and its [license](https://koboyo.com/icons/license). Koboyo is our default *illustration* source — **not** our icon set. `stack.illustrations = "koboyo"`. **License read off the page on 2026-08-26** — it is custom, not a standard OSS licence, so here it is
+concretely. All **135,610** icons are free for personal **and commercial** use, **no attribution**, no
+sign-up, no seat counts, no per-project fees. You may recolor, resize, crop, animate and modify them,
+and embed them in products you sell — **including client work and templates** — *"as long as the icons
+are part of something bigger rather than the product itself."*
+
+⚠️ **The prohibitions are where a project can walk into a wall.** You may not resell or redistribute the
+library (or a substantial part of it) as an icon collection; build a competing product with them — the
+license names *icon library, canvas, whiteboard, diagramming, presentation or drawing app*; or bundle
+them into **any app where they are the feature, or where users can pick, extract, download or
+re-share them**.
+
+That last clause is not an edge case. **A gallery, a picker, or an asset library is exactly the
+disallowed shape** — if the product's value is that users browse and take away icons, Koboyo is the
+wrong source no matter how the attribution is handled. Decide this before the assets are in the repo,
+not at launch. `[VERIFY]` the terms again before shipping commercially — a custom licence can be
+rewritten without a version bump.
 
 ## ⚠️ Restraint first — this is a deliberate choice, not a default reflex
 
@@ -47,7 +63,15 @@ Koboyo ships an **MCP server**, so the agent searches the library directly inste
 claude mcp add --transport http koboyo-icons https://api.koboyo.com/v1-mcp
 ```
 
-Then ask for what the moment needs ("an empty mailbox", "two people reviewing a document") and the agent returns candidates. Individual SVGs are also downloadable from the site. `[VERIFY]` the transport/URL against the site — MCP endpoints move.
+⚠️ **It needs an API key.** The site's own MCP section reads *"Create a key, then your coding assistant
+can search these icons"* — the bare `mcp add` above registers the server but will not authenticate.
+Get the key from koboyo.com/icons ("Get your key") and pass it as the server's auth header.
+
+Then ask for what the moment needs ("an empty mailbox", "two people reviewing a document") and the
+agent returns candidates. Individual SVGs are also downloadable from the site. Endpoint checked on
+2026-08-26: `https://api.koboyo.com/v1-mcp` answers **405 to a GET**, which is the expected reply from
+a Streamable-HTTP MCP endpoint that wants POST — alive, not dead. `[VERIFY]` the transport/URL against
+the site anyway; MCP endpoints move.
 
 Whatever the path: **vendor the chosen SVGs into the repo** (`public/illustrations/` or `components/illustrations/`), don't hotlink. They become project assets you control, review and can recolor.
 

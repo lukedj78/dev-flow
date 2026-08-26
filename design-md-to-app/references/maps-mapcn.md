@@ -1,6 +1,6 @@
 # Maps (web) — mapcn
 
-The **how**, not just "use mapcn". Doc-grounded against [mapcn.dev/docs](https://mapcn.dev/docs) + the published registry item `https://mapcn.dev/r/map.json` (read directly — it is the source of truth for props) and GitHub `AnmolSaini16/mapcn` (MIT). mapcn is the ecosystem-first default when a **web** project needs a map: **MapLibre GL**-powered, Tailwind-styled, shadcn/ui-compatible components you copy into your repo. `stack.maps = "mapcn"`. `[VERIFY]` identifiers after each re-install — it's young and the registry file is the version you actually own.
+The **how**, not just "use mapcn". Doc-grounded against [mapcn.dev/docs](https://mapcn.dev/docs) + the published registry item `https://mapcn.dev/r/map.json` (read directly — it is the source of truth for props) and GitHub `AnmolSaini16/mapcn` (MIT). mapcn is the ecosystem-first default when a **web** project needs a map: **MapLibre GL**-powered, Tailwind-styled, shadcn/ui-compatible components you copy into your repo. `stack.maps = "mapcn"`. Verified against the live registry on **2026-08-26** (`mapcn.dev/r/map.json` → one file, `maplibre-gl@^6` + `lucide-react`, `@types/geojson` as devDep; nine items in `r/registry.json`). `[VERIFY]` identifiers after each re-install anyway — it's young, and **the registry file is the version you actually own**: once copied in, your repo is the source of truth and no upgrade will reach it.
 
 ## ⚠️ Read first — basemap licensing (don't skip)
 
@@ -21,7 +21,7 @@ pnpm dlx shadcn@latest add @mapcn/map     # npm/yarn/bun equivalents also docume
 
 One item installs **everything** — `@mapcn/map` is not per-component. It writes a single file to `components/ui/map.tsx`, adds deps `maplibre-gl` + `lucide-react` (+ `@types/geojson` as devDep), and injects a `@layer base` CSS block that restyles `.maplibregl-popup-content`, `.maplibregl-popup-tip` and `.maplibregl-ctrl-attrib` to shadcn tokens. There is **no** separate `add markers` / `add clusters` step.
 
-`[VERIFY]` whether the `@mapcn` namespace resolves without a `registries` entry in your `components.json`. If the CLI rejects it, the direct URL works and returns the same item: `pnpm dlx shadcn@latest add https://mapcn.dev/r/map.json`.
+`[VERIFY]` whether the `@mapcn` namespace resolves without a `registries` entry in your `components.json` — that is a shadcn-CLI resolution question, not a mapcn one. **The direct URL is verified live (HTTP 200, 2026-08-26) and returns the same item**, so it is the fallback that always works: `pnpm dlx shadcn@latest add https://mapcn.dev/r/map.json`.
 
 Prebuilt **blocks** (full compositions, installed the same way): `@mapcn/store-locator`, `@mapcn/delivery-tracker`, `@mapcn/logistics-network`, `@mapcn/uptime-monitor`, `@mapcn/heatmap`, `@mapcn/choropleth`, `@mapcn/analytics-map`, `@mapcn/analytics-card`.
 
@@ -214,12 +214,20 @@ useEffect(() => {
 }, [map, isLoaded]);
 ```
 
-There is **no `onClick` / `onLoad` prop on `<Map>`** — map-level events go through `map.on(...)` via `useMap()` or the ref. (The installed context actually also exposes `isStyleLoaded` and `resolvedTheme`; the published API reference only documents `map` + `isLoaded` — `[VERIFY]` before relying on the extras.)
+There is **no `onClick` / `onLoad` prop on `<Map>`** — map-level events go through `map.on(...)` via `useMap()` or the ref. **Read off `https://mapcn.dev/r/map.json` on 2026-08-26**, which is the component's actual source: the
+context value is exactly `{ map, isLoaded, resolvedTheme }` — three fields, and `resolvedTheme` is the
+one the published API reference omits.
+
+⚠️ **`isStyleLoaded` is not on the context** — this file used to say it was. It is internal state, and
+the context's `isLoaded` is defined as **`isLoaded && isStyleLoaded`**. So `isLoaded === true` already
+means *instance ready **and** style ready*, which is exactly the guard `addSource` / `addLayer` need.
+Reading it as "the instance exists" and adding your own style check on top buys you a race, not
+safety.
 
 ## Next.js App Router specifics
 
 - **`"use client"` is already in the installed file.** You can import `<Map>` from a Server Component and it becomes a client boundary automatically. You still need `"use client"` in *your* wrapper when it holds state or passes callbacks (`onViewportChange`, `onPointClick`, …) — functions can't cross the server→client boundary.
-- **`next/dynamic` is usually unnecessary.** MapLibre is instantiated in an effect against a ref'd `<div>`, so SSR just renders an empty container. Only reach for `dynamic(..., { ssr: false })` if you hit a hydration issue — and note `ssr: false` is rejected inside Server Components in Next 15+, so the dynamic import must live in a Client Component. `[VERIFY]` against Next 16.
+- **`next/dynamic` is usually unnecessary.** MapLibre is instantiated in an effect against a ref'd `<div>`, so SSR just renders an empty container. Only reach for `dynamic(..., { ssr: false })` if you hit a hydration issue — and note `ssr: false` is rejected inside Server Components, so the dynamic import must live in a Client Component. **Confirmed in `next@16.3.3`'s own shipped docs** (`dist/docs/…/guides/lazy-loading.md`), verbatim: *"`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component."*
 - **CSS**: nothing to import. `maplibre-gl/dist/maplibre-gl.css` is imported *inside* `components/ui/map.tsx`, and the shadcn-token overrides ship as the registry item's `css` block into your global stylesheet.
 - **Sizing**: the root renders `relative h-full w-full` — a parent with an explicit height (`h-[420px]`, a `flex-1` cell, a `<Card className="h-[320px] p-0 overflow-hidden">`) is mandatory or you get a 0px map.
 - **Theme**: auto-detected, in this order — `documentElement.classList` `dark`/`light`, then `documentElement.dataset.theme`, then `matchMedia("(prefers-color-scheme: dark)")`. That covers `next-themes` with both `attribute="class"` (default) and `attribute="data-theme"` with no wiring. Pass `theme="dark"` only to force it.
