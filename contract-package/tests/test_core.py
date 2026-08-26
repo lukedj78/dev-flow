@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import pathlib
+import re
 from pathlib import Path
 
 import pytest
@@ -221,3 +223,52 @@ def test_meta_json_roundtrip(project_root: Path) -> None:
     assert meta.phase == Phase.DESIGN_EXTRACTED.value
     assert ".workflow/DESIGN.md" in meta.artifacts
     assert len(meta.history) == 1
+
+
+# ---------------------------------------------------------------------------
+# The enum above is a COPY of something that lives elsewhere. This is the test
+# that notices when the original moves.
+#
+# `Phase` says "Must match contracts.md" in a comment, and for four phases it
+# did not: monorepo_initialized, feature_complete and deployed were never added,
+# and module_added still carried its historical hyphen. Nothing caught it,
+# because this package's workflow only watched contract-package/** — so a change
+# to the canonical contract never re-ran these tests.
+# ---------------------------------------------------------------------------
+
+CANONICAL_CONTRACT = (
+    pathlib.Path(__file__).resolve().parents[2] / "dev-flow" / "references" / "contracts.md"
+)
+
+
+def _canonical_phases() -> list[str]:
+    """The phase enum, read out of the canonical contract's own table."""
+    text = CANONICAL_CONTRACT.read_text()
+    section = re.search(
+        r"### `phase` enum \(canonical\)(.+?)(?=\n### )", text, re.S
+    )
+    assert section, "contracts.md has no '### `phase` enum (canonical)' section"
+    # One phase per table row, in order, first backticked cell of each row.
+    rows = re.findall(r"^\| *`([a-z_]+)`", section.group(1), re.M)
+    return [r for r in rows if r != "phase"]
+
+
+@pytest.mark.skipif(
+    not CANONICAL_CONTRACT.exists(),
+    reason="canonical contract not present (package installed standalone)",
+)
+def test_phase_enum_matches_canonical_contract() -> None:
+    canonical = _canonical_phases()
+    ours = [p.value for p in Phase.order()]
+    assert ours == canonical, (
+        "Phase.order() has drifted from dev-flow/references/contracts.md.\n"
+        f"  contract: {canonical}\n"
+        f"  package : {ours}\n"
+        "Update the enum (and its order — phase is monotonic), not the contract."
+    )
+
+
+def test_legacy_hyphen_still_parses() -> None:
+    """Projects written before the rename must keep loading."""
+    assert Phase("module-added") is Phase.MODULE_ADDED
+    assert Phase.MODULE_ADDED.value == "module_added"

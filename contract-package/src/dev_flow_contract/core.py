@@ -34,9 +34,25 @@ class Phase(str, Enum):
     PRD_DRAFTED = "prd_drafted"
     TASKS_SPLIT = "tasks_split"
     DESIGN_EXTRACTED = "design_extracted"
+    MONOREPO_INITIALIZED = "monorepo_initialized"
     SCAFFOLDED = "scaffolded"
     PAGE_GENERATED = "page_generated"
-    MODULE_ADDED = "module-added"  # historical hyphen — preserved for compat
+    MODULE_ADDED = "module_added"
+    FEATURE_COMPLETE = "feature_complete"
+    DEPLOYED = "deployed"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "Phase | None":
+        """Accept the legacy hyphenated spelling of `module_added`.
+
+        Projects scaffolded before the enum was normalised carry
+        `"module-added"` in their meta.json. `update_meta.py` rewrites it on
+        the next write; until then it must still parse, or a working project
+        stops loading because of a dash.
+        """
+        if value == "module-added":
+            return cls.MODULE_ADDED
+        return None
 
     @classmethod
     def order(cls) -> list["Phase"]:
@@ -46,9 +62,12 @@ class Phase(str, Enum):
             cls.PRD_DRAFTED,
             cls.TASKS_SPLIT,
             cls.DESIGN_EXTRACTED,
+            cls.MONOREPO_INITIALIZED,
             cls.SCAFFOLDED,
             cls.PAGE_GENERATED,
             cls.MODULE_ADDED,
+            cls.FEATURE_COMPLETE,
+            cls.DEPLOYED,
         ]
 
     def index(self) -> int:

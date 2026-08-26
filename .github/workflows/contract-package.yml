@@ -5,10 +5,18 @@ on:
     branches: [main]
     paths:
       - "contract-package/**"
+      # The package COPIES the phase enum from the canonical contract and says
+      # so in a comment. Without this path, changing the contract never re-ran
+      # these tests — which is how the enum ended up four phases behind.
+      - "dev-flow/references/contracts.md"
       - ".github/workflows/contract-package.yml"
   pull_request:
     paths:
       - "contract-package/**"
+      # The package COPIES the phase enum from the canonical contract and says
+      # so in a comment. Without this path, changing the contract never re-ran
+      # these tests — which is how the enum ended up four phases behind.
+      - "dev-flow/references/contracts.md"
       - ".github/workflows/contract-package.yml"
 
 jobs:
