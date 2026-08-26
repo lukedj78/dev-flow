@@ -6,7 +6,7 @@ TypeScript types of the **installed** version — names and defaults can drift.
 
 ## Import map (each capability has its own subpath)
 
-> **Your own shared code**: declare a Node subpath import once — `"imports": { "#*": "./agent/*" }` in `package.json` — then import shared helpers as `#lib/<domain>/<file>.js` from anywhere in the agent, including subagents, instead of climbing relative paths. Put non-behavioural constants (key layouts, size caps, id formats, vocabularies) in `agent/lib/<domain>/config.ts` and expose capabilities as **tool factories** in `agent/lib/<domain>/tools.ts`, so several agents mount the same tool with their own parameters. See `eve-patterns.md` §7. `[VERIFY]` against your eve version.
+> **Your own shared code**: declare a Node subpath import once — `"imports": { "#*": "./agent/*" }` in `package.json` — then import shared helpers as `#lib/<domain>/<file>.js` from anywhere in the agent, including subagents, instead of climbing relative paths. Put non-behavioural constants (key layouts, size caps, id formats, vocabularies) in `agent/lib/<domain>/config.ts` and expose capabilities as **tool factories** in `agent/lib/<domain>/tools.ts`, so several agents mount the same tool with their own parameters. See `eve-patterns.md` §7. **This is our house convention, not eve's** — eve's own docs use relative `../lib/<file>` throughout and never show a `#…` import, so nothing here depends on the eve version; what it depends on is Node's `imports` field and your `tsconfig`. Note the `.js` inside a `#…` specifier is Node's subpath-import rule and is separate from the extensionless relative imports eve's scaffolds produce.
 
 Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else is namespaced:
 
@@ -229,17 +229,25 @@ bundler does not capture `execute: someFn` and it fails on replay.
   (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. `[VERIFY]` **eve's scaffold default changed in 0.36.0**: `eve init`
-  and config-less agents now default to `zai/glm-5.2`, not `anthropic/claude-sonnet-5` — this skill
-  still recommends pinning `anthropic/claude-sonnet-5` explicitly, don't rely on the scaffold default.
+* Prereqs: **Node ≥ 24** and npm. **eve's scaffold default changed in 0.36.0** and still holds at
+  0.45.0: `eve init` (and a config-less agent, which resolves a default `agent.ts` source rather than
+  none at all) uses `zai/glm-5.2`, not `anthropic/claude-sonnet-5` — and **GLM 5.2 accepts no image
+  input**. This skill still recommends pinning `anthropic/claude-sonnet-5` explicitly; don't rely on
+  the scaffold default, and don't inherit a text-only model into an agent that will be handed a
+  screenshot.
   The `model` field also accepts `defineDynamic({ events })` for per-session model choice — since
   0.33.0 there is no `fallback`; every matching handler must return a concrete model.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
-  Standard Schema / plain JSON Schema object. Relative imports need `.js` extensions
-  (`module: NodeNext`). ([VERIFY] against the installed version.)
+  Standard Schema / plain JSON Schema object. Confirmed at 0.45.0: the scaffold pins **zod 4.4.3**.
+* ⚠️ **Relative imports do *not* need `.js` extensions** — this file said they did, and eve's own
+  scaffolds disagree: `eve init`, the extension scaffold and the Web Chat template all emit
+  `module: "esnext"` + `moduleResolution: "bundler"`, and every relative import in eve's docs is
+  extensionless (`from "../lib/tenant"`). Add extensions only if *your* project runs `NodeNext` —
+  e.g. an agent adopted into an existing repo with that setting — where it is TypeScript's rule, not
+  eve's.
 * `eve dev <url>` connects the TUI to a **deployed** agent — use it to smoke-test after
   deploy. Plain `vercel deploy` may need `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1` to recognize
-  eve as a framework ([VERIFY]; `eve deploy` sets it itself).
+  eve as a framework (`eve deploy` sets it itself). `[VERIFY]` — the flag is a Vercel-side toggle, absent from eve's shipped docs at 0.45.0, so check it against the Vercel CLI rather than against eve.
 * For multi-tenant work read `node_modules/eve/docs/patterns/` — `multi-tenant-auth`,
   `multi-tenant-approvals`, `multi-tenant-memory`, `dynamic-scheduling` are canonical recipes,
   written up (composition + load-bearing API + non-negotiable rules) in `references/eve-patterns.md`.

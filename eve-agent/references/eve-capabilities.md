@@ -5,7 +5,7 @@ Add exactly ONE capability per invocation, idempotently. Read the matching secti
 `eve-conventions.md` for the import map, identity-by-path, durability/idempotency, and
 security rules that apply to all of these.
 
-## Install from the registry FIRST — `eve add` / `eve registry` ([VERIFY])
+## Install from the registry FIRST — `eve add` / `eve registry`
 
 Before hand-authoring any capability below, check whether the ecosystem already ships it — the
 same ecosystem-first rule as everywhere in dev-flow, now with a **first-class CLI** (source: eve.dev/docs/install-integrations). An **integration** is the umbrella term: it writes files
@@ -37,7 +37,7 @@ exporters by hand). After any install: **review the generated files and add requ
 (env vars, Connect provisioning) before running the agent.** The full catalog is the
 integrations directory (<https://eve.dev/integrations>). Only fall through to hand-authoring the
 sections below when nothing in the registry fits (or you must own/modify the source — then see
-`eve-registry-porting`). `[VERIFY]` command syntax against `node_modules/eve/docs/`.
+`eve-registry-porting`). Syntax verified against `eve@0.45.0`'s `docs/reference/cli.md`.
 
 ## Tool — `agent/tools/<name>.ts`
 
@@ -126,7 +126,7 @@ A new entrypoint. Not every channel is a registry item — verified against `nod
 
 **`twilio` puts the agent on a phone number**: inbound SMS as a webhook, inbound *calls* answered with TwiML `<Gather input="speech">` so the transcript feeds the same session — a caller and a texter are identical downstream. Every request is checked against `X-Twilio-Signature`.
 
-Or use the `/add` browser in the dev TUI. ⚠️ **`eve channels add` was removed in eve 0.29.0**; only `eve channels list` (user-authored channels) survives. `[VERIFY]` the list against `eve registry list` — this table was wrong for months in three ways at once, so re-check it rather than trusting it.
+Or use the `/add` browser in the dev TUI. ⚠️ **`eve channels add` was removed in eve 0.29.0**; only `eve channels list` (user-authored channels) survives — still the only `eve channels` subcommand at 0.45.0. Re-checked at 0.45.0 against the shipped `docs/channels/` (which channel pages name an `eve add`), and it now holds — but `[VERIFY]` it against `eve registry list` on upgrade anyway: **this table was wrong for months in three ways at once**, and it gained a whole channel (Linq) in the ten days between the last two passes.
 The file stem is the channel id and the channel is the module's **default export**
 (`defineChannel` from `eve/channels` for custom ones). The default HTTP channel
 (`agent/channels/eve.ts`) already exists from scaffold — only add a channel for another
@@ -134,7 +134,7 @@ surface. Platform channels read secrets from env vars (`DISCORD_*`, `LINEAR_*`, 
 `TELEGRAM_*`, `TWILIO_*`); **Slack and GitHub go through Vercel Connect** (no `SLACK_*` env
 vars — credentials via `connectSlackCredentials`/`connectGitHubCredentials` from
 `@vercel/connect/eve`). Most need a one-time out-of-band registration (Discord command PUT,
-Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). `[VERIFY]` both against the installed docs. The **eve integrations directory** (<https://eve.dev/integrations>) is the full channel catalog — Google Chat, WhatsApp, X, Messenger, Resend/email, and provider-official adapters beyond the CLI kinds.
+Telegram `setWebhook`, GitHub App events, Linear OAuth `actor=app`). For messaging surfaces not in that list — WhatsApp, email, or a unified adapter — use the **Vercel Chat SDK** channel (`/docs/channels/chat-sdk`); for a bespoke HTTP/WebSocket surface (CORS, file uploads), author a **custom channel** with `defineChannel` (`/docs/channels/custom`). Both confirmed at 0.45.0. The **eve integrations directory** (<https://eve.dev/integrations>) is the full channel catalog — Google Chat, WhatsApp, X, Messenger, Resend/email, and provider-official adapters beyond the CLI kinds.
 
 **Per-surface deep dives live in `references/eve-channels.md`** — Telegram (webhook registration,
 group dispatch rules, the `onMessage` gate, the two send paths), Discord (3-second ACK, command
@@ -190,7 +190,7 @@ Webhook security is HMAC over the `Linear-Signature` header plus a **timestamp c
 as Linear recommends. Retries can arrive later than that — widen it with **`maxSkewMs`** rather than
 disabling verification (eve 0.31.3 added this knob precisely for retry deliveries).
 
-Slack concretely ([VERIFY] against installed docs — the Connect flow has changed before):
+Slack concretely (re-verified against `eve@0.45.0`'s `docs/channels/slack.mdx` — the Connect flow has changed before):
 
 ```ts
 // agent/channels/slack.ts   (scaffolded by `eve add channel/slack`)
@@ -198,6 +198,13 @@ import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 export default slackChannel({ credentials: connectSlackCredentials("slack/<agent-name>") });
 ```
+
+`connectSlackCredentials` returns `{ botToken, webhookVerifier }` — token rotation, multi-workspace
+tenancy and request verification stay inside Connect instead of your code. A **function-form**
+`botToken` receives `{ teamId }` (the app-installation workspace, since 0.44.4), which is how a
+self-managed multi-workspace app picks an installation — and ⚠️ **that id can differ from the actor's
+or the content's workspace on Slack Connect events**, so don't reuse it as a tenant key without
+deciding which of the three you actually mean.
 
 ```bash
 vercel connect create slack --triggers                                  # provision + enable Event Subscriptions
@@ -296,8 +303,9 @@ already have.
 
 ⚠️ **eve 0.31.0 was a breaking migration of this whole surface.** Continuation tokens are gone from the
 client: a session is addressed by its **`sessionId`** and nothing else. Code written against 0.30.x will
-not compile or will fail at runtime. `[VERIFY]` against the installed version — eve is beta and this
-moved twice in a month.
+not compile or will fail at runtime. The surface has now held across the 0.38.3 and 0.45.0 passes, so
+it is no longer the fast-moving part — but note the word *client*: a **channel** may still carry its
+own `continuationToken` in `DynamicResolveContext.channel`, because that one is channel-owned.
 
 **Inside a channel**, three entry points and one cross-channel handoff:
 
@@ -504,7 +512,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 
 * The **filename sets the namespace**: an extension tool `search` mounted via `agent/extensions/crm.ts` runs as `crm__search` (filename + `__` + tool name). Renaming the file re-namespaces its tools.
 * The extension declares a **config schema** (Zod / any Standard Schema); pass config as the default-export call argument. Read secrets from `process.env` in this trusted runtime — never hardcode.
-* Tune what it exposes without forking it: `disableTool()` to approval-gate / replace / remove a bundled tool, and `toolResultFrom` inside a hook to narrow a bundled tool's result type. `[VERIFY]` both against the installed docs.
+* Tune what it exposes without forking it: `disableTool()` in the matching slot to remove a bundled tool (hooks and instruction fragments are **additive and cannot be replaced**; a dynamic definition in the same slot beats a static one), and `toolResultFrom` (from `eve/tools`) inside a hook to narrow a bundled tool's result type — ⚠️ it matches on **the imported definition, not the namespaced string**: pass the extension's own `search` definition, not `"crm__search"`. Both confirmed at 0.45.0.
 
 **Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@latest extension init <name>`, which lays out the package:
 
@@ -516,7 +524,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
     tools/  connections/  skills/  instructions.md  hooks/  lib/
 ```
 
-Build with `eve extension build`, publish to a registry, then consume it from agents as above. `defineExtension` and the exact layout are `[VERIFY]` against `node_modules/eve/docs/`.
+Build with `eve extension build` (scaffold with `eve extension init <name>`), publish to a registry, then consume it from agents as above. Verified at 0.45.0: `defineExtension` comes from **`eve/extension`**, the author's entrypoint is **`extension/extension.ts`** default-exporting the handle, an optional [Standard Schema](https://standardschema.dev) types consumer settings — and **config schemas must validate synchronously**. Older refs: `node_modules/eve/docs/`.
 
 **Extension vs. the other capabilities:** a tool/skill/connection/hook is a *single local file* in this agent; an extension is a *versioned package* that bundles several of them and is shared across agents. **Extension vs. `eve-registry-porting`:** porting *copies* a component into your repo (vendored, tenant-hardened by hand); an extension *installs* a package (a dependency you upgrade). Prefer an extension when a maintained package exists and the reuse-across-agents payoff justifies it; port when you need to own/modify the source or the source isn't packaged.
 

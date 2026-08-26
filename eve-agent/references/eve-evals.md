@@ -1,6 +1,6 @@
 # eve evals — the full reference
 
-An eval is a **scored check that runs the agent against a real session and grades the result** — it boots a real agent server, drives sessions through the TypeScript client over the actual HTTP surface, and asserts on outcomes. It's the deploy gate. Live docs: <https://eve.dev/docs/evals/…>. `[VERIFY]` every identifier against `node_modules/eve/docs/` — the eval API is young.
+An eval is a **scored check that runs the agent against a real session and grades the result** — it boots a real agent server, drives sessions through the TypeScript client over the actual HTTP surface, and asserts on outcomes. It's the deploy gate. Live docs: <https://eve.dev/docs/evals/…>. Last verified end-to-end against **`eve@0.45.0`** (2026-08-26): `defineEval`, `defineEvalConfig`, `mockModel` and all five `eve/evals/expect` matchers exist as written. Re-`[VERIFY]` on upgrade against `node_modules/eve/docs/` — the eval API is young.
 
 ## Layout & config
 
@@ -106,6 +106,28 @@ A target is always an **HTTP URL**. `eve eval` boots a local dev server automati
 - `t.target.attachSession(sessionId)` — consume an externally-created session for assertions.
 
 **Remote auth:** eve uses Vercel OIDC/trusted-IDP when `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID` (or `.vercel/project.json`) match; also `VERCEL_AUTOMATION_BYPASS_SECRET` (protection bypass) or `EVE_EVAL_AUTH_TOKEN` for non-Vercel targets.
+
+## Deterministic fixtures — `mockModel` (and the trap in it)
+
+`mockModel` from `eve/evals` replaces the provider entirely, so an eval can exercise eve's runtime —
+the tool loop, HITL parking, channel ingress — **without a model call**. That is what makes a
+runtime-shaped eval cheap enough to run on every push, and non-flaky enough to gate on.
+
+```ts title="agent/agent.ts"
+import { mockModel } from "eve/evals";
+export default defineAgent({ model: mockModel("A deterministic reply") });
+```
+
+A callback form gets an eve-owned view of the prompt (`lastUserMessage`, `userMessages`,
+`userMessageCount`, `tools`, `toolResults`) and may return `{ text, toolCalls, usage }` — which is
+how you script a deterministic **tool loop**: return a `toolCalls` entry while `toolResults` is
+empty, return text once it isn't. The options form (`{ modelId, provider, respond }`) exists only
+when a fixture also needs a model identity. With no argument at all it answers `"Mock response"`.
+
+⚠️ **`mockModel` lives in the agent definition, not in the eval.** So it belongs to a *dedicated
+fixture agent* — and it **stays mocked when that agent is deployed as an eval target**. Reach for it
+on an agent you built to be a fixture; put it in the real agent's `agent.ts` and the mock is what
+ships. The behaviour you actually want to gate on still needs a real model somewhere.
 
 ## Reporters
 

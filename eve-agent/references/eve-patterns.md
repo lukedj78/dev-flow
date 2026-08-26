@@ -1,13 +1,13 @@
 # eve patterns — multi-tenant, dynamic, governance, traceability & team recipes
 
-These are **composed patterns**, not framework subsystems: eve gives you primitives (auth, tools, instructions, schedules, approval, hooks, sandbox) and you assemble tenant-safe behaviour from them. Live docs: <https://eve.dev/docs/patterns/…>. As always, **read `node_modules/eve/docs/` first** and treat every identifier below as `[VERIFY]` against the installed version — patterns move.
+These are **composed patterns**, not framework subsystems: eve gives you primitives (auth, tools, instructions, schedules, approval, hooks, sandbox) and you assemble tenant-safe behaviour from them. Live docs: <https://eve.dev/docs/patterns/…>. As always, **read `node_modules/eve/docs/` first**. Last verified end-to-end against **`eve@0.45.0`** (2026-08-26); treat every identifier below as `[VERIFY]` again on upgrade — patterns move.
 
 ## The one rule that runs through the tenancy recipes (#1–#4)
 
 **Identity is derived, never supplied.** Tenant and user come from the **verified session** (`ctx.session.auth.current`, or `ctx.session.auth.initiator` when a conversation is permanently owned by its creator) — **never** from model input, a tool argument, or a remote API response. Centralise it:
 
 ```ts
-import type { SessionContext } from "eve/context";   // [VERIFY] import path
+import type { SessionContext } from "eve/context";   // verificato su eve@0.45.0 (anche su eve/tools)
 
 export interface TenantCaller { tenantId: string; userId: string; }
 
@@ -286,7 +286,7 @@ Factories (not exported tool instances) let each agent mount the same capability
 
 **Document it.** Keep an `ARCHITECTURE.md` that states each specialist's ownership boundary and the direction of the dependencies — written for humans *and* for the agents working in the repo. Gate it with one script: `"validate": "check && typecheck && eve info"`.
 
-> Recipe #7 is distilled from Vercel Labs' MIT template **[marketing-team-eve-template](https://github.com/vercel-labs/marketing-team-eve-template)** (a lead + 5 specialists, 20 agent skills in `SKILL.md` + `references/` form). `[VERIFY]` identifiers against your installed eve — the template tracks `eve ^0.27.6`.
+> Recipe #7 is distilled from Vercel Labs' MIT template **[marketing-team-eve-template](https://github.com/vercel-labs/marketing-team-eve-template)** (a lead + 5 specialists, 20 agent skills in `SKILL.md` + `references/` form). `[VERIFY]` identifiers against your installed eve — **the template tracks `eve ^0.27.6`, eighteen minors behind 0.45.0**, so treat its API surface as the least current thing in this file even though the *architecture* is what we took from it.
 
 ---
 

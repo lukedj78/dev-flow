@@ -70,9 +70,18 @@ Do **not** introduce an ad-hoc `AGENT_BASE_URL` + manual `fetch` — `withEve()`
 
 ## Message discipline (one turn at a time)
 
-Gate the composer on `status === "ready"` (i.e. the `session.waiting` stream event) so the UI
-doesn't invite overlapping sends — good UX regardless of server behavior. `[VERIFY]` the
-underlying policy against your installed eve version: since **0.33.0** the `eve` channel that
+⚠️ **This section's old advice — "gate the composer on `status === \"ready\"`" — is now the opposite
+of what eve does.** Its own generated Web Chat keeps the composer **enabled** during a response and
+steers the follow-up, and the frontend guide writes it as
+`agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined)`. Disabling the composer only
+denies the user the thing eve's turn policy exists to allow: correcting a bad answer while it is
+still being written. Give the composer one **Send / Stop** action instead of a dead input.
+
+`status` has **five** values at 0.45.0 — `"ready"`, `"resuming"`, `"submitted"`, `"streaming"`,
+`"error"`. `"resuming"` is new (0.45.0): a hydrated conversation catching up on a durable session,
+which is *not* an active turn — show the transcript, not the active-turn controls.
+
+Verified against 0.45.0: since **0.33.0** the `eve` channel that
 `withEve()` mounts defaults to `turnPolicy: "steer"`, **not** a queue or a hard reject — a `send`
 that arrives while a turn is active is durably buffered, then cooperatively cancels that turn and
 starts as its replacement (`turn.cancelled` → new turn ID; already-streamed output and completed
@@ -180,11 +189,27 @@ export default defineDynamic({
   events: {
     "turn.started": (ctx) => defineInstructions({
       markdown: `The user's IANA time zone is in the client context; state kickoffs in it.`,
-      // ctx exposes the turn's clientContext — [VERIFY] the exact accessor against installed docs.
     }),
   },
 });
 ```
+
+**There is no `ctx.clientContext`** — checked against `eve@0.45.0`'s `DynamicResolveContext`, whose
+whole surface is `session` (`id`, `auth`), `channel` (`kind`, `continuationToken`, `metadata`) and
+`messages`. `clientContext` is delivered as **conversation content**: a string (or array of strings)
+becomes user-role context message(s), an object is JSON-serialized into one. It rides along with a
+`send()`/`respond()`, **never dispatches a turn of its own, and never lands in durable history**.
+
+Two consequences that change how you write this:
+
+- **The model sees it without you doing anything.** The instruction above works because the value is
+  already in the turn's messages — which is why it says *"is in the client context"* rather than
+  interpolating a value. If you genuinely need the raw value in authored code, dig it out of
+  `ctx.messages`; needing that is usually a sign the value should have been a **tool argument** or
+  server-side state instead.
+- **Ephemeral cuts both ways.** Nothing to clean up, and nothing to audit: a decision the agent made
+  because of client context leaves no record of that context in the session. If the *why* has to
+  survive, put it somewhere durable.
 
 Only send **non-sensitive** UI context this way (it is client-asserted, not verified) — never derive
 tenant/user from it. Identity stays `ctx.session.auth.current`.
@@ -250,7 +275,7 @@ is gone. Start one with `client.sessions.create(input)`, re-attach to a known id
 `client.sessions.attach(sessionId)`, then `send(message, options)` — **positional**, not an options bag.
 HITL answers go through a **separate** `respond(inputResponses, options)`; `message` and
 `inputResponses` are mutually exclusive, so you can no longer smuggle a reply inside a send.
-`result()` and async-iteration for live events are unchanged. `[VERIFY]` against the installed version.
+`result()` and async-iteration for live events are unchanged — `result(): Promise<MessageResult>` and `[Symbol.asyncIterator](): AsyncIterator<MessageStreamEvent>` both still on the response handle at 0.45.0, alongside `client.sessions.attach(sessionId)`.
 
 ## Shared types (`packages/types`)
 

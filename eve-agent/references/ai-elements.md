@@ -7,9 +7,12 @@
 
 [AI Elements](https://elements.ai-sdk.dev/) is Vercel's prebuilt component kit for AI surfaces, built
 **on top of shadcn/ui** (same theming conventions, components copied into your repo — not a runtime
-dependency). Doc-grounded against <https://elements.ai-sdk.dev/overview> and `/setup`; `[VERIFY]`
-component names against the version you install — this surface moves fast (e.g. the standalone
-`Response` component is now documented as `MessageResponse`, exported from `message`).
+dependency). Doc-grounded against <https://elements.ai-sdk.dev/overview> and `/setup`. Components are **copied into
+your repo** by the registry, so there is no package to pin or diff — `[VERIFY]` component names against
+the version you actually `add`, because this surface moves fast (e.g. the standalone `Response`
+component is now documented as `MessageResponse`, exported from `message`). The *types* they consume,
+by contrast, come from the `ai` package and can be checked: this file is verified against
+**`ai@7.0.79`** and **`eve@0.45.0`**.
 
 ## Install
 
@@ -54,7 +57,7 @@ package; you write the ~15-line mapping yourself.
 | AI SDK `useChat()` | eve `useEveAgent()` | Note |
 |---|---|---|
 | `messages` | `agent.data.messages` | eve's default reducer projects `{ messages }`; a custom `reducer` changes this |
-| `status` | `agent.status` | both are `"ready" \| "submitted" \| "streaming" \| "error"` — passes straight into `PromptInputSubmit`. `[VERIFY]` against the installed AI Elements `ChatStatus` type |
+| `status` | `agent.status` | ⚠️ **they no longer match**: eve added a fifth value, `"resuming"` (0.45.0), to the AI SDK's `"ready" \| "submitted" \| "streaming" \| "error"`. It is *not* an active turn — a hydrated session catching up. Map it to `"ready"` (or your own quiet state) before handing `status` to `PromptInputSubmit`; passing it straight through is now a type error waiting to happen. **Confirmed against `ai@7.0.79`: `ChatStatus = "submitted" | "streaming" | "ready" | "error"` — four values, and `"resuming"` is not one of them.** |
 | `sendMessage({ text })` | `agent.send(text)` | eve takes text **or** a full turn payload |
 | `stop()` | `agent.cancel()` | eve renamed `stop()` → `cancel()` on frontend agent bindings in **0.38.0**; not 1:1 in name, same role |
 | `error` | `agent.error` | 1:1 |
@@ -63,8 +66,22 @@ package; you write the ~15-line mapping yourself.
 | — | `agent.session` / `agent.events` | eve-only: the resumability cursor + raw log |
 
 Message items: eve's `EveMessage` follows the **AI SDK `UIMessage` convention** (`role` + `parts`), so
-`<Message from={message.role}>` and a `switch` over `message.parts` line up. `[VERIFY]` the exact part
-`type` strings against the installed eve version before assuming `"text"` / `"reasoning"` / `"tool-*"`.
+`<Message from={message.role}>` and a `switch` over `message.parts` line up — **but the part unions are
+not the same one**, and a `switch` copied from an AI SDK example will silently miss cases.
+
+Verified against `eve@0.45.0` (`EveMessagePart`) and `ai@7.0.79` (`UIMessagePart`):
+
+| | eve | AI SDK |
+|---|---|---|
+| Shared | `"text"` · `"reasoning"` · `"file"` · `"step-start"` | same |
+| Tool calls | **`"dynamic-tool"`** only | `"dynamic-tool"` **and** `` `tool-${name}` `` |
+| eve-only | **`"authorization"`** — a connection asking the user to sign in mid-turn | — |
+| AI-SDK-only | — | `"source-url"` · `"source-document"` · `` `data-${name}` `` · `"custom-content"` |
+
+Two things follow. **Don't switch on `` `tool-${name}` ``** — eve never emits it, so per-tool rendering
+keys off the `dynamic-tool` part's own name field. And **handle `"authorization"` explicitly**: it has
+no AI SDK counterpart, so a default branch will drop it — and the case it drops is the one where the
+user is being asked to authorize something and nothing appears on screen.
 
 ## The adapter
 

@@ -1,11 +1,11 @@
 # eve concepts — config, context, durability, HITL, dynamic capabilities
 
-The cross-cutting concepts behind every capability. This complements `eve-conventions.md` (rules) and `eve-capabilities.md` (per-file how-to). Live docs: <https://eve.dev/docs/concepts/…>, `/docs/agent-config`, `/docs/instructions`, `/docs/human-in-the-loop`, `/docs/guides/{state,dynamic-capabilities,dynamic-workflows}`. **Read `node_modules/eve/docs/` first**; every identifier is `[VERIFY]` against the installed version.
+The cross-cutting concepts behind every capability. This complements `eve-conventions.md` (rules) and `eve-capabilities.md` (per-file how-to). Live docs: <https://eve.dev/docs/concepts/…>, `/docs/agent-config`, `/docs/instructions`, `/docs/human-in-the-loop`, `/docs/guides/{state,dynamic-capabilities,dynamic-workflows}`. **Read `node_modules/eve/docs/` first.** Last verified end-to-end against **`eve@0.45.0`** (2026-08-26); treat every identifier as `[VERIFY]` again on upgrade.
 
 ## Agent config — `agent/agent.ts` (`defineAgent`)
 
 Root-only. Fields:
-- `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; `[VERIFY]` **eve's own scaffold default is `zai/glm-5.2` since 0.36.0**, not Claude) or a `LanguageModel`; may be a `defineDynamic({ events })` for per-session/turn/step model choice — since 0.33.0 there is no `fallback`, every matching handler must return a concrete model.
+- `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; **eve's own scaffold default is `zai/glm-5.2`** since 0.36.0, still true at 0.45.0 and also the default of `eve init --model` — and **GLM 5.2 takes no image input**, so an agent that will ever see a screenshot needs a vision-capable model or an image route to one) or a `LanguageModel`; may be a `defineDynamic({ events })` for per-session/turn/step model choice — since 0.33.0 there is no `fallback`, every matching handler must return a concrete model.
 - `reasoning` — `"provider-default" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh"` (availability is model/provider-dependent).
 - `compaction` — summarizes older turns near the window; **on by default**, `thresholdPercent` default `0.9` (lower = compact sooner).
 - `limits` — `{ maxInputTokensPerSession (default 40_000_000 for root), maxOutputTokensPerSession (unset) }`; set either to `false` to remove a cap. Size tight for public demos (+ Vercel Firewall rate-limit), looser for internal tools.

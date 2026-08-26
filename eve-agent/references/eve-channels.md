@@ -13,17 +13,19 @@ need one.
 **None of these can be smoke-tested on localhost** — the platform delivers over the public
 internet. Deploy, then attach the TUI to the deployment with `eve dev <url>`.
 
-`[VERIFY]` everything below against the installed `node_modules/eve/docs/` and types: these are
-fast-moving surfaces, and the sections below were written against the published docs at
-<https://eve.dev/docs/channels/>.
+Verified against `eve@0.45.0` (`npm pack`, `docs/channels/` + the emitted `.d.ts`) — the Telegram
+signatures, the send paths and the registry-item question below all still hold. These are
+fast-moving surfaces, so re-check on upgrade rather than assuming this line ages well.
 
 ---
 
 ## Telegram — authored by hand, no registry item
 
 ⚠️ Per §Channel: `telegram` ships a subpath (`eve/channels/telegram`) and a docs page, but there
-is **no `eve add channel/telegram`** — write the file yourself, as below. `[VERIFY]` against
-`eve registry list` before assuming otherwise; the kind list has been wrong before.
+is **no `eve add channel/telegram`** — write the file yourself, as below. Still true at 0.45.0:
+of the shipped channel docs pages, only `discord`, `github`, `linear-agent`, `linq`, `photon-imessage`,
+`slack` and `web` name an `eve add`. Check `eve registry list` before assuming otherwise; the kind
+list has been wrong before.
 
 ```ts
 // agent/channels/telegram.ts
@@ -76,8 +78,9 @@ than degrading to a question.
 uploadPolicy: { allowedMediaTypes: ["image/*", "application/pdf"], maxBytes: 10 * 1024 * 1024 }
 ```
 
-**Gating inbound with `onMessage`.** `[VERIFY]` — on the installed types (checked against
-**0.27.6**; re-check on upgrade):
+**Gating inbound with `onMessage`.** On the installed types (re-verified against **0.45.0** — the
+shape has not moved since 0.27.6, and it now also carries an optional `title` that overrides the
+workflow run title without changing what the model receives):
 
 ```ts
 onMessage?: (ctx: TelegramContext, message: TelegramMessage) => TelegramInboundResultOrPromise;
@@ -88,6 +91,9 @@ type TelegramInboundResult = { readonly auth: SessionAuthContext | null;
 
 Returning **`null` suppresses the session entirely** — that is the gate for a `/start <token>`
 deep link (bind an identity, don't start a turn) or an unknown sender (reply with an invite).
+⚠️ **Don't generalise this to eve's own channel**: a canonical eve `onMessage` lost the ability to
+veto by returning `null` in 0.31.0. Telegram's hook still drops the update; they are different
+contracts wearing the same name.
 `context` is `readonly string[]`, plain text lines prepended to the turn — not an attribute bag.
 `TelegramContext` is deliberately minimal (no channel state, no session ops: the session does not
 exist yet), so any lookup must hit your own store. `defaults` exports `defaultOnMessage`, so a
@@ -97,8 +103,8 @@ custom gate can **wrap** it instead of reimplementing the private/group/reply fi
 `to(telegram, target).send(message, { auth })` (`target.chatId` required, `messageThreadId`
 optional) — that starts or resumes an **agent session**. For delivery *without* running the model
 (templated transactional mail, audit copies), `eve/channels/telegram` also exports
-`sendTelegramMessage({ chatId, body })`. `[VERIFY]`: `body` requires `{ text }` — a bare string
-is rejected — and the result's `id` is `""` when Telegram returns none, so project it as
+`sendTelegramMessage({ chatId, body })`. Confirmed at 0.45.0: `body` is a `TelegramMessageBody`
+whose only required field is **`text: string`** — a bare string is rejected — and the result's `id` is `""` when Telegram returns none, so project it as
 `result.id || undefined` rather than storing an empty string. This export is **not on the docs
 page**, so treat it as less stable than the documented path.
 
