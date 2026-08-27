@@ -1,4 +1,12 @@
 > Sources: https://docs.expo.dev/develop/unit-testing/, jest-expo README, internal opinion.
+> **Verified 2026-08-26** against `@testing-library/react-native@14.0.1`, whose `package.json` states
+> every claim below in one place: `peerDependencies` = `jest >=29.0.0`, `react >=19.0.0`,
+> `react-native >=0.78`, **`test-renderer ^1.0.0`**; `engines.node` = **`^22.13.0 || >=24`**.
+> `test-renderer` is a real package (latest `1.2.0`, peer `react ^19.0.0`), published as `1.0.0` /
+> `1.1.0` / `1.2.0` — one line per React 19 minor, exactly as described below.
+> ⚠️ **Only `jest-expo` is pinned by the SDK** (`~57.0.4` in `expo@57.0.16`'s `bundledNativeModules`);
+> `jest`, `@testing-library/react-native` and `test-renderer` are **not**, so `npx expo install` hands
+> you npm `latest` for those three. That is why the version ranges above are written by hand.
 
 # Jest + React Native Testing Library setup for Expo
 

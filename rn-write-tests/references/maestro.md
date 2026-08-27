@@ -1,6 +1,12 @@
 # Maestro — E2E flows for Expo + RN
 
-The **how**, not just "use Maestro". Doc-grounded against `docs.maestro.dev` (CLI install, CLI commands & options, React Native platform page, command reference, selectors, nested flows, parameters, workspace config, Cloud + GitHub Actions) and `docs.expo.dev` (EAS Workflows `maestro` job). Checked 2026-08. `[VERIFY]` CLI flags against `maestro --help` for the installed build.
+The **how**, not just "use Maestro". Doc-grounded against `docs.maestro.dev` (CLI install, CLI commands & options, React Native platform page, command reference, selectors, nested flows, parameters, workspace config, Cloud + GitHub Actions) and `docs.expo.dev` (EAS Workflows `maestro` job). Re-checked **2026-08-26**. ⚠️ **The docs moved**: `maestro.mobile.dev` now redirects to
+**`docs.maestro.dev`**, and the old deep paths went with it — `/cli/commands` →
+`/reference/commands-available`, `/getting-started/installing-maestro` → `/get-started/quickstart`.
+
+`[VERIFY]` CLI flags against `maestro --help` for the installed build, and note the cadence: the CLI
+ships roughly monthly (`cli-2.9.0` landed **on 2026-08-26**, `2.8.0` on 07-31, `2.7.0` on 07-20), so a
+flag list here is a snapshot, never a contract.
 
 **Scope**: this file is the E2E complement to `references/rntl-patterns.md`. RNTL renders components in a Node/Jest environment; Maestro drives the **real binary on a real device/simulator** through the accessibility tree, with zero instrumentation and no npm package inside the app. One user journey per flow. Component rendering, hooks, and query/mutation logic stay in Jest + RNTL — do not re-test them here.
 
@@ -22,7 +28,7 @@ maestro --help        # verify; `maestro -v` prints the version
 
 Windows: download `maestro.zip` from the GitHub releases page, extract, add `bin` to `PATH`. macOS also needs Xcode + Command Line Tools for the iOS driver.
 
-Two naming notes that trip people up. The **docs moved to `docs.maestro.dev`** while the **install script still lives on `get.maestro.mobile.dev`**. And **Maestro Studio is now a separate desktop app** (`MaestroStudio.dmg` / `.exe` / `.AppImage`), no longer in the CLI subcommand list — which is `test`, `cloud`, `record`, `start-device`, `list-devices`, `list-cloud-devices`, `login`, `logout`, `mcp`, `download-samples`, `driver-setup`, `bugreport`. `[VERIFY]`: if `maestro studio` still runs on your build, it is a legacy alias.
+Two naming notes that trip people up. The **docs moved to `docs.maestro.dev`** while the **install script still lives on `get.maestro.mobile.dev`**. And **Maestro Studio is now a separate desktop app** (`MaestroStudio.dmg` / `.exe` / `.AppImage`), no longer in the CLI subcommand list — which is `test`, `cloud`, `record`, `start-device`, `list-devices`, `list-cloud-devices`, `login`, `logout`, `mcp`, `download-samples`, `driver-setup`, `bugreport`. **Confirmed**: `docs.maestro.dev/maestro-studio` opens with *"Maestro Studio is the desktop app for…"* and has its own docs section, separate from the CLI. If `maestro studio` still runs on your build, treat it as a legacy alias.
 
 ## Project layout
 
@@ -125,7 +131,7 @@ maestro test --format JUNIT --output report.xml .maestro/
 maestro record .maestro/sign-in.yaml       # MP4 of the run
 ```
 
-Agent-driven authoring: `maestro mcp` starts Maestro's MCP server so a coding agent can write, run, and debug flows directly `[VERIFY]`.
+Agent-driven authoring: **confirmed** — `docs.maestro.dev/get-started/maestro-mcp` registers it as a *local* MCP server with `Command: maestro mcp`, so a coding agent can write, run and debug flows directly.
 
 ## ⚠️ Expo Go cannot be launched by `appId` — use a dev build or a deep link
 
@@ -181,7 +187,28 @@ maestro cloud --app-file build/app-release.apk --flows .maestro/ \
   --device-os android-34 --format JUNIT -e PASSWORD="$TEST_PASSWORD"
 ```
 
-The official GitHub Action wraps the same thing: `mobile-dev-inc/action-maestro-cloud@v2.0.2` with `api-key: ${{ secrets.MAESTRO_API_KEY }}`, `project-id`, `app-file` `[VERIFY] the action tag`. Cloud runs have a ~15-minute soft limit per execution — split long journeys into parallelizable flows. Free alternative: run `maestro test --format JUNIT` on a self-hosted emulator.
+The official GitHub Action wraps the same thing — ⚠️ **the pinned tag here was a major behind**:
+`v2.0.2` is from 2026-02-23, and the current release is **`v3.0.1`** (2026-05-20).
+
+```yaml
+- uses: mobile-dev-inc/action-maestro-cloud@v3.0.1
+  with:
+    api-key: ${{ secrets.MAESTRO_API_KEY }}
+    project-id: <id>
+    app-file: <path>
+    maestro-cli-version: 2.9.0     # see below
+```
+
+`api-key` / `project-id` / `app-file` all still exist at v3.0.1 (read off its `action.yml`), so the
+upgrade is a tag bump. **But v3 changed what runs underneath** — its release note is
+*"Migrate to Maestro CLI instead of separate validation code and curl requests to do cloud upload"* —
+which is why the new **`maestro-cli-version`** input matters: *"Pin a specific Maestro CLI version
+(defaults to latest)"*. Left unpinned, your CI now silently tracks whatever the Maestro CLI ships
+next, and that ships monthly. Pin it, or accept a moving dependency you never declared.
+
+Other inputs worth knowing at v3.0.1: `include-tags` / `exclude-tags`, `env` (key=value into flows),
+`async`, `device-os` / `device-model` / `device-locale` (the docs mark `android-api-level` and
+`ios-version` as superseded by `device-os`), and `timeout` in minutes. Cloud runs have a ~15-minute soft limit per execution — split long journeys into parallelizable flows. Free alternative: run `maestro test --format JUNIT` on a self-hosted emulator.
 
 ## Integration in dev-flow
 
