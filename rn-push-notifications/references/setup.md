@@ -61,12 +61,23 @@ Then: iOS → production → Push Notifications → Generate (lets EAS handle th
 
 ## 5. Development build required
 
-Remote (push) notifications in Expo Go were removed for **Android** in SDK 53; iOS remote push still works in Expo Go. For reliable cross-platform push you MUST use a development build:
+What the Expo docs actually say, verbatim (re-read 2026-08-26): *"Push notifications (remote
+notifications) functionality provided by `expo-notifications` is unavailable in Expo Go **on Android**
+from SDK 53. **A development build is required to use push notifications.** Local notifications
+(in-app notifications) remain available in Expo Go."*
+
+⚠️ **This file used to add "iOS remote push still works in Expo Go" — that is our inference from the
+"on Android" qualifier, not something the page states**, and the sentence right after it says a
+development build is required without qualifying the platform. Don't plan an iOS-only Expo Go testing
+path on it. The operative advice is the same either way, and it *is* what the docs state:
 
 ```bash
 eas build --profile development --platform ios
 eas build --profile development --platform android
 ```
+
+**Local notifications are the exception** — `scheduleNotificationAsync` and friends keep working in
+Expo Go, so the reminder/badge half of a feature is testable before you ever cut a build.
 
 Install the resulting dev client on the device, then `npx expo start --dev-client`.
 

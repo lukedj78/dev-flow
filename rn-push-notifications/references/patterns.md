@@ -1,4 +1,10 @@
 > Sources: https://docs.expo.dev/push-notifications/receiving-notifications/, internal opinion.
+> API surface verified against **`expo-notifications@57.0.15`** (the version `expo@57.0.16` pins is
+> `~57.0.14`) on 2026-08-26: all thirteen `Notifications.*` calls this skill uses exist, and the
+> handler shape below is the current one. `[VERIFY]` on an SDK major — this package changes shapes,
+> not just names: `shouldShowAlert` is now `@deprecated` in favour of the
+> `shouldShowBanner`/`shouldShowList` pair, and a handler written before that split still typechecks
+> while showing nothing.
 
 # Patterns — receiving + handling push notifications
 
@@ -169,3 +175,14 @@ Pattern: set badge from server in the push payload (`badge` field). On app foreg
 - ❌ Use `console.log(token)` and never delete the line — accidental leak in dev tools.
 - ❌ Re-register the token on every app launch — only if it's missing on the server or rotated. Compare client cache to server state.
 - ❌ Skip `Device.isDevice` check — token request on iOS Sim throws an opaque error.
+
+## FCM topics — broadcast without storing tokens (Android only)
+
+`expo-notifications` also exposes `subscribeToTopicAsync(topic)` / `unsubscribeFromTopicAsync(topic)`,
+which let a device receive a broadcast without your backend keeping its token at all — the fan-out
+happens at FCM.
+
+⚠️ **Both are `@platform android`.** On iOS they are not available, so a "subscribe everyone to
+`news`" design silently covers half your users. Use them as an *optimisation* on Android for genuinely
+broadcast content, never as the primary delivery path — and keep the token-per-device path as the one
+that actually defines who gets what.
