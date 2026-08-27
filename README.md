@@ -952,7 +952,7 @@ Derived from `lusentis/next-skills/nextjs-forms` (MIT) — see `forms/SKILL.md` 
 
 Server Actions are for **mutations only** — never reads. After mutating, call `revalidatePath` / `revalidateTag` / `refresh()` and let the Server Component re-render. Never `useState + useEffect + fetch` in a Client Component. Never `useEffect` driving a Server Action call.
 
-**Next 16.3 — Instant Navigations** (stable, opt-in via `cacheComponents` + `partialPrefetching`): the skill covers the Stream / Cache / **Block** levers, the static-shell-vs-App-Shell distinction that explains why a page can be instant on load and blocking on navigation, `use cache: private|remote`, and how Partial Prefetching changes `<Link>` (one reusable shell per route, not one request per link). Adoption routes to Vercel's official migration guide and Skills — we don't hand-roll it.
+**Next 16.3 — Instant Navigation** (stable, opt-in via `cacheComponents` + `partialPrefetching`): the skill covers the Stream / Cache / **Block** levers, the static-shell-vs-App-Shell distinction that explains why a page can be instant on load and blocking on navigation, `use cache: private|remote`, and how Partial Prefetching changes `<Link>` (one reusable shell per route, not one request per link). Adoption routes to Vercel's official migration guide and Skills — we don't hand-roll it.
 
 **Why**: Server Actions are queued sequentially. Reading via action in `useEffect` costs SSR, streaming, request deduping, caching, parallelism — and produces no error to warn you. The bug is silent.
 

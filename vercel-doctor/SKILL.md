@@ -90,7 +90,7 @@ it reports rather than guessing.
    Prefetching** (16.3) Next prefetches one reusable **App Shell per route**, so rendering a `<Link>` is
    effectively free and `prefetch={true}` means something different (deeper per-link prefetch + runtime
    prefetching). On ≤16.2 the advice stands; on 16.3+ with `partialPrefetching` on, **ignore it** and follow
-   `data-fetching` §Instant Navigations instead.
+   `data-fetching` §Instant Navigation instead.
 4. **Apply the safe, mechanical fixes** here (dead-code deletion with `tsc --noEmit` green, config corrections, `next/image` `sizes`/format tweaks).
 5. **Route the judgment calls** to the owning skill rather than hand-fixing: caching + invocation findings → `data-fetching` (it owns the Next 16 read/caching ladder); image-pattern findings → `design-md-to-app`. Don't re-implement their rules here.
 6. **Persist**: write the report to `docs/vercel/doctor-report.md`, update `meta.json#vercel_doctor`, append `history`. **No phase bump.**

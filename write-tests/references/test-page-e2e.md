@@ -126,25 +126,64 @@ Default to (1) when `module-add db` has run AND a test seed exists. Fall back to
 - **Network race conditions**: a page that fetches data on the client may not have the data rendered yet when assertions fire. Use `page.waitForResponse(...)` before asserting on fetched content, or `page.waitForLoadState("networkidle")` for the conservative approach.
 - **Skipping `webServer`**: forgetting that `playwright.config.ts` needs `webServer: { command: "pnpm dev", ... }` means tests run against nothing. Already configured by `module-add test`; only an issue if the user customized.
 
-## Asserting an *instant* navigation (Next **16.3 preview**) `[VERIFY]`
+## Asserting an *instant* navigation (Next **16.3**, stable)
 
-Only relevant when the project has opted into Instant Navigations (`cacheComponents` + `partialPrefetching` — see `data-fetching/SKILL.md` §Instant Navigations). Next ships an `instant()` helper from **`@next/playwright`** that asserts what is visible **without waiting for the network** — i.e. the prefetched shell:
+Only relevant when the project has opted in — **both** `cacheComponents` *and* `partialPrefetching`
+(see `data-fetching/SKILL.md` §Instant Navigation). Next ships an `instant()` helper from
+**`@next/playwright`** that asserts what is visible **without waiting for the network** — i.e. the
+prefetched shell. Install it beside Playwright: `pnpm add -D @next/playwright @playwright/test`.
+
+⚠️ **Two corrections to what this section used to say** (checked 2026-08-26): 16.3 is **not** preview —
+`next@16.3.3` is `latest` — and `@next/playwright` is **not** preview-tag tooling either: its `latest`
+is `16.3.3`, versioned in lockstep with Next. (A `preview` tag exists, at `16.3.0-preview.10`; that is
+not what you get by default.)
 
 ```ts
 import { expect, test } from "@playwright/test";
 import { instant } from "@next/playwright";
 
-test("product title is available immediately", async ({ page }) => {
-  await page.goto("/products/shoes");
+// A route is reachable two ways, and a <Suspense> boundary can cover one and not the other.
+// Test both.
+
+test("instant on a client navigation", async ({ page }) => {
+  await page.goto("/store/shoes");
 
   await instant(page, async () => {                 // inside: no network waiting allowed
-    await page.click('a[href="/products/hats"]');
+    await page.click('a[href="/store/hats"]');
+    await page.waitForURL((url) => url.pathname === "/store/hats");   // ← REQUIRED, see below
     await expect(page.locator("h1")).toContainText("Baseball Cap");
-    await expect(page.getByText("Checking inventory...")).toBeVisible();
+    await expect(page.getByText("In stock")).toHaveCount(0);          // data has NOT arrived yet
   });
 
-  await expect(page.getByText("12 in stock")).toBeVisible();  // outside: the streamed data
+  await expect(page.getByText("In stock")).toBeVisible();             // outside: the streamed data
+});
+
+test("instant on an initial page load", async ({ page, baseURL }) => {
+  await instant(
+    page,
+    async () => {
+      await page.goto("/store/hats");
+      await expect(page.locator("h1")).toContainText("Baseball Cap");
+      await expect(page.getByText("In stock")).toHaveCount(0);
+    },
+    { baseURL },                                    // ← third argument, see below
+  );
+  await expect(page.getByText("In stock")).toBeVisible();
 });
 ```
 
-The shape is the point: **inside** the `instant()` block you assert the shell (title from params, the loading placeholder); **outside** it you assert the data that streams in. It's a regression guard — a refactor that accidentally makes a route server-bound fails the test instead of silently making the app feel slower. Don't add these tests to a project that hasn't enabled the flags; `@next/playwright` is preview-tag tooling.
+⚠️ **The old snippet here was missing both of the things the docs single out.**
+
+- **`waitForURL` before asserting, on a client navigation.** Next's words: *"wait for the destination
+  URL before asserting on its UI. Otherwise, **a shared selector can match the source page before the
+  destination commits**."* Without it the test passes against the page you navigated *away from* — the
+  worst kind of green. And if the prefetched destination can't commit, the URL wait times out and the
+  test fails, which is the failure you wanted.
+- **The `{ baseURL }` third argument**, needed *"when `page.goto()` is the first navigation. The helper
+  needs the origin before requesting the document."* Only the initial-load shape needs it; the
+  client-navigation shape does not, because `goto` already ran outside the block.
+
+Asserting *absence* (`toHaveCount(0)`) on the streamed text is the docs' own idiom, and it is sturdier
+than asserting a loading placeholder is visible: it holds whether or not the route has a spinner.
+
+The shape is the point: **inside** the `instant()` block you assert the shell (title from params, the loading placeholder); **outside** it you assert the data that streams in. It's a regression guard — a refactor that accidentally makes a route server-bound fails the test instead of silently making the app feel slower. Don't add these tests to a project that hasn't enabled both flags. Related: the **Navigation Inspector** in Next DevTools freezes the page at its initial loading state, and the docs note that entering an `instant()` scope is the same as its *Pause on navigations* — so the inspector is the interactive version of this test.
