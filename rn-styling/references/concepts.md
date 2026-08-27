@@ -72,5 +72,5 @@ The project's `DESIGN.md` is the source of truth for colors, spacing, radii, typ
 ## Sources
 
 - https://reactnative.dev/docs/flexbox
-- https://docs.expo.dev/develop/user-interface/styling/
+- https://reactnative.dev/docs/style (the Expo `develop/user-interface/styling/` page 404s as of 2026-08-26; see `color-themes/`, `safe-areas/`, `fonts/` for the Expo-side topics)
 - https://github.com/AppAndFlow/react-native-safe-area-context
