@@ -18,7 +18,7 @@ The single fact that makes Coss slot into dev-flow cleanly: **Coss's design toke
 
 ## Fonts
 
-`init @coss/style` installs Inter + Geist Mono by default. If DESIGN.md declares a `typography.fontFamily`, override the font wiring the same way `design-md-to-app` does (`next/font/google` on Next) — the Coss defaults are just a starting point.
+`init @coss/style` installs **three** font slots by default — `--font-sans` (Inter), `--font-heading` (**also Inter**) and `--font-mono` (Geist Mono), pulled as `@fontsource-variable/inter` and `geist`. ⚠️ **Overriding only `--font-sans` leaves headings on Inter.** If DESIGN.md declares a `typography.fontFamily`, override the font wiring the same way `design-md-to-app` does (`next/font/google` on Next) — the Coss defaults are just a starting point.
 
 ## Dark / light
 

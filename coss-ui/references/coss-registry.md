@@ -1,20 +1,28 @@
 # Coss/UI registry cookbook
 
-How Coss/UI is installed through the **shadcn CLI**. **Verify every command and the registry config against the live docs** (<https://coss.com/ui/docs/get-started> and each component page) before running — Coss is young and the registry URL/namespace can change. `[VERIFY]` markers below flag what could not be confirmed offline.
+How Coss/UI is installed through the **shadcn CLI**. **Verify every command against the live docs** (<https://coss.com/ui/docs/get-started>, 200 on 2026-08-26) before running — Coss is young and the registry URL/namespace can change. The registry *shape* below (base URL, namespace chain, item counts, fonts) was confirmed against `coss.com/ui/r/*.json` on **2026-08-26**; what remains unverifiable offline is the CLI's own behaviour, i.e. whether `init` writes the `registries` entry for you.
 
 ## The model
 
 Coss is **copy-paste-and-own**: *"instead of installing a package, you get the source code."* You pull TSX source into your repo via the shadcn CLI, or copy it by hand. It ships three tiers:
 
-- **primitives / atoms** — the 60+ base components (Button, Dialog, Combobox, Table, …), built on `@base-ui/react`.
-- **particles** — ~500 pre-built variations/compositions.
-- **style** — the whole design system bundle (components + neutral tokens + sidebar vars + base styles + fonts).
+Counted off `https://coss.com/ui/r/registry.json` on **2026-08-26** — **577 items**, and the tiers map
+onto the item `type` exactly:
+
+| Tier | `type` | Count |
+|---|---|---|
+| **primitives / atoms** — Button, Dialog, Combobox, Table, … on `@base-ui/react` (npm `1.7.0`) | `registry:ui` | **56** (of which `@coss/ui` pulls **54**) |
+| **particles** — pre-built variations/compositions | `registry:block` | **508** |
+| **style** — the design-system bundle | `registry:style` | 2 (`style`, `colors-neutral`) |
+| fonts · lib · hooks | `registry:font` / `:lib` / `:hook` | 3 / 6 / 2 |
+
+("60+ base components" was a rounding in the wrong direction — it is 56 published, 54 bundled.)
 
 ## Exact commands (verbatim from the docs — re-verify)
 
 | Purpose | Command |
 |---|---|
-| **New project** (recommended): all components + neutral colors + sidebar vars + base styles + fonts (Inter, Geist Mono) | `pnpm dlx shadcn@latest init @coss/style` |
+| **New project** (recommended): all components + neutral colors + sidebar vars + base styles + **three** font slots (below) | `pnpm dlx shadcn@latest init @coss/style` |
 | **Existing project**, full setup | `pnpm dlx shadcn@latest add @coss/style` |
 | UI **primitives** only (Base UI) | `pnpm dlx shadcn@latest add @coss/ui` |
 | Primitives **+ color tokens** | `pnpm dlx shadcn@latest add @coss/ui @coss/colors-neutral` |
@@ -28,7 +36,7 @@ Coss is **copy-paste-and-own**: *"instead of installing a package, you get the s
 `@coss/*` is a **shadcn CLI v4 namespaced registry** reference. For `add @coss/<name>` to resolve on an existing project, the `@coss` namespace must be known to the CLI — typically via a `registries` entry in `components.json`:
 
 ```jsonc
-// components.json — registry base URL confirmed 2026-07 (re-check if it changes); exact config below still [VERIFY]
+// components.json — base URL and shape both confirmed live 2026-08-26
 {
   "registries": {
     "@coss": "https://coss.com/ui/r/{name}.json"
@@ -36,7 +44,17 @@ Coss is **copy-paste-and-own**: *"instead of installing a package, you get the s
 }
 ```
 
-The registry base URL `https://coss.com/ui/r/{name}.json` was **re-confirmed live 2026-08-12** (HTTP 200 on `button.json`) — re-check if it changes. `init @coss/style` on a fresh project is expected to set this up for you. `[VERIFY]` the exact `components.json#registries` shape above and whether the namespace is auto-registered vs. needs the manual entry.
+Base URL re-confirmed **2026-08-26**: `button.json`, `style.json` and `registry.json` all 200.
+
+**The namespace is not optional, and the registry proves it.** `@coss/style`'s own
+`registryDependencies` are `["utils", "@coss/ui", "@coss/fonts"]`, and `@coss/ui`'s are 54 entries all
+written `@coss/<name>`. So the resolution chain is `style → @coss/ui → 54 × @coss/*`: unless the CLI can
+resolve `@coss`, the very first install fails on its own dependencies. `init @coss/style` writing the
+entry for you is the expected path on a fresh project; on an **existing** one, add it yourself first.
+
+What `@coss/style` actually brings, read off the item: npm deps `@base-ui/react`,
+`class-variance-authority`, `lucide-react`; `cssVars` under `theme` / `light` / `dark`; and **no files
+of its own** — it is a manifest, everything arrives through its dependencies.
 
 ## AI-first claim
 

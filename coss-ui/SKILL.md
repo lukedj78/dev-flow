@@ -9,7 +9,7 @@ This skill owns the **Coss/UI side** of a web project: installing and extending 
 
 ## The one rule that matters most
 
-**Never invent the Coss commands or registry.** The source of truth is the live docs at <https://coss.com/ui/docs> (get-started + each component page shows its exact `pnpm dlx shadcn@latest add @coss/<name>` command) and the repo `cosscom/coss`. Confirm the exact command, the `components.json#registries` config for the `@coss` namespace, and the current registry URL **before** running anything. Coss is young; treat this skill as the workflow + conventions, not a frozen copy of the API. Anything marked `[VERIFY]` must be checked against the live docs first.
+**Never invent the Coss commands or registry.** The source of truth is the live docs at <https://coss.com/ui/docs> (get-started + each component page shows its exact `pnpm dlx shadcn@latest add @coss/<name>` command) and the repo `cosscom/coss`. Confirm the exact command, the `components.json#registries` config for the `@coss` namespace, and the current registry URL **before** running anything. Coss is young; treat this skill as the workflow + conventions, not a frozen copy of the API. **Swept 2026-08-26 against the live registry** (`coss.com/ui/r/registry.json` — 577 items — plus `style.json`, `ui.json` and the three font items), so the counts, the namespace requirement and the font slots below are read from the registry rather than the docs page. Anything still marked `[VERIFY]` must be checked against the live docs first.
 
 ## Why Coss fits dev-flow (and when to pick it)
 
@@ -43,7 +43,18 @@ Goal: a runnable app with Coss/UI installed and its tokens reconciled to `DESIGN
    ```bash
    pnpm dlx shadcn@latest init @coss/style
    ```
-   This installs all UI components, the neutral color system, sidebar variables, base styles, and the default fonts (Inter, Geist Mono). `[VERIFY]` the exact behavior against the live get-started page.
+   This installs all UI components, the neutral color system, sidebar variables, base styles and the
+fonts. ⚠️ **There are three font slots, not two** — read off the registry on 2026-08-26:
+
+| Item | `--variable` | Family | npm dependency |
+|---|---|---|---|
+| `font-sans` | `--font-sans` | Inter | `@fontsource-variable/inter` |
+| `font-heading` | `--font-heading` | **Inter as well** | `@fontsource-variable/inter` |
+| `font-mono` | `--font-mono` | Geist Mono | `geist` |
+
+They arrive as **npm font packages**, not `next/font`. And headings default to the *same* family as
+body — so a DESIGN.md that gives headings their own face has to override `--font-heading` explicitly;
+inheriting the default silently flattens the type hierarchy to one family.
 3. **Reconcile with `DESIGN.md`** (if present). Coss tokens are the same CSS variables as shadcn/ui, so DESIGN.md values override Coss's neutral defaults **in `globals.css`** — do not fork Coss's token structure, override its values. Follow `references/design-md-reconciliation.md`; this is the exact `registry.json` token-install path `design-md-to-app` already uses, with `@coss/colors-neutral` as the base being overridden.
 4. Wire the dark/light toggle and the rest of the standard scaffold via `design-md-to-app`'s mandatory steps (theme toggle, error/loading boundaries, folder convention) — Coss primitives slot into `components/ui/` like any shadcn primitive.
 5. Update `.workflow/meta.json`: `stack.ui = "coss"`, `stack.ui_base = "base"`, `stack.css_variables = true`, bump `phase` to `scaffolded` (only forward), append `history` (`{ "skill": "coss-ui", "action": "init" }`).
