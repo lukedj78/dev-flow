@@ -489,7 +489,7 @@ The 10 violation kinds:
 
 This skill is heavily inspired by — and extends — the `nextjs-forms` skill from **[lusentis/next-skills](https://github.com/lusentis/next-skills)** (MIT-licensed). The original targets TanStack Form + Zod only; this skill adds the `meta.json#stack.forms` branching layer so the same hook surface (`useEditForm` / `useCreateForm`) is also available on top of react-hook-form for teams that prefer it. The discriminated-union error contract, baseline-reset semantics, dirty-gating discipline, and red-flag catalog are preserved.
 
-- Original: <https://github.com/lusentis/next-skills/tree/main/nextjs-forms>
+- Original: <https://github.com/lusentis/next-skills/tree/main/skills/nextjs-forms>
 - TanStack Form: <https://tanstack.com/form/latest>
 - react-hook-form: <https://react-hook-form.com>
 - Zod v4: <https://zod.dev>

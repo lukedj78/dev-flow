@@ -1,6 +1,15 @@
 # URL state — nuqs (Next.js 16 App Router)
 
-The **how**, not just "use nuqs". Doc-grounded against [nuqs.dev](https://nuqs.dev) — verified **nuqs@2.9.5** (2026-08-12). Canonical library for the **URL-state rung** in both `data-fetching` (rung 2) and `state-discipline` (rung 2). `[VERIFY]` every identifier against the installed version; this surface moves (`throttleMs` was **deprecated in 2.5.0** in favour of `limitUrlUpdates`, and the generic `nuqs/adapters/react-router` import is **removed in 3.0.0**).
+The **how**, not just "use nuqs". Doc-grounded against [nuqs.dev](https://nuqs.dev) — verified **nuqs@2.10.1** (2026-08-26; was 2.9.5 here). **Next 16 is covered**: the package declares
+`peerDependencies.next: ">=14.2.0"` — no upper bound, so nothing to opt into. Canonical library for the
+**URL-state rung** in both `data-fetching` (rung 2) and `state-discipline` (rung 2).
+
+`[VERIFY]` every identifier against the installed version; this surface moves. Two claims re-checked at
+2.10.1: `throttleMs` **is** `@deprecated` in the types — *"use `limitUrlUpdates: { method: 'throttle',
+timeMs }`, or the shorthand `limitUrlUpdates: throttle(100)`"* — and if both are set **`limitUrlUpdates`
+wins**. ⚠️ The claim that `nuqs/adapters/react-router` is *"removed in 3.0.0"* is about a version that
+**does not exist**: npm has 129 versions and none is 3.x, and the generic adapter is still exported at
+2.10.1 alongside `/v6`, `/v7`, `/v8`. Treat it as an announced intention, not a shipped change.
 
 **The division of labour**: the page stays an **async Server Component** reading the `searchParams` prop. nuqs owns the **client write side** — a typed, throttled replacement for hand-rolled `router.replace(...)`. It is not a data-fetching library.
 
@@ -32,7 +41,14 @@ Other adapters (same `NuqsAdapter` name, different path): `nuqs/adapters/next/pa
 
 > ⚠️ **The two gotchas that cost the most time.**
 > 1. **No adapter → every hook throws.** `<NuqsAdapter>` is not optional and not auto-installed; wire it in the root layout the moment you add the dep.
-> 2. **`shallow: true` is the default, and it does NOT re-render Server Components.** A filter that updates the URL but never refreshes the list is this. Any param the server reads must be `shallow: false`. Corollary: a Client Component using `useQueryState` inside a Server page must sit under a `<Suspense>` boundary or Next throws *"Missing Suspense boundary with useSearchParams"* — keep `page.tsx` a Server Component and put the client bits in their own file. `[VERIFY]` the Suspense requirement against Next 16.
+> 2. **`shallow: true` is the default, and it does NOT re-render Server Components.** A filter that updates the URL but never refreshes the list is this. Any param the server reads must be `shallow: false`. Corollary: a Client Component using `useQueryState` inside a Server page must sit under a `<Suspense>` boundary or Next throws *"Missing Suspense boundary with useSearchParams"* — keep `page.tsx` a Server Component and put the client bits in their own file.
+
+**Confirmed against `next@16.3.3`'s shipped docs**, and the timing is the trap worth quoting:
+*"In development, routes are rendered on-demand, so `useSearchParams` doesn't suspend and things may
+appear to work without `Suspense`. During production builds, a static page that calls
+`useSearchParams` from a Client Component **must** be wrapped in a `Suspense` boundary, otherwise the
+build fails."* So this never shows up while you're working — it shows up in CI, on the build that was
+supposed to ship.
 
 ## `useQueryState` — one param
 

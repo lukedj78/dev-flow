@@ -442,7 +442,7 @@ Violation kinds:
 
 Derived from the `nextjs-usestate` skill from **[lusentis/next-skills](https://github.com/lusentis/next-skills)** (MIT-licensed), adapted to the dev-flow contract and renamed to `state-discipline` since the rules cover all state, not only `useState`. The eight-rung ladder, the `useMountEffect` escape-hatch contract, the `key`-for-reset discipline, the lint rule, and the red-flag catalog are preserved.
 
-- Original: <https://github.com/lusentis/next-skills/tree/main/nextjs-usestate>
+- Original: <https://github.com/lusentis/next-skills/tree/main/skills/nextjs-usestate>
 - React docs (You Might Not Need an Effect): <https://react.dev/learn/you-might-not-need-an-effect>
 - React docs (`useOptimistic`): <https://react.dev/reference/react/useOptimistic>
 - React docs (`useTransition`): <https://react.dev/reference/react/useTransition>

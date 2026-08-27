@@ -1,6 +1,6 @@
 ---
 name: data-fetching
-description: 'Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations, never reads. Use when the user is about to load data via a Server Action, about to add `useEffect` to fetch, about to convert a page to `"use client"` for filter state, or pastes `useState + useEffect + fetch` in a Client Component. Also owns Next.js 16 Cache Components — `cacheComponents`, `use cache`, `cacheLife`, `revalidateTag`, Partial Prefetching, Instant Navigations — and any question about caching, prefetching or navigation speed. Refuses outside Next.js 16 web. Not for: form persistence (`forms`), local UI state (`state-discipline`), React Native (`rn-data-fetching`), or mutations.'
+description: 'Read data in a Next.js 16 App Router app the canonical way — async Server Components first, URL `searchParams` for filter state, `use()` + `<Suspense>` when a Client Component needs server data, Route Handlers + SWR/React Query only as a last resort. Server Actions are for mutations, never reads. Use when the user is about to load data via a Server Action, about to add `useEffect` to fetch, about to convert a page to `"use client"` for filter state, or pastes `useState + useEffect + fetch` in a Client Component. Also owns Next.js 16 Cache Components — `cacheComponents`, `use cache`, `cacheLife`, `revalidateTag`, `partialPrefetching`, Instant Navigation — and any question about caching, prefetching or navigation speed. Refuses outside Next.js 16 web. Not for: form persistence (`forms`), local UI state (`state-discipline`), React Native (`rn-data-fetching`), or mutations.'
 ---
 
 # data-fetching — Server Components first, never `useEffect` for reads
@@ -86,7 +86,7 @@ digraph data_fetching {
 If you're staring at `useState` + `useEffect` + a `"use server"` read in a Client Component, walk this ladder **top-down** and stop at the first rung that fits. It's almost always rung 1.
 
 1. **Lift the read to a Server Component.** Convert the page to `async function Page({ searchParams })`, `await` the read at the top, pass data down. If the page has interactive state, ask rung 2 *before* deciding it has to stay client.
-2. **Move state to URL `searchParams`.** Tabs, filters, ranges, pagination, sort, search query — all belong in the URL. The Server Component reads the `searchParams` prop and re-renders with new data; the Client leaf **writes** the param with [`nuqs`](https://nuqs.dev) `useQueryState`/`useQueryStates` (typed parsers + built-in URL-update rate limiting — the ecosystem-first replacement for hand-rolled `router.replace`, which stays a fine fallback for a single param; **note `shallow: false` when the Server Component must re-render** — see `references/nuqs.md`). Free streaming, free cache, shareable URL, back-button works. One-time: `<NuqsAdapter>` in the root layout; `createSearchParamsCache` for type-safe reads in nested Server Components. `[VERIFY]` nuqs against Next 16.
+2. **Move state to URL `searchParams`.** Tabs, filters, ranges, pagination, sort, search query — all belong in the URL. The Server Component reads the `searchParams` prop and re-renders with new data; the Client leaf **writes** the param with [`nuqs`](https://nuqs.dev) `useQueryState`/`useQueryStates` (typed parsers + built-in URL-update rate limiting — the ecosystem-first replacement for hand-rolled `router.replace`, which stays a fine fallback for a single param; **note `shallow: false` when the Server Component must re-render** — see `references/nuqs.md`). Free streaming, free cache, shareable URL, back-button works. One-time: `<NuqsAdapter>` in the root layout; `createSearchParamsCache` for type-safe reads in nested Server Components. Verified against **nuqs@2.10.1**, whose `next` peer range is `>=14.2.0` — Next 16 needs no special handling.
 3. **Pass `Promise<T>` from Server Component, consume with `use()` + `<Suspense>`.** Only when a Client Component genuinely needs server data as props at mount (charting libs, third-party widgets expecting a synchronous data shape).
 4. **`GET` Route Handler + TanStack Query** (recommended default for this rung — retries, request dedup, devtools, mutation helpers; SWR is an acceptable lighter-weight alternative for a single simple polling widget, but don't reach for a second data library once TanStack Query is already in the project). Reserved for: interval polling, focus revalidation, third-party mutates the data outside your app. **Not** for "I already have a Client Component and want to keep it."
 
@@ -256,9 +256,36 @@ export async function getCaseStats() {
 - **`updateTag('cases')`** — Server Actions only, **immediate** expiry with read-your-own-writes. Prefer it when the user must see their own change on the next render (e.g. right after editing the record they're viewing).
 - **`revalidateTag('cases', 'max')`** — the second argument (a cache profile) is **required** here; it's stale-while-revalidate (the triggering request may still see stale data while fresh loads in the background). The **single-argument** `revalidateTag('cases')` is the pre-Cache-Components form and is **deprecated** once `cacheComponents` is on.
 
-If the project has **not** enabled `cacheComponents`, ignore this section: the single-argument `revalidatePath` / `revalidateTag` in the mutation examples above are correct as-is. `[VERIFY]` the exact `cacheLife` profile names and the `revalidateTag`/`updateTag` signatures against the installed Next version — this surface is new in 16 and still settling.
+⚠️ **Half of that sentence is no longer true, and it's the half that bites.** Read off
+`next@16.3.3`'s own shipped docs (`dist/docs/…/functions/`):
 
-## Instant Navigations (Next **16.3**, stable — opt-in via `cacheComponents`) `[VERIFY]`
+| | Signature at 16.3.3 | Status |
+|---|---|---|
+| `revalidatePath` | `(path: string, type?: 'page' \| 'layout')` | single-argument form **fine**, `type` is optional |
+| `revalidateTag` | `(tag: string, profile: string \| { expire?: number })` | ⚠️ **single-argument form deprecated** — *"It currently works if TypeScript errors are suppressed, but this behavior may be removed in a future version. Update to the two-argument signature."* |
+| `updateTag` | `(tag: string)` | single-argument, the Cache-Components-era companion |
+
+**The `revalidateTag` deprecation carries no `cacheComponents` qualifier** — it applies whether or not
+you opted in, so "ignore this section if you haven't enabled it" was wrong for that one call. And note
+how it fails: TypeScript complains, the runtime doesn't. Suppress the error and you have shipped a form
+Next says may stop working.
+
+`cacheLife` profiles, verified from the same docs — `default` (5 min stale / 15 min revalidate / never
+expire), `seconds`, `minutes`, `hours`, `days`, `weeks`, `max` (30 days revalidate / 1 year expire).
+`[VERIFY]` the exact `cacheLife` profile names and the `revalidateTag`/`updateTag` signatures against the installed Next version — this surface is new in 16 and still settling.
+
+## Instant Navigation (Next **16.3**, stable — opt-in via `cacheComponents` **+ `partialPrefetching`**)
+
+⚠️ Two corrections from `next@16.3.3`'s shipped docs. The feature is **"Instant Navigation"**, singular
+— the plural appears zero times in the docs, the guide is at `/docs/app/guides/instant-navigation`, and
+the route-segment config key is `instant`. And it needs **both** flags, not just one:
+
+```ts title="next.config.ts"
+const nextConfig: NextConfig = { cacheComponents: true, partialPrefetching: true };
+```
+
+> *"Getting the most out of Instant Navigation requires enabling Cache Components **and** Partial
+> Prefetching, then following the validation errors that appear."*
 
 Doc-grounded against <https://nextjs.org/docs/app/guides/instant-navigation> (page states `version: 16.3.0`). Not preview — 16.3.0 is the `latest` npm tag. Still **opt-in**: it rides on `cacheComponents: true`, which Vercel says will become a default in a future major.
 
@@ -401,7 +428,7 @@ Violation kinds:
 
 This skill is derived from the `nextjs-data-fetching` skill from **[lusentis/next-skills](https://github.com/lusentis/next-skills)** (MIT-licensed), adapted to the dev-flow contract (reads `meta.json#stack.framework` / `stack.nextjs_version`, appends `history`, refuses on mismatch). The migration ladder, decision graph, four patterns, and anti-pattern catalog are preserved.
 
-- Original: <https://github.com/lusentis/next-skills/tree/main/nextjs-data-fetching>
+- Original: <https://github.com/lusentis/next-skills/tree/main/skills/nextjs-data-fetching>
 - Next.js docs (Fetching data): <https://nextjs.org/docs/app/getting-started/fetching-data>
 - Next.js docs (Mutating data): <https://nextjs.org/docs/app/getting-started/mutating-data>
 - React `use()`: <https://react.dev/reference/react/use>

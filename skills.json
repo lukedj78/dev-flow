@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-27T17:45:26Z",
+  "generated_at": "2026-08-27T17:53:17Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -189,7 +189,7 @@
         "nuqs.md"
       ],
       "scripts": [],
-      "skill_md_lines": 413,
+      "skill_md_lines": 440,
       "bundle": "dist/data-fetching.skill"
     },
     {
