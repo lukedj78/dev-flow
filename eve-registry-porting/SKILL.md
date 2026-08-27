@@ -29,7 +29,26 @@ agent-as-a-runtime**, and rewrite each one to be tenant-safe.
 Porting is **third choice**, not first. Before vendoring third-party source, prefer a maintained option higher up the list:
 
 1. **eve's official integrations** — discover + install from the CLI: **`eve registry search <cap>`** → **`eve add <kind>/<name>`** (catalog at <https://eve.dev/integrations> — 50+ MCP/OpenAPI connections, 11+ channels, official extensions). If the service is there, install and stop — don't port. (`eve-agent` → §Install from the registry FIRST / Connection / Channel.)
-2. **Install a third-party registry as a source** — the community registries below are **shadcn-registry format**, so you can register one as an eve source (**`eve registry add @name=https://…/r/{name}.json`**, stored in `package.json#registries`) and pull with **`eve add @name/<slug>`**. That's an *install* (files written, dep tracked) — prefer it over porting whenever you **don't** need to own/modify the source. `[VERIFY]` each registry actually serves the shadcn JSON shape.
+2. **Install a third-party registry as a source** — the community registries below are **shadcn-registry format**, so you can register one as an eve source (**`eve registry add @name=https://…/r/{name}.json`**, stored in `package.json#registries`) and pull with **`eve add @name/<slug>`**. That's an *install* (files written, dep tracked) — prefer it over porting whenever you **don't** need to own/modify the source. **The mechanism is verified** against `eve@0.45.0`'s own docs: *"eve stores the mapping in
+`package.json#registries`. The `{name}` placeholder becomes the integration name, so `@acme/analytics`
+resolves to `https://registry.acme.com/r/analytics.json`."* Narrow a query to one source with
+`eve registry list --registry @acme` / `eve registry search <q> --registry @acme`.
+
+**`[VERIFY]` each registry actually serves the shadcn JSON shape** — one `curl` and look at `$schema`;
+it must be `https://ui.shadcn.com/schema/registry-item.json`. The four this skill set names were all
+checked on **2026-08-26** and all four pass:
+
+| Registry | Item URL pattern | `$schema` |
+|---|---|---|
+| mapcn (web maps) | `https://mapcn.dev/r/{name}.json` | ✓ shadcn registry-item |
+| mapcn-rn (mobile maps) | `https://mapcn-rn.dev/maps/{name}.json` | ✓ shadcn registry-item |
+| Coss/UI | `https://coss.com/ui/r/{name}.json` | ✓ shadcn registry-item |
+| heroicons-animated | `https://www.heroicons-animated.com/r/{name}.json` | ✓ shadcn registry-item |
+
+⚠️ **Serving the shape is necessary, not sufficient.** `mapcn-rn` serves shadcn-format items *and*
+ships its own `mapcn-rn` CLI with a `mapcn.json` of its own — install it the project's way, not through
+`eve add`, or you get files without the config that tracks them. Check whether a registry has a first-party
+installer before treating it as a plain source.
 3. **An extension package** — a versioned npm bundle you install and `pnpm up` (`agent/extensions/<name>.ts`). (`eve-agent` → Extension.)
 4. **Port / vendor from a public registry** — *this skill*. Use it when the source **isn't** installable as above (not registry-served) **or** you need to own/modify it. You take on tenant-hardening **and** maintenance by hand.
 5. **Hand-write** from scratch — when nothing exists to borrow (`eve-agent` boilerplate).
@@ -38,12 +57,18 @@ Go down a rung only when the one above has nothing. Porting trades "no dependenc
 
 ## The registries
 
-| Registry | URL | Install (per registry — verify) |
-|---|---|---|
-| Atom Eve | https://www.atomeve.dev | `npx atom-eve create my-agent --agent <slug>` · `npx atom-eve add <slug>` |
-| evex | https://www.evex.sh | `npx shadcn add @evex/<slug>` |
-| agentcn | https://agentcn.vercel.app | `npx shadcn add <url>` |
-| eveagents | https://www.eveagents.dev | `npx @bergside/eveagents install <slug>` |
+| Registry | URL | Install | Registry endpoint (checked 2026-08-26) |
+|---|---|---|---|
+| Atom Eve | https://www.atomeve.dev | `npx atom-eve create my-agent --agent <slug>` · `npx atom-eve add <slug>` | **no `/r/registry.json`** — own CLI only |
+| **evex** | https://www.evex.sh | `npx shadcn add @evex/<slug>` | **`/r/registry.json`, 13 items, `$schema: ui.shadcn.com/schema/registry.json`** — items at `/r/{name}.json`, `type: registry:item` |
+| agentcn | https://agentcn.vercel.app | `npx shadcn add <url>` | `/r/registry.json`, 76 items — but **no `$schema` declared**, and item names are namespaced (`eve/claw` → `/r/eve/claw.json`, *not* `/r/claw.json`) |
+| eveagents | https://www.eveagents.dev | `npx @bergside/eveagents install <slug>` | not reachable at check time (HTTP 429) — own CLI anyway |
+
+**Only evex declares the shadcn registry schema**, which makes it the one that slots cleanly into
+`eve registry add @evex=https://www.evex.sh/r/{name}.json`. agentcn serves registry-shaped JSON without
+declaring the schema *and* nests item names, so the `{name}` placeholder does not expand the way the
+table above would suggest — install it by URL. The other two ship their own installers, which is a
+decision they made, not an oversight to route around.
 
 All community projects, not official Vercel. Framework source of truth:
 https://github.com/vercel/eve.
