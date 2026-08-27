@@ -1,4 +1,4 @@
-> Sources: https://docs.expo.dev/eas/observe/introduction/, https://docs.expo.dev/eas-update/introduction/, https://github.com/expo/skills (`plugins/expo/skills/eas-observe`, `plugins/expo/skills/eas-update-insights`), https://mcp.expo.dev/mcp. `[VERIFY]` markers flag details that move fast (dashboard URLs, exact flags, plan tiers) — recheck against live docs / the `mcp.expo.dev` MCP server / the official `expo/skills` `eas-observe` and `eas-update-insights` skills before relying on them verbatim.
+> Sources: https://docs.expo.dev/eas/observe/introduction/, https://docs.expo.dev/eas-update/introduction/, https://github.com/expo/skills (`plugins/expo/skills/eas-observe`, `plugins/expo/skills/eas-update-insights`), https://mcp.expo.dev/mcp. **Swept 2026-08-26** against `eas-cli@22.6.0`, `expo-observe@57.0.17`, the three `eas/observe/*` docs pages and <https://expo.dev/pricing>. The flags and the SDK-version wrapper split are now stated from the artefacts rather than hedged; what stays `[VERIFY]` is the CLI surface on a major and **anything about price**, which is restated nowhere in this file on purpose. Recheck against live docs / the `mcp.expo.dev` MCP server / the official `expo/skills` `eas-observe` and `eas-update-insights` skills before relying on them verbatim.
 
 # Observability — closing the release → observe → decide loop
 
@@ -8,10 +8,18 @@
 
 | Tool | Answers | Granularity | Plan |
 |---|---|---|---|
-| **EAS Observe** | "Is the app fast / does it start well in production?" | Native + JS startup & navigation performance (cold/warm launch, TTI, custom events) | `[VERIFY]` paid EAS product, Open Beta with a free tier (first 10,000 MAU free per public docs, 2026-07) |
-| **EAS Update Insights** | "Did this OTA / this channel roll out cleanly?" | Per-update-group and per-channel adoption, crash rate, embedded-vs-OTA split | `[VERIFY]` paid EAS product; queries count against the project's EAS Update usage |
+| **EAS Observe** | "Is the app fast / does it start well in production?" | Native + JS startup & navigation performance (cold/warm launch, TTI, custom events) | Listed on the **Free** plan as *"Access to Observe"* — see the pricing note below |
+| **EAS Update Insights** | "Did this OTA / this channel roll out cleanly?" | Per-update-group and per-channel adoption, crash rate, embedded-vs-OTA split | Rides EAS Update usage — see the pricing note below |
 
-Neither replaces a dedicated crash reporter. `[VERIFY]` EAS Observe does not do crash/error tracking as of 2026-07 (Expo's own docs list it as a planned future addition) — keep Sentry/Bugsnag/etc. as the system of record for crashes, per `rn-eas-deploy/SKILL.md` Step 11 ("Where to monitor crash reports").
+⚠️ **Don't freeze a price in this file.** It previously said *"first 10,000 MAU free"*, and the live
+pricing page on 2026-08-26 shows nothing of the sort: the **Free** plan lists *"Send updates to 1K
+MAUs"* alongside *"Access to Observe"*, and on that page an MAU is defined for **updates** — *"someone
+who downloads at least one update during the billing period"* — not for Observe. The old line
+conflated the two and invented a figure. **Read <https://expo.dev/pricing> live**; a pricing number is
+the most perishable thing a skill can contain, and unlike an API it fails quietly, as a budget
+surprise rather than an error.
+
+Neither replaces a dedicated crash reporter. EAS Observe does not do crash/error tracking (Expo lists it as a planned addition) — keep Sentry/Bugsnag/etc. as the system of record for crashes, per `rn-eas-deploy/SKILL.md` Step 11 ("Where to monitor crash reports").
 
 ## EAS Observe — production performance monitoring
 
@@ -29,23 +37,33 @@ Enable it once the app is `feature_complete`, before its first `rn-eas-deploy` p
 ```bash
 npx expo install expo-observe
 ```
-Then wrap the root layout — `[VERIFY]` the exact wrapper against the installed SDK, it changed between versions:
-- SDK 55: `AppMetricsRoot`.
-- SDK 56+: `ObserveRoot`.
+Then wrap the root layout. **Confirmed 2026-08-26** against Expo's get-started page (which ships both
+variants in SDK-labelled tabs) and against `expo-observe@57.0.17`, where **both symbols still exist**:
+- SDK 55: `AppMetricsRoot.wrap(RootLayout)`.
+- **SDK 56+ (us): `ObserveRoot.wrap(RootLayout)`** — `export default ObserveRoot.wrap(RootLayout)`.
+
+Both still being exported is why picking the wrong one fails silently rather than at import: you get a
+wrapper that no longer feeds the current pipeline. `expo@57.0.16` pins `expo-observe` at `~57.0.16`, so
+take `npx expo install`, not npm latest (`57.0.17`).
 
 Call `markInteractive()` once the app is ready for input (end of splash/loading state) — skipping this means TTI never resolves and the metric is meaningless.
 
 ### Reading the metrics
 ```bash
-eas observe:metrics-summary   # top-line dashboard-in-a-terminal
-eas observe:metrics           # raw metric rows, filterable by platform/version
-eas observe:routes            # per-route navigation timing
-eas observe:events            # custom Observe.logEvent() data
-eas observe:versions          # breakdown by app version / build
+eas observe:metrics-summary   # aggregated metric stats grouped by app version
+eas observe:metrics           # individual metric samples, ordered by value
+eas observe:routes            # per-route Cold TTR / Warm TTR / TTI
+eas observe:events            # custom logEvent() data
+eas observe:versions          # app versions with build + update details
+eas observe:session           # timeline of metric and log events for ONE session
 ```
-`[VERIFY]` these exact subcommand names and flags against `eas observe --help` — this is a fast-moving beta surface, treat the list as a starting point, not a contract.
+**All six verified against `eas-cli@22.6.0`** (descriptions above are the CLI's own). ⚠️ **`observe:session`
+was missing from this list** — it is the one you reach for when a *specific* user's launch was slow, since
+everything else aggregates. Shared flags across the family: `--platform`, `--metric`/`--stat` (multi-valued,
+from a fixed option list), a time-range group, `--json` and `--non-interactive`. `[VERIFY]` on a CLI major —
+this is still beta.
 
-Dashboard: `[VERIFY]` the "Observe" tab of the project's EAS dashboard at expo.dev — confirm the current URL/tab name live before pointing a user at it.
+Dashboard: <https://docs.expo.dev/eas/observe/dashboard/> (200 on 2026-08-26). Confirm the in-app tab name live before pointing a user at it — dashboards get renamed without a changelog entry.
 
 ### Anti-patterns
 - Do not treat EAS Observe as the only safety net — it measures slowness, not errors. Pair it with Sentry/Bugsnag.
@@ -66,7 +84,15 @@ eas update:insights <groupId> [--platform ios|android] [--days N | --start <iso>
 eas update:view <groupId> --insights                        # update details + metrics in one call
 eas channel:insights --channel <name> --runtime-version <version> [--days N] [--json --non-interactive]
 ```
-`[VERIFY]` flags/defaults (`--days` defaults to 7 per the public skill docs, 2026-07) against `eas update:insights --help` / `eas channel:insights --help` before wiring these into a script.
+**Verified against `eas-cli@22.6.0`, from the flag definitions themselves.** `--days` exists on *both*
+commands, its default comes from one shared constant — `INSIGHTS_DEFAULT_DAYS_BACK = 7` — and it is
+declared **`exclusive: ['start','end']`**, so `--days` and `--start`/`--end` are mutually exclusive and
+the CLI rejects the combination rather than picking one. `--days` also has `min: 1`. Both commands take
+`--json` and `--non-interactive`, which is what makes them scriptable in the first place.
+
+`[VERIFY]` on a CLI major — but note the shape of the risk here: this family renames rather than
+breaking (`eas secret:*` survived two renames while still printing results, see
+`rn-eas-build-submit-update/references/credentials.md`).
 
 ### Key metrics to know
 - `crashRatePercent` = `failedInstalls / (installs + failedInstalls) * 100`.
@@ -128,9 +154,7 @@ rn-eas-deploy (production build + submit)          rn-eas-build-submit-update (O
 ## Sources
 
 - https://docs.expo.dev/eas/observe/introduction/
-- https://docs.expo.dev/eas/observe/get-started/ `[VERIFY]`
-- https://docs.expo.dev/eas/observe/dashboard/ `[VERIFY]`
-- https://docs.expo.dev/eas/observe/reference/metrics/ `[VERIFY]`
+- https://docs.expo.dev/eas/observe/get-started/ · https://docs.expo.dev/eas/observe/dashboard/ · https://docs.expo.dev/eas/observe/reference/metrics/ — all three **200 on 2026-08-26**
 - https://docs.expo.dev/eas-update/introduction/
 - https://github.com/expo/skills — `plugins/expo/skills/eas-observe/SKILL.md`, `plugins/expo/skills/eas-update-insights/SKILL.md`
 - https://mcp.expo.dev/mcp — official Expo MCP server, surfaces EAS Observe + Update Insights data to AI agents (OAuth-backed, available on the Free plan per Expo's changelog)
