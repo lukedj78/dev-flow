@@ -1,4 +1,7 @@
-> Sources: https://docs.expo.dev/app-signing/
+> Sources: https://docs.expo.dev/app-signing/app-credentials/ and https://docs.expo.dev/app-signing/managed-credentials/
+> (the bare `/app-signing/` index **404s** — checked 2026-08-26).
+> CLI surface verified against **`eas-cli@22.6.0`**. `[VERIFY]` on a CLI major: EAS renames commands
+> without breaking them — `secret:*` below survived two renames while still printing results.
 
 # EAS credentials
 
@@ -79,12 +82,29 @@ ios/Pods/                ← only if you eject; managed Expo never touches this
 
 Note: `google-services.json` / `GoogleService-Info.plist` are CLIENT config files; the keys inside are public-by-design (anon-like). They CAN be committed in OSS projects but, for non-OSS, it's still good hygiene to keep them out of git and inject via EAS Secrets at build time.
 
-## EAS Secrets — for env vars at build time
+## Environment variables at build time — ⚠️ `eas secret:*` is two renames behind
+
+Checked against **`eas-cli@22.6.0`** (2026-08-26), reading the commands' own descriptions. The surface
+moved twice and this file never caught up:
+
+| What we used to write | Status at 22.6.0 |
+|---|---|
+| `eas secret:create` | deprecated → *"Use `eas env:create` instead"* |
+| `eas env:create` | **also deprecated** → *"use `eas env:set`"* |
+| `eas secret:list` | deprecated → *"Use `eas env:list` instead"* |
+
+So the current form is:
 
 ```bash
-eas secret:create --scope project --name PROD_API_URL --value https://api.example.com
-eas secret:list
+eas env:set  --scope project --name PROD_API_URL --value https://api.example.com
+eas env:list
 ```
+
+`env:set` is create-or-update in one command, which is why `env:create` and `env:update` were both
+folded into it. The rest of the family at 22.6.0: `env:get`, `env:delete`, `env:exec` (run a command
+with an environment's variables), and the pair worth knowing — **`env:pull`** (environment → `.env`
+file) and **`env:push`** (`.env` file → environment). `eas secret:*` still runs, so nothing breaks
+loudly; it just deprecation-warns, which is exactly how a command survives two renames in a doc.
 
 In `eas.json`:
 

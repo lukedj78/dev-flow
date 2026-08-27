@@ -110,7 +110,7 @@ Tag a release: `git tag v1.2.0 && git push origin v1.2.0` → workflow builds + 
 ## Where to find runner / step references
 
 - Runner types (linux-small / linux-medium / linux-large / macos-medium): https://docs.expo.dev/eas/workflows/syntax/
-- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas/workflows/reference/
+- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas/workflows/syntax/ — ⚠️ the `/eas/workflows/reference/` URL this line used to point at **404s** (checked 2026-08-26); the syntax page is the live one, and `/eas/workflows/examples/` has the worked cases.
 
 ## When to use cron
 
@@ -129,5 +129,5 @@ Use cases:
 
 - ❌ Trigger production build on every push to main. Tag-based releases stay sane.
 - ❌ Skip `npx tsc --noEmit` in CI — saves you from green compile + red device.
-- ❌ Put secrets in the YAML — use `eas secret:create --scope project` and reference as env.
+- ❌ Put secrets in the YAML — use **`eas env:set --scope project`** and reference as env. (`eas secret:create` still works but is two renames behind at `eas-cli@22.6.0` — see `references/credentials.md`.)
 - ❌ Mix `eas update` and `eas build` for the same change without considering native-side compatibility.
