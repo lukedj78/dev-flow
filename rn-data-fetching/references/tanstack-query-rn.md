@@ -1,6 +1,14 @@
 # TanStack Query — the mobile production default (Expo + RN)
 
-The **how**, not just "use TanStack Query". Doc-grounded against `tanstack.com/query/latest` (React Native page, mutations, optimistic updates, infinite queries, `createAsyncStoragePersister`, `persistQueryClient`). Verified `@tanstack/react-query` **5.101.4** (2026-08) — the repo pins `^5` (see `rn-fundamentals/references/stack-defaults.md`). `[VERIFY]` every identifier against the installed version.
+The **how**, not just "use TanStack Query". Doc-grounded against `tanstack.com/query/latest` (React Native page, mutations, optimistic updates, infinite queries, `createAsyncStoragePersister`, `persistQueryClient`). Verified **2026-08-26** against `@tanstack/react-query` **5.102.8** (was 5.101.4 here; `stack-defaults.md`
+was refreshed to `^5.102.6` the same day and npm has moved twice since — the repo pins `^5`, which is
+the point). `[VERIFY]` every identifier against the installed version.
+
+⚠️ **Where to grep matters here.** `@tanstack/react-query-persist-client` ships four tiny `.d.ts` and
+exports exactly one thing of its own, `PersistQueryClientProvider`; everything else —
+`persistQueryClient`, the `Persister` interface, `buster`, `maxAge`, `dehydrateOptions` — comes through
+`export * from "@tanstack/query-persist-client-core"`. Grepping the package you install finds nothing
+and proves nothing.
 
 ## Why this is the DEFAULT here, not a last resort
 
@@ -183,7 +191,21 @@ const [client] = useState(() => new QueryClient({
 </PersistQueryClientProvider>
 ```
 
-`buster` is a free cache invalidation lever: change the string (app version, schema version) and the whole persisted cache is discarded via `persister.removeClient()`. Limit *what* gets written with `persistOptions.dehydrateOptions.shouldDehydrateQuery: (query) => boolean` (default: successful queries only) `[VERIFY]`.
+`buster` is a free cache invalidation lever: change the string (app version, schema version) and the whole persisted cache is discarded via `persister.removeClient()`. Limit *what* gets written with `persistOptions.dehydrateOptions.shouldDehydrateQuery: (query) => boolean`.
+
+**Default confirmed at 5.102.8**, and it is exactly one line in `query-core`'s `hydration.js`:
+
+```js
+function defaultShouldDehydrateQuery(query) {
+  return query.state.status === "success";
+}
+```
+
+So "successful queries only" is literal: a query in `error` or `pending` never reaches storage, and you
+do not need a guard against persisting failures — you need one only if you want to persist *fewer* than
+the successes. The `Persister` contract it writes through is three methods —
+`persistClient` / `restoreClient` / **`removeClient`** — which is why `buster` can discard everything by
+calling the third.
 
 ## ⚠️ Purge the persisted cache on sign-out — it holds personal data
 
