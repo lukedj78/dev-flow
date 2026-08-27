@@ -116,7 +116,7 @@ export default async function CasesPage({
 
 The chip-row Client Component writes the param. Free streaming, free cache, shareable URL, back-button works.
 
-**Write the URL with `nuqs`, not hand-rolled `router.replace`** ([VERIFY] against Next 16). [`nuqs`](https://nuqs.dev) (v2) is the ecosystem-first, type-safe URL-state library — `useQueryState`/`useQueryStates` behave like `useState` but persist to the URL, with typed parsers, built-in **URL-update rate limiting** (`limitUrlUpdates: debounce(…)` — hand-rolled per-keystroke `router.replace` on a search box is the classic jank), and `useTransition` support. The page stays a Server Component reading the `searchParams` prop (above) — nuqs only owns the **client write side**:
+**Write the URL with `nuqs`, not hand-rolled `router.replace`.** Verified against **`nuqs@2.10.1`** (2026-08-26): its `peerDependencies.next` is `>=14.2.0` with **no upper bound**, so Next 16 needs no opt-in and no special handling. `debounce(timeMs)` and `throttle(timeMs)` are both exported and both return a `LimitUrlUpdates`, which is what `limitUrlUpdates` takes. [`nuqs`](https://nuqs.dev) (v2) is the ecosystem-first, type-safe URL-state library — `useQueryState`/`useQueryStates` behave like `useState` but persist to the URL, with typed parsers, built-in **URL-update rate limiting** (`limitUrlUpdates: debounce(…)` — hand-rolled per-keystroke `router.replace` on a search box is the classic jank), and `useTransition` support. The page stays a Server Component reading the `searchParams` prop (above) — nuqs only owns the **client write side**:
 
 ```tsx
 "use client";
@@ -439,6 +439,13 @@ Violation kinds:
 | H | Reset-on-identity via `useEffect` instead of `key` | medium |
 
 ## Sources
+
+**Verified 2026-08-26 against `react@19.2.8`.** All five concurrent-state APIs this skill leans on —
+`useEffectEvent`, `Activity`, `useOptimistic`, `useActionState`, `useTransition` — are exported under
+their **stable** names, with no `unstable_` or `experimental_` variants alongside them. So the ladder
+below carries no canary hedge. (Note `expo@57.0.16` pins React at `19.2.3`, one patch behind npm; both
+are past the 19.2 stabilisation, so nothing here changes on RN — and RN has no URL rung anyway.)
+All ten cited URLs resolve.
 
 Derived from the `nextjs-usestate` skill from **[lusentis/next-skills](https://github.com/lusentis/next-skills)** (MIT-licensed), adapted to the dev-flow contract and renamed to `state-discipline` since the rules cover all state, not only `useState`. The eight-rung ladder, the `useMountEffect` escape-hatch contract, the `key`-for-reset discipline, the lint rule, and the red-flag catalog are preserved.
 
