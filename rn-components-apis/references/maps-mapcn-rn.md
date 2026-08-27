@@ -1,6 +1,37 @@
 # Maps (mobile) — mapcn-rn
 
-The **how**, not just "use mapcn-rn". Doc-grounded against [mapcn-rn.dev/docs](https://mapcn-rn.dev/docs), the published registry items (`https://mapcn-rn.dev/maps/map.json` and siblings — read them, they contain the full component source) and the `mapcn-rn` CLI (npm, v0.1.1). mapcn-rn is the ecosystem-first default when an **Expo/React Native** project needs a map: copy-paste map components on **MapLibre React Native v11** *or* **Mapbox React Native**, styled with **NativeWind/Uniwind**, sitting alongside **React Native Reusables** (shadcn/ui for RN). `stack.maps = "mapcn-rn"`. `[VERIFY]` after each install — the file you own *is* the API.
+The **how**, not just "use mapcn-rn". Doc-grounded against [mapcn-rn.dev/docs](https://mapcn-rn.dev/docs), the published registry items (`https://mapcn-rn.dev/maps/map.json` and siblings — read them, they contain the full component source) and the `mapcn-rn` CLI (npm, v0.1.1). mapcn-rn is the ecosystem-first default when an **Expo/React Native** project needs a map: copy-paste map components on **MapLibre React Native v11** *or* **Mapbox React Native**, styled with **NativeWind/Uniwind**, sitting alongside **React Native Reusables** (shadcn/ui for RN). `stack.maps = "mapcn-rn"`.
+
+> ## ⛔ This file documents **v1**. mapcn-rn is at **v2.0.0**.
+>
+> Checked 2026-08-26: `npm view mapcn-rn version` → **2.0.0**, and the docs ship an
+> [Upgrade to v2](https://mapcn-rn.dev/docs/getting-started/upgrade-to-v2) page. It is not a patch
+> release — in the project's own words, *"v2 replaces the single v1 `components/ui/map.tsx` bundle with
+> a **tracked component graph** and a **renderer-independent public API**."* Everything below describes
+> the v1 single-file shape, so **read it as history until it is rewritten**.
+>
+> What is verified about v2, so you are not stuck:
+>
+> - **Install is now one command**: `npx mapcn-rn init`, run from the Expo project root. It detects the
+>   package manager, `src` layout, aliases and whether you use Uniwind / NativeWind / neither; asks for a
+>   renderer + compatible basemap provider; asks which components (Minimal — `map`, `marker`, `popup`,
+>   `controls` — / Everything / a grouped checklist); writes a **schema-version-2 `mapcn.json`**;
+>   installs the renderer package and its Expo config plugin; adds native permissions to `app.json`; and
+>   puts a token placeholder in `.env.example`.
+> - **`mapcn.json` is the v1/v2 discriminator.** The migration treats a project as v1 only when
+>   `components/ui/map.tsx` exists **and** `mapcn.json` does not.
+> - **Migrating**: `npx mapcn-rn migrate` — it moves the v1 file to `components/ui/map.v1.tsx.bak`
+>   first. If a config already exists it refuses and sends you to `npx mapcn-rn doctor`.
+> - **Expo Go is still not supported** (both renderers carry native code); Expo dev build, `prebuild`
+>   after changing renderer or plugin, then rebuild. Bare RN "may work", and the CLI reports it as
+>   **unverified**.
+> - CLI docs: [`/cli/init`](https://mapcn-rn.dev/docs/cli/init) · [`/cli/add`](https://mapcn-rn.dev/docs/cli/add) · [`/cli/doctor`](https://mapcn-rn.dev/docs/cli/doctor) · [`/cli/migrate`](https://mapcn-rn.dev/docs/cli/migrate)
+>
+> ⚠️ The docs site also restructured: **13 of the 17 URLs this file cited were 404** — the flat
+> `/docs/<topic>` paths moved under `/docs/{getting-started,core,data,location,styling,cli,reference}/`.
+> Those are fixed below; the prose is not.
+
+`[VERIFY]` after each install — the file you own *is* the API.
 
 > ⚠️ **Different project from the web `mapcn`.** Different author (`aikenahac` vs `AnmolSaini16`), different repo, deliberately similar API but **not** a port. Do not assume a web component exists on mobile — several don't (see "What's missing vs web").
 
@@ -40,7 +71,7 @@ It is a thin wrapper: it resolves a registry URL and shells out to
 `npx @react-native-reusables/cli@latest add https://mapcn-rn.dev/maps/map{,-maptiler,-mapbox}.json`.
 That writes **one file — `components/ui/map.tsx`** — and installs the deps above. Nothing else. (You can run the underlying RNR command directly if you prefer.)
 
-⚠️ **Undocumented prerequisite, verified in the source**: the installed file imports `useTheme` from `@/lib/theme-context` (expects `{ colorScheme }`) and `cn` from `@/lib/utils`. If your project doesn't already have those (React Native Reusables / NativeWind conventions), the file won't compile until you provide them. `[VERIFY]` whether your RNR template ships `lib/theme-context`.
+⚠️ **Undocumented prerequisite, verified in the source**: the installed file imports `useTheme` from `@/lib/theme-context` (expects `{ colorScheme }`) and `cn` from `@/lib/utils`. If your project doesn't already have those (React Native Reusables / NativeWind conventions), the file won't compile until you provide them. `[VERIFY]` whether your RNR template ships `lib/theme-context` — and note this whole prerequisite is **a v1 concern**: v2's `mapcn-rn init` asks about Uniwind / NativeWind / neither and installs accordingly, so it should not arise the same way.
 
 Then, for MapTiler/Mapbox, add the key to `.env`:
 
@@ -177,7 +208,7 @@ The only gotcha the docs document: on Android a `Map` inside a `ScrollView` lose
 
 ## Sources
 
-- Intro: <https://mapcn-rn.dev/docs> · Installation: <https://mapcn-rn.dev/docs/installation> · CLI: <https://mapcn-rn.dev/docs/cli> · Commercial use: <https://mapcn-rn.dev/docs/commercial-use>
-- API reference: <https://mapcn-rn.dev/docs/api-reference> · Gotchas: <https://mapcn-rn.dev/docs/gotchas> · Advanced: <https://mapcn-rn.dev/docs/advanced-usage>
-- Examples: <https://mapcn-rn.dev/docs/basic-map> · <https://mapcn-rn.dev/docs/controls> · <https://mapcn-rn.dev/docs/markers> · <https://mapcn-rn.dev/docs/popups> · <https://mapcn-rn.dev/docs/routes> · <https://mapcn-rn.dev/docs/clusters>
+- Intro: <https://mapcn-rn.dev/docs> · Installation: <https://mapcn-rn.dev/docs/getting-started/installation> · CLI: <https://mapcn-rn.dev/docs/cli/init> (+ `/cli/add`, `/cli/doctor`, `/cli/migrate`)
+- Reference: <https://mapcn-rn.dev/docs/reference/components-index> · <https://mapcn-rn.dev/docs/reference/renderer-compatibility-matrix> · Config: <https://mapcn-rn.dev/docs/getting-started/configuration> · Theming: <https://mapcn-rn.dev/docs/getting-started/theming> — ⚠️ the old `/docs/gotchas`, `/docs/advanced-usage` and `/docs/commercial-use` pages **no longer exist** (checked 2026-08-26)
+- Examples: <https://mapcn-rn.dev/docs/core/map> · <https://mapcn-rn.dev/docs/core/controls> · <https://mapcn-rn.dev/docs/core/markers> · <https://mapcn-rn.dev/docs/core/popups> · <https://mapcn-rn.dev/docs/data/routes> · <https://mapcn-rn.dev/docs/data/clustering>
 - Installed source of truth: <https://mapcn-rn.dev/maps/map.json> · <https://mapcn-rn.dev/maps/map-maptiler.json> · <https://mapcn-rn.dev/maps/map-mapbox.json> · CLI package: <https://www.npmjs.com/package/mapcn-rn>

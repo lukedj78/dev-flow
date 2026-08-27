@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-27T18:10:15Z",
+  "generated_at": "2026-08-27T18:31:16Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
