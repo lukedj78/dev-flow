@@ -1,4 +1,6 @@
-> Sources: https://supabase.com/docs/reference/javascript/, internal opinion.
+> Sources: https://supabase.com/docs/reference/javascript/introduction, internal opinion.
+> (the bare `reference/javascript/` path **404s** — checked 2026-08-26.)
+> Verified **2026-08-26** against `@supabase/supabase-js@2.112.4` — **still v2**, no v3 on npm. `[VERIFY]` on a major.
 
 # Supabase — the default provider
 

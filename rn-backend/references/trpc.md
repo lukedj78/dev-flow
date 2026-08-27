@@ -1,4 +1,5 @@
 > Sources: https://trpc.io/docs, https://trpc.io/docs/client/react/
+> Verified **2026-08-26** against `@trpc/{client,server,react-query}@11.18.0` — v11 is current. `[VERIFY]` on a major.
 
 # tRPC — end-to-end typed backend
 
@@ -133,11 +134,11 @@ import { observable } from "@trpc/server/observable";
 
 const refreshLink: TRPCLink<AppRouter> = () => ({ op, next }) => observable((observer) => {
   // ...wraps next(op), catches 401, refreshes, retries once.
-  // Pattern: https://trpc.io/docs/client/links/customLink
+  // Pattern: https://trpc.io/docs/client/links  (⚠️ the old `/links/customLink` URL 404s — 2026-08-26)
 });
 ```
 
-For brevity we omit the full link here. The complete recipe is in the tRPC docs under "Custom links → 401 refresh".
+For brevity we omit the full link here. The complete recipe is in the tRPC docs under **Client → Links** (<https://trpc.io/docs/client/links>); the per-link pages live one level down, e.g. `/links/httpBatchLink`.
 
 ## 8. SSE / subscriptions (real-time)
 

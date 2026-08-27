@@ -1,4 +1,9 @@
 > Sources: https://firebase.google.com/docs/auth, https://rnfirebase.io/
+> Verified **2026-08-26** against `@react-native-firebase/{app,auth,firestore}@26.3.2` (npm `latest`).
+> ⚠️ **None of the `@react-native-firebase/*` packages is in `expo@57`'s `bundledNativeModules.json`**,
+> so `npx expo install` gives you npm `latest` for them, not an SDK-blessed pin — unlike
+> `expo-secure-store` (`~57.0.1`). Pin them yourself and bump deliberately.
+> `[VERIFY]` on a major: this library removed its whole namespaced API in v22.
 
 # Firebase — alternative BaaS
 
@@ -155,18 +160,26 @@ Deploy via Firebase CLI: `firebase deploy --only firestore:rules`.
 
 ## 8. Realtime — `onSnapshot`
 
+⚠️ **This snippet used to use the namespaced chain this very file says was removed in v22** —
+`firestore().collection().orderBy().onSnapshot()`. Corrected to the modular form, verified against
+`@react-native-firebase/firestore@26.3.2` (`lib/modular/snapshot.d.ts`, which declares eight
+`onSnapshot` overloads — `(query, onNext, onError?, onCompletion?)` is the one below, and there are
+`DocumentReference` and `SnapshotListenOptions` variants alongside it):
+
 ```ts
+import { getFirestore, collection, query, orderBy, onSnapshot } from "@react-native-firebase/firestore";
+
 useEffect(() => {
-  const unsubscribe = firestore()
-    .collection("posts")
-    .orderBy("createdAt", "desc")
-    .onSnapshot((snapshot) => {
+  const unsubscribe = onSnapshot(
+    query(collection(getFirestore(), "posts"), orderBy("createdAt", "desc")),
+    (snapshot) => {
       queryClient.setQueryData(
         ["posts", "list"],
         snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
       );
-    });
-  return unsubscribe;
+    },
+  );
+  return unsubscribe;               // onSnapshot returns Unsubscribe
 }, []);
 ```
 
