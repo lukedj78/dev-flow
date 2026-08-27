@@ -1,214 +1,165 @@
 # Maps (mobile) — mapcn-rn
 
-The **how**, not just "use mapcn-rn". Doc-grounded against [mapcn-rn.dev/docs](https://mapcn-rn.dev/docs), the published registry items (`https://mapcn-rn.dev/maps/map.json` and siblings — read them, they contain the full component source) and the `mapcn-rn` CLI (npm, v0.1.1). mapcn-rn is the ecosystem-first default when an **Expo/React Native** project needs a map: copy-paste map components on **MapLibre React Native v11** *or* **Mapbox React Native**, styled with **NativeWind/Uniwind**, sitting alongside **React Native Reusables** (shadcn/ui for RN). `stack.maps = "mapcn-rn"`.
+The **how**, not just "use mapcn-rn". Grounded in the live v2 docs (`mapcn-rn.dev/docs/{getting-started,core,data,location,styling,cli,reference}/`) and the published config schema, fetched **2026-08-26** against **`mapcn-rn@2.0.0`**. `stack.maps = "mapcn-rn"`.
 
-> ## ⛔ This file documents **v1**. mapcn-rn is at **v2.0.0**.
->
-> Checked 2026-08-26: `npm view mapcn-rn version` → **2.0.0**, and the docs ship an
-> [Upgrade to v2](https://mapcn-rn.dev/docs/getting-started/upgrade-to-v2) page. It is not a patch
-> release — in the project's own words, *"v2 replaces the single v1 `components/ui/map.tsx` bundle with
-> a **tracked component graph** and a **renderer-independent public API**."* Everything below describes
-> the v1 single-file shape, so **read it as history until it is rewritten**.
->
-> What is verified about v2, so you are not stuck:
->
-> - **Install is now one command**: `npx mapcn-rn init`, run from the Expo project root. It detects the
->   package manager, `src` layout, aliases and whether you use Uniwind / NativeWind / neither; asks for a
->   renderer + compatible basemap provider; asks which components (Minimal — `map`, `marker`, `popup`,
->   `controls` — / Everything / a grouped checklist); writes a **schema-version-2 `mapcn.json`**;
->   installs the renderer package and its Expo config plugin; adds native permissions to `app.json`; and
->   puts a token placeholder in `.env.example`.
-> - **`mapcn.json` is the v1/v2 discriminator.** The migration treats a project as v1 only when
->   `components/ui/map.tsx` exists **and** `mapcn.json` does not.
-> - **Migrating**: `npx mapcn-rn migrate` — it moves the v1 file to `components/ui/map.v1.tsx.bak`
->   first. If a config already exists it refuses and sends you to `npx mapcn-rn doctor`.
-> - **Expo Go is still not supported** (both renderers carry native code); Expo dev build, `prebuild`
->   after changing renderer or plugin, then rebuild. Bare RN "may work", and the CLI reports it as
->   **unverified**.
-> - CLI docs: [`/cli/init`](https://mapcn-rn.dev/docs/cli/init) · [`/cli/add`](https://mapcn-rn.dev/docs/cli/add) · [`/cli/doctor`](https://mapcn-rn.dev/docs/cli/doctor) · [`/cli/migrate`](https://mapcn-rn.dev/docs/cli/migrate)
->
-> ⚠️ The docs site also restructured: **13 of the 17 URLs this file cited were 404** — the flat
-> `/docs/<topic>` paths moved under `/docs/{getting-started,core,data,location,styling,cli,reference}/`.
-> Those are fixed below; the prose is not.
+Copy-paste map components for **Expo/React Native**, on **MapLibre** or **Mapbox**, styled with **Uniwind/NativeWind**, sitting alongside React Native Reusables. You own the source once it lands.
 
-`[VERIFY]` after each install — the file you own *is* the API.
+> **v1 → v2.** If a project still has a single `components/ui/map.tsx` and **no `mapcn.json`**, it is on v1 — v2 replaced that one-file bundle with a tracked component graph and a renderer-independent public API. Run `npx mapcn-rn migrate`: it moves the old file to `components/ui/map.v1.tsx.bak` (never deletes it), infers renderer + provider from the file's own imports, and installs the v2 equivalents. If `mapcn.json` already exists it refuses and points at `doctor`. Full walkthrough: <https://mapcn-rn.dev/docs/getting-started/upgrade-to-v2>.
 
-> ⚠️ **Different project from the web `mapcn`.** Different author (`aikenahac` vs `AnmolSaini16`), different repo, deliberately similar API but **not** a port. Do not assume a web component exists on mobile — several don't (see "What's missing vs web").
+> ⚠️ **Different project from the web `mapcn`.** Different author (`aikenahac` vs `AnmolSaini16`), different repo, deliberately similar API but **not** a port. v2 closed most of the gaps the v1 notes listed — clustering, GeoJSON, standalone popups and controlled viewports all exist now — but still check the components index before assuming a web component has a mobile twin.
 
 ## ⚠️ Read first — native modules ⇒ a dev build, not Expo Go
 
-MapLibre React Native and `@rnmapbox/maps` are **native modules**. The docs are explicit: they *"will not work with Expo Go"*.
+Both renderers carry native code. **Expo Go is not supported.** Use an Expo development build, run `prebuild` after changing the renderer or its Expo plugin, and rebuild the native client. Bare React Native "may work" — the CLI reports it as **unverified**.
 
-- You need a **development build**: `npx expo run:ios` / `npx expo run:android` (or an `eas build --profile development` dev client).
-- **Rebuild whenever a native dep changes** — i.e. after the first `mapcn-rn add`, and again if you ever switch provider (MapLibre ⇄ Mapbox swaps the native SDK).
-- Choose **MapLibre vs Mapbox up front**: it changes the native dependency, the Expo config plugin, and the licensing/cost.
+## The two axes: renderer and provider
 
-## ⚠️ Read first — basemap licensing
+v2's central idea, and the thing that makes the config make sense: **the native SDK that draws the map and the source of the basemap style are separate decisions.**
 
-Default tiles are **CARTO Basemaps** (`basemaps.cartocdn.com/gl/positron-gl-style` light / `dark-matter-gl-style` dark), verified in the installed source. The docs state they are **free for NON-COMMERCIAL use only**. For a commercial product pick a provider at install time:
+**Axis 1 — renderer** (the native SDK; implements camera, sources, layers, markers, location puck):
 
-| Provider | Flag | Native dep | Key | Free tier (per docs) |
-|---|---|---|---|---|
-| CARTO (default) | *(none)* | `@maplibre/maplibre-react-native@11.2.1` | none | non-commercial only |
-| MapTiler | `--provider=maptiler` | `@maplibre/maplibre-react-native@11.2.1` | `EXPO_PUBLIC_MAPTILER_API_KEY` | 100,000 requests/month |
-| Mapbox | `--provider=mapbox` | `@rnmapbox/maps@^10.2.10` | `EXPO_PUBLIC_MAPBOX_API_KEY=pk...` | 25,000 monthly active users |
+| Renderer | Native package | Expo plugin |
+|---|---|---|
+| MapLibre | `@maplibre/maplibre-react-native@^11.3.6` | `@maplibre/maplibre-react-native` |
+| Mapbox | `@rnmapbox/maps@^10.3.5` | `@rnmapbox/maps` |
 
-All three also install `expo-location@^19.0.8`. The "no API keys required" line on the landing page is true **only** for the CARTO default — which is the one you can't ship commercially.
+⚠️ **The two renderer packages and plugins cannot coexist in one app.** Switch with `mapcn-rn provider <target>`, then prebuild and rebuild. `doctor` has a dedicated error-level check for "both present".
 
-## Install
+**Axis 2 — basemap provider** (named styles + credentials; constrained to a compatible renderer):
 
-There is **no `mapcn-rn init`**. The whole CLI surface is:
+| Provider | Renderer | Key |
+|---|---|---|
+| **CARTO** | MapLibre | none |
+| **MapTiler** | MapLibre | `EXPO_PUBLIC_MAPTILER_API_KEY` |
+| **Custom** | MapLibre | none — your own style identifiers, no built-in styles |
+| **Mapbox** | Mapbox | `EXPO_PUBLIC_MAPBOX_TOKEN`, **plus `MAPBOX_DOWNLOADS_TOKEN` at build time** |
 
-```bash
-npx mapcn-rn add                       # interactive provider picker (carto | maptiler | mapbox)
-npx mapcn-rn add --provider=carto
-npx mapcn-rn add --provider=maptiler
-npx mapcn-rn add --provider=mapbox
-npx mapcn-rn --help                    # or -h
-```
+The `provider` prop can override the configured provider **at runtime**, but it does **not** swap the native renderer — only pick providers compatible with what is installed.
 
-It is a thin wrapper: it resolves a registry URL and shells out to
-`npx @react-native-reusables/cli@latest add https://mapcn-rn.dev/maps/map{,-maptiler,-mapbox}.json`.
-That writes **one file — `components/ui/map.tsx`** — and installs the deps above. Nothing else. (You can run the underlying RNR command directly if you prefer.)
+⚠️ **Licensing is still the decision that outlives the code.** CARTO is the default and needs no key; MapTiler and Mapbox do. `[VERIFY]` the current free-tier terms with each provider before shipping commercially — this file deliberately restates no quota numbers, because pricing is the most perishable thing a reference can carry and it fails as a bill, not as an error.
 
-⚠️ **Undocumented prerequisite, verified in the source**: the installed file imports `useTheme` from `@/lib/theme-context` (expects `{ colorScheme }`) and `cn` from `@/lib/utils`. If your project doesn't already have those (React Native Reusables / NativeWind conventions), the file won't compile until you provide them. `[VERIFY]` whether your RNR template ships `lib/theme-context` — and note this whole prerequisite is **a v1 concern**: v2's `mapcn-rn init` asks about Uniwind / NativeWind / neither and installs accordingly, so it should not arise the same way.
-
-Then, for MapTiler/Mapbox, add the key to `.env`:
+## Install — one command
 
 ```bash
-EXPO_PUBLIC_MAPTILER_API_KEY=your_maptiler_api_key_here   # cloud.maptiler.com/account/keys
-EXPO_PUBLIC_MAPBOX_API_KEY=pk...                          # console.mapbox.com/account/access-tokens
+npx mapcn-rn init [--renderer maplibre|mapbox] [--provider maptiler|carto|custom|mapbox] [--all] [--components a,b] [--yes]
 ```
 
-The MapTiler build reads the key at render time and **silently falls back to the CARTO basemaps with a `console.warn`** if it's absent — so a missing key looks like "it works", and you ship the non-commercial tiles. The Mapbox build calls `Mapbox.setAccessToken()` at module load and warns if unset.
+Run from the Expo project root. It is the entrypoint — configure **and** install in one pass. What it does, per the CLI docs:
 
-## Expo config (`app.json`)
+- Detects the project (Expo vs bare RN, `src` layout) and warns if `expo` isn't a dependency.
+- Prompts for renderer, then a compatible provider (**skipped for Mapbox**, which has no separate provider prompt).
+- Detects the package manager (lockfile), the styling system (**Uniwind / NativeWind / none**) and path aliases (`components.json` if present, else mapcn's defaults).
+- Asks which components: **Minimal** (`map`, `marker`, `popup`, `controls`), **Everything**, or a grouped checklist.
+- Writes **`mapcn.json` (schema version 2)**, installs the renderer package, adds its Expo config plugin to `app.json` if readable, scaffolds the provider's public env key into `.env.example`.
+- Installs the chosen components and their transitive dependencies, their native permissions, and the generated `components/ui/mapcn/index.ts` barrel.
+
+## `mapcn.json` — the CLI's source of truth
 
 ```jsonc
 {
-  "expo": {
-    "ios": {
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true },
-        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show you on the map.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to show you on the map."
-      }
-    },
-    "android": { "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"] },
-    "plugins": [
-      // shows a "no valid plugin" warning but the docs say it IS required
-      "@maplibre/maplibre-react-native"
-      // "@rnmapbox/maps" instead, if using the mapbox version
-    ]
-  }
+  "$schema": "https://mapcn-rn.dev/schema/mapcn.json",
+  "schemaVersion": 2,
+  "renderer": "maplibre",                                     // "maplibre" | "mapbox"
+  "provider": { "id": "maptiler", "envKey": "EXPO_PUBLIC_MAPTILER_API_KEY" },
+  "styling": "uniwind",                                       // "uniwind" | "nativewind" | "none"
+  "aliases": { "ui": "@/components/ui", "lib": "@/lib", "hooks": "@/hooks", "components": "@/components" },
+  "components": { "core": { "version": "…", "files": [{ "path": "lib/mapcn/types.ts", "hash": "…" }] } }
 }
 ```
 
-⚠️ **Never list both `@maplibre/maplibre-react-native` and `@rnmapbox/maps` under `plugins`** — the docs state it throws. Bare RN instead of Expo: add `NSLocationWhenInUseUsageDescription` to `ios/YourApp/Info.plist` and the two `<uses-permission>` lines to `AndroidManifest.xml`.
+Two things follow from the `hash` field: **the CLI knows whether you edited an installed file**, and **you must not hand-edit those hashes**. The current CLI supports schema version 2 and **rejects configs written by a newer schema** — so a teammate on a newer CLI can lock you out until you upgrade, which is a feature, not a bug.
 
-## The dev-build workflow, concretely
+## Adding components later
 
 ```bash
-npx mapcn-rn add --provider=maptiler   # 1. adds native deps
-# 2. edit app.json (plugins + permissions) as above
-npx expo prebuild                      # 3. only if you keep native dirs / bare workflow
-npx expo run:ios                       # 4. compile + install the dev build   [or run:android]
-# EAS alternative for step 4:
-eas build --profile development --platform ios
+npx mapcn-rn add <component…> [--overwrite] [--yes] [--renderer maplibre|mapbox]
+npx mapcn-rn add --all
+npx mapcn-rn list        # the registry set, against your project's installed state
 ```
 
-Rebuild (steps 3–4) after: the first install, a provider switch, any `app.json` plugin/permission change. A pure JS edit to `components/ui/map.tsx` only needs a Metro reload.
+`add` reads `mapcn.json` (and runs `init` first if there is none), resolves `registryDependencies` transitively and topologically, and prints the resolved set before writing anything.
 
-## Components + props (verified against the installed source)
+⚠️ **This is the part that makes "you own the file" safe.** Per file:
 
-Exported from `@/components/ui/map`: `Map`, `MapControls`, `MapMarker`, `MarkerContent`, `MarkerLabel`, `MarkerPopup`, `MapRoute`, `MapUserLocation`, `useMap`, plus `useCurrentPosition` and `LocationManager` re-exported from MapLibre — **the Mapbox variant exports neither of those two.**
+| State | What happens |
+|---|---|
+| New | written directly |
+| Unmodified since install | upgraded silently if the registry version differs |
+| **Locally modified** (or an untracked file already at that path) | **never overwritten** — the new version goes to a `<name>.new.tsx` sidecar and the CLI prints a diff command |
+| …with `--overwrite` | original snapshotted to `.mapcn-backup/<timestamp>/` first, then replaced |
 
-**`Map`** — `children`, `styles?: { light?, dark? }`, `center = [0, 0]` (`[lng, lat]`), `zoom = 10`, `className`, `showLoader = true`. Renders a `flex-1 relative` `<View>`; the internal `<Camera>` uses `easing="fly"`, `duration={1000}`. Theme comes from `useTheme().colorScheme` — light/dark tiles switch automatically. Note there is **no `viewport`/`onViewportChange`** here (that's web-only); move the camera via `useMap()`.
+So an upgrade cannot silently eat your edits, which was the standing hazard of the v1 copy-once model.
+
+## `doctor` — run it before debugging anything
+
+```bash
+npx mapcn-rn doctor [--json] [--verbose]
+```
+
+Non-mutating, **14 independent checks** (a failure never skips the rest), levelled `ok`/`warn`/`error`/`info`, **exit 1 if anything is error-level** — so it is CI-usable, and `--json` makes it scriptable. It covers exactly the things that go wrong here: renderer package installed and matching the config, **both renderer packages present**, Expo plugin present and matching, `MAPBOX_DOWNLOADS_TOKEN` (Mapbox only), the provider's required env key (skipped for CARTO), iOS/Android location permissions (only when `location`/`location-puck` is installed), and a legacy-v1 detection.
+
+## The component set
+
+17 components, from the reference index. **`map`, `marker` and `location-puck` are per-renderer** (two implementations behind one shared prop-type file); everything else is a single shared source.
+
+| Category | Components |
+|---|---|
+| **core** | `core` · `map` · `marker` · `popup` · `controls` |
+| **data** | `route` · `geojson` · `circle` · `polygon` · `cluster` · `heatmap` · `choropleth` · `legend` |
+| **location** | `location` · `location-puck` |
+| **styling** | `style-switcher` |
+
+Import everything from the generated barrel:
 
 ```tsx
-import { Map } from "@/components/ui/map";
-import { View } from "react-native";
-
-export default function BasicMapExample() {
-  return (
-    <View className="h-[500px] rounded-xl overflow-hidden border border-border">
-      <Map zoom={12} center={[-122.4194, 37.7749]} />
-    </View>
-  );
-}
+import { Map, useMap } from "@/components/ui/mapcn";
 ```
 
-**`MapMarker`** — position as **either** `coordinate={[lng, lat]}` **or** `longitude` + `latitude` (a TS union: pass one form, not both). Plus `label?: string` (shorthand for a `MarkerLabel`), `anchor = { x: 0.5, y: 0.5 }`, `allowOverlap = false`, `onPress`. ⚠️ `allowOverlap` is destructured and **never used** in the installed source — treat it as a no-op. Docs cap `MapMarker` at "hundreds"; past ~1000 use GeoJSON layers.
+### `<Map>` — the container
 
-**`MarkerContent`** (`children`, `className`; defaults to a blue dot) · **`MarkerLabel`** (`children`, `className`, `classNameText`, `position: "top" | "bottom"` = `"top"`) · **`MarkerPopup`** (`children`, `className`, `title` — renders a native MapLibre `Callout`, opens on press).
+Its props are **identical on both renderers** (one shared `map-types.ts`), so there is no drift to design around. The ones that matter:
 
-```tsx
-import { Map, MapMarker, MarkerContent, MarkerLabel, MarkerPopup } from "@/components/ui/map";
-import { Text, View } from "react-native";
+- **Camera**: `viewport` (controlled) vs `defaultViewport` (uncontrolled, `{ center: [0,0], zoom: 2, bearing: 0, pitch: 0 }`), `bounds` + `padding`, `minZoom`/`maxZoom`, `maxBounds`.
+- **Events**: `onViewportChange(viewport, { userInteraction })` fires continuously while moving, throttled by `viewportChangeThrottle` (default **100 ms**); `onViewportChangeEnd` fires once it settles. Also `onPress`/`onLongPress` (`MapFeaturePressEvent` — coordinate, screen point, features under it), `onLoad`, `onError`.
+- **Style**: `style` takes a named provider style id, an explicit URL/spec, **or a `{ light, dark }` pair**; `colorScheme` overrides what `useColorScheme()` resolved.
+- **Gestures**: `interactive` as a master toggle, `gestures={{ pan, zoom, rotate, pitch }}` individually.
+- **Chrome**: `compass` / `logo` / `attribution` / `scaleBar`, each `boolean | { position }`.
+- **Styling**: `className` (Uniwind/NativeWind) merged with `containerStyle`; `loader` renders until `onLoad`, `false` hides it.
+- **Escape hatches**: `maplibre` / `mapbox` props, `Record<string, unknown>`, loosely typed on purpose.
 
-<Map center={[-73.98, 40.76]} zoom={12} className="flex-1">
-  <MapMarker coordinate={[-73.9857, 40.7484]} onPress={() => {}}>
-    <MarkerContent className="rounded-full">
-      <View className="size-4 rounded-full border-2 border-white bg-blue-500" />
-      <MarkerLabel position="bottom" classNameText="text-foreground">Empire State</MarkerLabel>
-    </MarkerContent>
-    <MarkerPopup title="Empire State Building">
-      <Text className="text-muted-foreground text-xs">350 5th Ave</Text>
-    </MarkerPopup>
-  </MapMarker>
-</Map>
-```
+`useMap()` returns the same `MapInstance` on both renderers and **throws outside a `<Map>` subtree**: `renderer`, `isLoaded`, `getViewport()`, `setViewport()`, `flyTo()`, `moveTo()`, `zoomTo()`, `zoomBy()`, `fitBounds()`, `fitFeatures()`, `resetNorth()`.
 
-**`MapControls`** — `position = "bottom-right"` (`"top-left" | "top-right" | "bottom-left" | "bottom-right"`), `showZoom = true`, `showLocate = false`, `className`, `onLocate?: (coords: { longitude, latitude }) => void`. ⚠️ **No `showCompass` / `showFullscreen`** — those exist only on the web version. `showLocate` needs the permissions above.
+## Renderer capability gaps — documented, not silent
 
-**`MapRoute`** — `coordinates: Array<[number, number]>`, `color = "#4285F4"`, `width = 3`, `opacity = 0.8`, `dashArray?: [number, number]`. Drawn as a native MapLibre line layer.
+The compatibility matrix is built from the `CAPABILITIES` constants each renderer adapter actually exports, not from intentions. The gaps worth knowing:
 
-**`MapUserLocation`** — `visible = true`, `showAccuracy = true`, `showHeading = false`, `animated = true`, `minDisplacement?`, `onPress?`, `autoRequestPermission = true` (handles the permission prompt for you).
+| Capability | MapLibre 11 | Mapbox 10 | Handling |
+|---|---|---|---|
+| `clusterMinPoints` | ✓ | ✗ | accepted on both prop types, **ignored on Mapbox** — a documented gap, not a silent drop |
+| Location puck: pulsing / scale / custom images | ✗ | ✓ | Mapbox-only props; **`__DEV__` warning** if passed on MapLibre |
+| Location puck: `onPress`, custom children | ✓ | ✗ | MapLibre-only; same warning the other way |
+| Cluster ref methods, GeoJSON + native clustering | ✓ | ✓ | full parity |
+| Unified layer style keys & expressions | ✓ | ✓ | shared verbatim, no translation layer |
+| Native feature state, `querySourceFeatures` | ✗ | ✓ | unused by mapcn — selection everywhere uses filter expressions, which both support |
 
-```tsx
-<Map center={[0, 0]} zoom={12}>
-  <MapUserLocation visible showAccuracy autoRequestPermission />
-  <MapControls showZoom showLocate />
-</Map>
-```
-
-**`useMap()`** → `{ mapRef, cameraRef, isLoaded, theme }`. `cameraRef.current.easeTo({ center, zoom, duration })` / `.flyTo(...)` is how you drive the camera; `mapRef.current` is the raw MapLibre `MapView` for anything the wrapper doesn't expose.
-
-```tsx
-function FitToUser() {
-  const { mapRef, cameraRef, isLoaded } = useMap();
-  useEffect(() => {
-    if (!mapRef.current || !isLoaded) return;
-    mapRef.current.getCenter().then((center) => console.log("center", center));
-  }, [mapRef, isLoaded]);
-  return null;
-}
-```
-
-## What's missing vs web (don't assume parity)
-
-- **No standalone `MapPopup`** — every popup must hang off a `MapMarker` via `MarkerPopup`.
-- **No `MapClusterLayer`, `MapGeoJSON`, `MapArc` wrappers.** For clustering / heatmaps / thousands of points, use MapLibre's own `GeoJSONSource` + `Layer` (`cluster`, `clusterRadius={50}`, `filter={["has","point_count"]}` vs `filter={["!",["has","point_count"]]}`, `getClusterExpansionZoom()`), `CircleLayer`, `SymbolLayer` — imported from `@maplibre/maplibre-react-native`, not from mapcn. The docs' Clusters page says this explicitly.
-- **No controlled viewport props.** Camera control is imperative via `useMap()`.
+**Choose the renderer on this table, not on brand preference** — and note the two location-puck rows point in opposite directions.
 
 ## Styling
 
-NativeWind/Uniwind is a hard requirement — every component takes `className` and the source uses `cn()`. The docs state the component code is identical for both styling libraries. Labels/popups use theme tokens (`text-foreground`, `border-border`), so DESIGN.md tokens flow through for free.
-
-## ⚠️ Gotcha — map inside a `ScrollView` (Android)
-
-The only gotcha the docs document: on Android a `Map` inside a `ScrollView` loses pan/zoom to the parent's vertical scroll and flickers. Fix: give the map container a **fixed height** and toggle the parent's `scrollEnabled` from the map wrapper's `onTouchStart` → `false`, `onTouchEnd` **and** `onTouchCancel` → `true` (miss `onTouchCancel` and the ScrollView stays locked). Wrap only the map container, not the screen. Unnecessary if the map is full-screen. Test on a physical Android device.
+Uniwind/NativeWind is the expected integration (`styling` in `mapcn.json` records which, and `"none"` is a valid value). Components take `className`.
 
 ## dev-flow integration
 
 - Owned on the mobile side: add a map screen via `rn-add-screen` using these components; this reference is the how-to.
-- `meta.json#stack.maps = "mapcn-rn"`. Also record the provider (`carto` / `maptiler` / `mapbox`) — it's a licensing + native-dep decision, not a detail.
+- `meta.json#stack.maps = "mapcn-rn"`. **Also record the renderer and the provider** — they are a licensing + native-dependency decision, and they cannot both change cheaply.
 - Because it needs a **dev build**, sequence it *before* any Expo-Go-only smoke test; it ships through the normal `rn-eas-deploy` flow. Web counterpart: `mapcn` (see `design-md-to-app/references/maps-mapcn.md`).
 
 ## Sources
 
-- Intro: <https://mapcn-rn.dev/docs> · Installation: <https://mapcn-rn.dev/docs/getting-started/installation> · CLI: <https://mapcn-rn.dev/docs/cli/init> (+ `/cli/add`, `/cli/doctor`, `/cli/migrate`)
-- Reference: <https://mapcn-rn.dev/docs/reference/components-index> · <https://mapcn-rn.dev/docs/reference/renderer-compatibility-matrix> · Config: <https://mapcn-rn.dev/docs/getting-started/configuration> · Theming: <https://mapcn-rn.dev/docs/getting-started/theming> — ⚠️ the old `/docs/gotchas`, `/docs/advanced-usage` and `/docs/commercial-use` pages **no longer exist** (checked 2026-08-26)
-- Examples: <https://mapcn-rn.dev/docs/core/map> · <https://mapcn-rn.dev/docs/core/controls> · <https://mapcn-rn.dev/docs/core/markers> · <https://mapcn-rn.dev/docs/core/popups> · <https://mapcn-rn.dev/docs/data/routes> · <https://mapcn-rn.dev/docs/data/clustering>
-- Installed source of truth: <https://mapcn-rn.dev/maps/map.json> · <https://mapcn-rn.dev/maps/map-maptiler.json> · <https://mapcn-rn.dev/maps/map-mapbox.json> · CLI package: <https://www.npmjs.com/package/mapcn-rn>
+- Getting started: <https://mapcn-rn.dev/docs> · <https://mapcn-rn.dev/docs/getting-started/installation> · <https://mapcn-rn.dev/docs/getting-started/renderers-and-providers> · <https://mapcn-rn.dev/docs/getting-started/configuration> · <https://mapcn-rn.dev/docs/getting-started/theming> · <https://mapcn-rn.dev/docs/getting-started/upgrade-to-v2>
+- CLI: <https://mapcn-rn.dev/docs/cli/init> · <https://mapcn-rn.dev/docs/cli/add> · <https://mapcn-rn.dev/docs/cli/doctor> · <https://mapcn-rn.dev/docs/cli/migrate>
+- Components: <https://mapcn-rn.dev/docs/core/map> · <https://mapcn-rn.dev/docs/core/markers> · <https://mapcn-rn.dev/docs/core/popups> · <https://mapcn-rn.dev/docs/core/controls> · <https://mapcn-rn.dev/docs/data/routes> · <https://mapcn-rn.dev/docs/data/clustering> · <https://mapcn-rn.dev/docs/data/geojson> · <https://mapcn-rn.dev/docs/location/location-puck> · <https://mapcn-rn.dev/docs/styling/style-switcher>
+- Reference: <https://mapcn-rn.dev/docs/reference/components-index> · <https://mapcn-rn.dev/docs/reference/renderer-compatibility-matrix>
+- npm: <https://www.npmjs.com/package/mapcn-rn>
+
+`[VERIFY]` on the next minor — this project shipped a full API redesign between v1 and v2, and **the file you own is the API**: once `add` has written it, your repo is the source of truth, and `mapcn.json`'s hashes are what tell the CLI whether it may touch it again.

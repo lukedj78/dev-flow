@@ -19,7 +19,7 @@ description: 'Use when working with React Native core components (View, Text, Sc
 - "Which touchable?" → always `Pressable`. See `references/patterns.md` for the canonical button pattern.
 - "How do I open an external URL / mail / phone?" → `references/patterns.md` (Linking section)
 - "Keyboard avoidance pattern?" → `references/patterns.md` (KeyboardAvoidingView + Android quirks)
-- "I need a **map** in this screen" → `references/maps-mapcn-rn.md` (**mapcn-rn**, the ecosystem-first default: MapLibre/Mapbox RN + NativeWind). ⚠️ native modules → needs a **dev build, not Expo Go**. Record `stack.maps = "mapcn-rn"`.
+- "I need a **map** in this screen" → `references/maps-mapcn-rn.md` (**mapcn-rn**, the ecosystem-first default: MapLibre/Mapbox RN + NativeWind). ⚠️ native modules → needs a **dev build, not Expo Go**. Record `stack.maps = "mapcn-rn"` — **and the renderer + provider**, which are a licensing and native-dependency decision, not a detail (v2 separates the two axes).
 - "None of these core components feel native enough for this screen" → these are all *RN* primitives (a JS abstraction over both platforms). For real native controls instead — SwiftUI on iOS, Jetpack Compose on Android (grouped settings sections, native picker/slider, real sheets) — that's `@expo/ui`, a different tool. See `rn-styling/references/expo-ui.md` (verified against `@expo/ui@57.0.14` on 2026-08-26) for the full breakdown; this skill's guidance still applies whenever you're using `View`/`Text`/`ScrollView`/etc. as-is.
 
 ## Common anti-patterns (NEVER do)
