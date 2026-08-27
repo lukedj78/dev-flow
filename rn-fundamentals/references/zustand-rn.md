@@ -1,6 +1,6 @@
 # Zustand — client state in Expo + RN
 
-The **how**, not just "use Zustand". Doc-grounded against `zustand.docs.pmnd.rs` (create, useShallow, slices pattern, persist / `createJSONStorage`) plus the Expo SecureStore reference. Verified `zustand` **5.0.14** (2026-08) — the repo pins `^5.0.14` in `references/stack-defaults.md`. `[VERIFY]` identifiers against the installed version; the v4 → v5 surface changed (e.g. `createWithEqualityFn` now lives in `zustand/traditional`).
+The **how**, not just "use Zustand". Doc-grounded against `zustand.docs.pmnd.rs` (create, useShallow, slices pattern, persist / `createJSONStorage`) plus the Expo SecureStore reference. Verified `zustand` **5.0.15** (2026-08-26 — `stack-defaults.md` was refreshed to `^5.0.15` the same day). `createWithEqualityFn` **confirmed** in `zustand/traditional` (`traditional.d.ts`, and nowhere else). `[VERIFY]` identifiers against the installed version; the v4 → v5 surface changed and that move is one of the changes.
 
 ## Decide first: does this belong in Zustand at all?
 
@@ -96,7 +96,18 @@ export const useBoundStore = create<CartSlice & SessionSlice>()((...a) => ({
 }));
 ```
 
-Slices can call each other through `get()` (`get().add(id)`). **Apply middleware only on the combined store** — wrapping individual slices leads to unexpected behavior. With middleware, the mutator tuple changes: `StateCreator<S, [["zustand/persist", unknown]], [], Slice>` `[VERIFY]`.
+Slices can call each other through `get()` (`get().add(id)`). **Apply middleware only on the combined store** — wrapping individual slices leads to unexpected behavior. With middleware, the mutator tuple changes: `StateCreator<S, [["zustand/persist", unknown]], [], Slice>`.
+
+**Confirmed against `zustand@5.0.15`** (`middleware/persist.d.ts`), and the asymmetry is the part that
+trips people writing it by hand — `persist` is typed
+
+```ts
+(initializer: StateCreator<T, [...Mps, ['zustand/persist', unknown]], Mcs>, options)
+  => StateCreator<T, Mps, [['zustand/persist', U], ...Mcs]>
+```
+
+so it is **`unknown` on the way in** (what your slice declares) and **`U` on the way out** (what the
+composed store exposes). Writing the store's own type where the `unknown` goes is the usual mistake.
 
 ## Persisting with AsyncStorage
 

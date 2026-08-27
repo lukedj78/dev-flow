@@ -10,9 +10,11 @@ This skill is the prerequisite read for any RN/Expo work. It sets the four non-n
 ## The 4 non-negotiables
 
 1. **Expo managed workflow** is the default. Bare workflow / `react-native init` only if there is a documented native dependency Expo cannot wrap.
-2. **Latest stable Expo SDK** `[VERIFY]` at bootstrap time. **New Architecture is on and not optional** from SDK 55 onward — do *not* set `newArchEnabled`: it is ignored, absent from `@expo/config-types@57`'s schema, and Expo recommends removing it. Hermes is the engine.
-3. **TypeScript** is mandatory. Template `blank-typescript` `[VERIFY]`. `tsconfig.json` extends `expo/tsconfig.base` `[VERIFY]`.
-4. **npm** is the package manager (matches Expo defaults and `npx create-expo-app` `[VERIFY]`). No Yarn, no pnpm in this set.
+2. **Latest stable Expo SDK** — `57.0.16` on 2026-08-26 (`npm view expo dist-tags`); `[VERIFY]` at bootstrap time, quarterly cadence. **New Architecture is on and not optional** from SDK 55 onward — do *not* set `newArchEnabled`: it is ignored, and **confirmed absent from `@expo/config-types@57.0.2`'s `ExpoConfig` schema** (zero occurrences), so it is not merely discouraged — there is no key to set. Hermes is the engine.
+3. **TypeScript** is mandatory. `tsconfig.json` extends **`expo/tsconfig.base`** — confirmed shipping at the root of `expo@57.0.16`, and it sets `moduleResolution: "bundler"` (which is why relative imports here need no `.js` extension).
+   ⚠️ **`blank-typescript` is our choice, not the CLI's default.** From `create-expo-app@4.0.0`'s own help: *"NPM template to use: default, blank, blank-typescript, tabs, bare-minimum. **Default: default**"* — and `default` is the one it labels *"recommended for most app developers"*. Pass `-t blank-typescript` explicitly or you get something else.
+4. **npm** is the package manager. ⚠️ This is a **house rule**, not the CLI's preference: `create-expo-app@4.0.0` *resolves* the package manager from your environment — the `--use-npm` / `--use-yarn` / `--use-pnpm` flags are **gone** (zero occurrences in the package). Invoking it with `npx` gets you npm because npx *is* npm, not because the CLI prefers it. No Yarn, no pnpm in this set.
+5. ⚠️ **`create-expo-app@4` writes agent files by default** — `AGENTS.md`, `CLAUDE.md` and `.claude/settings.json`, opt out with `--no-agents-md`. On a dev-flow project decide deliberately: a scaffolded `CLAUDE.md` sitting next to `.workflow/` is a second set of instructions nobody reconciled.
 
 ## Source of truth (Expo)
 
@@ -24,7 +26,7 @@ For anything sensitive to the current Expo SDK — exact API shapes, CLI command
 2. **Expo MCP server** — `https://mcp.expo.dev/mcp` — live docs/CLI/EAS reference exposed as MCP tools. **If it is connected in this session, prefer it** over anything written across this skill set for current-version details.
 3. **Official `expo/skills`** — installable as a Claude Code plugin, or via `npx skills add expo/skills` — maintained by Expo directly against the SDK release cadence.
 
-Any version number, CLI command, or config key in this skill set marked `[VERIFY]` above is a candidate to have drifted — check it against the sources above before relying on it, the same way `eve-agent` defers to `node_modules/eve/docs` instead of guessing the eve API.
+Last swept **2026-08-26** against `expo@57.0.16`, `create-expo-app@4.0.0`, `@expo/config-types@57.0.2` and `zustand@5.0.15`. Any version number, CLI command, or config key in this skill set marked `[VERIFY]` above is a candidate to have drifted since — check it against the sources above before relying on it, the same way `eve-agent` defers to `node_modules/eve/docs` instead of guessing the eve API.
 
 ## Quick decision tree
 

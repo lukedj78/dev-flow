@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-27T17:19:51Z",
+  "generated_at": "2026-08-27T17:31:42Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -620,7 +620,7 @@
         "zustand-rn.md"
       ],
       "scripts": [],
-      "skill_md_lines": 48,
+      "skill_md_lines": 50,
       "bundle": "dist/rn-fundamentals.skill"
     },
     {
