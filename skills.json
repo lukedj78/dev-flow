@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-27T19:30:36Z",
+  "generated_at": "2026-08-27T19:33:46Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 44,
   "families": {
@@ -154,7 +154,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 167,
+      "skill_md_lines": 174,
       "bundle": "dist/spec-review.skill"
     },
     {

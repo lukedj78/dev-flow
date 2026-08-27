@@ -15,7 +15,9 @@ them side by side.
 
 > **Credit.** The two-axis structure, the parallel-sub-agent split, the refusal to merge verdicts and
 > the Fowler smell baseline are adapted from Matt Pocock's `code-review` skill
-> ([mattpocock/skills](https://github.com/mattpocock/skills), MIT) and
+> ([mattpocock/skills](https://github.com/mattpocock/skills), MIT — the skill now lives at
+> [`docs/engineering/code-review.md`](https://github.com/mattpocock/skills/blob/main/docs/engineering/code-review.md);
+> both paths checked 2026-08-26) and
 > [the essay behind it](https://www.aihero.dev/skills-code-review). What's ours is the half his skill
 > has to search for: in a dev-flow project the spec and the standards are **at known paths**.
 
@@ -83,10 +85,11 @@ A dev-flow project's documented standards are not a `CONTRIBUTING.md` someone ma
 long report that says nothing new. If the project has a lint gate, a review finding about formatting is
 noise.
 
-#### The smell baseline (Fowler, *Refactoring* ch. 3)
+#### The smell baseline — twelve smells, selected (Fowler, *Refactoring* 2nd ed., ch. 3)
 
-Each is a **labelled heuristic** — "possible Feature Envy" — never a hard violation, and **any documented
-standard above overrides it**.
+The chapter catalogues more than these; the twelve below are the ones that show up in a *diff*, which is
+all this skill ever sees. Each is a **labelled heuristic** — "possible Feature Envy" — never a hard
+violation, and **any documented standard above overrides it**.
 
 - **Mysterious Name** — a name that doesn't reveal what it does or holds. → rename; if no honest name comes, the design is murky.
 - **Duplicated Code** — the same logic shape in more than one hunk. → extract, call from both.
@@ -125,8 +128,12 @@ That separation is the whole point: a change can follow every convention and imp
 feature (**Standards pass, Spec fail**), or do exactly what the PRD asked while ignoring the stack the
 project declared (**Spec pass, Standards fail**). One combined verdict lets either hide behind the other.
 
-**Findings are hypotheses.** Verify before acting — this whole session's `[VERIFY]` passes exist because
-a confident report is not a correct one.
+**Findings are hypotheses.** Verify before acting. This repo's own `[VERIFY]` discipline exists for the
+same reason, and the 2026-08-26 sweep proved the point: of ~55 markers closed across the skill set, a
+handful turned out to be **confidently wrong** rather than merely unchecked — a removed module path
+still documented as current, a dead source-of-truth link, a package namespace that does not exist, an
+upstream issue described as open that had been closed *won't fix*. A report that reads well is not a
+report that is right.
 
 ## `meta.json#spec_review` block
 
@@ -163,5 +170,5 @@ the branch is still open. It is *not* a fourth pre-deploy gate — `compliance-a
 
 ## Sources
 
-- <https://www.aihero.dev/skills-code-review> · [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) — the two-axis structure and the smell baseline.
+- <https://www.aihero.dev/skills-code-review> · [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) — the two-axis structure and the smell baseline. Both 200 on 2026-08-26; upstream has since moved its skills under `docs/engineering/`, where `code-review.md` still lives.
 - Fowler, *Refactoring* (2nd ed.), ch. 3 — the smell catalogue.
