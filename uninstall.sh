@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Remove all 45 dev-flow skills (6 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
-# runtime's skills directory. Restores `*.bak` backups created by install.sh,
+# runtime's skills directory. Restores legacy `*.bak` backups (pre-2026-08-28 installs),
 # if present.
 #
 # Usage:
@@ -103,9 +103,13 @@ for s in "${SKILLS[@]}"; do
     echo "  · $s not found"
   fi
 
+  # Legacy: installs before 2026-08-28 left `<name>.bak` INSIDE the skills dir,
+  # where the harness registered it as a second skill with the same `name:`.
+  # Restore one if present, then it is gone for good — current installs back up
+  # to <skills-dir>-backup-*/ instead.
   if [ -d "$bak" ]; then
     mv "$bak" "$dest"
-    echo "    ↩ restored backup $s.bak → $s"
+    echo "    ↩ restored legacy backup $s.bak → $s"
   fi
 done
 

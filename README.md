@@ -1316,6 +1316,12 @@ the repo.
 npx skills@latest add warpdotdev/common-skills --skill skill-doctor
 ```
 
+⚠️ **Check the installed copies before trusting any verdict.** The first real run here found **25 of
+43 installed skills diverging from the repo** — every one of them a skill corrected that same day. The
+grader reads what the agent actually loads, so a stale install makes every finding about the wrong
+text. Its collector even prefers the installed copy: it probes the global roots *before* any
+`--skills-dir`, and skips names already seen. Run `./install.sh` first, then measure.
+
 ⚠️ **It cannot see this repo's skills without being told where they are.** Its collector probes the
 conventional roots (`~/.claude/skills`, `~/.agents/skills`, `~/.codex/skills`) and globs `*/SKILL.md`
 under each. Our layout is 45 flat folders at the repo root — a valid skills root, just not one it

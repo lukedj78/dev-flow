@@ -38,7 +38,9 @@
 #
 #   CLAUDE_SKILLS_DIR=/custom/path ./install.sh --platform claude   # override
 #
-# Idempotent-ish: existing installs at the target are backed up to .bak before
+# Idempotent-ish: an existing install at the target is moved to a timestamped
+#   <skills-dir>-backup-YYYYmmdd-HHMMSS/ — OUTSIDE the skills dir, so the backup
+#   is never itself registered as a skill — before
 # overwrite (one level only — running twice loses the second-most-recent).
 
 set -euo pipefail
@@ -199,6 +201,10 @@ SKILLS=(
   composition-patterns-guide
 )
 
+# Backups go OUTSIDE the skills directory — anything left inside it is scanned
+# and registered as a skill. Timestamped so consecutive installs don't collide.
+BACKUP_DIR="${SKILLS_DIR%/}-backup-$(date +%Y%m%d-%H%M%S)"
+
 echo "Installing ${#SKILLS[@]} dev-flow skills →  $SKILLS_DIR  (platform: $PLATFORM)"
 mkdir -p "$SKILLS_DIR"
 
@@ -253,9 +259,15 @@ for s in "${SKILLS[@]}"; do
   fi
 
   if [ -d "$dest" ]; then
-    rm -rf "$dest.bak"
-    mv "$dest" "$dest.bak"
-    echo "  ⚠ $s — backed up existing version to $s.bak"
+    # ⚠️ The backup must NOT live inside SKILLS_DIR. A `<name>.bak` folder there
+    # still holds a valid SKILL.md declaring the SAME `name:` as the live skill,
+    # so the harness registers BOTH — and the stale copy competes for triggering
+    # against the one you just installed. Found the hard way: one install left 42
+    # duplicate pairs loadable, every one of them the pre-update version.
+    mkdir -p "$BACKUP_DIR"
+    rm -rf "$BACKUP_DIR/$s"
+    mv "$dest" "$BACKUP_DIR/$s"
+    echo "  ⚠ $s — previous version moved to $BACKUP_DIR/$s"
   fi
 
   cp -R "$src" "$dest"
