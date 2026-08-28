@@ -38,6 +38,24 @@ npx -y vgpu docs find <query> | grep -i <term> | cat <symbol>
 What follows is the half nobody else writes: **whether to reach for it, and what you owe the user once
 you do.**
 
+## It is not only graphics — but for a dev-flow project it almost always is
+
+WebGPU is a **GPU compute** API of which rendering is one use, and vgpu exposes both. `Compute`,
+`ComputeOptions`, `StorageBuffer` and `PingPongStorage` are first-class, and **`initFromDevice(device)`**
+adopts a `GPUDevice` another library already created — the documented case being **ONNX Runtime Web's
+WebGPU execution provider**, so a model's output stays on the GPU and a shader consumes it with
+`gpu.device.wrapBuffer(output.gpuBuffer)`, zero copies. It runs in Node too, with Dawn supplying
+WebGPU. Ownership is explicit: vgpu never calls `destroy()` on a device it did not request.
+
+**Know that path exists; then note it is almost never ours.** In this skill set the model runs
+server-side, through eve and the AI Gateway — client-side inference is a different architecture with
+its own bill (model download weight, WebGPU availability, a device the page now owns). It earns
+consideration only when the data genuinely must not leave the machine *and* the client is a browser.
+`[VERIFY]` the ML matrix against the first-party skill (`vgpu docs cat ml`) before pricing that;
+it pins specific `webgpu`, `onnxruntime-web` and Dawn versions.
+
+Everything below is the graphics path, because that is the one a dev-flow project actually reaches.
+
 ## The decision — this is `transitions`' top rung, not a separate ladder
 
 `transitions` grades motion in tiers, cheapest first. vgpu is a **new Tier 4**, above Motion:
