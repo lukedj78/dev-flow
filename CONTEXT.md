@@ -87,6 +87,11 @@ _Avoid_: convention, preference.
 **`[VERIFY]`**
 An inline marker meaning "confirm this identifier against the installed version before relying on it". Used for beta or fast-moving upstreams.
 _Avoid_: TODO, FIXME, TBD.
+⚠️ It does two jobs, and conflating them is what lets a marker rot: **an open question** ("I don't know") versus **a standing disclaimer** ("this will age"). The second multiplies without bound — every version number moves — and if everything is marked, nothing is. Prefer converting a disclaimer into a **stamp**: *verified against `pkg@x.y.z` on `YYYY-MM-DD`; re-check on a major*. Same caution, plus the baseline the next pass starts from.
+
+**Verification pass** vs **skill-doctor**
+Two different axes of decay, and neither sees the other. A **verification pass** asks *is this still true?* and answers it against the upstream — `npm pack` and read the `.d.ts`, `curl` every cited URL, diff the shipped docs. **`skill-doctor`** (Warp, MIT — install it, this repo does not ship a copy) asks *is this working?* and answers it against **local agent conversation transcripts**, scoring efficiency and code quality and drafting the edits the failed conversations justify. A skill can be perfectly accurate and never fire; a skill can fire reliably and be wrong.
+_Avoid_: calling either one "an audit" — `compliance-audit` is a different thing entirely.
 
 **Watch pass**
 A dated sweep of an upstream changelog, logged in `docs/vercel-changelog-watch.md` with each entry classified applied / watch / not relevant.

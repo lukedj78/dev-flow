@@ -1296,6 +1296,46 @@ The skills are **plain folders** with a `SKILL.md` + `references/` + optional `s
 
 To add a new module variant to `module-add` (e.g., Clerk auth, Supabase db), drop a new `references/module-<name>.md` following the same pattern as `module-auth.md` / `module-db.md`. The orchestrator picks it up automatically.
 
+### Two axes of skill rot — and which tool owns which
+
+A skill decays in two independent directions, and catching one tells you nothing about the other.
+
+| Axis | Question | Caught by |
+|---|---|---|
+| **Is it still true?** | the upstream moved: a module path, a CLI flag, a deprecation, a dead link | a **verification pass** — `npm pack` the package and read its `.d.ts`, `curl` every cited URL, diff the shipped docs |
+| **Is it working?** | the skill exists and is accurate, but it never fires, or it fires and the agent still flails | **[`skill-doctor`](https://github.com/warpdotdev/common-skills/blob/main/.agents/skills/skill-doctor/SKILL.md)** (Warp, MIT) |
+
+`skill-doctor` reads **local agent conversation transcripts** — Claude Code's project-history JSONL
+among them — scores them against two published rubrics (**efficiency**: rework, cost to the human,
+redundant reads, batching, flailing, verification timing; **code quality**: design, correctness,
+conventions, tests), then drafts the skill edits the failed conversations justify, as a full proposed
+`SKILL.md` plus a unified diff. Everything runs locally; it writes to a scratch directory, never into
+the repo.
+
+```bash
+npx skills@latest add warpdotdev/common-skills --skill skill-doctor
+```
+
+**Install it; don't wrap it.** It is already a maintained MIT skill, so this repo does not ship a copy
+— the same call made for `anydoc` and for `vgpu`'s generated API skill.
+
+⚠️ **But a proposal is not a merge, and this repo is unusual: the skills under test *are* the repo.**
+An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
+file it changed. Before accepting one:
+
+1. **`python3 scripts/lint_skills.py`** — 11 checks. The description cap in particular: over 1024
+   characters a conforming client **skips the skill**, so a "clearer" description that grew is a
+   regression, not an improvement.
+2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
+   `build_plugin_manifest.py --check`.
+3. **A new skill touches six other places**: the taxonomy row, both installers, the README catalogue,
+   and every stated count. Check 11 finds them; it will not write them.
+4. **`references/contracts.md` is vendored byte-identically into every skill.** Editing one copy is
+   always wrong.
+
+So the useful division is: **skill-doctor proposes from evidence this repo cannot see, and the linter
+decides what is mergeable.** Neither replaces reading the diff.
+
 ### Writing the `description`
 
 The description is the **only** thing a skill is selected on — the body is never read until it loads. Five rules, all learned the hard way and all enforced by the linter:
