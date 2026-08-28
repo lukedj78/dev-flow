@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Referto skill-doctor — dev-flow</title>
-<meta name="description" content="Referto skill-doctor su 54 sessioni Claude Code: quattro reperti, tutti chiusi, e i controlli che impediscono loro di tornare.">
+<meta name="description" content="Referto skill-doctor su 54 sessioni Claude Code: quattro reperti chiusi, piu lo scoring a mano dei 12 transcript campionati.">
 </head>
 <body>
 <style>
@@ -107,7 +107,7 @@
     <span>6.325 tool call</span><span>·</span>
     <span>45 skill nel repo</span><span>·</span><span>agg. dopo <code>./install.sh</code></span>
   </div>
-  <p class="note" style="margin-top:.9rem"><strong>Istantanea del 28 agosto 2026.</strong> Le cifre valgono a quella data e non vanno riallineate in seguito: un referto che si aggiorna da solo smette di essere un referto. Per lo stato corrente vale il linter, non questa pagina.</p>
+  <p class="note" style="margin-top:.9rem"><strong>Istantanea del 28 agosto 2026</strong>, in due passate: il referto principale dalla misura con le root globali, l'addendum in fondo dalla ri-misura con il metodo corretto. Le cifre valgono a quella data e non vanno riallineate in seguito — un referto che si aggiorna da solo smette di essere un referto. Per lo stato corrente vale il linter, non questa pagina.</p>
 </header>
 
 <section>
@@ -281,6 +281,72 @@
   <div class="find i" style="border-left-color:var(--ok)">
     <h3><span class="chip ok">il punto</span> Il vero asse scoperto resta un altro</h3>
     <p>Questa passata risponde a «<em>sta funzionando?</em>». Quella di oggi rispondeva a «<em>è ancora vero?</em>». Nessuna delle due vede l'altra — ed è per questo che la divergenza è sopravvissuta a entrambe fino ad ora: il repo era verificato, l'installato era usato, e nessun controllo confrontava i due. Il check 12 è esattamente la cucitura fra i due assi.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Addendum — 28 agosto 2026, run senza root globali</h2>
+  <p class="note">Seconda passata, con il metodo corretto: <code>scripts/skill-doctor.sh</code>, <code>--skills-dir</code> da solo. Non riallinea nulla di quanto sta sopra — è una misura nuova, con la sua data e il suo metodo. <strong>I voti qui sono giudizi su sessioni già chiuse</strong>: nessuna voce di questa sezione è un problema aperto.</p>
+
+  <div class="stats">
+    <div class="stat"><b>45/47</b><small>skill risolte in <code>~/my-skills</code> — prima 3 su 368</small></div>
+    <div class="stat"><b>0,73</b><small>efficiency, media sui 12 transcript</small></div>
+    <div class="stat"><b>0,80</b><small>code quality — 6 approve, 2 block, 4 esclusi</small></div>
+    <div class="stat"><b>13→12</b><small>sessioni campionate → transcript scritti</small></div>
+  </div>
+
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">chiuso</span> Un transcript perso, trovato contando</h3>
+    <p>Il collector indicizza le sessioni campionate col <code>sessionId</code> interno al <code>.jsonl</code>, ma scrive ogni transcript in <code>&lt;harness&gt;-&lt;id&gt;.md</code>. Una conversazione <strong>ripresa mantiene lo stesso <code>sessionId</code> su due file</strong>: entrambi i record risultano campionati e la seconda scrittura sovrascrive la prima. L'ordine è dal più recente, quindi sopravvive il frammento più vecchio e più piccolo — <strong>una sessione da 674 chiamate sepolta da una da 13</strong>.</p>
+    <p>Il sommario non lo mostra: <code>sessions_sampled</code> conta le chiavi deduplicate, stampa 12 e concorda con i 12 file. Lo script ora confronta il flag <code>sampled</code> sulle sessioni con i file scritti davvero, e avverte. Guardia vista scattare con un collector fittizio.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Sessione</th><th>Contesto</th><th style="text-align:right">Efficiency</th><th>Code quality</th></tr></thead>
+      <tbody>
+        <tr><td class="name">01</td><td>skill <code>_components</code> expo</td><td class="n" style="color:var(--ok)">1,0</td><td class="name" style="color:var(--muted)">insufficient_evidence</td></tr>
+        <tr><td class="name">02</td><td>brainstorm pronostici</td><td class="n" style="color:var(--ok)">1,0</td><td class="name" style="color:var(--muted)">insufficient_evidence</td></tr>
+        <tr><td class="name">03</td><td>riferimento <code>setup-deploy</code> pendente</td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">04</td><td>progetto video, 764 chiamate</td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">05</td><td>prompt bidmaster</td><td class="n">0,8</td><td class="name" style="color:var(--muted)">insufficient_evidence</td></tr>
+        <tr><td class="name">06</td><td>audit worldcup-eve → <code>eve-agent</code></td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">07</td><td>fix typecheck + test</td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">08</td><td>AI Gateway service tiers</td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">09</td><td>subagent hospitality</td><td class="n">0,8</td><td class="name" style="color:var(--ok)">approve</td></tr>
+        <tr><td class="name">10</td><td>prompt gym-saas</td><td class="n" style="color:var(--warn)">0,4</td><td class="name" style="color:var(--warn)">block</td></tr>
+        <tr><td class="name">11</td><td>Studio</td><td class="n" style="color:var(--warn)">0,4</td><td class="name" style="color:var(--warn)">block</td></tr>
+        <tr><td class="name">12</td><td>AgentOS</td><td class="n" style="color:var(--warn)">0,4</td><td class="name" style="color:var(--muted)">insufficient_evidence</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Scoring a mano contro <code>scorers/efficiency.md</code> e <code>scorers/code-quality.md</code>. La rubrica di code quality esclude dall'aggregato le sessioni senza diff leggibile: la media 0,80 è sulle 8 giudicabili.</p>
+
+  <div class="find i">
+    <h3><span class="chip ok">reperto</span> Lo spreco dominante non è di tool, è di spiegazione</h3>
+    <p>Le tre sessioni a 0,4 perdono tempo sulla stessa cosa, e non è mai una lettura ripetuta. Una arriva a <em>«continuo a non aver chiaro, fai un esempio basico»</em> due volte di fila. Un'altra a <em>«confermi che questa è la sola soluzione ufficiale? guarda la doc ufficiale»</em>. Nella terza l'adversary check — chiesto dall'utente — scopre che il file «corretto» <strong>aveva a sua volta inventato un'API</strong>.</p>
+    <p>Causa comune: <strong>l'agente scrive prima e si ancora dopo</strong>. La regola zero c'è, ma in queste tre scatta come verifica su una bozza già consegnata invece che come cancello prima di scrivere. In una l'errore si era già propagato in due artefatti, e la correzione è costata un giro su entrambi.</p>
+  </div>
+
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">reperto</span> Le sessioni promosse fanno tutte un passo di falsificazione</h3>
+    <ul>
+      <li>Ripristina il file rotto <strong>per vedere i test rossi senza il fix</strong> — «31 test verdi, ma devo vederli rossi, altrimenti non provano niente».</li>
+      <li>Ri-scarica il changelog perché il primo riassunto <strong>puzzava di allucinazione</strong>. E lo era.</li>
+      <li>Dopo il push verifica che il proprio commit sia <strong>antenato</strong> di <code>origin/main</code>, invece di fidarsi dell'output del push.</li>
+    </ul>
+    <p>Sei <code>approve</code> su sei ne hanno uno. Nessuna delle due <code>block</code> ce l'ha. È già house style — ma non è scritta come passo obbligatorio in nessuna skill, ed è il candidato più concreto a diventarlo.</p>
+  </div>
+
+  <div class="find i">
+    <h3><span class="chip ok">confermato</span> La metrica «ripetute» mente una seconda volta</h3>
+    <p>Le tre sessioni peggiori per costo umano hanno <strong>4%, 7% e 16%</strong> di chiamate ripetute. Quella al <strong>27%</strong> — la peggiore per metrica, già letta nel referto sopra — prende 0,8. Ordinare per quella colonna avrebbe messo per prima la sessione sana.</p>
+    <p class="quote">Il numero non ordina ciò che conta. La lettura sì.</p>
+  </div>
+
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">chiuso</span> Il difetto era sul nastro cinque settimane prima</h3>
+    <p>Una sessione del 23 luglio scrive testualmente: <em>«Non tocco le copie in <code>~/.claude/skills</code> (come da workflow)»</em>. Era il workflow documentato allora — ed è esattamente ciò che il 28 agosto si è presentato come 25 skill installate stantie. La regola di manutenzione lo ribalta, e il check 12 lo sorveglia.</p>
   </div>
 </section>
 
