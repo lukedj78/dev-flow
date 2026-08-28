@@ -56,7 +56,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "linear-scrum":                 ("core", "operative"),
     "compliance-audit":             ("core", "operative"),
     "spec-review":                  ("core", "operative"),
-    # --- web (15): Next.js 16 App Router ------------------------------------
+    # --- web (16): Next.js 16 App Router ------------------------------------
     "figma-to-design-md":           ("web", "discovery"),
     "image-to-design-md":           ("web", "discovery"),
     "design-md-to-app":             ("web", "operative"),
@@ -72,6 +72,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "vercel-doctor":                ("web", "operative"),
     "shadscan":                     ("web", "operative"),
     "vercel-deploy":                ("web", "operative"),
+    "vgpu-shaders":                 ("web", "operative"),
     # --- agent (2): the eve engine ------------------------------------------
     "eve-agent":                    ("agent", "operative"),
     "eve-registry-porting":         ("agent", "operative"),

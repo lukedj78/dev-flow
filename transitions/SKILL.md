@@ -46,7 +46,15 @@ Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle
 | **2** | **View Transitions API** | route/page transitions (Next 16 App Router), same-document DOM swaps (list reorder, tab underline) | tiny JS, mostly RSC-safe |
 | **3** | **Motion** (`motion/react`) | spring physics, layout / shared-element, drag & gesture, scroll-driven choreography (`useScroll`/`useTransform`) | ~40kb, forces `"use client"` → routes to `module-add motion` |
 
+| **4** | **WebGPU shaders** (`vgpu`) | raymarching, fluid, volumetric light, real-time generative texture — when the effect **is** the artefact | a GPU device, a compile step, a render loop and a battery — see `vgpu-shaders` |
+
 **Never jump to Tier 3 for a fade.** A `<Suspense>` fallback, a hover lift, a dropdown open — all Tier 0/1. Reserve Motion for interactions that genuinely need physics or layout animation.
+
+**And Tier 4 is not the next step up from Tier 3 — it is a different order of cost.** A shader is right
+when the visual *is* the product (a hero that exists to be looked at); it is wrong as decoration on a
+screen someone keeps open all day. ⚠️ vgpu's own docs never mention `prefers-reduced-motion`, so rule 2
+below is entirely yours to honour there — freeze the clock (`advance(0)`) and hold the first frame
+rather than hiding the canvas. Route to **`vgpu-shaders`** before writing any WGSL.
 
 ## Non-negotiables (the discipline)
 

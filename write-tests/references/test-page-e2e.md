@@ -89,6 +89,7 @@ If the page has a form (`/clienti/nuovo`, `/contact`):
 - **Server-action logic** — that's `test-server-action.md`. The e2e only confirms the action is reachable and returns SOMETHING. Logic branches are unit-tested.
 - **Component-level prop interactions** — that's `test-component.md`.
 - **Visual exactness** — Playwright has `toHaveScreenshot()` but it's brittle. Skip it unless the user asks. Prefer text + role assertions.
+  **The one exception is a WebGPU shader** (`stack.shaders = "vgpu"`): a shader is deterministic given a fixed seed, size and clock, so it *is* pixel-testable — render one `frame()` at `dpr: 1` with `autoResize: false`, `target.read()`, and compare with `pixelDiff` from `@vgpu/render/perf`. ⚠️ On Linux CI this needs `agent-browser --webgpu --headed`: **headless Chrome captures a WebGPU canvas as black**, so the naive setup gives you a green test of a blank frame. See `vgpu-shaders`.
 - **Auth flows themselves** — login / signup / forgot-password e2e is its own dedicated suite, not piggybacked on every page test. Mark `test.skip` with a TODO if needed.
 
 ## Selectors — preference order

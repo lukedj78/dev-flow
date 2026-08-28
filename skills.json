@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-27T19:37:21Z",
+  "generated_at": "2026-08-28T06:22:42Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 44,
+  "skill_count": 45,
   "families": {
     "core": [
       "compliance-audit",
@@ -27,6 +27,7 @@
       "transitions",
       "vercel-deploy",
       "vercel-doctor",
+      "vgpu-shaders",
       "write-tests"
     ],
     "agent": [
@@ -373,7 +374,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 133,
+      "skill_md_lines": 141,
       "bundle": "dist/transitions.skill"
     },
     {
@@ -404,6 +405,20 @@
       "scripts": [],
       "skill_md_lines": 136,
       "bundle": "dist/vercel-doctor.skill"
+    },
+    {
+      "name": "vgpu-shaders",
+      "family": "web",
+      "role": "operative",
+      "description": "Decide whether a Next.js 16 page should carry a **WebGPU shader** at all, then wire `vgpu` (Vercel Labs, MIT) into it correctly: the `.wgsl` bundler loader for Turbopack/webpack, a `\"use client\"` canvas that survives SSR, a **`prefers-reduced-motion` path the library does not give you**, and a headl...",
+      "skill_file": "vgpu-shaders/SKILL.md",
+      "references": [
+        "contracts.md",
+        "nextjs-wiring.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 148,
+      "bundle": "dist/vgpu-shaders.skill"
     },
     {
       "name": "write-tests",

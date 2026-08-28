@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>transitions — dev-flow</title>
-<meta name="description" content="Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdow">
+<title>vgpu-shaders — dev-flow</title>
+<meta name="description" content="Decide whether a Next.js 16 page should carry a **WebGPU shader** at all, then wire `vgpu` (Vercel Labs, MIT) into it correctly: the `.wgsl` bundler loader for Turbopack/webpack, a `&quot;use cli">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -113,21 +113,19 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 </div></header>
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
-  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">transitions</h1>
-  <ul class="meta"><li class="chip">Web</li><li class="chip">knowledge — teaches; changes nothing</li><li class="chip">141 lines</li><li class="chip">4 references</li><li class="chip">2 scripts</li></ul>
-  <p class="lede">Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdown/toast/accordion, hover, feedback and route/page transitions. Four modes: Setup (scaffold <code>lib/motion/</code> from the DESIGN.md motion block), Apply, Audit (find ad-hoc or hardcoded motion), Refine (swap hardcoded values for tokens). Use when the user says &quot;add a transition&quot;, &quot;animate this&quot;, &quot;aggiungi una transizione / animazione&quot;, &quot;page transition&quot;, &quot;stagger these cards&quot;, &quot;make the modal open nicely&quot;, or &quot;audit the motion in this codebase&quot;. Refuses outside Next.js 16 web (<code>stack.framework</code> next/monorepo). Not for: React Native motion (use <code>rn-animations-gestures</code>), installing the Motion runtime itself (use <code>module-add motion</code>), or defining the visual palette/type (that is DESIGN.md + design-md-to-app).</p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">vgpu-shaders</h1>
+  <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">148 lines</li><li class="chip">2 references</li></ul>
+  <p class="lede">Decide whether a Next.js 16 page should carry a <strong>WebGPU shader</strong> at all, then wire <code>vgpu</code> (Vercel Labs, MIT) into it correctly: the <code>.wgsl</code> bundler loader for Turbopack/webpack, a <code>&quot;use client&quot;</code> canvas that survives SSR, a <strong><code>prefers-reduced-motion</code> path the library does not give you</strong>, and a headless render snapshot in CI. Use when the user says &quot;shader&quot;, &quot;WGSL&quot;, &quot;WebGPU&quot;, &quot;vgpu&quot;, &quot;animated hero&quot;, &quot;generative background&quot;, &quot;raymarch&quot;, &quot;aggiungi uno shader&quot;, &quot;sfondo generativo&quot;, &quot;effetto WebGPU&quot;. <strong>Deliberately does not restate the vgpu API</strong> — 258 symbols across 20 packages live in the first-party generated skill (<code>npx skills add vercel-labs/vgpu</code>) and its MCP; this skill is the decision layer and the dev-flow contract around it. Records <code>stack.shaders</code>; no phase bump. Not for: CSS/Motion animation (<code>transitions</code> owns the tier ladder and this is its top rung), icon micro-animation (<code>heroicons-animated</code>), maps (<code>mapcn</code>), React Native (no WebGPU rung — RN uses Reanimated), or learning WGSL from scratch.</p>
 </div>
 <section><div class="wrap prose">
-  <h3>When it applies</h3>
-  <ul><li>The user says &quot;add a transition / animation&quot;, &quot;animate this&quot;, &quot;aggiungi una transizione&quot;, &quot;make the modal open nicely&quot;, &quot;stagger these cards&quot;, &quot;page transition between routes&quot;.</li><li>You&#x27;re about to write an inline <code>transition:</code> / <code>animate={{…}}</code> / <code>@keyframes</code> / a Tailwind <code>duration-[Xms]</code> arbitrary value.</li><li>The user asks to <strong>audit</strong> a codebase for ad-hoc motion.</li><li>A component needs entrance/exit, hover, feedback, layout, or route motion.</li></ul>
   <h3>What it does not do</h3>
-  <ul><li><strong>Doesn&#x27;t install the Motion runtime</strong> — that&#x27;s <code>module-add motion</code> (this skill routes there for Tier 3).</li><li><strong>Doesn&#x27;t define the palette/type</strong> — DESIGN.md + <code>design-md-to-app</code> own visual tokens; this owns *motion* tokens.</li><li><strong>Doesn&#x27;t do React Native</strong> — use <code>rn-animations-gestures</code>.</li><li><strong>Doesn&#x27;t bump <code>phase</code>.</strong></li></ul>
+  <ul><li><strong>Doesn&#x27;t teach WGSL or the vgpu API</strong> — that is the first-party skill and the MCP.</li><li><strong>Doesn&#x27;t write the shader.</strong> Use their <code>npx vgpu docs</code> / examples / <code>check</code> / <code>doctor</code> loop.</li><li><strong>Doesn&#x27;t apply to React Native.</strong> RN has no WebGPU rung in this skill set; motion there is</li><li><strong>Doesn&#x27;t override <code>transitions</code>.</strong> If a cheaper tier does the job, that is the answer.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/transitions/references/audit-recipe.md"><code>audit-recipe.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/transitions/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/transitions/references/motion-library.md"><code>motion-library.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/transitions/references/tw-animate-css.md"><code>tw-animate-css.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/vgpu-shaders/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/vgpu-shaders/references/nextjs-wiring.md"><code>nextjs-wiring.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
-./install.sh --platform claude        # or drop dist/transitions.skill into Claude Code</code></pre>
-  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/transitions/SKILL.md">Read transitions/SKILL.md on GitHub →</a></p>
+./install.sh --platform claude        # or drop dist/vgpu-shaders.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/vgpu-shaders/SKILL.md">Read vgpu-shaders/SKILL.md on GitHub →</a></p>
 </div></section>
 <footer><div class="wrap">
   <span>44 skills, one contract. MIT.</span>
