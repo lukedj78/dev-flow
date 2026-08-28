@@ -1,6 +1,6 @@
 ---
 name: prd-from-idea
-description: 'Turn a raw product idea (a paragraph, a Notion dump, a half-formed thought) into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project''s `.workflow/` folder, following the dev-flow contract. Use when the user pastes a product idea and says "let''s plan this", "draft a PRD", "what would this look like as a project", or starts a new project from scratch. Also use when a `.workflow/` exists at phase `empty` or `idea_captured` and the orchestrator routes here. Not for: writing code, designing UI, or producing task lists (those are downstream skills).'
+description: 'Turn a raw product idea — a paragraph, a Notion dump, a half-formed thought, or a brief that arrived as a **file** (`.docx`, `.pdf`, `.pptx`, `.xlsx`: an RFP, a client deck, a Word spec — converted to Markdown first with `anydoc`) — into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project''s `.workflow/` folder, following the dev-flow contract. Use when the user pastes a product idea and says "let''s plan this", "draft a PRD", "what would this look like as a project", "fammi il PRD da questo PDF", "PRD da questo documento/RFP", or starts a new project from scratch. Also use when a `.workflow/` exists at phase `empty` or `idea_captured` and the orchestrator routes here. Not for: writing code, designing UI, or producing task lists (those are downstream skills).'
 ---
 
 # prd-from-idea — idea → PROJECT.md + PRD.md
@@ -26,6 +26,36 @@ This skill follows the dev-flow contract — see `references/contracts.md` (vend
 - Output goes into `<project-root>/.workflow/`.
 - Set `phase = "idea_captured"` after writing `PROJECT.md`; set `phase = "prd_drafted"` after writing `PRD.md`.
 - Append a `history` entry to `meta.json` for every run.
+
+## ⚠️ Step 0 — the brief arrived as a file, not as a paste
+
+The description above says "a user pastes a product idea", and often they don't: a real brief arrives
+as **`.docx`, `.pptx`, `.pdf`, `.xlsx`** — an RFP, a client deck, a spec someone wrote in Word. Do not
+ask the user to paste it, and do not summarise it from a partial read.
+
+```bash
+npx @firecrawl/anydoc brief.docx -o .workflow/_source/brief.md   # Word, PowerPoint, Excel,
+npx @firecrawl/anydoc rfp.pdf                                    # OpenDocument, RTF, EPUB, CSV, PDF
+```
+
+[`anydoc`](https://github.com/firecrawl/anydoc) (Firecrawl, MIT, `@firecrawl/anydoc@0.2.4`) is a Rust
+binary that converts all of those to GitHub-Flavored Markdown, and it ships **its own agent skill** —
+`npx skills add firecrawl/anydoc` — so this file does not restate its CLI.
+
+⚠️ **The one thing to decide before running it on someone else's document.** Conversion is **local**:
+text-based PDFs included, nothing leaves the machine. But a **scanned or image-only PDF fails with
+`NeedsOcr`**, and the opt-in `--ocr hosted` sends it to Firecrawl Parse — where, in the project's own
+words, *"the whole document goes, since Parse has no page selection."* Not the scanned pages: the
+document.
+
+So for a client RFP, a tender, anything under NDA or covering personal data, **`--ocr hosted` is a
+data transfer, and it needs the same answer `compliance-audit` asks under R3** — not a convenience
+flag. Convert locally, or get permission first. If the pages are scanned and you cannot send them,
+say so and work from what converts.
+
+Keep the converted Markdown under `.workflow/_source/` so the PRD's provenance is inspectable, and
+record the original filename in `PROJECT.md`. A requirement traced to a page of the client's own
+document is worth more than the same sentence with no source.
 
 ## Workflow
 

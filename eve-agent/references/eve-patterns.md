@@ -227,6 +227,19 @@ Three rules about what LEAVES:
 3. Nothing sensitive into logs. Reading is not logging.
 ```
 
+**A worked case that looks like a utility and is actually egress: converting an attachment.** An agent
+whose channel receives a `.docx` or a `.pdf` needs it as text.
+[`anydoc`](https://github.com/firecrawl/anydoc) (Firecrawl, MIT, `@firecrawl/anydoc`) converts Word,
+PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV and **text-based PDFs entirely locally** — so wrapped
+as a tool it stays inside rule 1. But a **scanned** PDF fails with `NeedsOcr`, and the opt-in
+`--ocr hosted` sends it to Firecrawl Parse, where — the project's own words — *"the whole document
+goes, since Parse has no page selection."* That is not the scanned pages: the document.
+
+So the tool must **fail closed on `NeedsOcr`** rather than quietly escalating to hosted OCR. Escalation
+is a per-tenant policy decision (and, for a customer's contract or tender, a transfer question), not a
+retry. If you do allow it, gate it with `approval: always()` like any other irreversible external
+write, and say in the tool description that the whole file leaves.
+
 Concrete: enriching a contact, the agent may read the whole Acme email thread, but must turn `web_search("<pasted customer sentence>")` into `web_search("what did Acme announce in 2026?")`. **Library analogy:** read any book, but you can't photocopy pages and mail them out — the control is at the *door* (egress), not the *shelf* (read). This is the governance layer above eve's sandbox **network policy** + **credential brokering** (see `eve-concepts.md` §Sandbox), and it maps onto `compliance-audit` R3 (transfers), R7 (PII in logs), R4 (sandbox retention). For a multi-tenant agent, combine it with #1 (the read scope itself is tenant-derived).
 
 > Recipes #5–#6 are distilled from the MIT reference implementation **[trycompai/crm](https://github.com/trycompai/crm)** (`apps/agent/agent/hooks/audit.ts`, `agent/skills/data-boundaries.md`) — a production eve monorepo whose structure independently matches this skill's conventions.

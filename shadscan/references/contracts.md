@@ -41,6 +41,7 @@ When a project needs one of these capabilities, reach for the default below inst
 | **Animated icons** | `heroicons-animated` (skill) | `rn-animations-gestures` |
 | **Motion** | `transitions` + `module-add motion` | `rn-animations-gestures` |
 | **WebGPU shaders** | `vgpu-shaders` (`stack.shaders`) — `transitions`' Tier 4, MIT, first-party skill for the API | — (no WebGPU rung on RN) |
+| **Documents → Markdown** | [`anydoc`](https://github.com/firecrawl/anydoc) (Firecrawl, MIT) — `.docx`/`.pptx`/`.xlsx`/`.pdf`/ODF/RTF/EPUB/CSV, **converted locally**; first-party skill `npx skills add firecrawl/anydoc`. ⚠️ `--ocr hosted` sends the **whole** document to a third party — an R3 transfer decision, not a flag | same CLI |
 | **Forms** | `forms` (`stack.forms`) | RN form stack |
 
 Per the **Knowledge principle**, each of these defaults must ship (or point at) a **doc-grounded how-to** — not just a name — before it's used to scaffold; `[VERIFY]` install command + license + API against the official site each time (docs move). These are starting defaults; a project may override with a documented reason.

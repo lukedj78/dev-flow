@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-28T06:22:42Z",
+  "generated_at": "2026-08-28T06:28:14Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 45,
   "families": {
@@ -123,13 +123,13 @@
       "name": "prd-from-idea",
       "family": "core",
       "role": "discovery",
-      "description": "Turn a raw product idea (a paragraph, a Notion dump, a half-formed thought) into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project's `.workflow/` folder, following the dev-flow contract. Use when the user pastes a product idea and says \"let's plan...",
+      "description": "Turn a raw product idea — a paragraph, a Notion dump, a half-formed thought, or a brief that arrived as a **file** (`.docx`, `.pdf`, `.pptx`, `.xlsx`: an RFP, a client deck, a Word spec — converted to Markdown first with `anydoc`) — into a structured PROJECT.md (high-level brief) and PRD.md (product...",
       "skill_file": "prd-from-idea/SKILL.md",
       "references": [
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 244,
+      "skill_md_lines": 274,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
