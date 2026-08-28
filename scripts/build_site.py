@@ -3,7 +3,7 @@
 
 The browsable index at docs/index.html (the Pages root), plus one page per
 skill under docs/skills/. The skill pages are foldered rather than loose in
-docs/ so that 44 HTML files do not sit among the hand-written .md docs.
+docs/ so that one HTML file per skill does not sit among the hand-written docs.
 
 GENERATED, never hand-edited. The catalogue in README.md is hand-written prose
 and stays that way (see lint check 10); this is the other thing — a complete,

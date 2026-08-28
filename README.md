@@ -1339,17 +1339,31 @@ npx skills@latest add warpdotdev/common-skills --skill skill-doctor
 ⚠️ **Check the installed copies before trusting any verdict.** The first real run here found **25 of
 43 installed skills diverging from the repo** — every one of them a skill corrected that same day. The
 grader reads what the agent actually loads, so a stale install makes every finding about the wrong
-text. Its collector even prefers the installed copy: it probes the global roots *before* any
-`--skills-dir`, and skips names already seen. Run `./install.sh` first, then measure.
+text. Run `./install.sh` first, then measure — and since `2026-08-28` the linter's twelfth check
+tells you when you have not.
 
 ⚠️ **It cannot see this repo's skills without being told where they are.** Its collector probes the
 conventional roots (`~/.claude/skills`, `~/.agents/skills`, `~/.codex/skills`) and globs `*/SKILL.md`
 under each. Our layout is 45 flat folders at the repo root — a valid skills root, just not one it
-probes. First run here reported **`skills found: 0`**; with the flag, 45:
+probes. First run here reported **`skills found: 0`** — a perfectly formed, completely empty report
+from which you would conclude that no skill is ever used.
+
+Both traps are closed by [`scripts/skill-doctor.sh`](./scripts/skill-doctor.sh), which passes
+`--skills-dir` and **omits `--include-global-skills`**, then refuses to hand back an empty report:
 
 ```bash
-python3 collect_sessions.py --harness claude --repo ~/my-skills --skills-dir ~/my-skills --out ./report
+scripts/skill-doctor.sh ~/src/common-skills
 ```
+
+The omitted flag is the second trap. Global roots are added *only* under `--include-global-skills`
+(`collect_sessions.py:124`), and the collector skips names it has already seen — so with the flag on,
+it reads the **installed** copy of every skill and drafts its edits against that. With it off,
+`--skills-dir` wins: verified by running it, **45 of 47 skills resolve inside `~/my-skills`** and none
+in `~/.claude/skills`. Before, 3 of 368. The price is deliberate — without the global roots the report
+cannot see plugin or third-party skills, which is exactly right when auditing our own.
+
+The script reads `skills found:` back out of the collector's summary and **exits `1` when it is zero**,
+because a silent zero reads as a finding. Verified by pointing it at a collector that prints zero.
 
 And read the **`repeated` tool-call count with suspicion in this repo**: it keys on tool + argument
 prefix, so `update_meta.py <project> set-phase …` and `update_meta.py <project> record-artifact …`
@@ -1357,7 +1371,15 @@ count as a repeat of each other, as do successive `Edit`s building up one file. 
 that advances four phases looks wasteful and is not.
 
 **Install it; don't wrap it.** It is already a maintained MIT skill, so this repo does not ship a copy
-— the same call made for `anydoc` and for `vgpu`'s generated API skill.
+— the same call made for `anydoc` and for `vgpu`'s generated API skill. `scripts/skill-doctor.sh` is
+not a wrapper around the tool: it vendors nothing and asks you for the path to your own checkout. It
+only fixes the two flags and turns one silent failure loud.
+
+**The findings from the first full run** — 54 sessions over 90 days — are written up in
+[`docs/skill-doctor-referto.html`](./docs/skill-doctor-referto.html) (in Italian). It is a dated
+snapshot, not living documentation: its figures are true as of 28 August 2026 and are deliberately
+never re-aligned, the same distinction drawn under `[VERIFY]` between an open question and a dated
+stamp.
 
 ⚠️ **But a proposal is not a merge, and this repo is unusual: the skills under test *are* the repo.**
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the

@@ -52,3 +52,6 @@ android/.gradle/
 
 # Python build artefacts (pip install -e . leaves these)
 *.egg-info/
+
+# skill-doctor output (local measurement, never committed)
+.skill-doctor-report/

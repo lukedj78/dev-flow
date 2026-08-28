@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referto skill-doctor — dev-flow</title>
+<meta name="description" content="Referto skill-doctor su 54 sessioni Claude Code: quattro reperti, tutti chiusi, e i controlli che impediscono loro di tornare.">
+</head>
+<body>
+<style>
+  :root{
+    --ground:#F6F8F8; --surface:#FFFFFF; --line:#DDE4E4; --line-soft:#EAEFEF;
+    --ink:#14181A; --ink-2:#3A4547; --muted:#5A6668;
+    --accent:#0D6E6A; --accent-soft:#E4F0EF;
+    --warn:#8F5409; --warn-soft:#F7EDDF;
+    --crit:#8F2A24; --crit-soft:#F8E7E5;
+    --ok:#2F6B3C; --ok-soft:#E7F1E8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1213; --surface:#161B1C; --line:#2A3335; --line-soft:#1F2627;
+      --ink:#E6EAE9; --ink-2:#BDC7C7; --muted:#8C9899;
+      --accent:#54B8B2; --accent-soft:#12292A;
+      --warn:#D89B4A; --warn-soft:#2A2118;
+      --crit:#DE8A82; --crit-soft:#2B1917;
+      --ok:#7FBF8C; --ok-soft:#17241A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1213; --surface:#161B1C; --line:#2A3335; --line-soft:#1F2627;
+    --ink:#E6EAE9; --ink-2:#BDC7C7; --muted:#8C9899;
+    --accent:#54B8B2; --accent-soft:#12292A;
+    --warn:#D89B4A; --warn-soft:#2A2118;
+    --crit:#DE8A82; --crit-soft:#2B1917;
+    --ok:#7FBF8C; --ok-soft:#17241A;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:60rem;margin:0 auto;padding:clamp(2rem,5vw,4.5rem) clamp(1.1rem,4vw,2rem) 5rem;
+        display:flex;flex-direction:column;gap:2.75rem}
+  h1,h2,h3{font-family:ui-serif,Georgia,"Times New Roman",serif;font-weight:600;text-wrap:balance;margin:0;line-height:1.2}
+  h1{font-size:clamp(2rem,5vw,2.9rem);letter-spacing:-.015em}
+  h2{font-size:clamp(1.3rem,3vw,1.65rem);letter-spacing:-.01em}
+  h3{font-size:1.05rem;letter-spacing:-.005em}
+  p{margin:0;max-width:68ch}
+  .lede{font-size:1.06rem;color:var(--ink-2);max-width:64ch}
+  .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+           font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  header{display:flex;flex-direction:column;gap:.9rem;border-bottom:1px solid var(--line);padding-bottom:2rem}
+  .meta{display:flex;flex-wrap:wrap;gap:.4rem .9rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:.78rem;color:var(--muted)}
+  .meta span{white-space:nowrap}
+  section{display:flex;flex-direction:column;gap:1.1rem}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:1px;
+         background:var(--line);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+  .stat{background:var(--surface);padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.25rem}
+  .stat b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.7rem;font-weight:600;
+          font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+  .stat small{font-size:.76rem;color:var(--muted);line-height:1.4}
+  .stat.hl b{color:var(--crit)}
+  .stat.ok b{color:var(--ok)}
+  .find{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--muted);
+        border-radius:2px;padding:1.15rem 1.25rem;display:flex;flex-direction:column;gap:.6rem}
+  .find.c{border-left-color:var(--crit)} .find.w{border-left-color:var(--warn)} .find.i{border-left-color:var(--accent)}
+  .chip{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;
+        letter-spacing:.1em;text-transform:uppercase;padding:.16rem .5rem;border-radius:2px;vertical-align:.14em}
+  .chip.c{background:var(--crit-soft);color:var(--crit)}
+  .chip.w{background:var(--warn-soft);color:var(--warn)}
+  .chip.i{background:var(--accent-soft);color:var(--accent)}
+  .chip.ok{background:var(--ok-soft);color:var(--ok)}
+  .find h3{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+  .tw{overflow-x:auto;border:1px solid var(--line);border-radius:2px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.85rem}
+  th,td{text-align:left;padding:.5rem .8rem;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  th{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.7rem;letter-spacing:.08em;
+     text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--ground)}
+  tbody tr:last-child td{border-bottom:none}
+  td.n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;text-align:right}
+  td.name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem}
+  .bar{display:inline-block;height:.5rem;background:var(--accent);border-radius:1px;vertical-align:.02em;min-width:2px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;
+       background:var(--line-soft);padding:.1rem .32rem;border-radius:2px}
+  pre{margin:0;overflow-x:auto;background:var(--surface);border:1px solid var(--line);
+      border-radius:2px;padding:.9rem 1rem;font-size:.82rem;line-height:1.55}
+  pre code{background:none;padding:0}
+  ul{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.45rem;max-width:68ch}
+  li::marker{color:var(--muted)}
+  .quote{border-left:2px solid var(--line);padding-left:1rem;color:var(--ink-2);font-style:italic;max-width:64ch}
+  .note{font-size:.88rem;color:var(--muted);max-width:68ch}
+  footer{border-top:1px solid var(--line);padding-top:1.5rem;font-size:.82rem;color:var(--muted);max-width:68ch}
+  a{color:var(--accent);text-underline-offset:.18em}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">skill-doctor · warpdotdev/common-skills (MIT)</div>
+  <h1>Referto skill-doctor</h1>
+  <p class="lede">54 sessioni Claude Code su 90 giorni, valutate contro le rubriche di efficiency e code-quality. Il difetto peggiore non era in nessuna skill: era fra il repo e ciò che l'agente carica davvero. Risolto, il rimedio ne ha aperto un secondo, e ora un check nel linter impedisce a entrambi di tornare. Anche le due trappole dello strumento sono chiuse: nessun reperto resta aperto.</p>
+  <div class="meta">
+    <span>28 ago 2026</span><span>·</span>
+    <span>54 sessioni · 52 valutabili · 24 campionate</span><span>·</span>
+    <span>6.325 tool call</span><span>·</span>
+    <span>45 skill nel repo</span><span>·</span><span>agg. dopo <code>./install.sh</code></span>
+  </div>
+  <p class="note" style="margin-top:.9rem"><strong>Istantanea del 28 agosto 2026.</strong> Le cifre valgono a quella data e non vanno riallineate in seguito: un referto che si aggiorna da solo smette di essere un referto. Per lo stato corrente vale il linter, non questa pagina.</p>
+</header>
+
+<section>
+  <div class="stats">
+    <div class="stat ok"><b>45/45</b><small>skill allineate al repo <em>dopo</em> l'install</small></div>
+    <div class="stat"><b>25</b><small>divergevano prima dell'install — <strong>ora 0</strong></small></div>
+    <div class="stat"><b>42</b><small>duplicati creati dall'install — <strong>rimossi</strong></small></div>
+    <div class="stat"><b>15</b><small>mai scattate nella finestra</small></div>
+    <div class="stat"><b>2%</b><small>mediana chiamate ripetute</small></div>
+    <div class="stat"><b>9%</b><small>mediana output d'errore</small></div>
+    <div class="stat ok"><b>12</b><small>check nel linter — il dodicesimo nato qui</small></div>
+  </div>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">stato oggi</span> Nessuna divergenza aperta</h3>
+    <p>Riverificato al momento della stesura: <strong>45/45 <code>SKILL.md</code> byte-identici</strong> fra repo e <code>~/.claude/skills</code>, <strong>0 divergenti</strong>, <strong>0 mancanti</strong>, <code>contracts.md</code> vendorata allineata in tutte, <strong>0 cartelle <code>.bak</code></strong>. Le due criticità qui sotto sono <em>chiuse</em> e restano a referto perché il modo in cui sono emerse vale più del difetto. Da oggi non è più una verifica manuale: il <strong>check 12 del linter</strong> confronta installato e repo a ogni run, e la regola di manutenzione dice che <em>una modifica a una skill non è finita finché non è installata</em>.</p>
+  </div>
+  <p class="note">Le sessioni sono lette in locale dal collector di skill-doctor (<code>collect_sessions.py</code>, ispezionato prima dell'esecuzione: zero chiamate di rete, i due <code>subprocess</code> sono <code>git rev-parse</code>). Lo scoring l'ho fatto a mano contro le sue rubriche pubblicate, perché la skill non è installata in questa sessione e non era invocabile.</p>
+</section>
+
+<section>
+  <h2>Criticità — tutte chiuse</h2>
+  <p class="note">Quattro reperti, <strong>quattro chiusi</strong>: due difetti nostri corretti alla fonte, e due trappole dello strumento disinnescate — una togliendo un flag che non doveva esserci, l'altra rendendo rumoroso un fallimento che era silenzioso. Restano a referto perché il modo in cui sono emersi vale più del difetto.</p>
+
+  <div class="find i">
+    <h3><span class="chip ok">risolto</span> L'agente non stava usando le skill corrette</h3>
+    <p><strong>25 delle 43 skill installate divergevano dalla copia nel repo</strong>, ed erano <em>esattamente</em> le 25 modificate quel giorno: <code>dev-flow</code>, <code>eve-agent</code>, <code>data-fetching</code>, <code>transitions</code>, <code>rn-upgrade</code>, <code>coss-ui</code>, <code>design-md-to-app</code>, <code>module-add</code>, <code>prd-from-idea</code>, <code>shadscan</code>… L'intera giornata di verifica è nel repo e <strong>non nelle mani dell'agente</strong>.</p>
+    <p>Altre tre esistono solo nel repo: <code>spec-review</code>, <code>vercel-deploy</code>, <code>vgpu-shaders</code> — mai installate, quindi mai caricabili.</p>
+    <pre><code>./install.sh          # eseguito → 45/45 allineate, contracts.md compresa</code></pre>
+    <p class="note">Il costo era concreto: fino a quel comando l'agente leggeva <code>eve/tools/defaults</code> come percorso valido, il changelog Expo su un URL che dà 404 e <code>xai/grok-tts</code> come namespace esistente. Verificato dopo: 45/45 byte-identiche, zero divergenze, <code>contracts.md</code> vendorata allineata in ogni skill.</p>
+  </div>
+
+  <div class="find i">
+    <h3><span class="chip ok">risolto</span> Il rimedio aveva creato 42 duplicati stantii</h3>
+    <p><code>install.sh</code> faceva backup di ogni cartella in <code>&lt;nome&gt;.bak</code> <strong>dentro</strong> la directory delle skill. Ma una cartella <code>.bak</code> contiene ancora uno <code>SKILL.md</code> valido, e quello <code>SKILL.md</code> dichiara ancora <strong>lo stesso <code>name:</code></strong> della skill viva.</p>
+    <p>L'harness le ha registrate tutte e 42: quarantadue coppie di skill omonime, e in ogni coppia una era la versione appena sostituita. <code>data-fetching.bak</code> stava lì a pubblicizzare «Instant Navigations» e nessun <code>partialPrefetching</code>, in concorrenza per il trigger con quella corretta.</p>
+    <p class="quote">Un install che raddoppia in silenzio la superficie con duplicati stantii disfa se stesso.</p>
+    <p><strong>Corretto alla fonte</strong>: i backup vanno ora in <code>&lt;skills-dir&gt;-backup-YYYYmmdd-HHMMSS/</code>, fuori dalla directory scansionata e con timestamp. Le 42 copie sono state rimosse — ogni versione è in git, non si è perso nulla.</p>
+  </div>
+
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">chiuso</span> Le copie installate vincevano sulle copie del repo</h3>
+    <p>Il collector costruisce le sue root in quest'ordine — <code>~/.codex/skills</code>, <code>~/.agents/skills</code>, <code>~/.claude/skills</code>, <em>poi</em> i <code>--skills-dir</code> — e salta i nomi già visti (<code>if name in skills: continue</code>).</p>
+    <p>Quindi con entrambe presenti <strong>skill-doctor legge la versione installata, non quella del repo</strong>: su 368 skill trovate, solo 3 sono state attribuite a <code>my-skills</code>. Un suo edit proposto verrebbe redatto contro la copia stantia.</p>
+    <p><strong>Il flag era nostro.</strong> Le root globali vengono aggiunte <em>solo</em> sotto <code>--include-global-skills</code> (<code>collect_sessions.py:124</code>). Toglierlo fa vincere <code>--skills-dir</code>: la precedenza sparisce, non va aggirata.</p>
+    <pre><code>python3 collect_sessions.py --harness claude --all-conversations \
+  --skills-dir ~/my-skills --days 90 --out ./report
+<span style="color:var(--muted)"># niente --include-global-skills: è quel flag a far vincere le copie installate</span></code></pre>
+    <p><strong>Verificato eseguendolo</strong>: <code>skills found: 47</code>, e nell'<code>inventory.json</code> <strong>45 su 47 risolvono in <code>~/my-skills</code></strong>, zero in <code>~/.claude/skills</code> (le altre due vengono da un <code>.agents/skills</code> locale a un altro progetto). Prima: 3 su 368.</p>
+    <p class="note">Il prezzo è esplicito e voluto: senza le root globali il referto non vede le skill di plugin e di terzi. È esattamente ciò che serve per fare le pulci alle <em>nostre</em>.</p>
+  </div>
+
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">chiuso</span> Il primo run mentiva in silenzio</h3>
+    <p>Senza <code>--skills-dir</code> il referto dice <code>skills found: 0</code>. Non è un errore: è un report perfettamente formato e completamente vuoto, da cui si concluderebbe che nessuna skill viene usata.</p>
+    <p>Il collector sonda le root convenzionali e fa glob <code>*/SKILL.md</code>. Questo repo è 45 cartelle piatte alla radice — una root valida, semplicemente non fra quelle sondate.</p>
+    <p><strong>Corretto con <code>scripts/skill-doctor.sh</code></strong>: passa <code>--skills-dir</code> da solo, legge <code>skills found:</code> dall'output e <strong>esce con <code>1</code> se è zero</strong>, dicendo perché. Lo zero non è più una conclusione, è un errore.</p>
+    <pre><code>scripts/skill-doctor.sh ~/src/common-skills
+<span style="color:var(--muted)"># ✓ skills found: 47 — report in .skill-doctor-report</span></code></pre>
+    <p class="note">skill-doctor non è vendorato qui e resta loro: lo script vuole il percorso del tuo checkout, via argomento o <code>SKILL_DOCTOR_DIR</code>. La guardia è stata vista scattare — collector finto che stampa <code>skills found: 0</code>, script che esce <code>1</code> con la spiegazione — perché un controllo mai visto fallire non è un controllo.</p>
+  </div>
+
+</section>
+
+<section>
+  <h2>La rimisura non si muove — ed è giusto così</h2>
+  <p>Rilanciato il collector con le skill allineate. <strong>Ogni cifra è identica</strong>: 368 skill trovate, 34 usate, 54 sessioni in scope, 52 valutabili, 24 campionate, stessa lista di skill usate.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th></th><th style="text-align:right">Prima dell'install</th><th style="text-align:right">Dopo</th></tr></thead>
+      <tbody>
+        <tr><td class="name">skills_found</td><td class="n">368</td><td class="n">368</td></tr>
+        <tr><td class="name">skills_used</td><td class="n">34</td><td class="n">34</td></tr>
+        <tr><td class="name">sessions_in_scope</td><td class="n">54</td><td class="n">54</td></tr>
+        <tr><td class="name">sessions_considered</td><td class="n">52</td><td class="n">52</td></tr>
+        <tr><td class="name">sessions_sampled</td><td class="n">24</td><td class="n">24</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Il collector legge la storia, non lo stato attuale.</strong> Le 54 sessioni sono passate: nessun install le cambia. Aspettarsi un miglioramento nei numeri dopo una correzione è fraintendere cosa misura questo strumento — la metrica si muove solo quando arrivano <em>nuove</em> sessioni, condotte con le skill corrette.</p>
+  <p>Quello che l'install ha cambiato non è la misura ma <strong>il testo su cui si redige</strong>: prima un edit proposto sarebbe stato scritto contro la copia installata stantia (il collector preferisce le root globali a <code>--skills-dir</code>); ora installato e repo coincidono.</p>
+</section>
+
+<section>
+  <h2>Cosa <em>non</em> è un problema</h2>
+  <div class="find i">
+    <h3><span class="chip ok">verificato</span> Le 15 skill mai scattate sono silenziose a ragione</h3>
+    <ul>
+      <li><strong>Nessun progetto RN attivo</strong> nella finestra → le 8 <code>rn-*</code> di conoscenza non avevano su cosa scattare.</li>
+      <li><strong>Niente è stato deployato</strong> → <code>compliance-audit</code> è un gate pre-deploy.</li>
+      <li><strong><code>transitions</code></strong>: ipotesi più promettente, e non ha retto. Un grep su tutti e 24 i transcript campionati trova <strong>una sola</strong> occorrenza di token legati al motion. Nessun lavoro di animazione da intercettare.</li>
+      <li><strong><code>vgpu-shaders</code>, <code>spec-review</code></strong>: create oggi e ieri.</li>
+    </ul>
+    <p class="note">Nessuna modifica alle skill è proposta: l'evidenza non ne giustifica nessuna.</p>
+  </div>
+  <div class="find i">
+    <h3><span class="chip ok">verificato</span> La metrica «chiamate ripetute» sovrastima — e l'abbiamo controllato</h3>
+    <p>Chiave su <em>tool + prefisso degli argomenti</em>. Quindi <code>update_meta.py &lt;progetto&gt; set-phase …</code> e lo stesso script con <code>record-artifact …</code> contano come ripetizione l'uno dell'altro, e così le <code>Edit</code> successive che costruiscono un file.</p>
+    <p>La sessione peggiore per metrica — <strong>511 chiamate, 137 «ripetute», 27%</strong> — letta si rivela 17 <code>Edit</code> che assemblano un documento e turni utente <em>tutti in avanti</em>, zero correzioni. La rubrica di efficiency chiama la correzione ripetuta «lo spreco più caro»: qui non ce n'è.</p>
+    <p class="quote">I numeri dicevano inefficiente. La lettura dice che andava bene.</p>
+    <p class="note">Resta a referto come istruzione di lettura, non come difetto: è una proprietà della rubrica upstream, verificata contro i transcript e trovata innocua qui. Sopra il 10% si legge la sessione, non si conclude.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Uso reale — 30 skill su 45</h2>
+  <p>Distribuzione fortemente asimmetrica: tre skill coprono metà delle invocazioni, poi una coda lunga di occorrenze singole.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Skill</th><th style="text-align:right">Sessioni</th><th style="width:45%"></th></tr></thead>
+      <tbody>
+        <tr><td class="name">dev-flow</td><td class="n">19</td><td><span class="bar" style="width:100%"></span></td></tr>
+        <tr><td class="name">eve-agent</td><td class="n">17</td><td><span class="bar" style="width:89%"></span></td></tr>
+        <tr><td class="name">design-md-to-app</td><td class="n">15</td><td><span class="bar" style="width:79%"></span></td></tr>
+        <tr><td class="name">prd-to-tasks</td><td class="n">10</td><td><span class="bar" style="width:53%"></span></td></tr>
+        <tr><td class="name">prd-from-idea</td><td class="n">9</td><td><span class="bar" style="width:47%"></span></td></tr>
+        <tr><td class="name">module-add</td><td class="n">8</td><td><span class="bar" style="width:42%"></span></td></tr>
+        <tr><td class="name">monorepo-bootstrap</td><td class="n">6</td><td><span class="bar" style="width:32%"></span></td></tr>
+        <tr><td class="name">data-fetching</td><td class="n">4</td><td><span class="bar" style="width:21%"></span></td></tr>
+        <tr><td class="name">figma-to-design-md · eve-registry-porting · rn-add-screen · rn-bootstrap · rn-module-add</td><td class="n">3</td><td><span class="bar" style="width:16%"></span></td></tr>
+        <tr><td class="name">write-tests · forms · promote-component · rn-eas-deploy · shadscan · vercel-doctor · vercel-deploy</td><td class="n">2</td><td><span class="bar" style="width:11%"></span></td></tr>
+        <tr><td class="name">+ 9 altre</td><td class="n">1</td><td><span class="bar" style="width:5%"></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Le 15 rimanenti: 0 (vedi sopra — comportamento corretto).</p>
+</section>
+
+<section>
+  <h2>Sessioni campionate</h2>
+  <p>Ordinate per percentuale di chiamate ripetute. Da leggere con la riserva del punto sopra: sopra il 10% vale una lettura, non una conclusione.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Sessione</th><th style="text-align:right">Chiamate</th><th style="text-align:right">Rip. %</th><th style="text-align:right">Err. %</th><th style="text-align:right">Turni utente</th><th>Contesto</th></tr></thead>
+      <tbody>
+        <tr><td class="name">sessione&nbsp;01</td><td class="n">511</td><td class="n">27</td><td class="n">10</td><td class="n">38</td><td>my-skills</td></tr>
+        <tr><td class="name">sessione&nbsp;02</td><td class="n">393</td><td class="n">17</td><td class="n">14</td><td class="n">24</td><td>altro progetto</td></tr>
+        <tr><td class="name">sessione&nbsp;03</td><td class="n">273</td><td class="n">16</td><td class="n">7</td><td class="n">19</td><td>my-skills</td></tr>
+        <tr><td class="name">sessione&nbsp;04</td><td class="n">486</td><td class="n">16</td><td class="n">14</td><td class="n">53</td><td>my-skills</td></tr>
+        <tr><td class="name">sessione&nbsp;05</td><td class="n">486</td><td class="n">11</td><td class="n">9</td><td class="n">20</td><td>altro progetto</td></tr>
+        <tr><td class="name">sessione&nbsp;06</td><td class="n">398</td><td class="n">7</td><td class="n">11</td><td class="n">62</td><td>my-skills</td></tr>
+        <tr><td class="name">sessione&nbsp;07</td><td class="n">764</td><td class="n">0</td><td class="n">15</td><td class="n">103</td><td>altro progetto</td></tr>
+        <tr><td class="name">sessione&nbsp;08</td><td class="n">245</td><td class="n">0</td><td class="n">6</td><td class="n">67</td><td>my-skills</td></tr>
+        <tr><td class="name">sessione&nbsp;09</td><td class="n">317</td><td class="n">0</td><td class="n">10</td><td class="n">25</td><td>my-skills</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Estratto di 9 sulle 24 campionate. Mediana: 236 chiamate, 2% ripetute, 9% errori. Gli identificativi di sessione e i nomi dei progetti privati sono sostituiti da etichette ordinali: la corrispondenza resta in locale, dove serve — qui non aggiungerebbe nulla al ragionamento.</p>
+</section>
+
+<section>
+  <h2>Miglioramenti</h2>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">fatto</span> Riallinea, poi rimisura</h3>
+    <p><code>./install.sh</code> eseguito, 42 <code>.bak</code> rimossi, <code>install.sh</code> corretto perché non li ricrei. Ogni conclusione su «questa skill non funziona» era inaffidabile finché la copia caricata era di ieri.</p>
+  </div>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">fatto</span> Rendi la divergenza visibile, non scopribile</h3>
+    <p>Il <strong>check 12</strong> confronta <code>SKILL.md</code> e ogni <code>references/**/*.md</code> byte per byte fra repo e <code>~/.claude/skills</code>, e riporta tre cose: skill divergenti, skill presenti nel repo ma non installate, e cartelle <code>.bak</code> lasciate dentro la directory scansionata — le stesse che avevano prodotto i 42 duplicati.</p>
+    <p><strong>Nota, mai warning.</strong> Un runner CI non ha una directory delle skill, e il linter esce con <code>1</code> su qualsiasi warning: un warning farebbe fallire ogni build per un fatto che riguarda un portatile. Salta in silenzio se la directory non esiste, rispetta <code>CLAUDE_SKILLS_DIR</code>.</p>
+    <p class="note">Verificato che scatti davvero prima di fidarsene: introdotte una divergenza, una skill mancante e un'ombra <code>.bak</code>, viste riportate tutte e tre, poi ripristinato lo stato reale. Un check mai visto fallire non è un check.</p>
+  </div>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">fatto</span> Fissa l'invocazione che funziona</h3>
+    <p>Già nel README, ma vale ripeterlo: senza <code>--skills-dir</code> il referto è vuoto e sembra valido. Ora c'è <code>scripts/skill-doctor.sh</code>. Non vendora nulla — chiede il percorso del checkout di terze parti, argomento o <code>SKILL_DOCTOR_DIR</code> — ma fissa i due flag che contano e trasforma lo zero silenzioso in un exit code.</p>
+  </div>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">fatto</span> La cadenza, non il riflesso</h3>
+    <p>La regola nata da qui non è «dopo ogni modifica lancia skill-doctor»: rilanciarlo subito restituisce numeri <em>identici</em> per costruzione, perché valuta sessioni passate, condotte col testo vecchio. Le due passate — prima e dopo <code>./install.sh</code> — coincidono su ogni cifra, tabella qui sopra.</p>
+    <p>Quello che va fatto a ogni modifica è <code>./install.sh</code>. Quindi: <strong>install a ogni edit, doctor periodicamente</strong>, quando le skill toccate hanno una storia da valutare. Il linter giudica una modifica; il doctor giudica un'abitudine.</p>
+  </div>
+  <div class="find i" style="border-left-color:var(--ok)">
+    <h3><span class="chip ok">il punto</span> Il vero asse scoperto resta un altro</h3>
+    <p>Questa passata risponde a «<em>sta funzionando?</em>». Quella di oggi rispondeva a «<em>è ancora vero?</em>». Nessuna delle due vede l'altra — ed è per questo che la divergenza è sopravvissuta a entrambe fino ad ora: il repo era verificato, l'installato era usato, e nessun controllo confrontava i due. Il check 12 è esattamente la cucitura fra i due assi.</p>
+  </div>
+</section>
+
+<footer>
+  Metodo: <code>collect_sessions.py --harness claude --all-conversations --skills-dir ~/my-skills --include-global-skills --days 90</code> per la misura originale; da qui in avanti <code>scripts/skill-doctor.sh</code>, senza <code>--include-global-skills</code>, scoring manuale contro <code>scorers/efficiency.md</code> e <code>scorers/code-quality.md</code>. Tutto in locale: nessun transcript è uscito dalla macchina. Fonte: <a href="https://github.com/warpdotdev/common-skills">warpdotdev/common-skills</a>, MIT.<br><br>Torna alle skill: <a href="https://lukedj78.github.io/dev-flow/"><b>lukedj78.github.io/dev-flow</b></a> · <a href="./dev-flow-skill-map.html">mappa delle skill</a>
+</footer>
+
+</div>
+
+</body>
+</html>
