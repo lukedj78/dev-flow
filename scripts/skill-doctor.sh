@@ -62,4 +62,22 @@ if [ "$FOUND" -eq 0 ]; then
   echo "  one folder per skill at its top level." >&2
   exit 1
 fi
+# Third trap, found by counting: the collector keys sampled sessions by the
+# sessionId inside the .jsonl, but writes each transcript to <harness>-<id>.md.
+# A resumed conversation keeps its sessionId across two files, so both records
+# are marked sampled and the second write CLOBBERS the first. Sessions are
+# ordered newest-first, so the survivor is the older, usually smaller fragment
+# — the richer transcript is the one that disappears. Observed: 13 sessions
+# marked sampled, 12 files on disk, a 674-call session overwritten by a 13-call
+# one. Report it; the count in the summary will not.
+MARKED="$(python3 -c '
+import json,sys
+inv=json.load(open(sys.argv[1]))
+print(sum(1 for s in inv.get("sessions",[]) if s.get("sampled")))' "$OUT/inventory.json" 2>/dev/null || echo "")"
+ONDISK="$(ls -1 "$OUT/transcripts"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+if [ -n "$MARKED" ] && [ "$MARKED" -gt "$ONDISK" ]; then
+  echo "⚠ $MARKED sessions marked sampled but only $ONDISK transcripts written —" >&2
+  echo "  $((MARKED - ONDISK)) collided on filename (same sessionId across files) and were overwritten." >&2
+fi
+
 echo "✓ skills found: $FOUND — report in $OUT"

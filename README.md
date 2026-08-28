@@ -1365,6 +1365,14 @@ cannot see plugin or third-party skills, which is exactly right when auditing ou
 The script reads `skills found:` back out of the collector's summary and **exits `1` when it is zero**,
 because a silent zero reads as a finding. Verified by pointing it at a collector that prints zero.
 
+It also warns when transcripts go missing. The collector keys sampled sessions by the `sessionId` inside
+the `.jsonl` but writes each transcript to `<harness>-<id>.md`, and a **resumed conversation keeps its
+sessionId across two files** — so both records are marked sampled and the second write clobbers the
+first. Sessions are ordered newest-first, so the survivor is the older, usually smaller fragment: the
+richer transcript is the one that disappears. A real 90-day run marked **13 sampled and wrote 12 files**,
+losing a 674-call session to a 13-call one. `sessions_sampled` in the summary counts the deduplicated
+keys, so it reports 12 and looks correct.
+
 And read the **`repeated` tool-call count with suspicion in this repo**: it keys on tool + argument
 prefix, so `update_meta.py <project> set-phase …` and `update_meta.py <project> record-artifact …`
 count as a repeat of each other, as do successive `Edit`s building up one file. A dev-flow session
