@@ -1316,6 +1316,20 @@ the repo.
 npx skills@latest add warpdotdev/common-skills --skill skill-doctor
 ```
 
+⚠️ **It cannot see this repo's skills without being told where they are.** Its collector probes the
+conventional roots (`~/.claude/skills`, `~/.agents/skills`, `~/.codex/skills`) and globs `*/SKILL.md`
+under each. Our layout is 45 flat folders at the repo root — a valid skills root, just not one it
+probes. First run here reported **`skills found: 0`**; with the flag, 45:
+
+```bash
+python3 collect_sessions.py --harness claude --repo ~/my-skills --skills-dir ~/my-skills --out ./report
+```
+
+And read the **`repeated` tool-call count with suspicion in this repo**: it keys on tool + argument
+prefix, so `update_meta.py <project> set-phase …` and `update_meta.py <project> record-artifact …`
+count as a repeat of each other, as do successive `Edit`s building up one file. A dev-flow session
+that advances four phases looks wasteful and is not.
+
 **Install it; don't wrap it.** It is already a maintained MIT skill, so this repo does not ship a copy
 — the same call made for `anydoc` and for `vgpu`'s generated API skill.
 
