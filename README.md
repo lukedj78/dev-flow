@@ -1296,6 +1296,26 @@ The skills are **plain folders** with a `SKILL.md` + `references/` + optional `s
 
 To add a new module variant to `module-add` (e.g., Clerk auth, Supabase db), drop a new `references/module-<name>.md` following the same pattern as `module-auth.md` / `module-db.md`. The orchestrator picks it up automatically.
 
+### The rule that closes the loop: install after every edit
+
+**A skill edit is not done until it is installed.** Editing here changes nothing for the agent — it
+loads `~/.claude/skills`. That gap is invisible by construction: the lint passes (the repo is correct),
+the skill fires (a copy exists), and it is simply the wrong text. It is how 25 corrected skills spent a
+day being ignored.
+
+```bash
+./install.sh                      # every skill change ends here
+python3 scripts/lint_skills.py    # check 12 reports any remaining divergence
+```
+
+⚠️ **Don't reach for `skill-doctor` right after an edit** — it grades *past conversations*, so a re-run
+immediately after a change returns identical numbers by construction: the sessions it reads used the
+old text. Verified, not assumed: the run before and after `./install.sh` matched on every count.
+
+The cadence that works is **install on every edit, `skill-doctor` periodically** — once the edited
+skills have been used enough to have a history worth grading. The linter judges an edit; the doctor
+judges a habit.
+
 ### Two axes of skill rot — and which tool owns which
 
 A skill decays in two independent directions, and catching one tells you nothing about the other.
@@ -1343,7 +1363,7 @@ that advances four phases looks wasteful and is not.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 11 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 12 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1371,10 +1391,10 @@ The description is the **only** thing a skill is selected on — the body is nev
 The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
 
 ```bash
-# Sanity-check every skill — 11 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 12 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
-# and every skill count stated in prose)
+# every skill count stated in prose, and whether what is installed still matches this repo)
 python3 scripts/lint_skills.py
 
 # Regenerate skills.json (the machine-readable registry of all 45 skills)
@@ -1406,7 +1426,7 @@ CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --c
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
 
-**Three of the eleven checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments.
+**Four of the twelve checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments. It gained a thirteenth pattern later, for the skill map's metric card — a bare `<div class="v">44</div>` with no adjacent word for any prose pattern to catch, which is exactly why it sat wrong through a release. **Check 12** compares what is installed against what is here, and reports rather than fails: a divergence is a fact about your machine, not about the commit.
 
 **Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. ⚠️ **Force reduced motion when you shoot it** — the sections are `.reveal` (opacity 0 until an IntersectionObserver adds `.in`), so a headless capture renders them blank; the `prefers-reduced-motion` rule is the escape hatch:
 

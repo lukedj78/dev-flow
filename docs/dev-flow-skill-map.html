@@ -100,12 +100,16 @@
   .console .hd .d{width:9px; height:9px; border-radius:50%}
   .console .hd .d.r{background:#ff6b7d}.console .hd .d.y{background:#f0b64d}.console .hd .d.g{background:var(--ac-2)}
   .console .hd .t{font-family:var(--fM); font-size:.68rem; color:var(--faint); letter-spacing:.06em; margin-left:.4em}
-  .metrics{display:grid; grid-template-columns:repeat(6,1fr)}
+  .metrics{display:grid; grid-template-columns:repeat(7,1fr)}
+  @media (max-width:1180px){ .metrics{grid-template-columns:repeat(4,1fr)} }
   @media (max-width:980px){ .metrics{grid-template-columns:repeat(3,1fr)} }
   @media (max-width:720px){ .metrics{grid-template-columns:repeat(2,1fr)} }
   .metric{padding:16px 18px; border-right:1px solid var(--bd); border-bottom:1px solid var(--bd)}
   .metric .k{font-family:var(--fM); font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); display:flex; align-items:center; gap:.5em}
   .metric .k i{width:7px; height:7px; border-radius:50%}
+  .mnote{grid-column:1/-1; padding:14px 18px; border-bottom:1px solid var(--bd);
+         font-family:var(--fM); font-size:.72rem; line-height:1.6; color:var(--fade)}
+  .mnote b{color:var(--ac-2); font-weight:600}
   .metric .v{font-weight:700; font-size:1.85rem; line-height:1; margin-top:.5rem; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
 
   /* pipeline */
@@ -231,12 +235,14 @@
     <div class="console">
       <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 45 skills · v1.0.0 · 11 checks clean</span></div>
       <div class="metrics">
-        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">44</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">45</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">22</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">13</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>lint · checks</div><div class="v">12</div></div>
+        <p class="mnote">The twelfth check compares <b>what is installed</b> against <b>what is in this repo</b>. It exists because the two silently drifted: a real run found <b>25 of 43</b> installed skills carrying the previous day's text — the lint passed, the skills fired, and every one of them was the wrong version. The repo is the source of truth; the agent loads <code>~/.claude/skills</code>. Nothing else was watching the gap.</p>
       </div>
     </div>
   </div>
@@ -525,11 +531,12 @@
         <div class="row new"><span class="sk">vercel-deploy</span><span class="m">251·4r</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · discipline</span><span class="gn">4</span></div>
+        <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · discipline</span><span class="gn">5</span></div>
         <div class="row"><span class="sk">forms</span><span class="m">437·5r·1s</span></div>
         <div class="row"><span class="sk">data-fetching</span><span class="m">344·3r</span></div>
         <div class="row"><span class="sk">state-discipline</span><span class="m">441·2r</span></div>
         <div class="row new"><span class="sk">transitions</span><span class="m">176·3r·2s</span></div>
+        <div class="row new"><span class="sk">vgpu-shaders</span><span class="m">226·2r</span></div>
       </div>
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Quality & hygiene</span><span class="gn">3</span></div>

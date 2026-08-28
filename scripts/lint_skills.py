@@ -38,6 +38,7 @@ Run from the repo root.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -404,6 +405,9 @@ TOTAL_PATTERNS = [
     r"(\d+) skill folders", r"Install all (\d+) dev-flow skills",
     r"Remove all (\d+) dev-flow skills", r"suite is (\d+) skills",
     r"packaging of all (\d+)", r"one of our (\d+) skills", r"exercising all (\d+) skills",
+    # The skill-map's metric card is a bare number with no adjacent word, so no
+    # prose pattern above could ever match it. It sat at 44 for a full release.
+    r'>skills</div><div class="v"[^>]*>(\d+)<',
 ]
 # A family name followed by a dash introduces a list, not a count ("2 agent — eve").
 FAMILY_COUNT_RE = re.compile(rf"\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I)
@@ -458,6 +462,70 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
         warn(f"{installer_path}: misses `{s}` (exists on disk but not in installer)")
 
 
+# ---------------------------------------------------------------------------
+# Check 12 — installed vs repo.
+#
+# The repo is the source of truth, but the agent loads ~/.claude/skills. Those
+# two drift the moment you edit here and forget `./install.sh`, and nothing
+# else notices: the linter passes (the repo is fine), the skill fires (a copy
+# exists), and it is simply the wrong text. One real run found 25 of 43
+# installed skills stale — every one of them corrected earlier that same day.
+#
+# NOTES, never errors: a CI runner has no skills directory, and a divergence
+# is a fact about this machine, not a defect in the commit. Warnings would
+# fail the build (main() exits 1 on any), which is why this is not one.
+# ---------------------------------------------------------------------------
+def check_installed_in_sync(root: Path, all_skills: set[str]) -> None:
+    skills_dir = Path(
+        os.environ.get("CLAUDE_SKILLS_DIR", Path.home() / ".claude" / "skills")
+    ).expanduser()
+    if not skills_dir.is_dir():
+        return  # not installed here (CI, or another platform) — nothing to compare
+
+    def files_of(base: Path) -> dict[str, bytes]:
+        out: dict[str, bytes] = {}
+        for f in list(base.glob("SKILL.md")) + sorted(base.glob("references/**/*.md")):
+            try:
+                out[str(f.relative_to(base))] = f.read_bytes()
+            except OSError:
+                pass
+        return out
+
+    stale, missing = [], []
+    for name in sorted(all_skills):
+        src, dest = root / name, skills_dir / name
+        if not (dest / "SKILL.md").exists():
+            missing.append(name)
+            continue
+        if files_of(src) != files_of(dest):
+            stale.append(name)
+
+    # A `<name>.bak` left inside the skills dir still carries a SKILL.md that
+    # declares the SAME `name:`, so the harness registers both and the stale
+    # copy competes for triggering. install.sh stopped creating these on
+    # 2026-08-28; older ones linger until removed.
+    shadows = sorted(
+        d.name for d in skills_dir.glob("*.bak")
+        if d.is_dir() and (d / "SKILL.md").exists()
+    )
+
+    if stale:
+        shown = ", ".join(stale[:8]) + (f" … +{len(stale) - 8}" if len(stale) > 8 else "")
+        note(
+            f"{len(stale)} installed skill(s) differ from this repo — the agent is loading "
+            f"the older text: {shown}. Run ./install.sh"
+        )
+    if missing:
+        shown = ", ".join(missing[:8]) + (f" … +{len(missing) - 8}" if len(missing) > 8 else "")
+        note(f"{len(missing)} skill(s) exist here but are not installed: {shown}. Run ./install.sh")
+    if shadows:
+        shown = ", ".join(shadows[:8]) + (f" … +{len(shadows) - 8}" if len(shadows) > 8 else "")
+        note(
+            f"{len(shadows)} stale `.bak` folder(s) in {skills_dir} still declare a live "
+            f"skill name and will be registered alongside it: {shown}. Remove them"
+        )
+
+
 def main() -> int:
     root = Path(".")
     all_skills = collect_skill_names(root)
@@ -488,6 +556,7 @@ def main() -> int:
     check_stated_counts(root, all_skills)
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)
+    check_installed_in_sync(root, all_skills)
 
     print()
     if ERRORS:
