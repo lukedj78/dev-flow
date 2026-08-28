@@ -98,7 +98,8 @@ Two things the raw WebGPU API makes you hand-roll:
 ⚠️ **The GPU wins on massively parallel arithmetic and loses on transfer.** Aggregating 200k dashboard
 rows is almost always faster in a Web Worker. The real case is simulation — particles, physics, fields
 — where `pingPongStorage(gpu, n)` + `.swap()` keeps the data resident between frames and it never makes
-the return trip.
+the return trip. A complete worked example — WGSL, the loop, the `vgpu/mock` test, and the
+question of whether it was worth it — is in `references/compute-example.md`.
 
 **2 · `pixelDiff` — visual regression as a utility.** Not graphics: QA.
 
@@ -211,6 +212,9 @@ No phase bump — a shader is a capability on an existing page, not a stage.
 ## Reference files
 
 - `references/nextjs-wiring.md` — loader config, the client component, the error table.
+- `references/compute-example.md` — a complete worked compute shader (simulation with resident data),
+  its `vgpu/mock` unit test, the two guards that stop it desynchronising — **and an honest verdict that
+  the same feature usually belongs in a Web Worker**.
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).
 
 ## Sources
