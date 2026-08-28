@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-28T17:13:26Z",
+  "generated_at": "2026-08-28T17:18:41Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 45,
   "families": {
@@ -410,7 +410,7 @@
       "name": "vgpu-shaders",
       "family": "web",
       "role": "operative",
-      "description": "Decide whether a Next.js 16 project should reach for **WebGPU** at all, then wire `vgpu` (Vercel Labs, MIT) in correctly: the `.wgsl` loader for Turbopack/webpack, a `\"use client\"` canvas that survives SSR, a **`prefers-reduced-motion` path the library does not give you**, and a headless render snap...",
+      "description": "Decide whether a Next.js 16 project should reach for **WebGPU** at all, then wire `vgpu` in: the `.wgsl` loader (Turbopack/webpack), a `\"use client\"` canvas that survives SSR, a `prefers-reduced-motion` path the library omits, a headless render snapshot in CI. Non-visual uses too — **compute shaders...",
       "skill_file": "vgpu-shaders/SKILL.md",
       "references": [
         "compute-example.md",

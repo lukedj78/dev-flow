@@ -1,17 +1,17 @@
 ---
 name: vgpu-shaders
 description: >-
-  Decide whether a Next.js 16 project should reach for **WebGPU** at all, then wire `vgpu` (Vercel
-  Labs, MIT) in correctly: the `.wgsl` loader for Turbopack/webpack, a `"use client"` canvas that
-  survives SSR, a **`prefers-reduced-motion` path the library does not give you**, and a headless
-  render snapshot in CI. Also its non-visual uses: **compute shaders** (`compute`, `dispatch`,
-  storage ping-pong), `pixelDiff` for visual regression, `gpuFrameTime` as a CI perf gate,
-  server-side image generation, `vgpu/scene`. Use for "shader", "WGSL", "WebGPU", "vgpu", "compute
-  shader", "GPU compute", "animated hero", "generative background", "raymarch", "aggiungi uno
-  shader", "sfondo generativo", "calcolo su GPU". **Does not restate the vgpu API** — that lives in
-  the first-party generated skill (`npx skills add vercel-labs/vgpu`) and its MCP. Records
-  `stack.shaders`; no phase bump. Not for: CSS/Motion animation (`transitions` owns the tier ladder,
-  this is its top rung), animated icons, maps, React Native, or learning WGSL.
+  Decide whether a Next.js 16 project should reach for **WebGPU** at all, then wire `vgpu` in: the
+  `.wgsl` loader (Turbopack/webpack), a `"use client"` canvas that survives SSR, a
+  `prefers-reduced-motion` path the library omits, a headless render snapshot in CI. Non-visual uses
+  too — **compute shaders** (`compute`/`dispatch`, storage ping-pong), `pixelDiff` for visual
+  regression, `gpuFrameTime` as a CI perf gate, server-side image generation, `vgpu/scene`. Triggers:
+  "shader", "WGSL", "WebGPU", "vgpu", "compute shader", "GPU compute", "animated hero", "generative
+  background", "raymarch", "aggiungi uno shader", "sfondo generativo", "calcolo su GPU". **Does not
+  restate the vgpu API** — that is the first-party generated skill (`npx skills add
+  vercel-labs/vgpu`) and its MCP. Records `stack.shaders`; no phase bump. Not for CSS/Motion
+  animation (this is the top rung of that ladder), animated icons, maps, React Native, or WGSL
+  tutorials.
 ---
 
 # vgpu-shaders — should this page have a shader, and what does that cost?
@@ -56,7 +56,7 @@ it pins specific `webgpu`, `onnxruntime-web` and Dawn versions.
 
 Everything below is the graphics path, because that is the one a dev-flow project actually reaches.
 
-## The decision — this is `transitions`' top rung, not a separate ladder
+## The decision — this is the motion ladder's top rung, not a separate ladder
 
 `transitions` grades motion in tiers, cheapest first. vgpu is a **new Tier 4**, above Motion:
 
