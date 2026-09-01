@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-01T06:48:10Z",
+  "generated_at": "2026-09-01T07:06:56Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 45,
   "families": {
@@ -460,7 +460,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 178,
+      "skill_md_lines": 179,
       "bundle": "dist/eve-agent.skill"
     },
     {
@@ -768,7 +768,7 @@
         "scaffold-web.sh",
         "verify.ts"
       ],
-      "skill_md_lines": 203,
+      "skill_md_lines": 204,
       "bundle": "dist/monorepo-bootstrap.skill"
     },
     {

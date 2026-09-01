@@ -77,11 +77,11 @@ steers the follow-up, and the frontend guide writes it as
 denies the user the thing eve's turn policy exists to allow: correcting a bad answer while it is
 still being written. Give the composer one **Send / Stop** action instead of a dead input.
 
-`status` has **five** values at 0.45.0 — `"ready"`, `"resuming"`, `"submitted"`, `"streaming"`,
+`status` has **five** values, unchanged at 0.47.6 — `"ready"`, `"resuming"`, `"submitted"`, `"streaming"`,
 `"error"`. `"resuming"` is new (0.45.0): a hydrated conversation catching up on a durable session,
 which is *not* an active turn — show the transcript, not the active-turn controls.
 
-Verified against 0.45.0: since **0.33.0** the `eve` channel that
+Verified against 0.47.6: since **0.33.0** the `eve` channel that
 `withEve()` mounts defaults to `turnPolicy: "steer"`, **not** a queue or a hard reject — a `send`
 that arrives while a turn is active is durably buffered, then cooperatively cancels that turn and
 starts as its replacement (`turn.cancelled` → new turn ID; already-streamed output and completed
@@ -194,7 +194,7 @@ export default defineDynamic({
 });
 ```
 
-**There is no `ctx.clientContext`** — checked against `eve@0.45.0`'s `DynamicResolveContext`, whose
+**There is no `ctx.clientContext`** — checked against `eve@0.47.6`'s `DynamicResolveContext`, whose
 whole surface is `session` (`id`, `auth`), `channel` (`kind`, `continuationToken`, `metadata`) and
 `messages`. `clientContext` is delivered as **conversation content**: a string (or array of strings)
 becomes user-role context message(s), an object is JSON-serialized into one. It rides along with a

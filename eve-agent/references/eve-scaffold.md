@@ -33,6 +33,27 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 * **Node ≥ 24** and npm.
 * **Layout B (monorepo):** a monorepo already exists (Turborepo + pnpm); if not, stop and run the monorepo bootstrap first (`apps/` + `packages/` + `turbo.json` + `pnpm-workspace.yaml`). **Layout A (embedded):** a single Next.js app exists (or scaffold it first via `design-md-to-app`) — no workspace needed.
 * The target dir (`apps/agent` for B, the project root for A) does not yet contain an eve agent (otherwise switch to Capability mode).
+* ⚠️ **pnpm 11 holds a freshly published `eve` for 24 hours.** `minimumReleaseAge` delays installing
+  any version published less than N minutes ago — the window in which a compromised release is
+  usually caught and pulled — and **since pnpm v11 its default is `1440` (one day)**, where before
+  v11 it was `0`. Track eve closely enough and `pnpm add eve@latest` will quietly resolve to
+  yesterday's version instead of failing. Exempt the fast-moving packages by name in
+  `pnpm-workspace.yaml`, which is what Vercel's own eve templates do:
+
+  ```yaml
+  # pnpm-workspace.yaml — leave minimumReleaseAge at its default for everything else
+  minimumReleaseAgeExclude:
+    - eve
+    - ai
+    - "@ai-sdk/*"
+    - "@vercel/*"
+    - "@workflow/*"
+    - workflow
+  ```
+
+  Exempt by name, never by lowering `minimumReleaseAge` globally: the delay is worth keeping for the
+  hundreds of transitive dependencies you did not choose. Patterns need pnpm ≥ 10.17.
+  Ref: <https://pnpm.io/settings/dependency-resolution#minimumreleaseage>.
 
 ## 2. Initialize eve inside apps/agent
 
@@ -55,7 +76,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
   ```ts
   export default defineAgent({
-    model: "anthropic/claude-sonnet-5",   // document the choice; explicit pin, no longer eve's own scaffold default (0.36.0+ → zai/glm-5.2)
+    model: "anthropic/claude-sonnet-5",   // explicit pin — eve's own default moved twice (0.36.0 zai/glm-5.2 → 0.47.2 openai/gpt-5.6-luna-fast)
     limits: { maxInputTokensPerSession: 100_000, maxOutputTokensPerSession: 20_000 },
   });
   ```
@@ -70,9 +91,9 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
 ## 4. Set the channel auth (fail closed)
 
-* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback is `[vercelOidc(), localDev(), placeholderAuth()]` (verified 0.30.0, still current at **0.38.3** — current npm `latest`) and does not admit browser users in production. ⚠️ **0.30.0 security fix**: `localDev()` now grants local access based on the *deployment*, not the request `Host` — a spoofed Host could previously obtain local-dev access on a self-hosted deploy; the exported `isLoopbackRequest` helper was removed. Upgrade if you self-host. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. Auth helpers are first-class and documented (`jwtHmac`, `jwtEcdsa`, `httpBasic`, `oidc`, plus `ForbiddenError`/`UnauthenticatedError` and `withAuthChallenges`) — see the eve docs' *Auth and route protection* guide rather than guessing.
+* The scaffolded `agent/channels/eve.ts` ships `placeholderAuth()`, which **rejects production traffic** so an unauthenticated app can't go live by accident. The auth fallback is `[vercelOidc(), localDev(), placeholderAuth()]` (verified 0.30.0, still current at **0.47.6** — current npm `latest`) and does not admit browser users in production. ⚠️ **0.30.0 security fix**: `localDev()` now grants local access based on the *deployment*, not the request `Host` — a spoofed Host could previously obtain local-dev access on a self-hosted deploy; the exported `isLoopbackRequest` helper was removed. Upgrade if you self-host. To accept browser traffic, replace it with real auth (Clerk / Auth.js / OIDC-JWT / API keys / a custom `AuthFn`), typically wired via `agent/lib/auth.ts`, and put `tenantId` + identity attributes on the principal. Never hardcode secrets; use env vars. Auth helpers are first-class and documented (`jwtHmac`, `jwtEcdsa`, `httpBasic`, `oidc`, plus `ForbiddenError`/`UnauthenticatedError` and `withAuthChallenges`) — see the eve docs' *Auth and route protection* guide rather than guessing.
 
-**Verified at 0.45.0**, including the scaffold's own template: the walk is still `[vercelOidc(), localDev(), placeholderAuth()]`, and **order is load-bearing** — put your own provider *first* and keep `vercelOidc()` ahead of `localDev()`, or a local Vercel OIDC bearer gets shadowed by the synthetic local principal. An entry that doesn't recognise the caller returns `null` and the walk continues; if every entry skips, eve answers **401 with a `WWW-Authenticate`** naming the schemes the configured entries declare. On a non-Vercel host, drop `vercelOidc()` unless you actually want to accept Vercel-issued tokens.
+**Verified at 0.47.6**, including the scaffold's own template: the walk is still `[vercelOidc(), localDev(), placeholderAuth()]`, and **order is load-bearing** — put your own provider *first* and keep `vercelOidc()` ahead of `localDev()`, or a local Vercel OIDC bearer gets shadowed by the synthetic local principal. An entry that doesn't recognise the caller returns `null` and the walk continues; if every entry skips, eve answers **401 with a `WWW-Authenticate`** naming the schemes the configured entries declare. On a non-Vercel host, drop `vercelOidc()` unless you actually want to accept Vercel-issued tokens.
 
 ⚠️ **`none()` is the one that isn't a placeholder.** It accepts every request anonymously *and* **terminates whatever array it appears in** — entries after it never run. It is the right answer for a public demo and a silent hole anywhere else, so it belongs in a diff a human reads, never in a "make the 401 go away" edit.
 
@@ -149,3 +170,13 @@ If there is no `.workflow/`, skip this and tell the user the agent is scaffolded
 * Hardcoding secrets in `agent.ts` or `channels/eve.ts` — always use env vars.
 * Forgetting the `eval` task in `turbo.json`, which silently removes the quality gate.
 * Shipping a prod channel with no real authenticator — eve fails closed, so the agent will reject traffic.
+* ⚠️ **Trusting the `AGENTS.md` that ships with Vercel's eve templates.** Both
+  [`vercel/eve-examples`](https://github.com/vercel/eve-examples) and the archived
+  `vercel-labs/eve-slack-agent-template` write one standing instruction —
+  *"always read the relevant guide in `node_modules/eve/dist/docs/public/`"* — and **that directory
+  does not exist**. Checked with `npm pack` at 0.24.0 (the archived template's own pin), 0.39.3 (the
+  maintained one's) and 0.47.6: zero entries under `dist/docs/`, 88–99 under `docs/`. The path has
+  always been **`node_modules/eve/docs/`**. It is the worst place for the error to sit: the agent
+  reads it once at session start, the directory listing comes back empty, and it falls back to
+  recalling an API instead of reading one. **If a project was scaffolded from an eve template, fix
+  its `AGENTS.md` before trusting anything built in it.**

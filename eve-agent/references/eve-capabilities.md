@@ -37,7 +37,7 @@ exporters by hand). After any install: **review the generated files and add requ
 (env vars, Connect provisioning) before running the agent.** The full catalog is the
 integrations directory (<https://eve.dev/integrations>). Only fall through to hand-authoring the
 sections below when nothing in the registry fits (or you must own/modify the source — then see
-`eve-registry-porting`). Syntax verified against `eve@0.45.0`'s `docs/reference/cli.md`.
+`eve-registry-porting`). Syntax verified against `eve@0.47.6`'s `docs/reference/cli.md`.
 
 ## Tool — `agent/tools/<name>.ts`
 
@@ -107,7 +107,7 @@ skills are invisible to the root.
 
 ## Channel — `eve add channel/<kind>`
 
-A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.45.0/docs/channels/`:
+A new entrypoint. Not every channel is a registry item — verified against `node_modules/eve@0.47.6/docs/channels/`:
 
 | Channel | How you add it |
 |---|---|
@@ -115,6 +115,7 @@ A new entrypoint. Not every channel is a registry item — verified against `nod
 | **Linq** (iMessage **and SMS**, new in 0.41.0) | **`eve add channel/linq`** — two setup paths: Vercel Connect (eve provisions or links a Linq account and line, then you pick which of the account's phone numbers the agent answers on) or portable credentials (`LINQ_API_KEY` + `LINQ_WEBHOOK_SECRET` in `.env.local`). **Photon is still the iMessage-only option**; Linq is the one that also carries SMS |
 | **Linear** | **`eve add linear`** — a bundle whose checklist offers the Linear *channel* **and** the Linear MCP connection (both selected by default). For the channel alone the item is **`eve add channel/linear-agent`** — ⚠️ **not `channel/linear`, which does not exist** |
 | `teams` · `telegram` · `twilio` | **authored by hand** — they ship a subpath (`eve/channels/<kind>`) and a docs page, but no registry item. Write the file; there is no `eve add` for them |
+| **`mcp`** | **authored by hand** — `mcpChannel()` from `eve/channels/mcp`. Publishes the agent **as an MCP server**, so a client like Claude Code can delegate durable work to it through four tools: `agent_start`, `agent_get`, `agent_update`, `agent_cancel`. ⚠️ **Auth is required explicitly, even in development** — there is no unauthenticated fallback here as there is on the `eve` channel. Do not confuse it with an MCP **connection** (`agent/connections/`), which is the opposite direction: your agent *calling* someone else's MCP server. |
 | `chat-sdk` · custom | `chatSdkChannel()` / `defineChannel()` — see below |
 | **a machine caller** (alerting, CI, a webhook) | **authored by hand**, and kept *separate from the human channels* — see below |
 
@@ -190,7 +191,7 @@ Webhook security is HMAC over the `Linear-Signature` header plus a **timestamp c
 as Linear recommends. Retries can arrive later than that — widen it with **`maxSkewMs`** rather than
 disabling verification (eve 0.31.3 added this knob precisely for retry deliveries).
 
-Slack concretely (re-verified against `eve@0.45.0`'s `docs/channels/slack.mdx` — the Connect flow has changed before):
+Slack concretely (re-verified against `eve@0.47.6`'s `docs/channels/slack.mdx` — the Connect flow has changed before):
 
 ```ts
 // agent/channels/slack.ts   (scaffolded by `eve add channel/slack`)
@@ -217,11 +218,20 @@ path must be `/eve/v1/slack`, not Connect's default `/slack`; re-running `create
 duplicate Slack app. Slack delivers over the public internet, so it cannot be tested on
 localhost — deploy first, then smoke-test with `eve dev <url>`.
 
-**Slack event hooks + session controls** (verified against `eve@0.45.0`'s `slackChannel.d.ts`) — configured on the
+**Slack event hooks + session controls** (verified against `eve@0.47.6`'s `slackChannel.d.ts` + `docs/channels/slack.mdx`) — configured on the
 `slackChannel({ … })` options in `agent/channels/slack.ts`:
 - **`onMessage(ctx)`** — intercept an incoming message before it starts/continues a turn. Helpers on `ctx`: `ctx.isBotMentioned()` (explicit @-mention — the only **sync** one), `await ctx.isSubscribed()` (the thread already owns an active eve session), `await ctx.isDMOrPrivateChannel()` (DM, group DM **or** private channel — added in 0.39.1, and it **fails closed**: an unknown conversation type returns `true`, so treat it as "assume private" rather than "assume public"), `ctx.thread.listParticipants()` (unique human Slack user ids, first-appearance order). Use it to gate *when* the agent replies (e.g. only on mention, or always inside a subscribed thread).
 - **`onAppMention(ctx)`** / **`onDirectMessage(ctx)`** — the mention- and DM-specific hooks. Don't hand-roll that gating inside `onMessage`: eve already routes it. (`onInteraction(ctx)` handles interactive components.) All the message hooks receive the same `ctx` helpers and the session controls below.
-- **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). It can still **fan one event out to multiple targets** (e.g. greet every new member), but ⚠️ **`ctx.receive` was removed in 0.31.0**: for generic events the target is now passed **in each operation's options** — `ctx.send(message, { target, auth })`. `resolveActiveSession` is gone too; use `ctx.resolveSession(address)`.
+- **`onSlashCommand(command, ctx)`** *(0.47.4)* — commands configured under **Slash Commands** in the
+  Slack app. Receives the command name, the argument text, the invoking user, channel, workspace,
+  trigger id and response URL, plus workspace-scoped Slack API access. eve acknowledges with an empty
+  `200 OK` **immediately** and keeps the handler alive in the background — so the ack is not your
+  reply; send that yourself.
+- **`onShortcut(shortcut, ctx)`** *(0.47.4)* — message and global shortcuts from **Interactivity &
+  Shortcuts**. Receives the callback id, user, workspace and trigger id; *message* shortcuts also carry
+  the selected message and channel. Global shortcuts have no channel, which is why the context gives
+  **workspace-scoped** API access. Acknowledged immediately, handler kept alive, same as above.
+- **`onEvent(ctx)`** — the **raw fallback after the message hooks**: Slack **Events API** callbacks that aren't messages (`reaction_added`, `team_join`, `channel_created`, …). It can still **fan one event out to multiple targets** (e.g. greet every new member), but ⚠️ **`ctx.receive` was removed in 0.31.0**: for generic events the target is now passed **in each operation's options** — `ctx.send(message, { target, auth })`. `resolveActiveSession` is gone too; use `ctx.resolveSession(address)`. ⚠️ **`onEvent` only covers JSON `event_callback` deliveries** — URL verification, slash commands and interactive payloads never reach it (0.47.6 docs are explicit). Slash commands go to `onSlashCommand`, shortcuts to `onShortcut`; and every event you want must be listed in the Slack app's Event Subscriptions with its OAuth scope, or the callback simply never arrives.
 - **Session controls** (thread-bound, callable from the hooks) — ⚠️ **the two take different options**: **`ctx.cancel({ turnId? })`** stops the current turn but **keeps the session** (for mid-turn corrections; new input queues onto the same session) — from `onEvent` it needs the thread explicitly: `ctx.cancel({ channelId, threadTs, turnId? })`. **`ctx.reset({ reason? })`** **terminally retires** the session owning the thread — the next message starts a fresh session (new history, state, and sandbox). `reason` belongs to `reset` only. These are the messaging-channel surface of the runtime's turn-cancel / session-lifecycle model (see `eve-concepts.md` §Sessions/HITL).
 
 A realtime **voice** surface (AI Gateway `gpt-realtime-2` / STT / TTS, built web-side via the
@@ -303,7 +313,7 @@ already have.
 
 ⚠️ **eve 0.31.0 was a breaking migration of this whole surface.** Continuation tokens are gone from the
 client: a session is addressed by its **`sessionId`** and nothing else. Code written against 0.30.x will
-not compile or will fail at runtime. The surface has now held across the 0.38.3 and 0.45.0 passes, so
+not compile or will fail at runtime. The surface has now held across the 0.38.3, 0.45.0 and 0.47.6 passes, so
 it is no longer the fast-moving part — but note the word *client*: a **channel** may still carry its
 own `continuationToken` in `DynamicResolveContext.channel`, because that one is channel-owned.
 
@@ -498,9 +508,81 @@ assertion set (`toolOrder` / `eventOrder` / `calledSubagent` / `loadedSkill` / `
 (`t.target.fetch` / `dispatchSchedule` / `attachSession`), reporters (Console / JUnit /
 Braintrust), and every `eve eval` flag + exit code — is in **`references/eve-evals.md`**.
 
+## Memory — `agent/memory/<slot>.ts` (context that outlives the session)
+
+**New in 0.45.1–0.47.5; verified at `eve@0.47.6`.** A *memory slot* binds a provider to an
+eve-managed scope and visibility policy. eve owns the slot, the scope resolution and the recall
+attribution; the provider owns storage, retrieval and its own model-facing tools. This is the
+capability to reach for when the agent must remember something **across sessions** — everything in
+`eve-concepts.md` §State is per-session and does not.
+
+```ts title="agent/memory/profile.ts"
+import { defineMemory } from "eve/memory";
+import { byPrincipal } from "eve/memory/scope";
+import { fileMemory } from "eve/memory/file";
+
+export default defineMemory({
+  description: "Remember stable facts and preferences about the caller.",
+  provider: fileMemory(),
+  scope: byPrincipal,
+});
+```
+
+**Layout.** `agent/memory.ts` for a single slot named `memory`, or `agent/memory/<slot>.ts` for
+several — **the flat file and the directory are mutually exclusive**. The filename is the slot name
+and it namespaces the provider's tools: `profile.ts` exposes `profile__save_memory` and
+`profile__remove_memory`, and the slot `description` is prepended to both tool descriptions, which
+is how the model learns what belongs in *this* slot rather than another.
+
+**Providers.** `fileMemory()` is built in: one indexed document per resolved scope, recalled before
+each turn and after compaction, with `save_memory` / `remove_memory` offered to the model. It does
+**not** extract facts by itself — the model decides when to save. It **rejects rather than truncates**:
+`maxCharacters` defaults to 4,000 for the recalled message, 2,048 UTF-8 bytes per entry, 65,536 for the
+stored document. Third party: `eve add memory/supermemory` (semantic recall, automatic capture) — an
+external service, so review retention and data handling before sending anything sensitive. Custom
+providers implement a `MemoryProvider`.
+
+**Backends** (`fileMemory()` only, and it chooses lazily): Vercel **with** Blob credentials → private
+Vercel Blob; Vercel **without** → an error telling you to attach a store; `eve dev` → shared
+process-local memory; everything else → an error demanding an explicit backend. ⚠️ `NODE_ENV=development`
+alone does **not** select in-memory storage and a Blob token outside Vercel does **not** select Blob.
+Tests pass one explicitly: `fileMemory({ backend: inMemory() })` from `eve/memory/file`.
+
+**Scope is the tenancy boundary — resolve it from trusted identity, never from model input.**
+`scope` takes a string, a `null`, or a resolver returning a string, a tuple, or `null`.
+
+```ts
+scope(ctx) {
+  const caller = ctx.session.auth.current;
+  const tenantId = caller?.attributes.tenantId;
+  if (caller?.principalType !== "user" || typeof tenantId !== "string") return null;
+  return [tenantId, caller.principalId];
+}
+```
+
+`null` **disables the slot for that operation** — eve calls neither the namespace resolver nor the
+provider nor its tools, and never falls back to a shared scope. That is the fail-closed behaviour to
+rely on. `byPrincipal` (from `eve/memory/scope`) uses `auth.current`, disables itself for anonymous
+and runtime principals, and returns a shared `local-dev` scope in development. Providers must
+partition on **`memory.scope.key`** — the versioned opaque digest eve computes — not on the raw value,
+which is deliberately kept out of eve's durable attribution.
+
+**Visibility** decides what survives a *scope change inside one session*: `"scope"` (default) hides
+records recalled under the earlier scope, `"session"` keeps them. Use `"session"` only when every
+scope reachable in that session belongs to one trusted audience — and note that neither mode can
+retract what an assistant reply has already said. Hard isolation needs separate sessions.
+
+**Namespace** separates application domains before scope applies. `defaultNamespace` folds in the
+graph node, the slot, and a deployment-aware identity — project + environment on Vercel, plus branch
+on Preview, a digest of the app root locally — so redeploys keep production memory and unrelated
+preview branches do not collide. A custom namespace is taken as complete; eve appends nothing.
+
+See `/docs/patterns/multi-tenant-memory` for the full scoped setup, and `eve-patterns.md` for how this
+composes with the other multi-tenant patterns.
+
 ## Extension — `agent/extensions/<name>.ts` (installable capability bundle)
 
-An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; core identifiers re-verified at 0.45.0 — `defineExtension` on `eve/extension`, `extension/extension.ts`, `eve extension init` / `build`. `[VERIFY]` the rest against `node_modules/eve/docs/` — this surface is still young.)
+An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; core identifiers re-verified at 0.47.6 — `defineExtension` on `eve/extension`, `extension/extension.ts`, `eve extension init` / `build`. `[VERIFY]` the rest against `node_modules/eve/docs/` — this surface is still young.)
 
 **Consume an installed extension** (the common case) — `eve add extension/<name>` (from the registry — see the "Install from the registry FIRST" section at the top; it writes the mount + installs the package), or add the ONE file under `agent/extensions/` by hand:
 

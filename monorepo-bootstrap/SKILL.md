@@ -64,6 +64,7 @@ If `apps/` + `packages/` + `pnpm-workspace.yaml` already exist at project root: 
 
 Run `scripts/init-monorepo.sh <project-root> <project-slug>`:
 - Writes `pnpm-workspace.yaml` listing `apps/*` and `packages/*`.
+  - ⚠️ **On pnpm 11, add a `minimumReleaseAgeExclude` list for any dependency you track at head.** `minimumReleaseAge` refuses to install a version published less than N minutes ago — the window in which a compromised release is normally caught — and **its default became `1440` (one day) in pnpm v11**, from `0` before. Nothing errors: `pnpm add <pkg>@latest` simply resolves to yesterday's version. Exempt fast-moving packages by name (`eve`, `ai`, `"@ai-sdk/*"`, `"@vercel/*"`), never by lowering the setting globally — the delay is worth keeping for the transitive dependencies nobody chose. Patterns need pnpm ≥ 10.17. Ref: <https://pnpm.io/settings/dependency-resolution#minimumreleaseage>.
 - Writes `turbo.json` with the pipeline definition (build/dev/lint/test/typecheck).
 - Writes root `package.json` with name `@<project-slug>/root`, scripts that proxy to turbo.
 - Writes `packages/typescript-config/` with `base.json` (path aliases, strict mode), `nextjs.json`, `react-native.json` preset extensions. Also writes `packages/eslint-config/`. **No `tsconfig.base.json` in repo root** — Turborepo official pattern.

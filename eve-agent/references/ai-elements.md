@@ -12,7 +12,7 @@ your repo** by the registry, so there is no package to pin or diff — `[VERIFY]
 the version you actually `add`, because this surface moves fast (e.g. the standalone `Response`
 component is now documented as `MessageResponse`, exported from `message`). The *types* they consume,
 by contrast, come from the `ai` package and can be checked: this file is verified against
-**`ai@7.0.79`** and **`eve@0.45.0`**.
+**`ai@7.0.79`** and **`eve@0.45.0`**. ⚠️ **Not re-verified in the 0.47.6 pass**: `EveMessagePart` still exists in eve's published types, but this file's claims are about the *mapping* between two packages and `ai` has moved to `7.0.87` since — eve no longer declares `ai` as a dependency at all, so the two versions drift independently. Re-pack both before trusting a part-by-part row.
 
 ## Install
 

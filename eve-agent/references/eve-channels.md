@@ -17,6 +17,8 @@ Verified against `eve@0.45.0` (`npm pack`, `docs/channels/` + the emitted `.d.ts
 signatures, the send paths and the registry-item question below all still hold. These are
 fast-moving surfaces, so re-check on upgrade rather than assuming this line ages well.
 
+> **0.47.6 re-check (mechanical only).** Every identifier this file names still exists in the published `.d.ts` — `sendTelegramMessage`, `TelegramContext`, `TelegramMessageBody`, `splitTelegramMessageText`, `messageThreadId`. The *behaviour* described below was last read in full at 0.45.0 and is unchanged in the 0.45.1→0.47.6 CHANGELOG; re-read it before relying on a detail the changelog would not mention.
+
 ---
 
 ## Telegram — authored by hand, no registry item

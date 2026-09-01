@@ -1,6 +1,6 @@
 # eve evals — the full reference
 
-An eval is a **scored check that runs the agent against a real session and grades the result** — it boots a real agent server, drives sessions through the TypeScript client over the actual HTTP surface, and asserts on outcomes. It's the deploy gate. Live docs: <https://eve.dev/docs/evals/…>. Last verified end-to-end against **`eve@0.45.0`** (2026-08-26): `defineEval`, `defineEvalConfig`, `mockModel` and all five `eve/evals/expect` matchers exist as written. Re-`[VERIFY]` on upgrade against `node_modules/eve/docs/` — the eval API is young.
+An eval is a **scored check that runs the agent against a real session and grades the result** — it boots a real agent server, drives sessions through the TypeScript client over the actual HTTP surface, and asserts on outcomes. It's the deploy gate. Live docs: <https://eve.dev/docs/evals/…>. Last verified end-to-end against **`eve@0.47.6`** (2026-09-01): `defineEval`, `defineEvalConfig`, `mockModel` and all five `eve/evals/expect` matchers exist as written, and `t.transcript` was added in 0.47.0. Re-`[VERIFY]` on upgrade against `node_modules/eve/docs/` — the eval API is young.
 
 ## Layout & config
 
@@ -46,6 +46,7 @@ export default defineEval({
 - `t.start(input)` — start a turn, return immediately (observe in-flight); `t.cancel()` cancels the active turn.
 - `t.reply` — last assistant message (or `null`); `t.sessionId`; `t.events` — full typed event stream so far.
 - `t.log(msg)` — debug line; `t.skip(reason)` — omit for this target (reported skipped, never changes exit code).
+- `t.transcript` *(0.47.0)* — the primary session's observed **user and assistant** messages, formatted in turn order with `User:` / `Assistant:` labels and blank lines between them. It **excludes reasoning, tool calls, tool results and other sessions' messages**, and it updates only after a turn settles — read it after `await t.send(…)` / `t.respond(…)` / `await live.result()`, never mid-turn. An independent session from `t.newSession()` carries its own `session.transcript`.
 
 **Multi-turn:** intermediate turns become locals; later turns don't overwrite them.
 
@@ -90,7 +91,7 @@ Soft by default (tracked, never fails unless gated). Graders under `t.judge.auto
 | `closedQA(criteria)` | reply satisfies a free-form yes/no criterion |
 | `sql(expected)` | semantic equivalence of two SQL statements |
 
-Each scores `t.reply` by default; pass `{ on: value }` to grade another output. Gate/soften with `.gate(t)` / `.atLeast(t)`:
+Each scores `t.reply` by default; pass `{ on: value }` to grade another output. **To grade a whole conversation rather than the last reply, pass `{ on: t.transcript }`** — that is what it exists for; grading `t.reply` on a multi-turn case scores the last message and silently ignores everything that led to it. Gate/soften with `.gate(t)` / `.atLeast(t)`:
 
 ```ts
 t.judge.autoevals.closedQA("cites a source").atLeast(0.6);

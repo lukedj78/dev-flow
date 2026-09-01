@@ -24,12 +24,14 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `chatSdkChannel` (messaging surfaces via adapters) | `eve/channels/chat-sdk` |
 | `defineMcpClientConnection`, `defineOpenAPIConnection` | `eve/connections` |
 | `defineHook` | `eve/hooks` |
+| `defineMemory` | `eve/memory` — providers on `eve/memory/file` (`fileMemory`, `inMemory`, `vercelBlob` via `eve/memory/file/vercel`), scope helpers on `eve/memory/scope` (`byPrincipal`) |
 | `defineSchedule` | `eve/schedules` |
 | `defineState` | `eve/context` |
 | `defineSandbox`, `defaultBackend()` | `eve/sandbox` |
 | the other backends — `vercel`, `docker`, `justbash`, `microsandbox` | `eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox` — **one subpath each**, not `eve/sandbox` |
 | channel authenticators `localDev`/`vercelOidc`/`placeholderAuth` | `eve/channels/auth` |
 | `slackChannel` (+ per-platform channels) | `eve/channels/slack` (etc.) |
+| `mcpChannel` — publishes the agent **as** an MCP server | `eve/channels/mcp` (not to be confused with `defineMcpClientConnection`, which calls one) |
 | Connect credentials `connectSlackCredentials`/`connectGitHubCredentials` | `@vercel/connect/eve` |
 | `defineInstrumentation` | `eve/instrumentation` |
 | `defineEval`, `defineEvalConfig` | `eve/evals` |
@@ -182,7 +184,7 @@ Two consequences worth planning for rather than discovering:
 - **Snapshots are region-locked** — *"snapshots stay in the region where they were created and can't be moved."* So
   the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
 
-**Can you set the region from `vercel()`? Not today** — checked against `eve@0.45.0` (`npm pack`, `.d.ts`):
+**Can you set the region from `vercel()`? Not today** — checked against `eve@0.47.6` (`npm pack`, `.d.ts`) — `failoverRegions` still present, still not reachable from `vercel()`:
 
 - **eve's side is already open.** `VercelSandboxCreateOptions` is a structural passthrough of the SDK's
   `Sandbox.create` params minus a fixed exclusion list — `mounts`, `name`, `onResume`, `persistent`,
@@ -205,7 +207,7 @@ the moment the platform has it, without an SDK bump. The Pro/Enterprise gate on 
 changelog's claim only; a type can't express a plan tier.
 
 **Not the same axis as `run`.** [`run`](https://github.com/vercel-labs/run) isolates *model-written JavaScript* in an in-process QuickJS context whose only egress is the `hostFunctions` you pass it; a sandbox backend isolates *shell and code tools* at the OS level. One is for "the model wrote a program", the other for "a tool needs a machine". Reaching for a VM when you meant the first is startup cost for nothing — and reaching for QuickJS when you meant the second gives you no OS isolation at all. See `eve-concepts.md` §The general form. (`roprgm/worldcup-eve` uses `just-bash`
-for exactly this reason.) The `eve/sandbox/just-bash` subpath is confirmed against `eve@0.45.0`'s `exports`.
+for exactly this reason.) The `eve/sandbox/just-bash` subpath is confirmed against `eve@0.47.6`'s `exports`.
 
 ## State & per-session context
 
@@ -229,16 +231,18 @@ bundler does not capture `execute: someFn` and it fails on replay.
   (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. **eve's scaffold default changed in 0.36.0** and still holds at
-  0.45.0: `eve init` (and a config-less agent, which resolves a default `agent.ts` source rather than
-  none at all) uses `zai/glm-5.2`, not `anthropic/claude-sonnet-5` — and **GLM 5.2 accepts no image
-  input**. This skill still recommends pinning `anthropic/claude-sonnet-5` explicitly; don't rely on
-  the scaffold default, and don't inherit a text-only model into an agent that will be handed a
-  screenshot.
+* Prereqs: **Node ≥ 24** and npm. ⚠️ **eve's scaffold default has now moved twice** — `zai/glm-5.2`
+  in 0.36.0, then **`openai/gpt-5.6-luna-fast` in 0.47.2**, which is the single
+  `DEFAULT_AGENT_MODEL_ID` used in three places at once: baked in by `eve init`, resolved for a
+  config-less agent, and pre-selected in the setup model picker (`--model` overrides it). `glm-5.2`
+  survives at 0.47.6 only in the CHANGELOG and one guide example. That it moved twice in eleven
+  minor versions is the point: **this skill pins `anthropic/claude-sonnet-5` explicitly and never
+  relies on the scaffold default** — and whatever that default is, check whether it accepts image
+  input before inheriting it into an agent that will be handed a screenshot.
   The `model` field also accepts `defineDynamic({ events })` for per-session model choice — since
   0.33.0 there is no `fallback`; every matching handler must return a concrete model.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
-  Standard Schema / plain JSON Schema object. Confirmed at 0.45.0: the scaffold pins **zod 4.4.3**.
+  Standard Schema / plain JSON Schema object. The scaffold does not freeze a version: `eve init` substitutes a `__EVE_INIT_ZOD_VERSION__` token, whose default tracks eve's own dependency — **`4.5.4` at 0.47.6**, up from 4.4.3 at 0.45.0. The same mechanism pins `ai` (`^7.0.82`), `@vercel/connect` (`1.0.0`) and the Node engine (`>=24`). Read the pin from the generated `package.json`, never from memory.
 * ⚠️ **Relative imports do *not* need `.js` extensions** — this file said they did, and eve's own
   scaffolds disagree: `eve init`, the extension scaffold and the Web Chat template all emit
   `module: "esnext"` + `moduleResolution: "bundler"`, and every relative import in eve's docs is

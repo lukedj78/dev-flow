@@ -30,6 +30,57 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-09-01 against eve@0.47.6** (eve shipped 0.45.1 → 0.47.6 in the six days
+> since the 08-26 pass; `npm pack eve@0.47.6`, then `CHANGELOG.md` + `docs/` + the `exports` map and
+> `.d.ts`, same technique). Mechanical checks first: **38 of the 39 `eve/…` subpaths this skill cites
+> still exist** — the one absent is `eve/tools/defaults`, which this skill already documents as removed
+> in 0.45.0 — and **63 of the 69 eve-owned identifiers** it names resolve. The six that do not are all
+> correct as written: `createGithubTools` and `createRedisState` belong to third-party packages,
+> `addToolApprovalResponse` is the AI SDK's, `onTurnEnd` is phrased as "-style", and `isLoopbackRequest`
+> and `resolveActiveSession` are documented here *as removed*. `DynamicResolveContext` still carries no
+> `clientContext`; `failoverRegions`, `EveMessagePart` and the Telegram identifiers all survive;
+> `experimental.subagentPersistentSessions` is gone from the types, which is what this skill already says.
+>
+> **Two capabilities were missing entirely.** ① **Memory** (`agent/memory/<slot>.ts`, `defineMemory` on
+> `eve/memory`, `fileMemory()` on `eve/memory/file`, `byPrincipal` on `eve/memory/scope`) shipped across
+> 0.45.1–0.47.5 and is the only way to hold context **across** sessions — everything this skill documented
+> under State is per-session. Four new subpaths, a new docs page, and a fifth pattern page. Now
+> `eve-capabilities.md` §Memory, with the parts that fail closed spelled out: a `scope` resolver returning
+> `null` disables the slot rather than sharing one, providers must partition on `memory.scope.key` and not
+> the raw value, and `fileMemory()` **errors** rather than guessing a backend outside Vercel and `eve dev`.
+> ② **The MCP channel** (`mcpChannel` on `eve/channels/mcp`) — the agent published *as* an MCP server so a
+> client like Claude Code can delegate to it, auth mandatory even in development. It is the mirror image of
+> the MCP *connection* this skill already covered, and the two are easy to confuse by name alone.
+>
+> **Three things this skill asserted are now false:**
+>
+> ① **eve's scaffold default model moved again**, `zai/glm-5.2` → **`openai/gpt-5.6-luna-fast`** in 0.47.2.
+> It is one constant, `DEFAULT_AGENT_MODEL_ID`, used for `eve init`, for a config-less agent and for the
+> setup picker's pre-selection. Three files said `glm-5.2`; at 0.47.6 that string survives only in the
+> CHANGELOG and one guide example. Twice in eleven minor versions is the argument for this skill's own
+> rule — pin explicitly, never inherit.
+> ② **The scaffold does not pin `zod 4.4.3`**, or any literal: `eve init` substitutes a
+> `__EVE_INIT_ZOD_VERSION__` token whose default tracks eve's own dependency (**4.5.4** at 0.47.6), the
+> same mechanism that pins `ai` `^7.0.82`, `@vercel/connect` `1.0.0` and the Node engine. The durable
+> instruction is to read the generated `package.json`, not to memorise a number.
+> ③ **The auth-fallback line still said "still current at 0.38.3 — current npm `latest`"**, three releases
+> after that stopped being true. The claim itself held; its stamp had rotted.
+>
+> **Three additions to surfaces already covered**: Slack gained `onSlashCommand` and `onShortcut` in
+> 0.47.4 — both acknowledged immediately with the handler kept alive, so the ack is not the reply — and
+> the 0.47.6 docs are now explicit that `onEvent` sees **only** JSON `event_callback` deliveries, never
+> slash commands or interactive payloads. Sandbox handles gained `delete()` in 0.47.0, which drops the
+> session's sandbox without retiring the session, with per-backend caveats. Eval contexts gained
+> `transcript`, which is what a multi-turn judge should be pointed at instead of `t.reply`.
+>
+> **Not re-verified this pass** (logged for the next one): `ai-elements.md`, whose claims are about the
+> *mapping* between eve and `ai` — `ai` is at `7.0.87` and eve no longer declares it as a dependency, so
+> the two drift independently and both need re-packing; and the behavioural detail in `eve-channels.md`,
+> where every identifier was re-confirmed mechanically but the prose was last read in full at 0.45.0.
+> Also unread: the stream protocol's move to version 24 (0.46.1, `action.input.appended` and the new
+> `message.completed` ordering), instrumentation `tracePolicy` superseding `capture`, and
+> `defineDynamic` for `connections/` (0.47.4) — three surfaces this skill does not document yet.
+
 > **Verification pass 2026-08-26 against eve@0.45.0** (eve shipped 0.39.0 → 0.45.0 in the ten days
 > since the 08-16 pass; `npm pack eve@0.45.0`, then `CHANGELOG.md` + `docs/` + the `exports` map and
 > `.d.ts`, same technique). Mechanical checks first: **28 of the 29 `eve/…` subpaths this skill cites
@@ -126,6 +177,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/channels/overview` · `/eve` · `/slack` · `/github` · `/linear` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
 | `/docs/channels/telegram` · `/discord` · `/teams` | `eve-channels.md` — per-surface guides: webhook registration, group dispatch, `onMessage` gate + the two send paths (Telegram); 3s ACK + command propagation (Discord); `onInputResponse` authorization bypass + file opt-in (Teams) | ✅ |
 | `/docs/channels/linq` | `eve-capabilities.md` §Channel — `eve add channel/linq`, Connect vs portable credentials, iMessage **and** SMS (Photon stays iMessage-only) | ✅ |
+| `/docs/channels/mcp` | `eve-capabilities.md` §Channel — `mcpChannel()` on `eve/channels/mcp`: the agent published **as** an MCP server (`agent_start` / `agent_get` / `agent_update` / `agent_cancel`), auth mandatory even in dev. Distinct from `/docs/connections/mcp`, which is the agent *calling* one. | ✅ |
 | `/docs/channels/custom` | `eve-capabilities.md` §Channel (`defineChannel`) | ↪ |
 | `/docs/channels/chat-sdk` | `eve-capabilities.md` §Channel — `chatSdkChannel()` shape + the Resend worked example (official code); `eve-channels.md` — WhatsApp adapter + when an adapter's thread model doesn't fit your domain | ✅ |
 
@@ -133,6 +185,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | Page | Covered in | |
 |---|---|---|
 | `/docs/schedules` | `eve-capabilities.md` §Schedule + `eve-patterns.md` §4 (dynamic) | ✅ |
+| `/docs/memory` · `/docs/patterns/multi-tenant-memory` | `eve-capabilities.md` §Memory — slots, `defineMemory`, `fileMemory()` + backends, scope/visibility/namespace, `eve add memory/supermemory` | ✅ |
 | `/docs/extensions` | `eve-capabilities.md` §Extension | ✅ |
 | `/docs/guides/hooks` | `eve-capabilities.md` §Hook (+ observability-sink pattern) | ✅ |
 | `/docs/concepts/state` | `eve-concepts.md` §State (`defineState` — session-scoped) + `eve-patterns.md` §3 (the external store it explicitly defers to) | ✅ |
