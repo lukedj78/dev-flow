@@ -277,6 +277,50 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
 
+### What each trace records — `tracePolicy` (0.46.0, extended 0.47.4)
+
+⚠️ **Read this from the types, not the docs.** `tracePolicy` appears **zero times** in
+`docs/guides/instrumentation.md` at 0.47.6; the whole surface is only in the shipped `.d.ts`
+(`eve/instrumentation`, `TraceCapturePolicy` in `dist/src/shared/trace-policy.d.ts`). That is the
+inverse of the usual advice and worth stating plainly: here the docs page is the stale source.
+
+A policy is a **function of the trace's context**, not a flag:
+
+```ts
+type TraceCaptureContext = { agentName: string; audience: ChannelAudience; channelType?: string };
+type TracePolicyDecision =
+  | { emit: false }
+  | { emit: true; recordInputs: boolean; recordOutputs: boolean };
+type TraceCapturePolicy = (trace: TraceCaptureContext) => TracePolicyDecision | boolean;
+```
+
+Two decisions that used to be one. **`emit`** admits the span at all; **`recordInputs` /
+`recordOutputs`** decide, *directionally*, whether its content is attached. Returning a bare
+`boolean` is the shorthand: the decision is then resolved against the channel's audience.
+
+`audience` is the point of the whole thing. Built-in messaging channels classify every request as
+**`public`**, **`private`** or **`unknown`** — a Slack public channel and a workspace-visible Chat SDK
+thread are public; DMs and private conversations are private; a surface without enough evidence stays
+`unknown`. **A provider that declares neither `capture` nor `tracePolicy` records content only for
+`public` conversations** (0.46.0), which is the safe default you get for free and should not undo
+casually: turning content capture on for `private` means a DM's text lands in your tracing backend.
+
+`capture: "content" | "metadata"` is **deprecated** and still works — `legacyCaptureTracePolicy()`
+maps it onto an equivalent policy. Two behaviours are easy to get wrong: a provider declaring
+`capture: "content"` receives full content **regardless** of audience or `tracePolicy` (0.47.3), and a
+`tracePolicy` that drops eve's trace **no longer disables AI SDK telemetry** — metadata-only model
+spans (model, tokens, timing, no message content) still reach the ambient Workflow trace, only
+`agent.session` is suppressed.
+
+Also on the destination side: `otelIntegration()` exposes **`metricReaders`** (0.47.4) so a
+destination can declare OTLP metric readers next to its span processors; readers from every
+destination are collected in declaration order.
+
+⚠️ **The `agent/instrumentation/` *directory* is behind a flag.** The provider layer is
+"reachable only with `experimental.instrumentationProviders` on — with the flag off nothing discovers
+that directory", so those files compile and never run. The single root-only
+`agent/instrumentation.ts` is the non-experimental path.
+
 ## Workspace seeding
 
 Only two sources reach the sandbox `/workspace`: `agent/skills/` → `/workspace/skills/…`,

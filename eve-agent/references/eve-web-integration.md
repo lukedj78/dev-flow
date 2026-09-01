@@ -270,6 +270,37 @@ Next app, but it is the contract for non-Next consumers and `curl` verification:
 Accepted asynchronous work returns **202**; a follow-up on an inactive session returns **409** with
 `code: "session_not_active"`.
 
+### Stream protocol v24 — streamed tool inputs (0.46.1)
+
+Only relevant if you consume the NDJSON stream yourself. `useEveAgent` and the typed `Client` already
+apply the default reducer, and this is what that reducer is doing.
+
+**`action.input.appended` now arrives *before* the matching `actions.requested`.** A tool call's
+arguments stream in as deltas while the model writes them, and only then does the validated call
+appear. Each append carries `callId`, `toolName`, **`inputTextDelta`** and **`inputTextOffset`** — a
+zero-based **UTF-16 code-unit** position, not a byte or character offset. Only the delta and its
+offset are stored durably, so the cumulative input is never repeated in every event.
+
+The reducer's rule is the part to copy if you write your own: **start or restart accumulation at
+offset `0`, and ignore any nonzero offset that is not contiguous.** That is how a gap gets rejected
+instead of silently concatenated into corrupt JSON. Accepted deltas project as a `dynamic-tool` part
+with `state: "input-streaming"` and cumulative raw text in **`inputText`** — which **may be incomplete
+JSON mid-stream**, so do not parse it as arguments. `actions.requested` then replaces the same
+`toolCallId` with `state: "input-available"` and the validated `input`. Internal actions excluded from
+the stream never publish their input at all.
+
+⚠️ **Two ordering facts that break naive consumers.** When assistant text precedes a tool call,
+`message.completed` now arrives **before** that call's streamed input events. And `message.completed`
+can fire **several times in one turn** — interim narration before each tool call — so a client that
+treats it as "the turn is over" ends early: check `message.completed.data.finishReason`, and take
+usage from `step.completed`.
+
+**Version skew is visible in old sessions.** `meta.id` arrived in stream version 20 and
+`action.input.appended` in version 24. Events written by an earlier version keep their envelope
+without an id inside it, so rewinding into a session that ran before the upgrade yields events whose
+`meta.id` is absent **even though the type says it is always a string** — eve passes them through
+rather than dropping them, and they cannot be deduplicated. The exposure ends when those sessions do.
+
 The typed client is `Client` from `eve/client`. ⚠️ **0.31.0 renamed this surface**: `client.session(...)`
 is gone. Start one with `client.sessions.create(input)`, re-attach to a known id with
 `client.sessions.attach(sessionId)`, then `send(message, options)` — **positional**, not an options bag.

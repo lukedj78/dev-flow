@@ -77,9 +77,18 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > *mapping* between eve and `ai` — `ai` is at `7.0.87` and eve no longer declares it as a dependency, so
 > the two drift independently and both need re-packing; and the behavioural detail in `eve-channels.md`,
 > where every identifier was re-confirmed mechanically but the prose was last read in full at 0.45.0.
-> Also unread: the stream protocol's move to version 24 (0.46.1, `action.input.appended` and the new
-> `message.completed` ordering), instrumentation `tracePolicy` superseding `capture`, and
-> `defineDynamic` for `connections/` (0.47.4) — three surfaces this skill does not document yet.
+> **Addendum, same day — the three unread surfaces are now written up.** Stream protocol v24 in
+> `eve-web-integration.md` (`action.input.appended` before `actions.requested`, the UTF-16
+> `inputTextOffset` and the reducer's restart-at-0/reject-a-gap rule, `message.completed` firing
+> several times per turn and now preceding a call's streamed input, and the `meta.id` skew in
+> pre-upgrade sessions). `tracePolicy` in `eve-conventions.md` §Observability — **and the notable part
+> is where it is documented**: `tracePolicy` appears **zero times** in
+> `docs/guides/instrumentation.md` at 0.47.6, so the shipped `.d.ts` is the only source, the inverse
+> of this skill's usual "read the bundled docs" advice. `defineDynamic` for `connections/` in
+> `eve-capabilities.md` §Connection, with the two things that fail closed written as such: the
+> resolver receives only `ctx.session` and `ctx.channel.kind` — never messages, tool inputs or channel
+> metadata — and a throwing handler fails the lifecycle *without* letting a shadowed static connection
+> reappear as a fallback.
 
 > **Verification pass 2026-08-26 against eve@0.45.0** (eve shipped 0.39.0 → 0.45.0 in the ten days
 > since the 08-16 pass; `npm pack eve@0.45.0`, then `CHANGELOG.md` + `docs/` + the `exports` map and
@@ -159,7 +168,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/concepts/execution-model-and-durability` | `eve-concepts.md` §Execution model + `eve-conventions.md` durability | ✅ |
 | `/docs/concepts/built-in-tools` | `eve-conventions.md` §Built-in default harness + `eve-concepts.md` §Default harness — the ten defaults and which are conditional, the per-tool subpaths, `glob`/`grep` as opt-ins, `webSearch({ provider })` | ✅ |
 | `/docs/concepts/security-model` | `eve-conventions.md` §Security + `eve-patterns.md` | ✅ |
-| `/docs/concepts/sessions-runs-and-streaming` | `eve-concepts.md` §Sessions + `eve-web-integration.md` | ✅ |
+| `/docs/concepts/sessions-runs-and-streaming` | `eve-concepts.md` §Sessions + `eve-web-integration.md` (incl. §Stream protocol v24 — streamed tool inputs) | ✅ |
 
 ## Building blocks
 | Page | Covered in | |
@@ -193,12 +202,12 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 ## Dynamic & advanced guides
 | Page | Covered in | |
 |---|---|---|
-| `/docs/guides/dynamic-capabilities` | `eve-concepts.md` §Dynamic capabilities | ✅ |
+| `/docs/guides/dynamic-capabilities` | `eve-concepts.md` §Dynamic capabilities + `eve-capabilities.md` §Connection (the `connections/` form, 0.47.4) | ✅ |
 | the `Workflow` tool (now inside `/docs/concepts/built-in-tools`; there is no `guides/dynamic-workflows` page) | `eve-concepts.md` §Dynamic workflows (`experimental_workflow()` from `eve/tools/workflow`) | ✅ |
 | `/docs/guides/session-context` | `eve-conventions.md` + `eve-concepts.md` + `eve-patterns.md` (`ctx.session.auth`) | ✅ |
 | `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |
-| `/docs/guides/instrumentation` | `eve-conventions.md` §Observability + `eve-scaffold.md` (`instrumentation.ts`) | ✅ |
+| `/docs/guides/instrumentation` | `eve-conventions.md` §Observability — including `tracePolicy`, which the docs page does **not** mention; read from `eve/instrumentation`'s `.d.ts` — + `eve-scaffold.md` (`instrumentation.ts`) | ✅ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
 
 ## Client, frontend, deployment

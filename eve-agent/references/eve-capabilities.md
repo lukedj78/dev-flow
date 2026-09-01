@@ -388,6 +388,54 @@ export default defineMcpClientConnection({
 write operations are involved. Keep a Linear *connection* (agent reads/updates issues at
 runtime) distinct from the build loop's own Linear access.
 
+**Dynamic connections — one connection set per caller (0.47.4).** When *which* services exist depends
+on the authenticated user or tenant, the file exports `defineDynamic` instead of a single definition.
+A handler on `session.started` or `turn.started` returns one definition, a **map** of them, or `null`:
+
+```ts title="agent/connections/accounts.ts"
+import { defineDynamic, defineMcpClientConnection } from "eve/connections";
+
+export default defineDynamic({
+  events: {
+    "session.started": async (_event, ctx) => {
+      const principal = ctx.session.auth.current;
+      if (principal?.principalType !== "user") return null;      // fail closed
+      const accounts = await listEnabledAccounts(principal);
+      return Object.fromEntries(accounts.map((a) => [a.slug, defineMcpClientConnection({
+        url: "https://mcp.cloud.example.com",
+        description: `${a.label} (${a.accountId})`,
+        instanceKey: a.accountId,                                // stable, non-secret
+        auth: { principalType: "user", getToken: ({ principal }) => mintAccountToken(principal, a) },
+      })]));
+    },
+  },
+});
+```
+
+- **The resolver is deliberately starved of untrusted input.** It gets `ctx.session` and
+  `ctx.channel.kind` — and *not* conversation messages, delivery payloads, tool inputs, model outputs,
+  continuation tokens or free-form channel metadata. Select accounts from authenticated identity or
+  your own data; there is no path by which the model can talk you into a connection.
+- **`instanceKey` is mandatory for authenticated entries** and must be a stable, non-secret account or
+  tenant id. It is what pins durable authorization to one resolved instance across a replay — get it
+  wrong and a parked turn can resume against a different account's credentials.
+- **Naming**: a single returned definition takes the *filename*; a map's keys are used **bare**, with
+  no file-slug prefix (`accounts.ts` returning `{ production, staging }` yields exactly those two
+  names). Keys are lowercase ASCII letters/digits/dashes, letter-initial, ≤64 chars. A dynamic
+  connection **overrides** a same-named static one, and two effective resolvers may not emit the same
+  name — namespace a key to break the tie.
+- **A turn result replaces that file's session result for the turn, including when the turn handler
+  returns `null`.** And a throwing or invalid handler **fails the lifecycle without rebuilding the
+  registry**, so a static connection that the dynamic result shadowed cannot reappear as a fallback.
+  That is fail-closed, and it is the behaviour to rely on rather than a rescue path.
+- **Keep resolvers idempotent and side-effect-free**: eve re-runs the active session and turn handlers
+  when a parked turn resumes or a durable step retries, precisely so live auth, header, approval and
+  provided-argument callbacks are rebuilt instead of being serialized into workflow state.
+
+Same shape as the other dynamic capabilities (model, subagents, tools, skills, instructions) — see
+`/docs/guides/dynamic-capabilities`. ⚠️ Still no `fallback` since 0.33.0: every matching handler must
+return something concrete or `null`.
+
 ## Schedule — `agent/schedules/<name>.ts` (root-only)
 
 ```ts
