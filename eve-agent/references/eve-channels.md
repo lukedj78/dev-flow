@@ -17,7 +17,7 @@ Verified against `eve@0.45.0` (`npm pack`, `docs/channels/` + the emitted `.d.ts
 signatures, the send paths and the registry-item question below all still hold. These are
 fast-moving surfaces, so re-check on upgrade rather than assuming this line ages well.
 
-> **0.47.6 re-check (mechanical only).** Every identifier this file names still exists in the published `.d.ts` — `sendTelegramMessage`, `TelegramContext`, `TelegramMessageBody`, `splitTelegramMessageText`, `messageThreadId`. The *behaviour* described below was last read in full at 0.45.0 and is unchanged in the 0.45.1→0.47.6 CHANGELOG; re-read it before relying on a detail the changelog would not mention.
+> **Re-read in full at `eve@0.47.6`** (2026-09-01, `docs/channels/*.mdx` + the emitted `.d.ts` and channel implementations). Every behavioural claim below held: Telegram's group dispatch rules and `message_thread_id` in the continuation token, Discord's three-second ACK deadline, the up-to-an-hour propagation of global commands, the 2000-character split and the unsupported inbound attachments, Teams' `defaultTeamsAuth` and Bot Connector JWT check, and the Chat SDK's `{ bot, channel, send }` return. The `eve add channel/<kind>` list is unchanged. Two Discord details were **missing** and are now written up below; nothing was wrong. Package names in the WhatsApp example re-checked on npm: `@chat-adapter/whatsapp@4.39.0` exports `createWhatsAppAdapter`, and `chat` / `@chat-adapter/state-memory` are on the same 4.39.0 line.
 
 ---
 
@@ -138,7 +138,10 @@ curl -X PUT "https://discord.com/api/v10/applications/$DISCORD_APPLICATION_ID/co
     "options":[{"name":"message","description":"What should the agent do?","type":3,"required":true}]}]'
 ```
 
-Handler: `onCommand: (ctx, interaction) => ({ auth }) | null`.
+Handler: `onCommand: (ctx, interaction) => ({ auth, title?, context?, ephemeral? }) | null`.
+Returning `null` drops the interaction with an ephemeral "Command ignored."; `title` names the session,
+`context` prepends extra blocks before eve's own interaction context block, and `ephemeral: true` makes
+the deferred acknowledgement visible only to the caller.
 
 Gotchas in the order they bite:
 
@@ -148,6 +151,12 @@ Gotchas in the order they bite:
   usually just propagating.
 * Long replies are split at Discord's 2000-character limit.
 * **Inbound file attachments are not supported** on this channel today.
+* **Generated messages default to `allowed_mentions: { parse: [] }`** — nothing the agent writes can
+  ping `@everyone`, a role, or a user unless you override it. Worth knowing before you wonder why a
+  deliberate mention did nothing; worth leaving alone otherwise.
+* **Delivery falls back on its own.** The first reply edits the deferred interaction response and
+  later ones are followups; if the interaction token is rejected, the channel retries as a
+  bot-authenticated channel message rather than dropping the reply.
 * The typing indicator only shows when a bot token is present.
 
 ---

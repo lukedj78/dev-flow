@@ -85,8 +85,17 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > `undefined` at runtime. **One dead link**: the setup page moved from `/setup` to `/docs/setup`; its
 > prerequisites and both install commands re-read and unchanged.
 >
-> **Not re-verified this pass** (logged for the next one): the behavioural detail in `eve-channels.md`,
-> where every identifier was re-confirmed mechanically but the prose was last read in full at 0.45.0.
+> **`eve-channels.md`, also closed the same day.** Read in full against `eve@0.47.6`'s
+> `docs/channels/*.mdx` plus the emitted `.d.ts` and channel implementations. Every behavioural claim
+> held — Telegram's group dispatch rules, Discord's three-second ACK, the hour-long global-command
+> propagation, the 2000-character split, unsupported inbound attachments, Teams' `defaultTeamsAuth` —
+> and the `eve add channel/<kind>` list is unchanged. **Nothing was wrong; two Discord details were
+> missing**: `onCommand` also accepts `title`, `context` and `ephemeral` in its result, and generated
+> messages default to `allowed_mentions: { parse: [] }`, so the agent cannot ping `@everyone`, a role
+> or a user unless you override it. Package names in the WhatsApp example re-checked on npm rather
+> than assumed: `@chat-adapter/whatsapp@4.39.0` does export `createWhatsAppAdapter`.
+>
+> **With this, nothing in `eve-agent` carries a stamp older than the current release.**
 > **Addendum, same day — the three unread surfaces are now written up.** Stream protocol v24 in
 > `eve-web-integration.md` (`action.input.appended` before `actions.requested`, the UTF-16
 > `inputTextOffset` and the reducer's restart-at-0/reject-a-gap rule, `message.completed` firing
