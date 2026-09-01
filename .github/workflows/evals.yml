@@ -29,6 +29,12 @@ jobs:
       - name: Run evals (CI mode — fail on first regression)
         run: python3 evals/run_evals.py --ci
 
+      # The output-side checker. Its own fixtures are the test: every check must fire
+      # on fixtures/bad and stay silent on fixtures/good, because a check that does
+      # neither is indistinguishable from a clean run.
+      - name: Self-test the generated-page checks
+        run: python3 evals/generated-page/check.py --selftest
+
       - name: Smoke-test artifact hashing + drift detection
         run: |
           mkdir -p /tmp/drift-smoke

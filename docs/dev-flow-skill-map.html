@@ -100,7 +100,7 @@
   .console .hd .d{width:9px; height:9px; border-radius:50%}
   .console .hd .d.r{background:#ff6b7d}.console .hd .d.y{background:#f0b64d}.console .hd .d.g{background:var(--ac-2)}
   .console .hd .t{font-family:var(--fM); font-size:.68rem; color:var(--faint); letter-spacing:.06em; margin-left:.4em}
-  .metrics{display:grid; grid-template-columns:repeat(7,1fr)}
+  .metrics{display:grid; grid-template-columns:repeat(8,1fr)}
   @media (max-width:1180px){ .metrics{grid-template-columns:repeat(4,1fr)} }
   @media (max-width:980px){ .metrics{grid-template-columns:repeat(3,1fr)} }
   @media (max-width:720px){ .metrics{grid-template-columns:repeat(2,1fr)} }
@@ -242,7 +242,8 @@
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">10</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">13</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>lint · checks</div><div class="v">14</div></div>
-        <p class="mnote">The twelfth check compares <b>what is installed</b> against <b>what is in this repo</b>. It exists because the two silently drifted: a real run found <b>25 of 43</b> installed skills carrying the previous day's text — the lint passed, the skills fired, and every one of them was the wrong version. The repo is the source of truth; the agent loads <code>~/.claude/skills</code>. Nothing else was watching the gap.</p>
+        <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>output · checks</div><div class="v">16</div></div>
+        <p class="mnote">Two families, two questions. The <b>lint</b> checks ask whether a skill is still well-formed — the twelfth compares <b>what is installed</b> against <b>what is in this repo</b>, because the two silently drifted: a real run found <b>25 of 43</b> installed skills carrying the previous day's text, the lint passed, the skills fired, and every one of them was the wrong version. The <b>output</b> checks ask a different question — <b>did the generation follow its own rules?</b> Every anti-slop rule and mandatory step was a promise about generated code that nothing counted. Both families are self-tested: a check nobody has watched fail is indistinguishable from a clean run.</p>
       </div>
     </div>
   </div>

@@ -1485,6 +1485,29 @@ claude plugin validate . --strict                  # the marketplace entry
 ./scripts/refresh-stack-defaults.sh --apply  # rewrite the stack-defaults.md files
 ```
 
+```bash
+# Grade a generated app against the rules the skill that generated it states —
+# 16 checks, self-tested against their own fixtures
+python3 evals/generated-page/check.py ~/projects/my-app
+python3 evals/generated-page/check.py --selftest      # CI: every check must fire on bad, stay silent on good
+```
+
+**Three questions, three tools.** `lint_skills.py` asks whether a skill is still
+well-formed — that is the *source*. `run_evals.py` asks whether the deterministic
+scripts still hold — the *tools*. [`evals/generated-page/check.py`](./evals/generated-page/README.md)
+asks the one that was missing: **did the generation follow its own rules?** — the
+*output*. Every anti-slop rule and every "mandatory" step in `design-md-to-app` was a
+promise about generated code that nothing counted, and a rule nobody measures is a
+rule that quietly stops being followed.
+
+It is not `shadscan`, which audits an app for UI fundamentals and answers *is this app
+any good*. This answers something narrower: did `design-md-to-app` obey
+`design-md-to-app`? Read the per-check delta against a baseline, never the total — one
+run tells you nothing, because the absolute count is a property of the app as much as
+of the skill. And the half it cannot do stays human: whether the page is *good* needs a
+blind A/B, and letting a number stand in for that judgement is how the number starts
+lying.
+
 CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --check` and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
