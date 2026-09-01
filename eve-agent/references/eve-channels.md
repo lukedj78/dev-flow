@@ -13,7 +13,7 @@ need one.
 **None of these can be smoke-tested on localhost** — the platform delivers over the public
 internet. Deploy, then attach the TUI to the deployment with `eve dev <url>`.
 
-Verified against `eve@0.45.0` (`npm pack`, `docs/channels/` + the emitted `.d.ts`) — the Telegram
+Verified against `eve@0.47.6` (`npm pack`, `docs/channels/` + the emitted `.d.ts`) — the Telegram
 signatures, the send paths and the registry-item question below all still hold. These are
 fast-moving surfaces, so re-check on upgrade rather than assuming this line ages well.
 
@@ -24,7 +24,7 @@ fast-moving surfaces, so re-check on upgrade rather than assuming this line ages
 ## Telegram — authored by hand, no registry item
 
 ⚠️ Per §Channel: `telegram` ships a subpath (`eve/channels/telegram`) and a docs page, but there
-is **no `eve add channel/telegram`** — write the file yourself, as below. Still true at 0.45.0:
+is **no `eve add channel/telegram`** — write the file yourself, as below. Still true at 0.47.6:
 of the shipped channel docs pages, only `discord`, `github`, `linear-agent`, `linq`, `photon-imessage`,
 `slack` and `web` name an `eve add`. Check `eve registry list` before assuming otherwise; the kind
 list has been wrong before.
@@ -80,7 +80,7 @@ than degrading to a question.
 uploadPolicy: { allowedMediaTypes: ["image/*", "application/pdf"], maxBytes: 10 * 1024 * 1024 }
 ```
 
-**Gating inbound with `onMessage`.** On the installed types (re-verified against **0.45.0** — the
+**Gating inbound with `onMessage`.** On the installed types (re-verified against **0.47.6** — the
 shape has not moved since 0.27.6, and it now also carries an optional `title` that overrides the
 workflow run title without changing what the model receives):
 
@@ -105,7 +105,7 @@ custom gate can **wrap** it instead of reimplementing the private/group/reply fi
 `to(telegram, target).send(message, { auth })` (`target.chatId` required, `messageThreadId`
 optional) — that starts or resumes an **agent session**. For delivery *without* running the model
 (templated transactional mail, audit copies), `eve/channels/telegram` also exports
-`sendTelegramMessage({ chatId, body })`. Confirmed at 0.45.0: `body` is a `TelegramMessageBody`
+`sendTelegramMessage({ chatId, body })`. Confirmed at 0.47.6: `body` is a `TelegramMessageBody`
 whose only required field is **`text: string`** — a bare string is rejected — and the result's `id` is `""` when Telegram returns none, so project it as
 `result.id || undefined` rather than storing an empty string. This export is **not on the docs
 page**, so treat it as less stable than the documented path.

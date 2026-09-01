@@ -74,7 +74,7 @@ Message items: eve's `EveMessage` follows the **AI SDK `UIMessage` convention** 
 `<Message from={message.role}>` and a `switch` over `message.parts` line up — **but the part unions are
 not the same one**, and a `switch` copied from an AI SDK example will silently miss cases.
 
-Verified against `eve@0.45.0` (`EveMessagePart`) and `ai@7.0.79` (`UIMessagePart`):
+Verified against `eve@0.47.6` (`EveMessagePart`) and `ai@7.0.87` (`UIMessagePart`):
 
 | | eve | AI SDK |
 |---|---|---|
