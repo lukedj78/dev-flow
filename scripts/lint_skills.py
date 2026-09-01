@@ -475,6 +475,79 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # is a fact about this machine, not a defect in the commit. Warnings would
 # fail the build (main() exits 1 on any), which is why this is not one.
 # ---------------------------------------------------------------------------
+# How many checks this linter runs. Stated in three places outside this file; the
+# session that added checks 13 and 14 found nine stale numbers in the skill map alone,
+# so
+# every count that nothing writes gets a guard the moment it is written down.
+CHECK_COUNT = 14
+CHECK_COUNT_PATTERNS = [
+    r"— (\d+) checks",
+    r"Sanity-check every skill — (\d+) checks",
+    r'>lint · checks</div><div class="v"[^>]*>(\d+)<',
+]
+
+
+def check_lint_check_count(root: Path) -> None:
+    """The number of checks, stated in the README and on the skill map."""
+    for rel in ("README.md", "CONTEXT.md", SKILL_MAP):
+        path = root / rel
+        if not path.exists():
+            continue
+        text = path.read_text(errors="ignore")
+        for pattern in CHECK_COUNT_PATTERNS:
+            for m in re.finditer(pattern, text):
+                if int(m.group(1)) != CHECK_COUNT:
+                    err(
+                        f"{path}: \"{m.group(0).strip()}\" — the linter runs "
+                        f"{CHECK_COUNT} checks"
+                    )
+
+
+SKILL_MAP = "docs/dev-flow-skill-map.html"
+MAP_META_RE = re.compile(
+    r'<span class="sk[^"]*">([a-z0-9-]+)</span><span class="m">(\d+)·(\d+)r·(\d+)s</span>'
+)
+
+
+def check_skill_map_meta(root: Path) -> None:
+    """The skill map states per-skill line/reference/script counts. Nothing writes them.
+
+    Check 11 caught counts that sit next to a word. These sit next to nothing — a bare
+    `1122·9r·2s` — so no prose pattern reaches them, and the map is hand-authored so no
+    generator refreshes them. On the first run, 9 of the 15 rows were wrong: one skill
+    had gained three reference files and one had lost 35 lines, and the map had said
+    otherwise through every release since.
+
+    A warning, not a note: unlike check 12 this is a fact about the commit, and CI is
+    the right place to stop it.
+    """
+    path = root / SKILL_MAP
+    if not path.exists():
+        return
+    try:
+        registry = json.loads((root / "skills.json").read_text())
+    except Exception:
+        return  # check_stated_counts already warned about an unreadable registry
+    entries = {e["name"]: e for e in registry.get("skills", [])}
+
+    for m in MAP_META_RE.finditer(path.read_text(errors="ignore")):
+        name, lines, refs, scripts = m.group(1), *map(int, m.groups()[1:])
+        entry = entries.get(name)
+        if entry is None:
+            warn(f"{path}: skill map lists `{name}`, which is not in skills.json")
+            continue
+        real = (
+            entry["skill_md_lines"],
+            len(entry.get("references", [])),
+            len(entry.get("scripts", [])),
+        )
+        if (lines, refs, scripts) != real:
+            err(
+                f"{path}: `{name}` meta is {lines}·{refs}r·{scripts}s — "
+                f"actually {real[0]}·{real[1]}r·{real[2]}s"
+            )
+
+
 def check_installed_in_sync(root: Path, all_skills: set[str]) -> None:
     skills_dir = Path(
         os.environ.get("CLAUDE_SKILLS_DIR", Path.home() / ".claude" / "skills")
@@ -556,6 +629,8 @@ def main() -> int:
     check_stated_counts(root, all_skills)
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)
+    check_skill_map_meta(root)
+    check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)
 
     print()

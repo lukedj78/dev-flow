@@ -127,6 +127,42 @@ When you need a staggered reveal of N items (3 cards, 6 nav links) on a page tha
 
 Pure CSS. Zero JS bundle cost. Achieves taste-skill's "staggerChildren" feel. If the project later adds `module-add motion`, the wrappers in `components/motion/` replace this pattern, but for the default scaffold, CSS cascade is the fallback.
 
+### 11. Composition reflexes — the tells that are structural, not textual
+
+Rules 1–10 catch invented **data and copy**. These catch invented **layout**: arrangements a model
+reaches for when the source does not say what the shape should be. A page can pass every rule above
+and still read as generated, because the giveaway is the silhouette.
+
+When the source is silent, do not ship:
+
+- **Centred hero paragraph followed by a card grid.** The single most recognizable shape on the web.
+- **A row of identical metric boxes** where one composed relationship — a comparison, a trend, a
+  ratio with its denominator visible — would say more. Four numbers in four boxes state four facts
+  and no argument.
+- **Cards inside cards**, or a border added to rescue a hierarchy that type and spacing should
+  already carry. A border is a last resort, not a separator of first choice.
+- **A badge or pill for ordinary metadata.** A date is a date. `<Badge>` is for status that changes.
+- **Numbered section markers (01 / 02 / 03)** unless the content is genuinely a sequence the reader
+  must follow in order. Numbering non-sequential sections is decoration wearing information's clothes.
+- **All-caps tracked eyebrows** above every heading.
+- **Decorative gradients, glows, blobs, mesh backgrounds, glassmorphism, ornamental shadows.**
+- **A rounded dark rectangle wrapped around every chart.** The chart is the content; the box is not.
+- **Icon tiles chosen for texture** — mixed icon families, oversized glyphs, an icon per bullet.
+- **Charts that carry no comparison**, legends where a direct label on the mark would read better,
+  colour used where it encodes nothing.
+- **The same section silhouette repeated** for sections that answer different questions. If three
+  sections look identical, the reader learns to skip two of them.
+- **Repeated summary / recommendation / conclusion blocks** that restate one another.
+
+**The counter-rule, which matters as much.** Do not overcorrect into a sterile template — black,
+white, hairline rules, enormous margins, nothing happening. Avoiding the defaults is not the same as
+avoiding decisions. Restraint means precise hierarchy, real typographic contrast, deliberate
+alignment and one intentional tension. An empty page is not a restrained page.
+
+**Priority.** Like rule 6, every item here **bows to the source**. If Figma or the screenshots show a
+centred hero over a card grid, build a centred hero over a card grid — Step 4.5c wins, always. These
+apply only where the source is silent and something has to be invented.
+
 ## Hand-off
 
 When the scaffold runs, log every fallback you used to `_design-md-mapping.json` under a `fallbacks_applied` key:

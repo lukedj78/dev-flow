@@ -65,6 +65,17 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 - Run `python scripts/parse_design_md.py <path>` to get a normalized JSON dump of `{ frontmatter, body_sections, resolved_components }` where token references like `{colors.primary}` are resolved to literal values.
 - If parsing fails (malformed YAML, duplicate sections), surface the error and stop. The user must fix the source.
 
+**A third shape exists, and it is not an input.** `design.md` now names two unrelated
+artefacts. Ours is the Google spec below: token blocks in the frontmatter. The other is an
+**Agent Skill** — frontmatter of exactly `name` + `description`, body in prose, zero tokens.
+[`https://vercel.com/design.md`](https://vercel.com/design.md) is one: Vercel's brand guidance
+for agents writing report pages, served as `text/markdown` so any agent can load it.
+
+Fed one of those, the parser used to exit `0` with empty tokens — which shape 2 below reads as
+"body-only, extract from prose", and every value in the app ends up invented. It now **exits `2`
+and says so**. If a user hands you a URL or a file that turns out to be a skill, the answer is not
+to parse it: it carries no design system.
+
 **Two valid input shapes — handle both:**
 
 1. **Frontmatter + body** (the canonical Google design.md spec). The parser returns a populated `frontmatter` dict; `resolved_components` is non-empty. This is the easy path — token values are already structured for you.

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-28T19:33:43Z",
+  "generated_at": "2026-09-01T06:48:10Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 45,
   "families": {
@@ -217,7 +217,7 @@
         "build_registry.py",
         "parse_design_md.py"
       ],
-      "skill_md_lines": 1135,
+      "skill_md_lines": 1146,
       "bundle": "dist/design-md-to-app.skill"
     },
     {

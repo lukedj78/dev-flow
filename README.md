@@ -441,6 +441,38 @@ if report.has_drift:
 
 The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
 
+### 8. Load one skill from a URL, without installing anything
+
+**Situation**: an agent that is not Claude Code — v0, Codex, an eve agent in Slack, a hosted
+assistant — needs one of these skills for a single job, and cannot run `./install.sh`.
+
+Every `SKILL.md` here is a conforming Agent Skill and this repository is public, so each one already
+has a stable raw URL:
+
+```
+https://raw.githubusercontent.com/lukedj78/dev-flow/main/<skill>/SKILL.md
+```
+
+Point the agent at that and it has the skill. Vercel does the same thing with
+[`vercel.com/design.md`](https://vercel.com/design.md) — a single public file their agents load to
+produce on-brand pages from tools that have no access to the repository.
+
+Two limits worth knowing before relying on it:
+
+- **`references/` do not come along.** A `SKILL.md` that says "see `references/contracts.md`" is
+  giving the agent a relative path it cannot resolve from a raw URL. Either fetch the reference
+  explicitly at its own raw URL, or use the packaged `dist/<skill>.skill` bundle, which carries
+  every file.
+- **`main` is a moving target.** For anything you want to be reproducible, pin the URL to a commit
+  SHA instead of `main` — the same reason a lockfile exists.
+
+The counterpart pattern from the same Vercel piece is worth taking too: **judgement in prose, the
+mechanics in an artefact the agent never reads.** Their skill carries the design reasoning; the
+published stylesheet carries the class names and tokens and loads in the browser, and the skill
+explicitly forbids reading its implementation into context. The agent cannot drift what it never
+sees. Our equivalent is the generated theme layer — once `design-md-to-app` has written it, the
+downstream skills consume its names and must not invent new ones.
+
 ---
 
 ## Cross-platform support
@@ -1393,7 +1425,7 @@ stamp.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 12 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 14 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1421,10 +1453,11 @@ The description is the **only** thing a skill is selected on — the body is nev
 The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
 
 ```bash
-# Sanity-check every skill — 12 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 14 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
-# every skill count stated in prose, and whether what is installed still matches this repo)
+# every skill count stated in prose, the skill map's per-skill meta, the number of
+# checks itself, and whether what is installed still matches this repo)
 python3 scripts/lint_skills.py
 
 # Regenerate skills.json (the machine-readable registry of all 45 skills)
@@ -1456,7 +1489,7 @@ CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --c
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
 
-**Four of the twelve checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments. It gained a thirteenth pattern later, for the skill map's metric card — a bare `<div class="v">44</div>` with no adjacent word for any prose pattern to catch, which is exactly why it sat wrong through a release. **Check 12** compares what is installed against what is here, and reports rather than fails: a divergence is a fact about your machine, not about the commit.
+**Six of the fourteen checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments. It gained a thirteenth pattern later, for the skill map's metric card — a bare `<div class="v">44</div>` with no adjacent word for any prose pattern to catch, which is exactly why it sat wrong through a release. **Check 12** compares what is installed against what is here, and reports rather than fails: a divergence is a fact about your machine, not about the commit. **Check 13** compares the skill map's per-skill meta — the bare `1122·9r·2s` beside each name — against `skills.json`; nothing writes those numbers and no prose pattern can reach them, and on its first run **9 of the 15 rows were wrong**. **Check 14** guards the count in this very sentence, because the commit that added checks 13 and 14 first wrote "13" in three places.
 
 **Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. ⚠️ **Force reduced motion when you shoot it** — the sections are `.reveal` (opacity 0 until an IntersectionObserver adds `.in`), so a headless capture renders them blank; the `prefers-reduced-motion` rule is the escape hatch:
 

@@ -43,6 +43,48 @@ FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
 TOKEN_REF_RE = re.compile(r"\{([a-zA-Z0-9_.\-]+)\}")
 HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 
+# Frontmatter keys that only a Google design.md carries. One of these present is
+# what separates a design system from any other Markdown file with frontmatter.
+DESIGN_TOKEN_KEYS = frozenset(
+    {
+        "colors", "typography", "spacing", "radius", "shadows", "borders",
+        "components", "theme", "themes", "fonts", "motion", "breakpoints",
+        "elevation", "opacity", "icons", "layout", "grid", "tokens",
+    }
+)
+
+
+def reject_if_not_design_md(frontmatter: dict[str, Any], path: Path) -> None:
+    """Refuse a file that is Markdown-with-frontmatter but not a design system.
+
+    `design.md` now names two unrelated things. Ours is the Google design.md
+    spec: token blocks in the frontmatter. Vercel publishes a *brand guidance
+    Agent Skill* at https://vercel.com/design.md whose frontmatter is exactly
+    `name` + `description`, and any Agent Skill anywhere has that same shape.
+
+    Fed one of those, this parser used to exit 0 with empty tokens — which
+    downstream reads as "body-only DESIGN.md, vague prose", the case
+    anti-slop-fallbacks.md answers by inventing every value. The app gets
+    scaffolded, nothing warns, and not one token comes from the file.
+    """
+    if not frontmatter or "description" not in frontmatter:
+        return  # no frontmatter, or no description: the body-only path, handled below
+    if DESIGN_TOKEN_KEYS & set(frontmatter):
+        return  # carries at least one token block — it is a design system
+    sys.stderr.write(
+        f"{path}: this is not a Google design.md.\n"
+        f"  Its frontmatter is {sorted(frontmatter)} — `description` and no token "
+        f"block ({', '.join(sorted(DESIGN_TOKEN_KEYS))}).\n"
+        "  That is the shape of an Agent Skill, not of a design system. The name "
+        "`design.md` is used for both:\n"
+        "    - Google design.md  — token blocks in frontmatter; what this pipeline reads.\n"
+        "    - an Agent Skill    — `name` + `description`; e.g. https://vercel.com/design.md,\n"
+        "                          brand guidance for an agent, carrying no tokens at all.\n"
+        "  Parsing it would yield zero tokens, downstream would treat that as a vague\n"
+        "  body-only DESIGN.md, and every value in the app would be invented.\n"
+    )
+    raise SystemExit(2)
+
 
 def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     """Split YAML frontmatter from markdown body. Body may be empty."""
@@ -164,7 +206,14 @@ def main(argv: list[str]) -> int:
     frontmatter, body = split_frontmatter(text)
     body_sections, body_warnings = parse_body_sections(body)
     warnings: list[str] = list(body_warnings)
+    reject_if_not_design_md(frontmatter, path)
     resolved_components = resolve_components(frontmatter, warnings)
+    if not (DESIGN_TOKEN_KEYS & set(frontmatter or {})):
+        warnings.append(
+            "no token block in frontmatter — body-only DESIGN.md. Downstream must "
+            "apply design-md-to-app/references/anti-slop-fallbacks.md rather than "
+            "invent values freely."
+        )
 
     out = {
         "frontmatter": frontmatter,
@@ -172,7 +221,12 @@ def main(argv: list[str]) -> int:
         "body_sections": body_sections,
         "warnings": warnings,
     }
-    json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+    # `default=str` because PyYAML turns an unquoted `created: 2026-05-09` into a
+    # datetime.date, which json.dump cannot serialize: it raised after already
+    # streaming half the object to stdout, so the caller got truncated JSON and a
+    # traceback. Dates are metadata here, never tokens — stringifying is lossless
+    # for every consumer.
+    json.dump(out, sys.stdout, indent=2, ensure_ascii=False, default=str)
     sys.stdout.write("\n")
     return 0
 

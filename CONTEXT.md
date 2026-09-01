@@ -121,12 +121,41 @@ _Avoid_: bare "the registry".
 
 An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of our 45 skills. Write "an eve agent skill" in full whenever both could be meant.
 
+## ⚠️ `design.md` — two unrelated artefacts
+
+| Say | Meaning |
+|---|---|
+| **a DESIGN.md** | the Google design.md spec: design tokens in YAML frontmatter, prose body. `.workflow/DESIGN.md` in the dev-flow contract; what `design-md-to-app` consumes and `figma-to-design-md` / `image-to-design-md` produce. |
+| **a design skill at a URL** | an Agent Skill whose subject is brand judgement — frontmatter of `name` + `description`, guidance in prose, **no tokens**. `https://vercel.com/design.md` is the reference example. |
+
+They share a filename and nothing else. `parse_design_md.py` rejects the second shape by frontmatter
+signature, because it used to accept it silently and every token in the resulting app was invented.
+_Avoid_: bare "design.md" when either could be meant.
+
 ## ⚠️ "Module"
 
 A **module** is a `module-add` capability wired into a scaffolded app (`auth`, `db`, `payments`, `email`, `storage`, `deploy`, `motion`, `voice`, `realtime`, `ci`, `test`). Not an npm module, not an ES module.
 _Avoid_: integration, package, feature.
 
 ---
+
+## Write decisions the reader can observe
+
+A line in a skill earns its place when a reader can check whether it was followed. Prefer the
+observable form to the evaluative one:
+
+| Instead of | Write |
+|---|---|
+| "tables should feel less cramped" | "evidence tables use the full available width" |
+| "keep the hierarchy clean" | "one `h1`; headings in order; no size skips" |
+| "use realistic placeholder data" | the banned list and the replacement list — as `anti-slop-fallbacks.md` does |
+
+Two reasons this is not a style preference. An agent cannot act on "clean" and will substitute its
+own default, which is exactly the default the line was written to prevent. And an unobservable line
+cannot be checked by a linter, a reviewer or an eval — it can only be argued about.
+
+The test before shipping a line: **what would I look at to decide whether this was followed?** If the
+answer is "how it feels", rewrite it or delete it.
 
 ## Distribution
 
