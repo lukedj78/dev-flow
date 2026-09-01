@@ -7,16 +7,21 @@
 
 [AI Elements](https://elements.ai-sdk.dev/) is Vercel's prebuilt component kit for AI surfaces, built
 **on top of shadcn/ui** (same theming conventions, components copied into your repo — not a runtime
-dependency). Doc-grounded against <https://elements.ai-sdk.dev/overview> and `/setup`. Components are **copied into
-your repo** by the registry, so there is no package to pin or diff — `[VERIFY]` component names against
-the version you actually `add`, because this surface moves fast (e.g. the standalone `Response`
-component is now documented as `MessageResponse`, exported from `message`). The *types* they consume,
-by contrast, come from the `ai` package and can be checked: this file is verified against
-**`ai@7.0.79`** and **`eve@0.45.0`**. ⚠️ **Not re-verified in the 0.47.6 pass**: `EveMessagePart` still exists in eve's published types, but this file's claims are about the *mapping* between two packages and `ai` has moved to `7.0.87` since — eve no longer declares `ai` as a dependency at all, so the two versions drift independently. Re-pack both before trusting a part-by-part row.
+dependency). Doc-grounded against <https://elements.ai-sdk.dev/overview> and
+<https://elements.ai-sdk.dev/docs/setup> (⚠️ the setup page moved: the bare `/setup` this file used to
+cite now **404s**). Components are **copied into your repo** by the registry, so there is no package to
+pin or diff — `[VERIFY]` component names against the version you actually `add`, because this surface
+moves fast (e.g. the standalone `Response` component is now documented as `MessageResponse`, exported
+from `message`). The *types* they consume, by contrast, come from the `ai` package and can be checked:
+this file is verified against **`ai@7.0.87`** and **`eve@0.47.6`** (2026-09-01, `npm pack` on both).
+
+⚠️ **These two versions now drift independently** — eve stopped declaring `ai` as a dependency, so
+neither one pins the other. Re-pack **both** before trusting a part-by-part row; a pass on one of them
+proves nothing about the mapping.
 
 ## Install
 
-Prerequisites per the setup page: **Node 18+, React 19, Next.js 14+ (App Router), Tailwind CSS 4,
+Prerequisites, re-read from the setup page at 2026-09-01 and unchanged: **Node 18+, React 19, Next.js 14+ (App Router), Tailwind CSS 4,
 shadcn/ui initialized** (the CLI will initialize shadcn for you if it's missing).
 
 ```bash
@@ -57,7 +62,7 @@ package; you write the ~15-line mapping yourself.
 | AI SDK `useChat()` | eve `useEveAgent()` | Note |
 |---|---|---|
 | `messages` | `agent.data.messages` | eve's default reducer projects `{ messages }`; a custom `reducer` changes this |
-| `status` | `agent.status` | ⚠️ **they no longer match**: eve added a fifth value, `"resuming"` (0.45.0), to the AI SDK's `"ready" \| "submitted" \| "streaming" \| "error"`. It is *not* an active turn — a hydrated session catching up. Map it to `"ready"` (or your own quiet state) before handing `status` to `PromptInputSubmit`; passing it straight through is now a type error waiting to happen. **Confirmed against `ai@7.0.79`: `ChatStatus = "submitted" | "streaming" | "ready" | "error"` — four values, and `"resuming"` is not one of them.** |
+| `status` | `agent.status` | ⚠️ **they no longer match**: eve added a fifth value, `"resuming"` (0.45.0), to the AI SDK's `"ready" \| "submitted" \| "streaming" \| "error"`. It is *not* an active turn — a hydrated session catching up. Map it to `"ready"` (or your own quiet state) before handing `status` to `PromptInputSubmit`; passing it straight through is now a type error waiting to happen. **Confirmed again at `ai@7.0.87`: `ChatStatus = "submitted" | "streaming" | "ready" | "error"` — still four values, and `"resuming"` is still not one of them, so the mismatch is stable rather than transitional.** |
 | `sendMessage({ text })` | `agent.send(text)` | eve takes text **or** a full turn payload |
 | `stop()` | `agent.cancel()` | eve renamed `stop()` → `cancel()` on frontend agent bindings in **0.38.0**; not 1:1 in name, same role |
 | `error` | `agent.error` | 1:1 |
@@ -76,12 +81,28 @@ Verified against `eve@0.45.0` (`EveMessagePart`) and `ai@7.0.79` (`UIMessagePart
 | Shared | `"text"` · `"reasoning"` · `"file"` · `"step-start"` | same |
 | Tool calls | **`"dynamic-tool"`** only | `"dynamic-tool"` **and** `` `tool-${name}` `` |
 | eve-only | **`"authorization"`** — a connection asking the user to sign in mid-turn | — |
-| AI-SDK-only | — | `"source-url"` · `"source-document"` · `` `data-${name}` `` · `"custom-content"` |
+| AI-SDK-only | — | `"source-url"` · `"source-document"` · `` `data-${name}` `` · **`"custom"`** · **`"reasoning-file"`** |
+
+Two fixes this pass. The AI-SDK-only row said `"custom-content"`: that is the *type name*
+(`CustomContentUIPart`), but the **discriminant is `"custom"`** — a `switch` written from the old row
+would never match. And `ai@7.0.87` added **`"reasoning-file"`** (`ReasoningFileUIPart`, a `mediaType` +
+`url` pair), which eve does not emit.
 
 Two things follow. **Don't switch on `` `tool-${name}` ``** — eve never emits it, so per-tool rendering
 keys off the `dynamic-tool` part's own name field. And **handle `"authorization"` explicitly**: it has
 no AI SDK counterpart, so a default branch will drop it — and the case it drops is the one where the
 user is being asked to authorize something and nothing appears on screen.
+
+**Narrow on `state` before reading anything else.** Both eve-side parts are discriminated twice: once
+by `type`, then by `state`, and which fields exist depends on the second.
+
+| Part | `state` values | What it means for the render |
+|---|---|---|
+| `"dynamic-tool"` | `"input-streaming"` · `"input-available"` · `"approval-requested"` · `"approval-responded"` · `"output-available"` · `"output-error"` · `"output-denied"` | `input`, `output`, `errorText` and `approval` are each present only in some states. `"input-streaming"` carries **possibly incomplete JSON** (see `eve-web-integration.md` §Stream protocol v24) — don't parse it as arguments. `"output-denied"` means `approval.approved === false`, and `"output-error"` puts the message in `errorText`. |
+| `"authorization"` | `"required"` · `"completed"` | `"required"` carries the challenge (`url`, `userCode`, `instructions`, `expiresAt`) — render the sign-in affordance from it. `"completed"` carries `outcome` and an optional `reason`, and the two shapes are mutually exclusive in the type: reading `outcome` on a `"required"` part does not typecheck. |
+
+Reading a field without narrowing is the failure mode this table exists to prevent — it typechecks
+against the union in some editors and is `undefined` at runtime in the state you actually got.
 
 ## The adapter
 
@@ -150,7 +171,7 @@ must map `message.files` into the turn payload yourself — there is no automati
   Meanwhile **AI SDK has its own approval flow**, documented in
   [`@shadcn/helpers` §Human in the loop](https://ui.shadcn.com/docs/helpers/ai-sdk#human-in-the-loop):
   a tool declares `needsApproval: true`, the client answers with
-  `addToolApprovalResponse({ id: part.approval.id, approved: true })`, and `useChat` resumes on
+  `addToolApprovalResponse({ id: part.approval.id, approved: true })` (the full signature also takes `reason` and `options`, confirmed at `ai@7.0.87`), and `useChat` resumes on
   `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` — "the continuation
   streams as a new step of the paused assistant message".
 

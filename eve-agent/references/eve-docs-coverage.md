@@ -73,9 +73,19 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > session's sandbox without retiring the session, with per-backend caveats. Eval contexts gained
 > `transcript`, which is what a multi-turn judge should be pointed at instead of `t.reply`.
 >
-> **Not re-verified this pass** (logged for the next one): `ai-elements.md`, whose claims are about the
-> *mapping* between eve and `ai` — `ai` is at `7.0.87` and eve no longer declares it as a dependency, so
-> the two drift independently and both need re-packing; and the behavioural detail in `eve-channels.md`,
+> **`ai-elements.md`, re-verified the same day against `ai@7.0.87` + `eve@0.47.6`** (`npm pack` on both;
+> they no longer pin each other, so one pass proves nothing about the other). `ChatStatus` is still the
+> same four values, so the `"resuming"` mismatch is stable rather than transitional; `EveMessagePart`
+> still resolves to exactly `text` / `reasoning` / `file` / `step-start` / `authorization` /
+> `dynamic-tool`; `addToolApprovalResponse` survives, now with `reason` and `options`. **Two rows were
+> wrong**: the AI-SDK-only column said `"custom-content"`, which is the *type name* while the
+> discriminant is **`"custom"`** — a `switch` written from that row would never match — and `ai@7.0.87`
+> added **`"reasoning-file"`**, which eve does not emit. Added the `state` lifecycles for both eve-side
+> parts, since which fields exist depends on the state and reading one without narrowing is
+> `undefined` at runtime. **One dead link**: the setup page moved from `/setup` to `/docs/setup`; its
+> prerequisites and both install commands re-read and unchanged.
+>
+> **Not re-verified this pass** (logged for the next one): the behavioural detail in `eve-channels.md`,
 > where every identifier was re-confirmed mechanically but the prose was last read in full at 0.45.0.
 > **Addendum, same day — the three unread surfaces are now written up.** Stream protocol v24 in
 > `eve-web-integration.md` (`action.input.appended` before `actions.requested`, the UTF-16
