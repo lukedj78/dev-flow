@@ -160,9 +160,34 @@ export { cn } from "cn"
 ```
 
 ```bash
-npm i cn && npm rm clsx tailwind-merge      # new project
-npx shadcn@latest migrate cn --dry-run     # existing project: read the plan, then run it for real
+npm i cn && npm rm clsx tailwind-merge   # new project
+npx shadcn@latest migrate cn             # existing project — add --yes to skip the prompt
 ```
+
+⚠️ **`migrate` has no `--dry-run`** (that flag belongs to `add`; `migrate` takes only `-c`, `-l/--list`,
+`-y`, `-f/--from`, `-t/--to`). The safety net is git: migrate on a clean tree, read `git diff`, commit
+or `git checkout .`. The diff is three files — `lib/utils.ts`, that package's `package.json`, and the
+lockfile.
+
+**Three things a batch of 28 real projects taught, none of them in the docs:**
+
+1. **In a pnpm workspace, run it inside the package that owns `components.json`**, not at the repo
+   root. From the root, pnpm refuses with `ERR_PNPM_ADDING_TO_ROOT` and the CLI reports a generic
+   failure that reads like a version problem.
+2. **Then run `pnpm install` at the workspace root.** The migration's own install can leave sibling
+   packages under-linked — one monorepo came back with 49 typecheck errors, all of them
+   `Cannot find module 'next'` / `'next-intl'` in a package the migration never touched. A root
+   install fixed every one.
+3. **On Tailwind v3 the CLI refuses, by name**: *"The cn migration requires Tailwind CSS v4 and
+   tailwind-merge v3."* You do not have to check the version yourself — but do read the error, because
+   it is printed under a generic "Something went wrong" banner that invites you to retry with an older
+   CLI, which will not help.
+
+**A custom merge config survives.** A project that had built its own
+`extendTailwindMerge({ extend: { classGroups: { "font-size": [...] } } })` around twenty bespoke type
+tokens was rewritten onto `cn` + `cn/config` with the config intact — not flattened to the one-line
+re-export — and its merge test still passed 5/5. That is parity demonstrated on real code rather than
+claimed.
 
 **Why this is safe to do ahead of the CLI, checked rather than assumed:** the components `shadcn add` writes import **only `cn` from `@/lib/utils`** — verified across `button`, `dialog`, `card`, `input` and `badge` in the `new-york-v4` registry, none of which imports `clsx` or `tailwind-merge` directly. What sits behind that name is ours to choose. `cn` is a compiled drop-in with the same API and zero dependencies, and its parity is enforced in CI over 56,346 differential cases, 300,000 fuzzed strings and 5,054 custom-config cases.
 
