@@ -35,7 +35,7 @@ This is the same rule as the anti-slop fallbacks (`anti-slop-fallbacks.md`) — 
 | | Use | Source |
 |---|---|---|
 | **UI icon** | a control, a status, an affordance — 16–24px, sits in the interface | `stack.icon_library` (lucide default) |
-| **Animated icon** | a meaningful micro-interaction on an affordance | `heroicons-animated` skill |
+| **Animated icon** | a meaningful micro-interaction on an affordance | `animated-icons` skill |
 | **Illustration / spot art** | a *moment* — empty state, onboarding, error, marketing hero | this file |
 
 Never solve an icon problem with an illustration, or vice versa: a hand-drawn glyph inside a toolbar breaks the interface's rhythm.

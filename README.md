@@ -160,7 +160,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 | `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
-`install.sh` installs **all 45 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`heroicons-animated` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 45 skills, in detail](#the-44-skills-in-detail).
+`install.sh` installs **all 45 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 45 skills, in detail](#the-44-skills-in-detail).
 
 ### 2. Create a project
 
@@ -1030,12 +1030,14 @@ Derived from `lusentis/next-skills/nextjs-usestate` (MIT) — renamed `state-dis
 
 Inspired by the **[transitions.dev](https://transitions.dev/)** motion library (Jakub Antalík) — this is our token-driven, stack-native take on the idea, not a fork or an install of their package.
 
-### `heroicons-animated` — Motion-animated Heroicons via the shadcn registry
+### `animated-icons` — Motion-animated icons via the shadcn registries
 
 **Input**: "animated icon" / "animate this icon" / "make the bell shake on a new notification".
-**Output**: one Motion-animated Heroicon added from the [`@heroicons-animated/*`](https://www.heroicons-animated.com/) shadcn registry (316 icons, MIT) — `shadcn add @heroicons-animated/<name>` — wired with the **accessibility guard the raw components lack**.
+**Output**: one Motion-animated icon added from whichever of the two registries matches the project's static set — [`@heroicons-animated/*`](https://www.heroicons-animated.com/) (316 icons) or [`@hugeicons-animated/*`](https://hugeicons-animated.com/) (165 icons, plus a shared `lib/use-icon-animation.ts`). Both MIT, both on `motion`, both copied into your repo as source you then own.
 
-**How it works**: each icon is a `registry:ui` `.tsx` built on `motion` that animates on hover and exposes an imperative ref handle (`<Name>IconHandle.startAnimation()/stopAnimation()`) for event-driven control. The skill owns the registry install and enforces two things the library omits: a **`prefers-reduced-motion` guard** (the components animate unconditionally) and timing **aligned to `lib/motion/tokens.ts`**. Ecosystem-first for icons — don't hand-animate an SVG. Sits alongside `transitions` (motion discipline) and `module-add motion` (the runtime it depends on); same namespaced-registry mechanism as `coss-ui`. Web only; no phase bump. RN counterpart: `rn-animations-gestures`.
+**Pick by the set, not by the count.** An animated Heroicon beside Hugeicons outlines reads as a different drawing, because it is — the skill reads `meta.json#stack.icon_library` before choosing and says which it picked.
+
+**How it works**: each icon is a `registry:ui` `.tsx` built on `motion` that animates on hover and exposes an imperative ref handle (`<Name>IconHandle.startAnimation()/stopAnimation()`) for event-driven use. The skill adds the two things the raw components lack: a `prefers-reduced-motion` guard and timing read from the project's motion tokens.
 
 ### `spec-review` — did we build what the PRD asked, the way the contract says?
 

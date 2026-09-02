@@ -72,7 +72,7 @@ knowledge. `--apply` throws away the routing that makes this skill worth anythin
 | **Foundation** | 20 | `components.json` parses, theme provider mounted in the shell, theme hydration safe, toast provider mounted | **`design-md-to-app`** (shell + providers), **`coss-ui`** when `stack.ui = "coss"` |
 | **Interaction** | 20 | command menu present + `Cmd/Ctrl+K` bound, mobile nav trigger + controlled panel, responsive shell, keyboard navigation | **`design-md-to-app`** (it owns the shell/layout from DESIGN.md) |
 | **States** | 20 | empty state, error state with retry, `not-found` recovery, route loading boundary, useful Suspense fallback | **`data-fetching`** (boundaries, Suspense, `loading.tsx`) + `design-md-to-app` (the *designed* state) |
-| **Accessibility** | 20 | alt text, colour contrast, focus-visible not suppressed, dialog focus trap, heading structure, no positive `tabindex`, labels | **this skill** (mechanical) — icon a11y → **`heroicons-animated`**, motion → **`transitions`** |
+| **Accessibility** | 20 | alt text, colour contrast, focus-visible not suppressed, dialog focus trap, heading structure, no positive `tabindex`, labels | **this skill** (mechanical) — icon a11y → **`animated-icons`**, motion → **`transitions`** |
 | **Forms and Data Entry** | 10 | validation wired to the form, field errors rendered, invalid fields associated with their errors, async action pending state | **`forms`** |
 | **Production Polish** | 10 | metadata title + description, social preview image, public SEO files, no starter copy left behind | **`design-md-to-app`** (metadata) + the deploy step |
 

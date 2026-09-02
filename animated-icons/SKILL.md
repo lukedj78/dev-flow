@@ -1,11 +1,18 @@
 ---
-name: heroicons-animated
-description: 'Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtime. This skill owns the install plus the two things the raw components lack: a `prefers-reduced-motion` guard and timing aligned to the project motion tokens (`lib/motion/`). Use when the user says "animated icon", "animate this icon", "make the bell/heart/menu icon animate on hover", "aggiungi un icona animata", or wants an icon micro-interaction. Refuses outside Next.js web (`stack.framework` next/monorepo) — for React Native use `rn-animations-gestures`. Not for: static icons (use the plain heroicons/lucide set), a whole motion system (use `transitions`), or installing the animation runtime itself (use `module-add motion`).'
+name: animated-icons
+description: 'Add a Motion-animated icon to a Next.js app from a shadcn registry instead of hand-animating an SVG. Two registries, picked from the project''s icon set: **heroicons-animated** (316 icons, `shadcn add @heroicons-animated/<name>`) and **hugeicons-animated** (165 icons, `shadcn add @hugeicons-animated/<name>`, which also installs a shared `lib/use-icon-animation.ts`). Both MIT, both on the `motion` runtime, both copied into your repo as source. This skill owns the install plus the two things the raw components lack: a `prefers-reduced-motion` guard and timing aligned to the project motion tokens (`lib/motion/`). Use when the user says "animated icon", "animate this icon", "make the bell/heart/menu icon animate on hover", "aggiungi un''icona animata", or wants an icon micro-interaction. Refuses outside Next.js web — for React Native use `rn-animations-gestures`. Not for: static icons, a whole motion system (`transitions`), or installing the runtime itself (`module-add motion`).'
 ---
 
-# heroicons-animated — Motion-animated Heroicons via the shadcn registry
+# animated-icons — Motion-animated icons via the shadcn registries
 
-Adds one **pre-built, Motion-animated Heroicon** to a Next.js app instead of hand-rolling an SVG animation. The [heroicons-animated](https://www.heroicons-animated.com/) registry ships **316 icons** (MIT, by Aniket Pawar, backed by the Vercel OSS program), each a shadcn-registry `registry:ui` component built on `motion` that animates on hover and can be driven imperatively.
+Adds one **pre-built, Motion-animated icon** to a Next.js app instead of hand-rolling an SVG animation. Two registries ship them as shadcn components, both MIT, both on `motion`, both copied into your repo as source you then own:
+
+| Registry | Icons | Namespace | Extra file |
+|---|---:|---|---|
+| [heroicons-animated](https://www.heroicons-animated.com/) | 316 | `@heroicons-animated/<name>` | — each icon is self-contained |
+| [hugeicons-animated](https://hugeicons-animated.com/) | 165 | `@hugeicons-animated/<name>` | **`lib/use-icon-animation.ts`**, a shared hook installed once |
+
+**Pick the one that matches the project's static set**, not the one with more icons: an animated Heroicon next to Hugeicons outlines reads as a different drawing, because it is. Read `meta.json#stack.icon_library` (or the DESIGN.md icon block) before choosing, and say which you picked and why.
 
 This is the **ecosystem-first** move for animated icons — the same rule as everywhere in dev-flow: don't hand-animate a bell/heart/menu SVG when a maintained, tokenizable component exists. This skill owns the **install** plus the two things the raw components *don't* give you: an **accessibility guard** (they animate unconditionally) and **timing aligned to your motion tokens**.
 
@@ -30,9 +37,12 @@ Follows the dev-flow contract — see `references/contracts.md`. Key facts:
 2. **Register the namespaced registry once** in `components.json` (shadcn CLI v4 namespaced registries, the same mechanism as `coss-ui`'s `@coss/*`):
    ```jsonc
    // components.json
-   "registries": { "@heroicons-animated": "https://www.heroicons-animated.com/r/{name}.json" }
+   "registries": {
+     "@heroicons-animated": "https://www.heroicons-animated.com/r/{name}.json",
+     "@hugeicons-animated": "https://hugeicons-animated.com/r/{name}.json"
+   }
    ```
-3. **Add the icon** — `pnpm dlx shadcn@latest add @heroicons-animated/<name>` (e.g. `bell`, `heart`, `bars-3`). It writes one `.tsx` to your components dir and installs `motion` (the item's only dependency).
+3. **Add the icon** — `pnpm dlx shadcn@latest add @heroicons-animated/<name>` (e.g. `bell`, `heart`, `bars-3`) or `@hugeicons-animated/<name>` (e.g. `add-circle`, `alarm-clock`, `arrow-right-02`). It writes one `.tsx` to your components dir and installs `motion` (the item's only dependency).
 
 **Flags confirmed at `shadcn@4.19.0`** from the CLI's own `add` definition: `-o, --overwrite`
 (*"overwrite existing files"*), plus three worth knowing for a copy-in registry —
@@ -74,7 +84,7 @@ bell.current?.startAnimation();   // and .stopAnimation()
 ## Companion skills — what this owns vs reuses
 
 - **`module-add motion`** — installs the `motion` runtime these icons depend on. This skill routes there; it never re-installs the runtime.
-- **`transitions`** — owns the motion **discipline** (tiers, tokens, reduced-motion). heroicons-animated is a **Tier-3 (Motion) icon source** under that discipline; `transitions` is where the reduced-motion + tokenization rules live.
+- **`transitions`** — owns the motion **discipline** (tiers, tokens, reduced-motion). this skill is a **Tier-3 (Motion) icon source** under that discipline; `transitions` is where the reduced-motion + tokenization rules live.
 - **shadcn** (`design-md-to-app` / the UI library) — owns `components.json` and the static icon set. Animated icons **complement** the static heroicons; mix freely (static in dense UI, animated for a few meaningful affordances).
 - **`rn-animations-gestures`** — the React Native counterpart (this registry is web/DOM-only).
 

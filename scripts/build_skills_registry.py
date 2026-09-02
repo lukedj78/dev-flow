@@ -68,7 +68,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "data-fetching":                ("web", "knowledge"),
     "state-discipline":             ("web", "knowledge"),
     "transitions":                  ("web", "knowledge"),
-    "heroicons-animated":           ("web", "operative"),
+    "animated-icons":           ("web", "operative"),
     "vercel-doctor":                ("web", "operative"),
     "shadscan":                     ("web", "operative"),
     "vercel-deploy":                ("web", "operative"),

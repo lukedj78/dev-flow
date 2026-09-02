@@ -152,7 +152,23 @@ The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or intera
 
 Standard dependencies installed by `init`: `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, plus `@base-ui/react` (or `@radix-ui/react-*` if `--base radix` was chosen) packages added per-component. In theme-only mode (no `init` run), you can assume these are present if `package.json` lists them; if not, document the gap in `STYLE_NOTES.md`.
 
-⚠️ **`clsx` + `tailwind-merge` are still what `init` writes, and that is what we follow.** `cn` ([shadcn-ui/cn](https://github.com/shadcn-ui/cn), MIT) is a compiled drop-in for both — same API, zero dependencies — and `npx shadcn@latest migrate cn` rewrites a project onto it. It is **opt-in**: as of shadcn CLI 4.20.1 the package appears only in that migration path, never among the dependencies `init` installs. Don't pre-empt the CLI here; the scaffold's job is to match what `shadcn add` expects. When `init` starts writing `cn` into `lib/utils.ts`, this line changes by itself. If a *user* asks for it, the swap is one line — `export { cn } from "cn"` — with four conditions: Tailwind **v4 only** (on v3 stay on tailwind-merge v2), `cn build` is optional and unnecessary for most projects, **never use `cn build` in a published component library** (your consumers' classes aren't in your corpus), and `experimentalParseClassName` has no equivalent.
+⚠️ **Swap `lib/utils.ts` onto [`cn`](https://github.com/shadcn-ui/cn) — this is our default.** `init` still writes the `clsx` + `tailwind-merge` helper, so this is a step *after* it:
+
+```ts
+// lib/utils.ts — replaces the two-line clsx + tailwind-merge helper
+export { cn } from "cn"
+```
+
+```bash
+npm i cn && npm rm clsx tailwind-merge      # new project
+npx shadcn@latest migrate cn --dry-run     # existing project: read the plan, then run it for real
+```
+
+**Why this is safe to do ahead of the CLI, checked rather than assumed:** the components `shadcn add` writes import **only `cn` from `@/lib/utils`** — verified across `button`, `dialog`, `card`, `input` and `badge` in the `new-york-v4` registry, none of which imports `clsx` or `tailwind-merge` directly. What sits behind that name is ours to choose. `cn` is a compiled drop-in with the same API and zero dependencies, and its parity is enforced in CI over 56,346 differential cases, 300,000 fuzzed strings and 5,054 custom-config cases.
+
+**Four conditions.** Tailwind **v4 only** — on v3 stay with tailwind-merge v2. `cn build` is optional and unnecessary for most projects (*"if you're unsure whether you need it, you don't"*). **Never `cn build` in a published component library**: your consumers' classes aren't in your corpus. And `experimentalParseClassName` has no equivalent.
+
+**Rolling back is two commands** — `npm i clsx tailwind-merge` and restore the two-line helper — which is what makes adopting a package this young a reasonable default rather than a bet. `cn` was at `0.2.4` on 2026-09-02; re-check the line before assuming it is still pre-1.0.
 
 ### Serving a registry: search is opt-in, and the opt-in is the response itself
 

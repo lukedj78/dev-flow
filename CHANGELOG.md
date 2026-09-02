@@ -9,6 +9,23 @@ What a bump means here:
 
 ## [Unreleased]
 
+### Changed
+- **`heroicons-animated` → `animated-icons`** — the skill now covers **two** registries, so the old
+  name had started to lie. [heroicons-animated](https://www.heroicons-animated.com/) (316 icons) and
+  [hugeicons-animated](https://hugeicons-animated.com/) (165 icons), both MIT, both on `motion`, both
+  copied into your repo as source. One skill rather than two: the procedure is identical and only the
+  base URL changes. **Choose the registry by the project's static icon set, never by the icon count** —
+  an animated Heroicon beside Hugeicons outlines is a different drawing. One structural difference to
+  know: hugeicons items import a shared `lib/use-icon-animation.ts` (`registry:lib`), so an item is
+  **not** always one file, and a hand-copied icon without the hook will not compile.
+- **`lib/utils.ts` now defaults to [`cn`](https://github.com/shadcn-ui/cn)** instead of the
+  `clsx` + `tailwind-merge` helper `shadcn init` writes — a compiled drop-in, same API, zero
+  dependencies. Safe ahead of the CLI for a reason that was checked rather than assumed: the
+  components `shadcn add` writes import **only `cn` from `@/lib/utils`**, so what sits behind that
+  name was always ours to pick. Existing projects migrate with
+  `npx shadcn@latest migrate cn --dry-run`; rolling back is two commands. Tailwind v4 only, and
+  never `cn build` in a published component library.
+
 ### Added
 - **`spec-review`** (core · operative) — reviews a **diff** on the two axes a dev-flow project can check that a generic reviewer cannot: **Spec** (does it implement what `.workflow/PRD.md` + `tasks.md` asked?) and **Standards** (does it obey the golden rules, the declared `meta.json#stack`, the discipline skills, with a Fowler smell baseline as the floor). Two parallel sub-agents, reported side by side and **never merged** — a change can follow every convention while building the wrong feature, or build the right feature ignoring the declared stack, and one verdict lets either hide behind the other. **44 skills** now: **6 core** · 15 web · 2 agent · 16 mobile · 3 monorepo · 2 refactor.
 

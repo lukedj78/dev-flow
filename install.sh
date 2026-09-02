@@ -16,7 +16,7 @@
 #                                        coss-ui, screenshot-to-page, module-add,
 #                                        write-tests, forms, data-fetching,
 #                                        state-discipline, transitions,
-#                                        heroicons-animated, vercel-doctor,
+#                                        animated-icons, vercel-doctor,
 #                                        shadscan, vercel-deploy, vgpu-shaders
 #   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
 #   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
@@ -163,7 +163,7 @@ SKILLS=(
   data-fetching
   state-discipline
   transitions
-  heroicons-animated
+  animated-icons
   vercel-doctor
   shadscan
   vercel-deploy

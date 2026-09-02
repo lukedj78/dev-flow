@@ -52,7 +52,7 @@ SKILLS=(
   data-fetching
   state-discipline
   transitions
-  heroicons-animated
+  animated-icons
   vercel-doctor
   shadscan
   vercel-deploy

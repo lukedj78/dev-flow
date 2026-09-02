@@ -1,4 +1,4 @@
-# heroicons-animated — usage, API, accessibility
+# animated-icons — usage, API, accessibility
 
 The real component surface, **read off the registry source on 2026-08-26** — five items fetched and
 compared (`bell`, `heart`, `bars-3`, `arrow-path`, `x-mark`), all identical in shape: `size` defaults
@@ -8,7 +8,7 @@ and once copied in **your repo owns that file**: no `add` will come back to upda
 
 ## Anatomy of one icon
 
-Each `@heroicons-animated/<name>` item is a single `.tsx` that:
+Each `@heroicons-animated/<name>` or `@hugeicons-animated/<name>` item is a single `.tsx` that:
 - `import { motion, useAnimation } from "motion/react"` (Tier-3 — forces `"use client"`).
 - ⚠️ **Exports `<Name>Icon` as a *named* export only** — `export { BellIcon }`, with `displayName` set
   and a `<Name>IconHandle` interface. **There is no default export**, and this file used to claim
@@ -92,10 +92,26 @@ alias or edit the import. Verified on all five icons sampled, 2026-08-26.
 
 If `components.json` isn't present:
 1. `npm i motion` (or `module-add motion`).
-2. Copy the icon's `.tsx` from `https://www.heroicons-animated.com/r/<name>.json` (the `files[0]` content) into your components dir by hand.
+2. Copy the icon's `.tsx` from `https://www.heroicons-animated.com/r/<name>.json` or `https://hugeicons-animated.com/r/<name>.json` (the `files[0]` content) into your components dir by hand. ⚠️ **hugeicons-animated ships a second file**, `lib/use-icon-animation.ts` — take both or the import fails.
 3. **Give it a `cn`** — three ways, cheapest first: replace `cn(className)` with `className` (these components pass nothing else to it, so the merge has nothing to resolve); or `npm i cn` and `export { cn } from "cn"` at `@/lib/utils` — one line, zero transitive dependencies, Tailwind v4 only; or the classic two-line `clsx` + `tailwind-merge` helper, which is what `shadcn init` writes and therefore what a project with `components.json` already has.
 4. Import and use as above. You own updates manually (no `shadcn add` upgrade path).
 
-## Picking an icon
+## Picking a registry, then an icon
 
-**316 icons** — counted from `https://www.heroicons-animated.com/r/registry.json` on 2026-08-26, which is also the machine-readable index. Heroicons naming (e.g. `bell`, `heart`, `bars-3`, `arrow-path`, `check-circle`, `x-mark`, `chevron-down`, `magnifying-glass`, `trash`, `bookmark`, `cog-6-tooth`). Browse the grid at <https://www.heroicons-animated.com/>; the machine-readable list is the registry index. Match the name to the static heroicon you'd otherwise use so the two are visually consistent.
+**Pick by the project's static set, not by the icon count.** An animated Heroicon dropped beside
+Hugeicons outlines reads as a different drawing, because it is: different stroke weight, different
+corner radius, different optical size. Read `meta.json#stack.icon_library` (or the DESIGN.md icon
+block) first, and if the project has no static set yet, say which you chose and why.
+
+| Registry | Icons | Index | Naming |
+|---|---:|---|---|
+| heroicons-animated | **316** | `https://www.heroicons-animated.com/r/registry.json` | Heroicons (`bell`, `heart`, `bars-3`) |
+| hugeicons-animated | **165** | `https://hugeicons-animated.com/r/registry.json` | Hugeicons, numbered variants included (`add-circle`, `alarm-clock`, `arrow-right-02`) |
+
+Both counted from their own `registry.json` on **2026-09-02**; both are the machine-readable index,
+so count them again rather than trusting these numbers on a later pass.
+
+⚠️ **The two are not interchangeable at the file level.** heroicons-animated items are
+self-contained. hugeicons-animated items import `useIconAnimation` from `@/lib/use-icon-animation`,
+a `registry:lib` file the CLI installs alongside the first icon — so a hand-copied hugeicons item
+without that file will not compile, and removing your last hugeicons icon leaves the hook behind.

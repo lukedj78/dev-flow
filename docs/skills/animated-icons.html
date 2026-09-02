@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>heroicons-animated — dev-flow</title>
-<meta name="description" content="Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG.">
+<title>animated-icons — dev-flow</title>
+<meta name="description" content="Add a Motion-animated icon to a Next.js app from a shadcn registry instead of hand-animating an SVG.">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -113,9 +113,9 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 </div></header>
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
-  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">heroicons-animated</h1>
-  <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">98 lines</li><li class="chip">2 references</li></ul>
-  <p class="lede">Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with <code>shadcn add @heroicons-animated/&lt;name&gt;</code>, built on the <code>motion</code> runtime. This skill owns the install plus the two things the raw components lack: a <code>prefers-reduced-motion</code> guard and timing aligned to the project motion tokens (<code>lib/motion/</code>). Use when the user says &quot;animated icon&quot;, &quot;animate this icon&quot;, &quot;make the bell/heart/menu icon animate on hover&quot;, &quot;aggiungi un icona animata&quot;, or wants an icon micro-interaction. Refuses outside Next.js web (<code>stack.framework</code> next/monorepo) — for React Native use <code>rn-animations-gestures</code>. Not for: static icons (use the plain heroicons/lucide set), a whole motion system (use <code>transitions</code>), or installing the animation runtime itself (use <code>module-add motion</code>).</p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">animated-icons</h1>
+  <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">108 lines</li><li class="chip">2 references</li></ul>
+  <p class="lede">Add a Motion-animated icon to a Next.js app from a shadcn registry instead of hand-animating an SVG. Two registries, picked from the project&#x27;s icon set: <strong>heroicons-animated</strong> (316 icons, <code>shadcn add @heroicons-animated/&lt;name&gt;</code>) and <strong>hugeicons-animated</strong> (165 icons, <code>shadcn add @hugeicons-animated/&lt;name&gt;</code>, which also installs a shared <code>lib/use-icon-animation.ts</code>). Both MIT, both on the <code>motion</code> runtime, both copied into your repo as source. This skill owns the install plus the two things the raw components lack: a <code>prefers-reduced-motion</code> guard and timing aligned to the project motion tokens (<code>lib/motion/</code>). Use when the user says &quot;animated icon&quot;, &quot;animate this icon&quot;, &quot;make the bell/heart/menu icon animate on hover&quot;, &quot;aggiungi un&#x27;icona animata&quot;, or wants an icon micro-interaction. Refuses outside Next.js web — for React Native use <code>rn-animations-gestures</code>. Not for: static icons, a whole motion system (<code>transitions</code>), or installing the runtime itself (<code>module-add motion</code>).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
@@ -123,11 +123,11 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
   <h3>What it does not do</h3>
   <ul><li><strong>Doesn&#x27;t install the runtime</strong> — that&#x27;s <code>module-add motion</code>.</li><li><strong>Doesn&#x27;t define a motion system</strong> — that&#x27;s <code>transitions</code>.</li><li><strong>Doesn&#x27;t do React Native</strong> — use <code>rn-animations-gestures</code>.</li><li><strong>Doesn&#x27;t replace static icons</strong> — it adds a few animated affordances; most icons stay static.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/references/usage.md"><code>usage.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/animated-icons/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/animated-icons/references/usage.md"><code>usage.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
-./install.sh --platform claude        # or drop dist/heroicons-animated.skill into Claude Code</code></pre>
-  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/heroicons-animated/SKILL.md">Read heroicons-animated/SKILL.md on GitHub →</a></p>
+./install.sh --platform claude        # or drop dist/animated-icons.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/animated-icons/SKILL.md">Read animated-icons/SKILL.md on GitHub →</a></p>
 </div></section>
 <footer><div class="wrap">
   <span>44 skills, one contract. MIT.</span>

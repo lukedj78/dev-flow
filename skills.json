@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-02T16:57:17Z",
+  "generated_at": "2026-09-02T17:05:11Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 45,
   "families": {
@@ -13,12 +13,12 @@
       "spec-review"
     ],
     "web": [
+      "animated-icons",
       "coss-ui",
       "data-fetching",
       "design-md-to-app",
       "figma-to-design-md",
       "forms",
-      "heroicons-animated",
       "image-to-design-md",
       "module-add",
       "screenshot-to-page",
@@ -159,6 +159,20 @@
       "bundle": "dist/spec-review.skill"
     },
     {
+      "name": "animated-icons",
+      "family": "web",
+      "role": "operative",
+      "description": "Add a Motion-animated icon to a Next.js app from a shadcn registry instead of hand-animating an SVG. Two registries, picked from the project's icon set: **heroicons-animated** (316 icons, `shadcn add @heroicons-animated/<name>`) and **hugeicons-animated** (165 icons, `shadcn add @hugeicons-animated/...",
+      "skill_file": "animated-icons/SKILL.md",
+      "references": [
+        "contracts.md",
+        "usage.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 108,
+      "bundle": "dist/animated-icons.skill"
+    },
+    {
       "name": "coss-ui",
       "family": "web",
       "role": "operative",
@@ -259,20 +273,6 @@
       ],
       "skill_md_lines": 500,
       "bundle": "dist/forms.skill"
-    },
-    {
-      "name": "heroicons-animated",
-      "family": "web",
-      "role": "operative",
-      "description": "Add a Motion-animated Heroicon to a Next.js app from the heroicons-animated registry instead of hand-animating an SVG. Each icon is a shadcn-registry component installed with `shadcn add @heroicons-animated/<name>`, built on the `motion` runtime. This skill owns the install plus the two things the r...",
-      "skill_file": "heroicons-animated/SKILL.md",
-      "references": [
-        "contracts.md",
-        "usage.md"
-      ],
-      "scripts": [],
-      "skill_md_lines": 98,
-      "bundle": "dist/heroicons-animated.skill"
     },
     {
       "name": "image-to-design-md",
@@ -471,7 +471,7 @@
       "skill_file": "eve-registry-porting/SKILL.md",
       "references": [],
       "scripts": [],
-      "skill_md_lines": 157,
+      "skill_md_lines": 158,
       "bundle": "dist/eve-registry-porting.skill"
     },
     {

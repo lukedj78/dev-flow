@@ -44,6 +44,7 @@ checked on **2026-08-26** and all four pass:
 | mapcn-rn (mobile maps) | `https://mapcn-rn.dev/maps/{name}.json` | ✓ shadcn registry-item |
 | Coss/UI | `https://coss.com/ui/r/{name}.json` | ✓ shadcn registry-item |
 | heroicons-animated | `https://www.heroicons-animated.com/r/{name}.json` | ✓ shadcn registry-item |
+| hugeicons-animated | `https://hugeicons-animated.com/r/{name}.json` | ✓ shadcn registry-item — note it also serves a `registry:lib` file (`lib/use-icon-animation.ts`), so an item is not always one file |
 
 ⚠️ **Serving the shape is necessary, not sufficient.** `mapcn-rn` serves shadcn-format items *and*
 ships its own `mapcn-rn` CLI with a `mapcn.json` of its own — install it the project's way, not through
