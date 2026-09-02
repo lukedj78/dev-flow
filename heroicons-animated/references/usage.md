@@ -93,7 +93,7 @@ alias or edit the import. Verified on all five icons sampled, 2026-08-26.
 If `components.json` isn't present:
 1. `npm i motion` (or `module-add motion`).
 2. Copy the icon's `.tsx` from `https://www.heroicons-animated.com/r/<name>.json` (the `files[0]` content) into your components dir by hand.
-3. **Give it a `cn`** — either add the two-line `clsx` + `tailwind-merge` helper at `@/lib/utils`, or replace `cn(className)` with `className` (the components pass nothing else to it).
+3. **Give it a `cn`** — three ways, cheapest first: replace `cn(className)` with `className` (these components pass nothing else to it, so the merge has nothing to resolve); or `npm i cn` and `export { cn } from "cn"` at `@/lib/utils` — one line, zero transitive dependencies, Tailwind v4 only; or the classic two-line `clsx` + `tailwind-merge` helper, which is what `shadcn init` writes and therefore what a project with `components.json` already has.
 4. Import and use as above. You own updates manually (no `shadcn add` upgrade path).
 
 ## Picking an icon

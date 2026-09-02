@@ -152,6 +152,8 @@ The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or intera
 
 Standard dependencies installed by `init`: `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, plus `@base-ui/react` (or `@radix-ui/react-*` if `--base radix` was chosen) packages added per-component. In theme-only mode (no `init` run), you can assume these are present if `package.json` lists them; if not, document the gap in `STYLE_NOTES.md`.
 
+⚠️ **`clsx` + `tailwind-merge` are still what `init` writes, and that is what we follow.** `cn` ([shadcn-ui/cn](https://github.com/shadcn-ui/cn), MIT) is a compiled drop-in for both — same API, zero dependencies — and `npx shadcn@latest migrate cn` rewrites a project onto it. It is **opt-in**: as of shadcn CLI 4.20.1 the package appears only in that migration path, never among the dependencies `init` installs. Don't pre-empt the CLI here; the scaffold's job is to match what `shadcn add` expects. When `init` starts writing `cn` into `lib/utils.ts`, this line changes by itself. If a *user* asks for it, the swap is one line — `export { cn } from "cn"` — with four conditions: Tailwind **v4 only** (on v3 stay on tailwind-merge v2), `cn build` is optional and unnecessary for most projects, **never use `cn build` in a published component library** (your consumers' classes aren't in your corpus), and `experimentalParseClassName` has no equivalent.
+
 ### Serving a registry: search is opt-in, and the opt-in is the response itself
 
 Only relevant when you **publish** a registry (ours: `@coss/*`, the eve registry). Consuming one needs
