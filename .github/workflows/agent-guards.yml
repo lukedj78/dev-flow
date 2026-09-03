@@ -44,13 +44,14 @@ jobs:
       - name: The suite must fail when a defence is removed
         working-directory: agent-guards
         run: |
-          cp src/fence.ts /tmp/fence.bak
-          sed -i 's/\.normalize("NFKC")/\/* removed *\//' src/fence.ts
+          test -f src/guards.ts || { echo "::error::src/guards.ts is gone - this step silently did nothing the last time a file was renamed"; exit 1; }
+          cp src/guards.ts /tmp/guards.bak
+          sed -i 's/\.normalize("NFKC")/\/* removed *\//' src/guards.ts
           npm run --silent build
           if node --test > /dev/null 2>&1; then
             echo "::error::removing the NFKC fold did not fail the suite — the case is vacuous"
-            cp /tmp/fence.bak src/fence.ts
+            cp /tmp/guards.bak src/guards.ts
             exit 1
           fi
-          cp /tmp/fence.bak src/fence.ts
+          cp /tmp/guards.bak src/guards.ts
           npm test
