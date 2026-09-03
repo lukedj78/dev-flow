@@ -11,6 +11,15 @@ The web app is the **client**; the eve agent is the **engine**. Wire them with e
 
 eve ships a first-class Next.js integration so you do **not** write fetch/stream code:
 
+> ⚠️ **If you drop to the raw HTTP stream anyway** — a deliberate choice, e.g. to keep the transport
+> visible in a teaching implementation — the assistant's text arrives as `message.appended` carrying
+> **`data.messageDelta`**, not `data.delta`. Reading the wrong field is silent in the worst way: the
+> stream drains, `turn.completed` fires, the request is a clean 200, and the transcript stays empty.
+> The sibling events follow the same naming (`reasoning.appended` → `reasoningDelta`,
+> `action.input.appended` → `inputTextDelta`); the shapes are in
+> `node_modules/eve/dist/src/protocol/message.d.ts`. `useEveAgent()` handles all of this, which is
+> the argument for using it.
+
 * **`withEve()` — from `eve/next`** — wrap the Next.js config so eve's routes are mounted
   **same-origin** in the web app. The browser only ever talks to the Next.js origin; no CORS,
   no agent host named in client code.

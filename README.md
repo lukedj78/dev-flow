@@ -463,6 +463,33 @@ diff rather than a silent version bump.
 That remove-a-defence check is also how one test was caught being **vacuous**: it asserted the absence
 of an ASCII turn marker, which also held when the Unicode fold never ran and the text stayed fullwidth.
 
+### And the third: a reference implementation, because prose cannot fail
+
+`agent-guards` is code the skills hand out. **Bottega** is the opposite direction: an app built *from*
+the skills, whose only job is to run and be wrong in public.
+
+It is the TypeScript answer to Anthropic's Python [`commerce-agents`](https://github.com/anthropics/commerce-agents) —
+one Next.js app, two assistants over one shop: a shopping assistant that cannot buy anything
+(checkout renders the cart and hands off) and a desk assistant that cannot write anything (every
+change is staged and waits for a person to press Apply). Both sides read the same catalogue, and
+which tools a caller gets is decided by the authenticated principal, never by the URL they opened.
+
+The point is not the demo. **A written convention cannot fail; a running one can**, and everything
+below was returned by running it rather than by reviewing it:
+
+| What broke | Why prose missed it |
+| --- | --- |
+| The shopping assistant's first move was `bash` running `env \| grep` | The skill documented *how* to call `disableTool()`. It never said a user-facing agent must, so nobody did. → `eve-concepts.md` now scaffolds the sentinels |
+| The agent arrived with **no tools at all** and told the shopper so | Executors were inline, as the rule required — and still captured a per-session arrow. eve skips the whole resolver result and logs one line. → the rule is now two rules |
+| The chat rendered nothing on a clean 200 | The field is `messageDelta`, not `delta`. Silent by construction. → a caveat on the "use `useEveAgent()`" advice |
+| The cart accepted an item and rendered empty | Next evaluates a module in more than one graph; the route handler and the page held separate stores |
+| `append-history` accepted a phase that does not exist | Found before a line of app code was written, by using the contract for real |
+
+Two of those are security findings, and neither was a subtle one — they were simply invisible to
+anything that reads a skill instead of running it. The same loop found the fence's JSON-escaping hole
+(`\\n` boundaries, not just real newlines) and the missing optimistic-concurrency half of the apply
+check, both of which now live in `agent-guards` and its template.
+
 The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
 
 ### 8. Load one skill from a URL, without installing anything

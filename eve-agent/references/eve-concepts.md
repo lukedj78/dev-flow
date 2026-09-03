@@ -104,7 +104,31 @@ Durable **per-session** working memory (survives turns/crashes/redeploys), `get(
 
 ## Dynamic capabilities — `defineDynamic`
 
-Resolve **model, tools, skills, and instructions** at runtime from a session event instead of declaring them up front. Events + precedence: `step.started` overrides `turn.started` overrides `session.started` overrides the static default. Use it when the right capability depends on **who's calling** (tenant, team, plan, feature flags, external data): per-tenant tools built at `session.started`, feature-flagged tools, per-team playbooks/skills, or resolving the model at `session.started` to keep prompt caches warm. **Rule:** a dynamic tool's `execute` must be an **inline** function (expression/arrow/method-shorthand) placed directly as the property value, so it survives workflow replay across steps.
+Resolve **model, tools, skills, and instructions** at runtime from a session event instead of declaring them up front. Events + precedence: `step.started` overrides `turn.started` overrides `session.started` overrides the static default. Use it when the right capability depends on **who's calling** (tenant, team, plan, feature flags, external data): per-tenant tools built at `session.started`, feature-flagged tools, per-team playbooks/skills, or resolving the model at `session.started` to keep prompt caches warm. **Two rules, and the second is the one that bites.**
+
+1. A dynamic tool's `execute` must be an **inline** function (expression/arrow/method-shorthand) placed directly as the property value, so it survives workflow replay across steps.
+
+2. ⚠️ **Every value that executor closes over must be JSON-serializable.** Module-level *function* references are fine; a runtime closure is not, and neither is a class instance. The classic shape this rule forbids is also the most natural one to write:
+
+   ```ts
+   // ✗ every executor now captures `ctx`, a runtime arrow
+   function shopTools(session: unknown) {
+     const ctx = () => shopperContext(session as never);
+     return { search: defineTool({ …, async execute({ q }) { return api.search(ctx(), q); } }) };
+   }
+
+   // ✓ the factory captures nothing; each executor reads its caller from the
+   //   ToolContext eve already passes as the second argument
+   function shopTools() {
+     return { search: defineTool({ …, async execute({ q }, tool) {
+       return api.search(shopperContext(tool.session), q);
+     } }) };
+   }
+   ```
+
+   `ToolContext` extends `SessionContext`, so `tool.session` carries `{ id, auth, turn, parent? }` — everything a per-caller context needs.
+
+   **Why this rule is worth a paragraph: it fails silently and totally.** eve logs `Dynamic tool "<name>" callback "execute" has a non-serializable capture` and then *skips the complete resolver result* — not the one offending tool, all of them. The agent starts, answers, and behaves like an agent that was never given any tools: in the reference implementation it began guessing at `load_skill("shop")`, `load_skill("catalog")`, and finally told the shopper it had no way to search. Nothing throws, no request 500s, and the only evidence is one line in the dev server log. **When an eve agent behaves as though its tools do not exist, read the server log for this message before debugging the model.**
 
 ## Dynamic workflows — `experimental_workflow` (model-orchestrated subagents)
 
@@ -128,5 +152,21 @@ It's a **coordination layer only** — no filesystem/network/shell, only calls t
 Config is `run({ source, hostFunctions, limits: { timeoutMs, memoryLimitBytes } })`, or `createRunner()` for a shared budget. Node 22.13+ / Bun. `[VERIFY]` before wiring it directly into an eve agent — eve exposes the workflow tool, not `run`, and whether you should reach past it is a design decision, not a default.
 
 ## Responsible use (deployer obligations — do this before production)
+
+### Remove the defaults you did not ask for — before the first run
+
+eve gives **every** agent `bash`, `read_file`, `write_file`, `web_fetch`, `web_search`, `todo` and (in the root session) `agent`. Authoring your own tools **adds** to that set; `defineDynamic` adds to it too. Nothing in the scaffold narrows it, so a storefront assistant ships holding a shell unless you take it away.
+
+This is not hypothetical. The reference implementation's shopping assistant, asked *"a waterproof shell for commuting, under 150"*, opened its first turn with `bash` running `env | grep`. It was reaching for the environment because it had no catalog tool (see the serialization trap above) — but it could only reach at all because the default was there.
+
+So for any agent facing a user who is not the operator, write the sentinels **when you scaffold**, not when you harden:
+
+```ts
+// agent/tools/bash.ts — and read_file, write_file, web_fetch, web_search, agent
+import { disableTool } from "eve/tools";
+export default disableTool();
+```
+
+Keep the ones the product actually needs and say in the file *why* it is kept. The test is one line and belongs in the eval suite from the start: assert each sentinel file contains `disableTool()`, so a later `eve add` cannot quietly restore a shell.
 
 eve's defaults are **permissive** (unsupervised tools, unrestricted egress). As the deployer you must configure: **approval policies, tool restrictions, connection scopes, route/session authorization, sandbox controls, telemetry exports**, and ensure legal compliance. Before shipping with sensitive data, review the full action surface (default/custom/MCP tools, shell/file/web tools, connected services, subagents, schedules, external actions). **Require human approval** for sensitive/irreversible/regulated/financial/healthcare/employment/housing/legal/safety- or user-impacting/external-side-effecting actions. **Never rely on model behavior alone** to prevent them.
