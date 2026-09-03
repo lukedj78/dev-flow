@@ -163,6 +163,20 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 ### Topology policy — app first, monorepo next, agent-only for the rare case
 
+⚠️ **At init, if the shape is not specified, ASK. Do not derive it.** This is a blocking question,
+not a default to apply quietly: the answer changes the directory layout, every command the user will
+type, and how much scaffolding stands between them and the first line of product code. Deriving it —
+"two roles, so two agents, so a monorepo" — reaches an answer without ever asking what the second
+consumer is, which is the only question that decides it.
+
+The question is short and it is one question, not six:
+
+> Is this one app, or does the agent have a life of its own — its own deploy cadence, channels beyond
+> the web UI, or a second consumer that shares its types? If there is no second consumer, it is one app.
+
+Then say the shape out loud, with its reason, and let the user correct it before anything is
+scaffolded. Getting this wrong is cheap to fix on day one and expensive on day ten.
+
 When an agent is in scope, **three shapes are possible and the project decides which**. Propose in this order, and say which one you are proposing and why:
 
 | Shape | `stack` | Choose it when |

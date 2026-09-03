@@ -110,6 +110,8 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
 
    Applies regardless of framework — `eve` is a server-side engine that can sit behind web, mobile, or monorepo frontends.
 
+   ⚠️ **If the answer is `eve`, the shape is a separate question and you must ask it — never derive it.** `stack.agent = "eve"` says nothing about whether the agent lives *inside* the web app or in `apps/agent`, and the two are different projects to work in. Ask the one question that decides it: **does the agent have a second consumer, its own deploy cadence, or channels beyond the web UI?** No second consumer means `framework: "next"` with the agent inside the app — the house default. Two agent *roles* is not two apps: one agent can resolve a different tool set per principal with `defineDynamic`, which is a stronger boundary than two processes because it comes from authenticated identity. See `dev-flow` §Topology policy.
+
 ### Route groups deduction (web + monorepo)
 
 For `framework ∈ {next, monorepo}`, deduce which Next.js route groups to scaffold from Q1-Q5 answers. Write the array in `meta.json#stack.route_groups`:
