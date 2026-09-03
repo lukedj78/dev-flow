@@ -479,7 +479,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 14
+CHECK_COUNT = 15
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -501,6 +501,32 @@ def check_lint_check_count(root: Path) -> None:
                         f"{path}: \"{m.group(0).strip()}\" — the linter runs "
                         f"{CHECK_COUNT} checks"
                     )
+
+
+VENDORED_SOURCE = [
+    # (tested source, the copy a skill hands to a project)
+    ("agent-guards/src/guards.ts", "eve-agent/references/guards.template.ts"),
+]
+
+
+def check_vendored_source(root: Path) -> None:
+    """A file a skill copies into a project must equal the file CI tested.
+
+    `guards.template.ts` is what `eve-agent` writes into `agent/lib/guards.ts`.
+    Its tests live in `agent-guards/`, and they test `src/guards.ts`. If the two
+    drift, every project gets code that was never tested and the suite stays
+    green — the same shape as check 12, one layer out.
+    """
+    for tested, vendored in VENDORED_SOURCE:
+        a, b = root / tested, root / vendored
+        if not a.exists() or not b.exists():
+            warn(f"vendored pair missing: {tested} / {vendored}")
+            continue
+        if a.read_bytes() != b.read_bytes():
+            err(
+                f"{vendored} differs from {tested} — the copy handed to projects "
+                f"is not the one the tests cover. Copy it across."
+            )
 
 
 SKILL_MAP = "docs/dev-flow-skill-map.html"
@@ -629,6 +655,7 @@ def main() -> int:
     check_stated_counts(root, all_skills)
     check_installer_skills(root / "install.sh", all_skills)
     check_installer_skills(root / "uninstall.sh", all_skills)
+    check_vendored_source(root)
     check_skill_map_meta(root)
     check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)

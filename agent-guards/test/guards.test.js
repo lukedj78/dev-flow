@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProvenance, validateFact, blocked, isBlocked } from "../dist/index.js";
+import { createProvenance, validateFact, blocked, isBlocked } from "../dist/guards.js";
 
 // A plain object stands in for eve's defineState. That the store is injected is
 // the point: the guard is testable without a runtime.

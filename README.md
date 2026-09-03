@@ -439,21 +439,29 @@ if report.has_drift:
             print(f"{row.path}: {row.status}")
 ```
 
-### The second package: `agent-guards`
+### The other thing this repo ships as code: `agent-guards`
 
-`contract-package` is the workflow contract. [`agent-guards/`](./agent-guards/README.md) is the other
-thing this repo ships as code rather than prose: the four mechanical defences an agent needs when its
-tools return text nobody at your company wrote — fence the result, gate writes on provenance, bound
-what memory accepts, refuse in the result instead of throwing. TypeScript, zero runtime dependencies,
-28 tests, and nothing in it imports eve.
+`contract-package` is a package you install. [`agent-guards/`](./agent-guards/README.md) is the
+opposite and deliberately so: **a file that gets copied**, not depended on.
 
-It exists because `eve-patterns.md` §11 described these as a recipe, and a recipe gets copied: every
-project ends up with its own slightly different `fence()`, and a bug fixed in one is still live in the
-other six. A security utility is the wrong thing to retype.
+It holds the four mechanical defences an agent needs when its tools return text nobody at your company
+wrote — fence the result, gate writes on provenance, bound what memory accepts, refuse in the result
+instead of throwing. TypeScript, one file, zero dependencies, nothing importing eve. The `eve-agent`
+skill writes it into a project at `agent/lib/guards.ts`, the same way shadcn writes a component:
+the code lands in your repository and you own it.
 
-Its CI does one thing beyond running the tests: it **removes a defence and requires the suite to
-notice**. That check is how one case was found to be vacuous — it asserted the absence of an ASCII
-turn marker, which also held when the Unicode fold never ran and the text stayed fullwidth.
+It was a published package for about an hour, and that was the wrong shape for this repo. A dependency
+means a version to bump and a lockfile entry in every project, for four functions any project may
+legitimately want to tune — the fence label, the blocked patterns and the cap are domain decisions.
+
+What a dependency buys is *not drifting*, and the toolchain buys it instead. CI runs 28 tests on Node
+20, 22 and 24, then **removes one defence and requires the suite to notice**. The linter's check 15
+fails if the copy the skill hands out differs from the source CI tested by a single byte. So what
+lands in a project is what was tested, and an upstream improvement arrives as a re-copy and a readable
+diff rather than a silent version bump.
+
+That remove-a-defence check is also how one test was caught being **vacuous**: it asserted the absence
+of an ASCII turn marker, which also held when the Unicode fold never ran and the text stayed fullwidth.
 
 The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
 
@@ -1443,7 +1451,7 @@ stamp.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 14 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 15 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1471,11 +1479,12 @@ The description is the **only** thing a skill is selected on — the body is nev
 The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
 
 ```bash
-# Sanity-check every skill — 14 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 15 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
 # every skill count stated in prose, the skill map's per-skill meta, the number of
-# checks itself, and whether what is installed still matches this repo)
+# checks itself, whether a file a skill copies into a project still equals the one
+# CI tested, and whether what is installed still matches this repo)
 python3 scripts/lint_skills.py
 
 # Regenerate skills.json (the machine-readable registry of all 45 skills)
@@ -1530,7 +1539,7 @@ CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --c
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
 
-**Six of the fourteen checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments. It gained a thirteenth pattern later, for the skill map's metric card — a bare `<div class="v">44</div>` with no adjacent word for any prose pattern to catch, which is exactly why it sat wrong through a release. **Check 12** compares what is installed against what is here, and reports rather than fails: a divergence is a fact about your machine, not about the commit. **Check 13** compares the skill map's per-skill meta — the bare `1122·9r·2s` beside each name — against `skills.json`; nothing writes those numbers and no prose pattern can reach them, and on its first run **9 of the 15 rows were wrong**. **Check 14** guards the count in this very sentence, because the commit that added checks 13 and 14 first wrote "13" in three places.
+**Seven of the fifteen checks exist because the same thing kept happening: the content held and the metadata rotted.** Check 8 catches a capability documented in a skill body but missing from its `description` — the skill would never load for the request that needs it. Check 10 catches a skill that exists but is absent from the README catalogue. Check 11 catches a skill count stated in prose that no longer matches reality — it found six on its first run, four of them in phrasings that a grep for the obvious form ("N skills") never matched — a bare count after "There are", one inside "packaging of all N", and both installers' header comments. It gained a thirteenth pattern later, for the skill map's metric card — a bare `<div class="v">44</div>` with no adjacent word for any prose pattern to catch, which is exactly why it sat wrong through a release. **Check 12** compares what is installed against what is here, and reports rather than fails: a divergence is a fact about your machine, not about the commit. **Check 13** compares the skill map's per-skill meta — the bare `1122·9r·2s` beside each name — against `skills.json`; nothing writes those numbers and no prose pattern can reach them, and on its first run **9 of the 15 rows were wrong**. **Check 14** guards the count in this very sentence, because the commit that added checks 13 and 14 first wrote "13" in three places. **Check 15** compares a file a skill hands to a project against the copy CI tested — `guards.template.ts` against `agent-guards/src/guards.ts` — because a drift there ships untested code to every new project while the suite stays green.
 
 **Regenerating the skill map.** Edit [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html), then re-shoot the hero PNG at 1300px wide (the page's own `scrollHeight`, device scale 1.5) into `docs/assets/`. ⚠️ **Force reduced motion when you shoot it** — the sections are `.reveal` (opacity 0 until an IntersectionObserver adds `.in`), so a headless capture renders them blank; the `prefers-reduced-motion` rule is the escape hatch:
 

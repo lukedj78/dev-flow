@@ -1,17 +1,17 @@
 {
   "name": "@dev-flow/agent-guards",
   "version": "0.1.0",
-  "description": "Five mechanical defences for an agent whose tools return text nobody at your company wrote: fence untrusted results, gate writes on provenance, bound what memory accepts, refuse in the result.",
+  "description": "The four mechanical defences an agent needs when its tools return text nobody at your company wrote. One file, copied into a project by dev-flow's eve-agent skill; tested here.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/guards.d.ts",
+      "default": "./dist/guards.js"
     }
   },
-  "types": "./dist/index.d.ts",
+  "types": "./dist/guards.d.ts",
   "files": [
     "dist"
   ],

@@ -396,15 +396,22 @@ context. There is no fencing helper in the package. Five rules, adapted from Ant
 [commerce-agents](https://github.com/anthropics/commerce-agents) reference (Apache 2.0), whose
 `commerce_common/fencing.py` is the same idea with 18 tests behind it.
 
-**Don't retype any of this.** The four mechanical parts ship as
-[`@dev-flow/agent-guards`](../../agent-guards/README.md) in this repo — zero runtime dependencies, 28
-tests, nothing importing eve. A security utility copied by hand means a bug fixed in one project stays
-live in the other six. The code below is what it does, so you can read it; `npm i @dev-flow/agent-guards`
-is how you get it.
+**Don't retype any of this — and don't install it either.** The four mechanical parts are one file,
+[`references/guards.template.ts`](./guards.template.ts), which this skill **copies into the project**
+at `agent/lib/guards.ts`. Same model as shadcn: the code lands in your repo, you own it, you can read
+it and adapt the patterns to your domain.
 
 ```ts
-import { createFence, createProvenance, validateFact, blocked } from "@dev-flow/agent-guards";
+import { createFence, createProvenance, validateFact, blocked } from "../lib/guards";
 ```
+
+It is not an npm dependency on purpose. A published package would mean a version to bump, a registry
+to publish to, and a lockfile entry in every project — for four functions that any project may
+legitimately want to tune. What a dependency buys is *not drifting*, and that is bought here instead
+by the toolchain: the same file lives in dev-flow's `agent-guards/`, where CI runs **28 tests** against
+it and, on every push, **deletes one defence to check the suite notices**; the linter's **check 15**
+refuses to pass if the template and the tested source differ by a byte. So what lands in a project is
+what was tested, and when it improves upstream you re-copy it and read the diff.
 
 **a. Fence every result, in the tool.** One function, applied to whatever leaves `execute`:
 

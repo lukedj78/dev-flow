@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFence, truncate } from "../dist/index.js";
+import { createFence, truncate } from "../dist/guards.js";
 
 const fence = createFence({ label: "store-data" });
 

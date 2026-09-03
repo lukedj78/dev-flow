@@ -1,4 +1,4 @@
-# @dev-flow/agent-guards
+# agent-guards
 
 Five mechanical defences for an agent whose tools return text nobody at your company wrote.
 
@@ -6,23 +6,27 @@ Zero runtime dependencies. Nothing here imports eve, or any framework: the one p
 somewhere to keep state takes the store as an argument, so the same guard runs over eve's
 `defineState`, a Redis handle, or a plain object in a test.
 
-## Why a package and not a snippet
+## Why this is not a package you install
 
-`eve-patterns.md` §11 describes these as a recipe, and a recipe gets copied — which means every
-project ends up with its own slightly different `fence()`, and a bug fixed in one is still live in the
-other six. A security utility is the wrong thing to retype.
+It was one, briefly, and that was the wrong shape for this repo.
 
-The reasoning is Anthropic's [commerce-agents](https://github.com/anthropics/commerce-agents)
-(Apache 2.0), whose `commerce_common/fencing.py` is the same idea with tests behind it. None of its
-code is here: that is Python on the Agent SDK, this is TypeScript for eve.
+Everything dev-flow builds follows the shadcn model: the code lands in your repository and you own
+it. A published dependency would mean a version to bump, a registry to publish to, and a lockfile
+entry in every project — for four functions any project may legitimately want to tune, because the
+label, the extra blocked patterns and the cap are domain decisions.
 
-## Install
+So this directory is **the tested home of a file that gets copied**, not a package to depend on. The
+`eve-agent` skill writes `references/guards.template.ts` into a project at `agent/lib/guards.ts`,
+verbatim.
 
-```bash
-npm i @dev-flow/agent-guards
-```
+What a dependency buys is *not drifting*, and that is bought here by the toolchain instead:
 
-Not yet on npm. Until it is, depend on it by path in a workspace, or by git URL.
+- CI runs the 28 tests against `src/guards.ts` on Node 20, 22 and 24;
+- on every push it **deletes one defence and requires the suite to notice**;
+- the linter's **check 15** fails if `guards.template.ts` differs from `src/guards.ts` by a byte.
+
+So what lands in a project is what was tested, and when it improves here you re-copy it and read the
+diff — which is a review, where a silent version bump is not.
 
 ## The problem, in one example
 
@@ -44,7 +48,7 @@ happened.
 ### 1. Fence every result, in the tool
 
 ```ts
-import { createFence } from "@dev-flow/agent-guards";
+import { createFence } from "../lib/guards";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
@@ -75,7 +79,7 @@ A notice repeated per result is bytes the model learns to skip.
 ### 2. Gate writes on provenance
 
 ```ts
-import { createProvenance, blocked } from "@dev-flow/agent-guards";
+import { createProvenance, blocked } from "../lib/guards";
 import { defineState } from "eve/context";
 
 const slot = defineState("shop.seen", () => ({ ids: [] as string[] }));
@@ -105,7 +109,7 @@ dropped id needs a fresh read rather than being a mystery.
 ### 3. Bound what memory accepts
 
 ```ts
-import { validateFact, blocked } from "@dev-flow/agent-guards";
+import { validateFact, blocked } from "../lib/guards";
 
 const verdict = validateFact(
   { key, value, category },
