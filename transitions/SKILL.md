@@ -113,11 +113,21 @@ In a given file, replace hardcoded durations/easings with the nearest token (rou
 ```jsonc
 "motion": {
   "runtime": "tw-animate-css" | "motion" | "both",   // Tier 0 only, or Motion also wired
+  "library": "motion" | "framer-motion" | null,       // the Tier-3 package, when one is wired
   "tokens": true,                                      // lib/motion/tokens.ts scaffolded
   "view_transitions": true | false,                   // route transitions enabled
   "last_audit_at": "<ISO>" | null
 }
 ```
+
+⚠️ **This key is shared with `module-add motion`, and the two used to write
+different *shapes* into it** — that skill wrote the bare string `"motion"`, this
+one writes the object above, so whichever ran second silently destroyed what the
+first recorded. Settled in favour of the object, because it can carry everything
+the string said: `module-add motion` now writes `stack.motion.library` and
+`runtime`, leaving `tokens` / `view_transitions` to this skill. If you find a
+`meta.json` with `"motion": "motion"`, it predates the fix — replace it with
+`{ "runtime": "motion", "library": "motion", "tokens": false, "view_transitions": false, "last_audit_at": null }`.
 
 ## Definition of Done
 

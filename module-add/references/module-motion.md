@@ -66,6 +66,12 @@ import type { Transition, Variants } from "motion/react";
  *
  * Stiffness/damping calibration:
  * - `snappy`: UI feedback (button press, toggle). Fast, slightly bouncy.
+ *
+ * ⚠️ `snappy` at 400/30 is a damping ratio of ζ≈0.75 — it **overshoots**, which
+ * is usually the point but is wrong in any design system whose rules forbid
+ * bounce (a "pillow-soft" or restraint-led visual language will say so in its
+ * Don't list). Check the DESIGN.md before shipping these as-is; ζ = 1 is
+ * `damping = 2·√stiffness`, so 400/40 keeps the speed and drops the ring.
  * - `smooth`: layout transitions, modal mount. Calm, settled.
  * - `gentle`: hero reveals, hover follow. Soft, organic.
  */
@@ -107,10 +113,18 @@ Single-element fade-in-from-bottom wrapper. Use for hero text, section headings,
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 import type { HTMLMotionProps } from "motion/react";
-import { FADE_UP } from "@/lib/motion-config";
+import { FADE_UP, SPRING } from "@/lib/motion-config";
 
-type FadeInProps = HTMLMotionProps<"div"> & {
+/**
+ * ⚠️ `children` is narrowed back to `ReactNode`. `HTMLMotionProps<"div">` widens
+ * it to accept a `MotionValue`, which is right for `motion.div` and wrong for a
+ * wrapper that hands its children to a plain `div` in the reduced-motion branch
+ * — **TS2322 on `motion@13`** otherwise. Verified against motion@13.2.0.
+ */
+type FadeInProps = Omit<HTMLMotionProps<"div">, "children"> & {
+  children?: ReactNode;
   delay?: number;
 };
 
@@ -132,7 +146,10 @@ export function FadeIn({ children, delay = 0, ...rest }: FadeInProps) {
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-10% 0px" }}
-      transition={{ ...FADE_UP.visible.transition, delay }}
+      /* ⚠️ Read the preset, not `FADE_UP.visible.transition`: a `Variant` may be
+         a `TargetResolver` function, so that property does not exist on the type
+         — **TS2339 on `motion@13`**. `SPRING` is the shared source anyway. */
+      transition={{ ...SPRING.gentle, delay }}
       {...rest}
     >
       {children}
@@ -148,12 +165,14 @@ Container that staggers its children's reveal. Wrap a `<ul>` or grid; each direc
 ```tsx
 "use client";
 
-import { Children, isValidElement, cloneElement } from "react";
+import { Children, isValidElement, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { HTMLMotionProps } from "motion/react";
 import { FADE_UP, STAGGER_CONTAINER } from "@/lib/motion-config";
 
-type StaggerListProps = HTMLMotionProps<"div"> & {
+/** Same `children` narrowing as `FadeIn`, for the same TS2322 — see the note there. */
+type StaggerListProps = Omit<HTMLMotionProps<"div">, "children"> & {
+  children?: ReactNode;
   /** Override the default 80ms stagger interval. */
   stagger?: number;
 };
@@ -340,15 +359,30 @@ Every component this module writes starts with `"use client"`. Document this in 
 
 ## Update meta.json
 
+⚠️ **`stack.motion` is an object, not a string** — it is shared with the
+`transitions` skill, which stores the token layer's state in the same key. Writing
+the bare string `"motion"` here destroyed whatever that skill had recorded, and
+vice versa. Merge into the object; never replace it:
+
 ```json
 {
   "stack": {
-    "motion": "motion"
+    "motion": {
+      "runtime": "motion",
+      "library": "motion",
+      "tokens": false,
+      "view_transitions": false,
+      "last_audit_at": null
+    }
   }
 }
 ```
 
-(Use `"framer-motion"` instead if the legacy package is in use.)
+This module owns **`runtime`** and **`library`** only. Leave `tokens`,
+`view_transitions` and `last_audit_at` exactly as found — `transitions` owns
+them, and it may well have run first. Use `"framer-motion"` as the `library` if
+the legacy package is in use. If `runtime` already reads `"tw-animate-css"`
+(Tier 0 was wired first), set it to `"both"` rather than overwriting it.
 
 ## Known caveats
 

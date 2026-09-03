@@ -35,3 +35,28 @@ Group by severity: **A11y** (missing reduced-motion) → **Performance** (layout
 5. **Weight** — downgrade Tier-3-for-a-fade to Tier 0.
 
 Each refine is a reviewable diff. A re-run of the scan should return no findings for already-fixed files (idempotent). Update `stack.motion.last_audit_at` and append `history`.
+
+
+## Read the scan by provenance, not top to bottom
+
+`scan_motion.py` tags every finding with a `provenance` and reports a
+`by_provenance` count. Ranking by it is the difference between an audit someone
+acts on and one they close:
+
+| `provenance` | What it is | What to do |
+|---|---|---|
+| `authored` | code someone on this project wrote | **this is the audit** — verify and fix |
+| `vendored` | copied-in preset source (`components/ui/**`, registry components) | note it; fix only what you have already customised, and say the global guard covers the rest |
+| `token-layer` | `lib/motion/**`, `lib/motion-config.*` | expected — these files *are* where the raw values live |
+
+On a real shadcn project the first run came back **58 vendored, 5 token-layer,
+15 authored**: forty untouched preset files were burying the six hits that
+mattered. The fix is ranking, not a shorter rule set.
+
+Three categories are informational rather than smells, and the scan now knows it:
+a `--motion-*` custom property carrying a `cubic-bezier` is the **bridge**, a
+`0.01ms` is the reduced-motion **guard**, and a file importing from
+`lib/motion/transitions` inherits that library's `motion-reduce:` fallbacks — so
+none of the three is reported. `tier3-import-review` stays informational by
+design: it asks you to judge whether Motion was the right tier, and the answer is
+often yes.

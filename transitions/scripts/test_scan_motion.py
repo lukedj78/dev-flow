@@ -96,6 +96,76 @@ class TestScanSmoke(unittest.TestCase):
             (root / "M.tsx").write_text('import { motion } from "motion/react"\n<motion.div animate={{opacity:1}} className="motion-reduce:animate-none"/>')
             self.assertIn("tier3-import-review", self._cats(scan(root)))
 
+    # ── precision: what the scan must NOT report ─────────────────────────────
+    # Each of these was a real false positive from the first run against a live
+    # project, where forty preset files and the token layer itself buried six
+    # authored hits.
+
+    def test_tokenized_easing_is_not_an_inline_easing(self):
+        """`ease-[var(--motion-ease-*)]` is the form this skill asks for."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "a.tsx").write_text(
+                'className="animate-in ease-[var(--motion-ease-standard)] motion-reduce:animate-none"')
+            self.assertNotIn("inline-easing", self._cats(scan(root)))
+
+    def test_literal_arbitrary_easing_is_still_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "a.tsx").write_text(
+                'className="animate-in ease-[cubic-bezier(.17,.67,.83,.67)] motion-reduce:animate-none"')
+            self.assertIn("inline-easing", self._cats(scan(root)))
+
+    def test_token_definition_line_is_not_a_smell(self):
+        """The CSS-var bridge is where the beziers legitimately live."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "globals.css").write_text(
+                ":root { --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1); "
+                "--motion-duration-base: 200ms; }")
+            self.assertEqual(scan(root), [])
+
+    def test_reduced_motion_guard_is_not_a_magic_duration(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "globals.css").write_text(
+                "@media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; } }")
+            self.assertNotIn("magic-duration", self._cats(scan(root)))
+
+    def test_importing_the_library_counts_as_guarded(self):
+        """A file composing its classes from the tokenized library inherits the
+        library's `motion-reduce:` fallbacks; file-level detection cannot see
+        through an imported string, so the import is the evidence."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "Card.tsx").write_text(
+                'import { hoverLift } from "@/lib/motion/transitions";\n'
+                'export const C = () => <div className={hoverLift}>x</div>;')
+            self.assertNotIn("no-reduced-motion", self._cats(scan(root)))
+
+    # ── provenance: ranking, so an audit stays readable ─────────────────────
+
+    def test_provenance_separates_vendored_from_authored(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "components" / "ui").mkdir(parents=True)
+            (root / "components" / "ui" / "button.tsx").write_text('className="transition-all"')
+            (root / "app").mkdir()
+            (root / "app" / "page.tsx").write_text('className="transition-all"')
+            origins = {f["file"]: f["provenance"] for f in scan(root)}
+            self.assertEqual(origins["components/ui/button.tsx"], "vendored")
+            self.assertEqual(origins["app/page.tsx"], "authored")
+
+    def test_provenance_marks_the_token_layer(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "lib" / "motion").mkdir(parents=True)
+            (root / "lib" / "motion" / "tokens.ts").write_text(
+                'export const ease = { standard: "cubic-bezier(0.2, 0, 0, 1)" };')
+            found = scan(root)
+            self.assertTrue(found)
+            self.assertEqual(found[0]["provenance"], "token-layer")
+
 
 if __name__ == "__main__":
     unittest.main()
