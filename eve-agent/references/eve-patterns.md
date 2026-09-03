@@ -87,6 +87,8 @@ async function decideTenantApproval(surface: Surface, ctx: ApprovalContext): Pro
 - **Session-ownership at the HTTP boundary:** after an approval parks a session, your proxy must reject a caller trying to continue/stream a session owned by another tenant (`POST /eve/v1/session/:sessionId`, `GET …/stream`).
 - Built-in approval confirms *human access*, not *role separation* — for four-eyes/segregation-of-duties, build app-owned approval requests.
 
+> **When the side effect changes data the business owns** — a price, a listing, a rota, a published page — an approval gate is the weaker form. The stronger one is that **the agent has no write**: it proposes, and a person applies. See `staged-writes.md`, which is this recipe taken to its conclusion.
+
 ## 3. Multi-tenant memory — durable, user-scoped, composed
 
 eve has **no built-in tenant memory**. Compose it from **auth + dynamic instructions + tools + an external store**. Do **not** use `defineState` — the docs are explicit that it "holds conversation-scoped working memory that lives and dies with the session", and that anything needing multi-session persistence must use an external store.

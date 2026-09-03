@@ -197,6 +197,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/subagents` | `eve-capabilities.md` §Subagent | ✅ |
 | `/docs/sandbox` | `eve-concepts.md` §Sandbox (backends, seeding, network policy, credential brokering) | ✅ |
 | `/docs/tools/human-in-the-loop` | `eve-concepts.md` §HITL + `eve-conventions.md` (approval) + `eve-capabilities.md` (`respond()` / `parseInputResponses`) | ✅ |
+| *(no eve page)* | `staged-writes.md` — an agent that changes a business's data has no write verb: propose, apply, discard. eve documents approvals, not this shape | ➕ |
 
 ## Connections & channels
 | Page | Covered in | |
