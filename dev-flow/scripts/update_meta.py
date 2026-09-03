@@ -202,6 +202,19 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         sys.stderr.write(f"--inputs / --outputs must be valid JSON: {e}\n")
         return 1
 
+    # `set-phase` rejects an unknown phase; this used to accept one, write it into
+    # history, and then silently skip the bump — so a caller that mistyped got a
+    # success line, a history entry naming a phase that does not exist, and a
+    # project still sitting on the previous one. Found the first time a new project
+    # was taken through the whole flow: `tasks_ready` for `tasks_split`.
+    phase_after = None
+    if args.phase_after:
+        phase_after = PHASE_ALIASES.get(args.phase_after, args.phase_after)
+        if phase_after not in PHASES:
+            sys.stderr.write(f"Unknown phase: {args.phase_after}\n")
+            sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
+            return 2
+
     history = meta.setdefault("history", [])
     history.append({
         "skill": args.skill,
@@ -209,18 +222,16 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         "inputs": inputs,
         "outputs": outputs,
         "phase_before": meta.get("phase"),
-        "phase_after": args.phase_after,
+        "phase_after": phase_after,
     })
 
-    if args.phase_after:
-        phase_after = PHASE_ALIASES.get(args.phase_after, args.phase_after)
-        if phase_after in PHASES:
-            cur_raw = meta.get("phase", "empty")
-            cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-            cur_idx = PHASES.index(cur) if cur in PHASES else -1
-            new_idx = PHASES.index(phase_after)
-            if new_idx >= cur_idx:
-                meta["phase"] = phase_after
+    if phase_after:
+        cur_raw = meta.get("phase", "empty")
+        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
+        cur_idx = PHASES.index(cur) if cur in PHASES else -1
+        new_idx = PHASES.index(phase_after)
+        if new_idx >= cur_idx:
+            meta["phase"] = phase_after
 
     save_meta(meta_path, meta)
     print(f"history += {{ skill: {args.skill}, phase_after: {args.phase_after} }}")

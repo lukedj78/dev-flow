@@ -35,6 +35,21 @@ jobs:
       - name: Self-test the generated-page checks
         run: python3 evals/generated-page/check.py --selftest
 
+      # append-history used to accept an unknown phase, write it into history and
+      # silently skip the bump — a success line over a project that had not moved.
+      - name: append-history must reject a phase that does not exist
+        run: |
+          rm -rf /tmp/phase-smoke && mkdir -p /tmp/phase-smoke
+          python3 dev-flow/scripts/init_workflow.py /tmp/phase-smoke --name "Phase"
+          if python3 dev-flow/scripts/update_meta.py /tmp/phase-smoke \
+               append-history --skill smoke --phase-after not_a_phase; then
+            echo "ERROR: append-history accepted an unknown phase"
+            exit 1
+          fi
+          python3 dev-flow/scripts/update_meta.py /tmp/phase-smoke \
+            append-history --skill smoke --phase-after tasks_split
+          python3 -c "import json;m=json.load(open('/tmp/phase-smoke/.workflow/meta.json'));assert m['phase']=='tasks_split',m['phase'];assert all(h['phase_after'] in (None,'tasks_split') for h in m['history'])"
+
       - name: Smoke-test artifact hashing + drift detection
         run: |
           mkdir -p /tmp/drift-smoke
