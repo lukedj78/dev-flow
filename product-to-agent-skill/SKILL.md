@@ -89,6 +89,26 @@ Then **cut it down**. A skill is a runbook, not a dump: the endpoints an agent
 needs to do the job, in the order it needs them. An endpoint nobody would call
 from an agent does not earn a section.
 
+### Trace the identifier path before anything else
+
+The question that decides whether the skill is writable: **starting from
+nothing, how does a caller obtain the id it needs to act?** Search returns
+prose; mutations need an id. If nothing carries one from the first call to the
+second, the runbook has a hole in the middle and no amount of endpoint
+documentation fills it.
+
+Trace it end to end, for real, before writing. On the first product this skill
+ran against, the assistant's reply named the item and its price and **no
+identifier at all** — the ids were one event earlier in the stream, inside a
+fenced tool result. The file had already claimed otherwise.
+
+### Don't trust `meta.json` about the product
+
+`stack` is what somebody recorded, not what is true. Check each claim you are
+about to repeat: `stack.auth = "better-auth"` on that same product, with
+better-auth absent from `package.json` and referenced nowhere in the code. A
+skill that repeats a false security claim is worse than one that omits it.
+
 ### 2. Establish the auth story before anything else
 
 In order of preference:
@@ -113,6 +133,20 @@ If the product charges, **the price goes in the skill**, next to the first step
 that leads to a payment page. A payment step must never arrive as a surprise —
 state the free tier, what it covers, and what sustained use costs.
 
+### Attack the auth before you document it
+
+Do not write the auth section from the code's intent. Test it:
+
+- **Forge the credential.** Send the cookie, header or token a signed-in caller
+  would send, made up. If it works, there is no authentication, and that is the
+  first line of the file rather than a footnote.
+- **Call the expensive endpoint with nothing.** An agent surface that answers
+  without credentials is somebody's bill.
+
+If either lands, the skill is a **draft** and its first section is the blocker
+table. Publishing an agent-skill publishes the URL it drives — a file that
+documents an open door is an invitation with instructions.
+
 ### 3. Write the loop, not the reference
 
 The middle of the file is the sequence an agent performs to get a result: create
@@ -134,7 +168,21 @@ this product, not something you imagined might.
 ### 5. Prove it before shipping it
 
 Drive the product **through the generated file**, following it literally, and fix
-what the file failed to say. A skill nobody has executed is a guess.
+what the file failed to say. A skill nobody has executed is a guess — the first
+run of this skill corrected its own output four times before it passed.
+
+Three checks that each caught something real:
+
+- **Run the cold-start path.** From nothing to a completed mutation, using only
+  what the file tells you. This is where a missing identifier path surfaces.
+- **Test optional fields across every *kind* of entity, not once.** A field can
+  be absent, `null`, or a value, and the three mean different things: on that
+  product a margin was absent on a stock change, `null` when the cost was not
+  recorded, and a figure otherwise. The file described the middle case only,
+  which would have had a caller announce "unknown margin" over a restock.
+- **Verify how long-running things end.** A stream that never closes makes a
+  plain `curl -N` exit non-zero, which looks like a failure and is not one. Say
+  which event means stop, and say who closes the connection.
 
 Then wire distribution: the README row, the install line, and a note that the
 file must be updated when the API changes — an agent-skill that has drifted from
