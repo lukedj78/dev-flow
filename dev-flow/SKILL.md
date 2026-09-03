@@ -250,6 +250,35 @@ Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaff
 
 Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns `apps/agent/` exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app at `packages/types` (re-exported eve session/event types) and the `withEve()` proxy in `apps/web`. eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
 
+## Shipping the product's own agent-skill
+
+Every product this flow builds may end up with an API. One that only its own
+frontend calls is an implementation detail. One that **somebody else's coding
+agent could drive** is a distribution channel — and it needs a single artefact to
+be usable: a skill file telling that agent how the product works.
+
+**Raise it once, at `feature_complete` → `deployed`,** when all three hold:
+
+1. the product has a callable surface that is not only its own frontend —
+   route handlers under `app/api/`, an OpenAPI spec, a public eve agent
+   (`stack.agent = "eve"`), or an MCP server; **and**
+2. there is a deployed origin to put in the file; **and**
+3. `meta.json#stack.agent_skill` is not set yet.
+
+Then say it plainly, once: *"your product is something a coding agent could
+drive — want me to write its agent-skill, so your users can install it and use
+`<product>` from Claude Code or Cursor?"* If yes, route to
+**`product-to-agent-skill`**.
+
+⚠️ **What it produces belongs to the product, not to dev-flow.** The file lands
+in `<product-repo>/skills/`, ships and versions with that product, and is aimed
+at whoever installs *that* repo. It is never added to dev-flow's own skills,
+never copied into `~/.claude/skills/`, and never listed in `install.sh` —
+the same relationship dev-flow has with the `app/` it builds and does not own.
+
+Don't raise it when the API exists only to serve the product's own pages: a
+skill describing an internal route handler is a lie with a nice table in it.
+
 ## External skills — suggest, never install
 
 dev-flow ships 45 skills and stays free. It is also allowed to **mention that

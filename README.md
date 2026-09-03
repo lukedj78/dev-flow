@@ -1,13 +1,13 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the 45 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r12.png)
+![dev-flow v1.0.0 — map of the 46 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r12.png)
 
 **📖 [Browse the 44 skills →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
 
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **45 skills (6 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **46 skills (7 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -103,7 +103,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies all 45 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies all 46 skill folders into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -160,7 +160,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 | `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
-`install.sh` installs **all 45 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 45 skills, in detail](#the-44-skills-in-detail).
+`install.sh` installs **all 46 skills**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [The 46 skills, in detail](#the-44-skills-in-detail).
 
 ### 2. Create a project
 
@@ -441,7 +441,7 @@ if report.has_drift:
 
 ### Skills this repo does not ship, and points at anyway
 
-dev-flow is 45 skills, MIT, and works offline. It is also allowed to **say that
+dev-flow is 46 skills, MIT, and works offline. It is also allowed to **say that
 somebody else's skill exists** when a project reaches a point where one would
 help — the way a colleague tells you which tool down the hall does the thing you
 just asked for.
@@ -787,10 +787,10 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 - 📐 **[Architecture](./docs/architecture.md)** — the `.workflow/` contract, the `meta.json` schema, the phase enum, file conventions.
 - 🛠 **[Conventions](./docs/conventions.md)** — folder layout (`components/site/` vs `app/<route>/_components/`), server actions in `lib/server/<domain>`, theme system with keyboard shortcut, showcase template.
 - 📚 **[Case studies](./docs/case-studies.md)** — three projects built with the suite (Aetherfield editorial, Notarius CRM, Wisely fintech). Each shows which skills were used and what was generated.
-- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 45 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
+- 🤖 **[Full walkthrough](./docs/example-full-walkthrough.md)** — one product ("Helmsman" AI support desk) exercising all 46 skills, phase by phase: core → design → monorepo → web → mobile → agent (eve) → voice/realtime → deploy.
 - 🔁 **[Loop engineering](./docs/loop-engineering.md)** — runbook for an autonomous Linear → Claude Code → PR loop on a Hetzner server (the harness that *repeats* one dev-flow iteration). Project-agnostic; eve is one optional payload.
 - 📇 **[Knowledge index](./docs/knowledge-index.md)** — the map of every doc-grounded how-to: which domain, which reference, which upstream to re-verify. Start here when wiring a library or running a knowledge refresh.
-- 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 45 skills.
+- 🧠 **[Obsidian](./docs/OBSIDIAN.md)** — this repo is also an Obsidian vault (config committed): graph view over skills → references, backlinks, full-text search across all 46 skills.
 - 🔤 **[CONTEXT.md](./CONTEXT.md)** — the ubiquitous language: what *skill*, *family*, *phase*, *reference*, *gate*, *module* mean here, and the words to avoid (three different things are called "registry" — always qualify it).
 - 📋 **[CHANGELOG.md](./CHANGELOG.md)** — semver on the suite as a whole; what a major/minor/patch bump means for the contract.
 - 🚫 **[.out-of-scope/](./.out-of-scope/)** — decisions *not* to build, each with what would change our mind. Read before proposing something that was already evaluated.
@@ -800,7 +800,7 @@ The skill bodies and the contract don't need to change — only the bootstrap la
 ## Repository layout
 
 ```
-<skill-name>/                45 skill folders, FLAT at the root
+<skill-name>/                46 skill folders, FLAT at the root
 ├── SKILL.md                 the skill (frontmatter: name + description)
 ├── references/*.md          its doc-grounded how-tos, recipes, vendored contract
 └── scripts/*                its executable helpers + tests
@@ -818,9 +818,9 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ---
 
-## The 45 skills, in detail
+## The 46 skills, in detail
 
-> 6 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, and `spec-review` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 7 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, and `product-to-agent-skill` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -874,6 +874,15 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 **Output**: `.workflow/tasks.md` with 1 task per `- [ ]` checkbox. Compatible with **beads**, **GitHub Issues import**, **Linear CSV**, **ralph-tui**.
 
 **Sizing**: each task ≈ 2–8 hours of focused work. If a task is bigger, the skill splits it. If smaller, it merges with a sibling. Output ≤ ~15 tasks for an MVP.
+
+### `product-to-agent-skill` — your product → an agent-skill its users install
+
+**Input**: a dev-flow project whose API is callable by something other than its own frontend — route handlers under `app/api/`, an OpenAPI spec, a public eve agent, an MCP server — plus a deployed origin.
+**Output**: `skills/<slug>/SKILL.md` **in the product's repo**, plus the README row and the `npx skills add owner/repo` line for the product's users. Records `meta.json#stack.agent_skill`; no phase bump.
+
+**Why**: an API only its own frontend calls is an implementation detail. One a coding agent could drive is a distribution channel, and it needs exactly one artefact to become usable — a runbook telling that agent how the product works. [`sleekdotdesign/agent-skills`](https://github.com/sleekdotdesign/agent-skills) is the proof: a design service published one 563-line SKILL.md and became drivable from Claude Code, Cursor and Codex without shipping an SDK for any of them. `references/anatomy.md` is what that file taught us, section by section — device flow before raw keys, the loop before the endpoint catalogue, the price stated before any step that leads to a payment page, and a common-mistakes table that can only be written by having driven the thing.
+
+⚠️ **The output belongs to the product, not to this repo.** It ships and versions with that product and is aimed at whoever installs *it*. It is never added to dev-flow's own skills, never copied into `~/.claude/skills/`, never listed in `install.sh` — the same relationship dev-flow has with the `app/` it builds and does not own. `dev-flow` raises it once, at `feature_complete` → `deployed`, and only when the surface is genuinely public: a skill describing an internal route handler is a lie with a nice table in it.
 
 ### `linear-scrum` — Linear + agile scrum for a dev-flow project
 
@@ -1539,7 +1548,7 @@ The repo ships eight scripts (in `scripts/`) you can run anytime — four of the
 # CI tested, and whether what is installed still matches this repo)
 python3 scripts/lint_skills.py
 
-# Regenerate skills.json (the machine-readable registry of all 45 skills)
+# Regenerate skills.json (the machine-readable registry of all 46 skills)
 python3 scripts/build_skills_registry.py
 
 # Repackage the dist/<name>.skill bundles from source (keeps dist/ in sync; run
