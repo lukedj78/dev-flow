@@ -71,7 +71,11 @@ bell.current?.startAnimation();   // and .stopAnimation()
 
 ## The two value-adds this skill enforces
 
-1. **`prefers-reduced-motion` guard (a11y).** The registry components animate **unconditionally** — there is no built-in reduced-motion handling. Wrap usage in the `transitions` discipline: gate the animation with Motion's `useReducedMotion()` so it no-ops for users who opted out.
+1. **`prefers-reduced-motion` guard (a11y).** ⚠️ **Check the registry before assuming, because the two differ** — verified by installing from both at `shadcn@4.19.0`:
+   * **hugeicons-animated** — the shared `lib/use-icon-animation.ts` it installs alongside the first icon **already calls `useReducedMotion()`** and makes `startAnimation()` a no-op when it is set. The hook is the guard.
+   * **heroicons-animated** — each icon is self-contained and animates on hover **unconditionally**; the guard is yours to add.
+
+   Either way, **the trigger you write needs its own check**: hover mode is the component's business, but `bell.current?.startAnimation()` fired from your own event is your call, and calling it for a user who opted out is your bug, not the hook's. So keep the guard at the call site regardless of registry:
    ```tsx
    import { useReducedMotion } from "motion/react";
    const reduce = useReducedMotion();

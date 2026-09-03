@@ -54,9 +54,20 @@ function NotificationsButton({ hasNew }: { hasNew: boolean }) {
 
 Controlled mode is the useful one: shake the bell **when a notification actually arrives**, morph the menu icon **on `open` state**, beat the heart **on like** — tie `startAnimation()` to real events, not just hover.
 
-## Accessibility — the guard the library omits
+## Accessibility — which registry guards, and why you still do
 
-The components animate unconditionally; add the guard yourself (this is the `transitions` discipline applied to icons):
+**The two registries differ, and this was checked by installing from both** (`shadcn@4.19.0`,
+hugeicons-animated at 165 items):
+
+| Registry | Built-in `prefers-reduced-motion` |
+|---|---|
+| **hugeicons-animated** | ✅ its shared `lib/use-icon-animation.ts` calls `useReducedMotion()` and makes `startAnimation()` a no-op when set |
+| **heroicons-animated** | ❌ each icon is self-contained and animates on hover regardless |
+
+So the guard is *not* uniformly missing — but **keep it at your own call site either way**. Hover is
+the component's business; a `startAnimation()` you fire from your own event is yours, and firing it
+for a user who opted out is your bug. The pattern is the same in both cases (this is the
+`transitions` discipline applied to icons):
 
 ```tsx
 import { useReducedMotion } from "motion/react";
