@@ -47,7 +47,7 @@ jobs:
           cp src/fence.ts /tmp/fence.bak
           sed -i 's/\.normalize("NFKC")/\/* removed *\//' src/fence.ts
           npm run --silent build
-          if node --test "test/*.test.js" > /dev/null 2>&1; then
+          if node --test > /dev/null 2>&1; then
             echo "::error::removing the NFKC fold did not fail the suite — the case is vacuous"
             cp /tmp/fence.bak src/fence.ts
             exit 1

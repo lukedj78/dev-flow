@@ -144,8 +144,10 @@ check provenance and shape; they know nothing about your business.
 ## Develop
 
 ```bash
-npm test        # builds, then runs node:test over test/*.test.js
+npm test        # builds, then runs node:test
 ```
+
+Node 20, 22 and 24 in CI. ⚠️ The script uses `node --test` with **no argument** rather than a glob: glob support landed after Node 20, and the first CI run failed there with *"Could not find 'test/*.test.js'"* while 22 and 24 passed. Default discovery finds the same files on every supported version.
 
 Twenty-eight cases. Each defence has been watched to fail: remove the NFKC fold and case 3 fails,
 remove the tag neutraliser and cases 7 and 8 fail. That check is how case 3 was found to be **vacuous**
