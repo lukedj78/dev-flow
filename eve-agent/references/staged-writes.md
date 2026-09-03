@@ -102,6 +102,25 @@ moved, the stock may be gone, the promotion may have ended, the operator's scope
 narrowed. A change approved against yesterday's rules is not approved against today's, and the only
 moment that matters is the moment the write happens.
 
+⚠️ **And re-running the rules is only half of it.** A change is staged against a *state*, and the
+diff the operator approved was a diff from that state. If the value moved in between — someone else
+edited the listing, another change touched the same variant — then applying it writes a diff nobody
+approved, even though every rule still passes. So the second check has two halves:
+
+```ts
+for (const item of change.items) {
+  const current = currentValue(item.targetId, item.field);
+  if (current !== null && String(current) !== String(item.before)) {
+    violations.push(`${item.field} is now ${current}, not ${item.before} as when this was staged`);
+  }
+}
+// …then re-run the rules themselves.
+```
+
+This is optimistic concurrency, and it is the half that is easy to leave out because nothing fails
+without it — the write simply lands on top of someone else's. It was missing from this file until a
+reference implementation's own test asked for the scenario and the code let it through.
+
 ```ts title="agent/tools/apply_change.ts"
 import { defineTool } from "eve/tools";
 import { z } from "zod";
