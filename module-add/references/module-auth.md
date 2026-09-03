@@ -32,10 +32,14 @@ npm install --save-dev @types/node     # only if not already installed
 ```typescript
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
+// ⚠️ `getDb()`, not `db`. `module-add db`'s recommended driver-switch client
+// exports `createDb` / `getDb` and no bare `db` — this file used to import a
+// symbol that reference never defines, so following both in order did not
+// compile. Only the "simpler alternative" Neon-only client exports `db`.
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "pg" }),
+  database: drizzleAdapter(getDb(), { provider: "pg" }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -82,13 +86,36 @@ Templates live alongside this reference file when fleshed out — for v1, write 
 
 ### Schema additions for Drizzle
 
-better-auth needs `user`, `session`, `account`, and `verification` tables. Append the schema definitions to `lib/db/schema.ts` (created by `module-add db`). Use the official better-auth Drizzle schema generator:
+better-auth needs `user`, `session`, `account`, and `verification` tables. Generate them — never hand-write them, the adapter expects an exact shape:
 
 ```bash
-npx @better-auth/cli generate
+npx auth@latest generate --config lib/auth.ts --output lib/db/auth-schema.ts
 ```
 
-Then run a Drizzle migration (`npm run db:push` or `drizzle-kit migrate`).
+⚠️ **Not `npx @better-auth/cli generate`.** That package is stuck at **0.1.0**
+and generates for a much older better-auth: against `better-auth@1.7.2` its
+output is missing `account.issuer`, and sign-up fails at runtime with *"The field
+\"issuer\" does not exist in the \"account\" Drizzle schema"*. The library's own
+error message names the replacement, and `auth@latest` tracks better-auth's
+version (1.7.2 at the time of writing).
+
+⚠️ **The generator cannot load a config that imports through a path alias.**
+`lib/auth.ts` normally does `import { getDb } from "@/lib/db"`, and the CLI
+resolves the file outside Next's module resolution, so it exits `MODULE_NOT_FOUND`
+on the alias. Two ways out, in order: run it against a config whose imports are
+relative, or — when the schema is otherwise correct and one field is missing —
+transcribe that field from better-auth's own declaration
+(`@better-auth/core/dist/db/schema/<table>.mjs`) with a comment saying where it
+came from and why. Never invent a column.
+
+Then wire it into the schema `module-add db` created:
+
+```typescript
+// lib/db/schema.ts
+export * from "./auth-schema";
+```
+
+and apply it (`pnpm db:push` in dev, `db:generate` + `db:migrate` for anything real).
 
 ## Environment variables
 
@@ -194,6 +221,16 @@ If you want to gate the form at render time instead of catching the throw, do an
 
 ## Known caveats
 
+- ⚠️ **Wiring auth into a second process is what makes `module-add db`'s PGlite
+  warning bite.** That reference says the embedded fallback is single-process and
+  safe "as long as only one process touches the database". Auth is the thing that
+  usually breaks that: an agent sidecar, a worker or a queue consumer that needs
+  to know who is calling will import `lib/auth` → `lib/db` and open the same data
+  directory a second time. On a real project this aborted the engine and left the
+  directory unreadable — recoverable only by deleting it. **Resolve the session
+  over HTTP from the other process** (`GET /api/auth/get-session`, forwarding the
+  caller's `cookie` header) rather than sharing the database: one component holds
+  the session store, and the sidecar never needs database credentials at all.
 - better-auth's Drizzle adapter requires the schema to be in a specific shape. The `@better-auth/cli generate` tool handles this — don't hand-write the auth tables.
 - Magic-link requires `module-add email` (Resend is the default). Don't enable magic-link before email is wired — better-auth will throw at runtime.
 - For social login (Google/GitHub/etc.), the user has to register OAuth apps with each provider and add `BETTER_AUTH_GOOGLE_CLIENT_ID` etc. to env. This is out of scope for v1 — leave a comment in `auth.ts` showing how to add them.

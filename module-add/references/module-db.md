@@ -38,18 +38,36 @@ npm install --save-dev drizzle-kit dotenv tsx
 
 ### `drizzle.config.ts` (project root of the app)
 
+⚠️ **Mirror the runtime's driver choice here, or `db:push` fails on a clean
+checkout.** The client below falls back to PGlite when `DATABASE_URL` is unset —
+but a config that only reads `dbCredentials.url` exits with *"Either connection
+'url' or 'host', 'database' are required"*, so the very first `pnpm db:push`
+cannot run without the infrastructure the fallback exists to avoid. Branch the
+config the same way the client branches (`driver: "pglite"` is one of the five
+this version accepts — verified at `drizzle-kit@0.31.10`):
+
 ```typescript
 import { defineConfig } from "drizzle-kit";
 import "dotenv/config";
 
-export default defineConfig({
-  dialect: "postgresql",
-  schema: "./lib/db/schema.ts",
-  out: "./lib/db/migrations",
-  dbCredentials: {
-    url: process.env.DATABASE_URL!,
-  },
-});
+const url = process.env.DATABASE_URL;
+
+export default defineConfig(
+  url
+    ? {
+        dialect: "postgresql",
+        schema: "./lib/db/schema.ts",
+        out: "./lib/db/migrations",
+        dbCredentials: { url },
+      }
+    : {
+        dialect: "postgresql",
+        driver: "pglite",
+        schema: "./lib/db/schema.ts",
+        out: "./lib/db/migrations",
+        dbCredentials: { url: process.env.PGLITE_DATA_DIR ?? "./.data/pglite" },
+      },
+);
 ```
 
 ### `lib/db/index.ts`
@@ -96,6 +114,15 @@ WASM/native drivers aren't bundled. **Multi-process dev (e.g. Next + a separate 
 PGlite is single-process — either point both at one Neon dev branch, or expose PGlite over
 the Postgres wire protocol with `@electric-sql/pglite-socket` (`PGLiteSocketServer`,
 `maxConnections ≥ 2`) and set `DATABASE_URL=postgresql://…@127.0.0.1:5434/postgres`.
+
+⚠️ **This is not a theoretical caveat, and `module-add auth` is what usually
+triggers it** — an agent channel that needs to know who is calling imports
+`lib/auth` → `lib/db` and opens the directory a second time. Two observed
+symptoms: the engine aborts with `RuntimeError: Aborted()`, and the data
+directory is left corrupt, so every later `drizzle-kit push` fails until you
+`rm -rf` it. **The dev server also holds the lock**, so CLI tools must be run
+with it stopped. Prefer resolving sessions over HTTP from the second process to
+having two of them on one directory.
 
 **Simpler alternative** (Neon-only — fine when you always have a Neon URL, incl. dev):
 
