@@ -396,6 +396,16 @@ context. There is no fencing helper in the package. Five rules, adapted from Ant
 [commerce-agents](https://github.com/anthropics/commerce-agents) reference (Apache 2.0), whose
 `commerce_common/fencing.py` is the same idea with 18 tests behind it.
 
+**Don't retype any of this.** The four mechanical parts ship as
+[`@dev-flow/agent-guards`](../../agent-guards/README.md) in this repo — zero runtime dependencies, 28
+tests, nothing importing eve. A security utility copied by hand means a bug fixed in one project stays
+live in the other six. The code below is what it does, so you can read it; `npm i @dev-flow/agent-guards`
+is how you get it.
+
+```ts
+import { createFence, createProvenance, validateFact, blocked } from "@dev-flow/agent-guards";
+```
+
 **a. Fence every result, in the tool.** One function, applied to whatever leaves `execute`:
 
 ```ts title="agent/lib/fence.ts"

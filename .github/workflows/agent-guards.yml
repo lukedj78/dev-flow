@@ -1,0 +1,56 @@
+name: agent-guards
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agent-guards/**"
+      # §11 is the prose form of this package. When one moves, the other should
+      # be re-read — the same reason contract-package watches contracts.md.
+      - "eve-agent/references/eve-patterns.md"
+      - ".github/workflows/agent-guards.yml"
+  pull_request:
+    paths:
+      - "agent-guards/**"
+      - "eve-agent/references/eve-patterns.md"
+      - ".github/workflows/agent-guards.yml"
+
+jobs:
+  test:
+    name: node:test @ ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["20", "22", "24"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install (devDependencies only — the package itself has none)
+        working-directory: agent-guards
+        run: npm install --no-audit --no-fund
+
+      - name: Build + test
+        working-directory: agent-guards
+        run: npm test
+
+      # A guard nobody has watched fail is indistinguishable from one that always
+      # passes. Break one defence, require the suite to notice, restore it.
+      - name: The suite must fail when a defence is removed
+        working-directory: agent-guards
+        run: |
+          cp src/fence.ts /tmp/fence.bak
+          sed -i 's/\.normalize("NFKC")/\/* removed *\//' src/fence.ts
+          npm run --silent build
+          if node --test "test/*.test.js" > /dev/null 2>&1; then
+            echo "::error::removing the NFKC fold did not fail the suite — the case is vacuous"
+            cp /tmp/fence.bak src/fence.ts
+            exit 1
+          fi
+          cp /tmp/fence.bak src/fence.ts
+          npm test

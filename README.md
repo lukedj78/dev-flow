@@ -439,6 +439,22 @@ if report.has_drift:
             print(f"{row.path}: {row.status}")
 ```
 
+### The second package: `agent-guards`
+
+`contract-package` is the workflow contract. [`agent-guards/`](./agent-guards/README.md) is the other
+thing this repo ships as code rather than prose: the four mechanical defences an agent needs when its
+tools return text nobody at your company wrote — fence the result, gate writes on provenance, bound
+what memory accepts, refuse in the result instead of throwing. TypeScript, zero runtime dependencies,
+28 tests, and nothing in it imports eve.
+
+It exists because `eve-patterns.md` §11 described these as a recipe, and a recipe gets copied: every
+project ends up with its own slightly different `fence()`, and a bug fixed in one is still live in the
+other six. A security utility is the wrong thing to retype.
+
+Its CI does one thing beyond running the tests: it **removes a defence and requires the suite to
+notice**. That check is how one case was found to be vacuous — it asserted the absence of an ASCII
+turn marker, which also held when the Unicode fold never ran and the text stayed fullwidth.
+
 The dev-flow Claude Code skills are **interchangeable consumers** of this package. Tomorrow you can rewrite any of them in TypeScript, swap one for a Cursor variant, or extend with your own — as long as your tool reads/writes the contract correctly, it composes.
 
 ### 8. Load one skill from a URL, without installing anything
