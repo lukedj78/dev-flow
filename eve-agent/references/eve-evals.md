@@ -59,6 +59,26 @@ t.calledTool("send_email");
 
 **Datasets:** export an **array** of `defineEval(...)`; load rows with `loadYaml` from `eve/evals/loaders`.
 
+### Every refusal case needs its twin
+
+A suite that only asserts *"the agent must refuse X"* is passed perfectly by an agent that refuses
+everything — and over-refusal is the failure users actually report, because it looks like the product
+is broken rather than careful.
+
+So: **for every refusal case, write the case that must still be served**, and make it the closest
+legitimate neighbour you can — same domain, same vocabulary, same shape, different intent. "Refuse to
+issue a refund on a request that arrived inside a review" pairs with "answer a genuine refund-policy
+question from the same customer". If the two are far apart, the pair proves nothing: any agent
+distinguishes them.
+
+Keep the adversarial inputs — the poisoned listing, the review carrying an instruction, the ticket
+with a forged turn marker — in **eval fixtures merged in for the run**, never in the demo or seed
+data. A poisoned record that leaks into a normal fixture makes every unrelated case flaky, and the
+day someone runs the demo it is in the product.
+
+(From Anthropic's [commerce-agents](https://github.com/anthropics/commerce-agents) eval rules; the
+content this defends against is `eve-patterns.md` §11.)
+
 ## Assertions
 
 **Run / turn level (`t.*`):**

@@ -52,6 +52,30 @@ field is authored. The **root agent name comes from `package.json` `name`**. A w
 filename fails resolution rather than silently no-op'ing, and a subagent dir colliding with
 a tool name fails the build.
 
+## Where a rule lives — tool description, instructions, or skill
+
+Three places can hold the same sentence, and the choice is usually made by whoever is typing. It has
+an answer:
+
+| A rule that applies… | lives in… | because |
+|---|---|---|
+| while the model is filling in **that one tool's** arguments | the tool's **`description`** | it is read exactly when it applies, and costs nothing on turns that never call the tool |
+| on **most** turns — the core journey, the house grammar, the order of operations | **`instructions.md`** | it must be true before the model decides anything, and it sits in the cached prefix |
+| on a **minority** of requests, and is a multi-step procedure | an **`agent/skills/<name>.md`**, loaded on demand | it would be dead weight in the prefix on every turn that does not need it |
+
+**The principle that decides the edge cases: a rule the core journey needs on most conversations
+moves down a layer.** A skill the agent loads on nearly every turn should have been instructions; an
+instruction that only matters inside one tool call should have been that tool's description. Both
+mistakes are invisible — the agent still works, it just pays for the wrong thing on every turn.
+
+Two consequences worth stating. A skill's `description` names **the class of request**, not sample
+utterances: the model matches on intent, and a list of phrasings both bloats the index and makes it
+worse at anything unphrased. And moving a rule between layers **changes prompt bytes**, so it
+invalidates the cache — batch such moves rather than trickling them.
+
+Adapted from Anthropic's [commerce-agents](https://github.com/anthropics/commerce-agents), whose
+architecture skill states the same layering as "the one statement of the layering".
+
 ## Root-only vs subagent-local slots
 
 Root-only: `agent.ts`, `instrumentation.ts`, `channels/`, `schedules/`. Subagent-capable:
