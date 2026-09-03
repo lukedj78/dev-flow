@@ -273,7 +273,7 @@
             <div class="nd"><div class="dot">06</div><div class="p">scaffolded</div><div class="s"><b>screenshot-to-page</b> · <b>module-add</b></div></div>
             <div class="nd"><div class="dot">07</div><div class="p">page_generated</div><div class="s">modules · data</div></div>
             <div class="nd"><div class="dot">08</div><div class="p">module_added</div><div class="s"><b>write-tests</b></div></div>
-            <div class="nd"><div class="dot">09</div><div class="p">feature_complete</div><div class="s">deploy</div></div>
+            <div class="nd"><div class="dot">09</div><div class="p">feature_complete</div><div class="s">deploy · <b>product-to-agent-skill</b></div></div>
             <div class="nd last"><div class="dot">10</div><div class="p">deployed</div><div class="s">maintenance</div></div>
           </div>
         </div>
@@ -298,7 +298,8 @@
           <span class="st">design-md-to-app</span><span class="arw">→</span>
           <span class="st">screenshot-to-page</span><span class="arw">→</span>
           <span class="st">module-add</span><span class="arw">→</span>
-          <span class="st">write-tests</span>
+          <span class="st">write-tests</span><span class="arw">→</span>
+          <span class="st">product-to-agent-skill</span>
         </div>
         <div class="foot"><b>UI at scaffold:</b> <span class="o">shadcn</span> <span class="o">base-ui</span> <span class="o">mui</span> <span class="o n">coss<span class="badge">new</span></span></div>
       </div>
@@ -440,6 +441,11 @@
         <div class="h"><i style="background:var(--c-core)"></i> Component hygiene</div>
         <p>Promotion up the colocation hierarchy and React composition patterns.</p>
         <div class="ss"><span class="s">promote-component</span><span class="s">composition-patterns-guide</span></div>
+      </div>
+      <div class="card lyr">
+        <div class="h"><i style="background:var(--c-core)"></i> Your product's own agent-skill</div>
+        <p>An API only your frontend calls is an implementation detail. One somebody else's coding agent could drive is a <b>distribution channel</b>, and it takes one artefact to open — a runbook your users install to run your product from Claude Code or Cursor. Raised once near <code>feature_complete</code>, and only when the surface is genuinely public. The file lands in <b>your</b> repo and ships with it; it never joins these 46.</p>
+        <div class="ss"><span class="s">product-to-agent-skill</span></div>
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-pm)"></i> Pre-deploy gates</div>

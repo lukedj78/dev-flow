@@ -51,6 +51,12 @@
 
 The skills are **interchangeable consumers** of the contract. Tomorrow you could rewrite any of them in TypeScript, swap one out for a Cursor-flavored variant, or extend with your own — as long as they read `meta.json` and respect the phase semantics, they compose.
 
+**Your product can ship its own agent-skill.** When what you build ends up with
+an API a coding agent could drive, that is a distribution channel most products
+never notice they have — and it takes exactly one artefact to open it. Near
+`feature_complete`, dev-flow offers to write it: see
+[`product-to-agent-skill`](#product-to-agent-skill--your-product--an-agent-skill-its-users-install).
+
 **Three stacks today, one contract.** The web stack ships Next.js (or Astro/Vite) + shadcn/Base UI/MUI apps; the mobile stack ships Expo + React Native + NativeWind apps with EAS publishing to the App Store + Play Store; the **monorepo** stack ships both in one turborepo (with `apps/web/` + `apps/mobile/` + shared `packages/`). `dev-flow` (the orchestrator) reads `meta.json#stack.framework` and routes to the correct family — `prd-from-idea` and `prd-to-tasks` are stack-agnostic and used by all three.
 
 ---
@@ -214,7 +220,15 @@ The orchestrator routes through phases:
 6. screenshot-to-page  → /clients, /appointments, …  (phase=page_generated)
 7. module-add db       → Drizzle + Neon
 8. module-add auth     → better-auth
+9. product-to-agent-skill → skills/<slug>/SKILL.md  (only if your API is public)
 ```
+
+Step 9 is the one people don't know exists. When the product ends up with an API
+that somebody else's coding agent could drive, dev-flow says so once and offers
+to write **your product's own agent-skill** — the file your users install to run
+your product from Claude Code or Cursor. It lands in *your* repo, ships with it,
+and is never added to this one. Skipped entirely when the API only serves your
+own pages.
 
 Check progress at any time:
 
