@@ -250,6 +250,30 @@ Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaff
 
 Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns `apps/agent/` exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app at `packages/types` (re-exported eve session/event types) and the `withEve()` proxy in `apps/web`. eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
 
+## External skills — suggest, never install
+
+dev-flow ships 45 skills and stays free. It is also allowed to **mention that
+somebody else's skill exists** when a project reaches a point where one would
+help — the way a colleague tells you which tool down the hall does the thing you
+just asked for.
+
+`references/external-skills.md` holds the list: what each one does, the single
+moment in a project when it is worth raising, what it costs, and what dev-flow
+already does for free instead.
+
+Four rules keep this from turning dev-flow into a paid product:
+
+1. **Suggest; the user installs.** Never run `npx skills add` on their behalf,
+   never add one to `install.sh`, never let a dev-flow skill import or require one.
+2. **Say the price in the same breath**, before the user goes anywhere near a
+   signup page. A payment step must never arrive as a surprise.
+3. **Name the free path we already have**, and let the user choose. The suggestion
+   is an option, not a recommendation.
+4. **Only when the work reaches it** — never as a menu of possibilities at kickoff.
+
+Nothing in that file is a dependency: delete every row and dev-flow does exactly
+what it did before.
+
 ## What dev-flow does NOT do
 
 - **Doesn't do specialist work itself.** No PRD writing, no DESIGN.md generation, no scaffolding. If you find yourself doing actual work (other than reading state and routing), stop — call the right specialist.

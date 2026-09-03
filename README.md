@@ -439,6 +439,31 @@ if report.has_drift:
             print(f"{row.path}: {row.status}")
 ```
 
+### Skills this repo does not ship, and points at anyway
+
+dev-flow is 45 skills, MIT, and works offline. It is also allowed to **say that
+somebody else's skill exists** when a project reaches a point where one would
+help — the way a colleague tells you which tool down the hall does the thing you
+just asked for.
+
+That list lives in [`dev-flow/references/external-skills.md`](./dev-flow/references/external-skills.md),
+and four rules keep it from turning this repo into a paid product:
+
+- **We suggest; you install.** No dev-flow skill runs `npx skills add` for you,
+  nothing external goes into `install.sh`, and no skill here imports or requires one.
+- **The price is said in the same breath**, before you go anywhere near a signup
+  page. A payment step must never arrive as a surprise.
+- **The free path we already have is named**, so the suggestion is an option
+  rather than a recommendation.
+- **It comes up when the work reaches it**, not as a menu at kickoff.
+
+Nothing in that file is a dependency: delete every row and dev-flow does exactly
+what it did before. The first entry is
+[`sleekdotdesign/agent-skills`](https://github.com/sleekdotdesign/agent-skills) —
+a mobile-design service worth mentioning to somebody on the Expo stack who has no
+design and does not want to write a DESIGN.md, alongside the note that our own
+DESIGN.md path costs nothing.
+
 ### The other thing this repo ships as code: `agent-guards`
 
 `contract-package` is a package you install. [`agent-guards/`](./agent-guards/README.md) is the
