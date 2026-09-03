@@ -39,8 +39,20 @@ const INVISIBLE =
 /** C0 and C1 minus tab, newline and carriage return, which are legitimate text. */
 const CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g;
 
-/** A line that opens like a conversation turn. Anchored per line, not anywhere. */
-const TURN_MARKER = /^([ \t]*)(human|assistant|system|user)([ \t]*:)/gim;
+/**
+ * A line that opens like a conversation turn.
+ *
+ * The boundary is start-of-input, a real newline, OR the two characters `\` and
+ * `n` — because `JSON.stringify` escapes newlines, and a tool that returns a
+ * record rather than a string used to slip every marker through mid-line. Found
+ * by an agent whose tools all return records; before this, fencing an object
+ * defused nothing.
+ *
+ * Still a boundary and not "anywhere": `she said assistant: is a strange word`
+ * is prose and must survive untouched.
+ */
+const TURN_MARKER =
+  /(^|\n|\\n)([ \t]*)(human|assistant|system|user)([ \t]*:)/gim;
 
 /** Anthropic-style special tokens and ANSI escapes. */
 const SPECIAL_TOKEN = /<\|[^|>]{0,64}\|>|\[[0-9;]*m/g;
@@ -109,8 +121,8 @@ export function createFence(options: FenceOptions): (payload: unknown) => string
       .replace(SPECIAL_TOKEN, "")
       .replace(
         TURN_MARKER,
-        (_m: string, indent: string, word: string, colon: string) =>
-          indent + "(" + word + colon.trim() + ")",
+        (_m: string, boundary: string, indent: string, word: string, colon: string) =>
+          boundary + indent + "(" + word + colon.trim() + ")",
       );
     text = neutralise(label, text);
     const { text: body, cut } = truncate(text, max);
