@@ -150,6 +150,7 @@ SKILLS=(
   linear-scrum
   compliance-audit
   spec-review
+  product-to-agent-skill
 
   # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md
