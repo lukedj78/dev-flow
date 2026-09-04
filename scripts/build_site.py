@@ -29,6 +29,10 @@ from pathlib import Path
 OUT = Path("docs")
 SKILLS_DIR = "skills"
 REPO = "https://github.com/lukedj78/dev-flow"
+# The footer count lives here, not as a literal in `shell()`: it sat at 44 on every
+# generated page while skills.json already said 46, and no lint check covers the
+# generated site. Read it from the registry like every other number on the page.
+TOTAL = len(json.loads(Path("skills.json").read_text())["skills"])
 
 FAMILY_LABEL = {
     "core": ("Core", "Stack-agnostic. Every project uses these."),
@@ -185,7 +189,7 @@ def shell(title: str, desc: str, body: str, depth: str = "") -> str:
 </div></header>
 {body}
 <footer><div class="wrap">
-  <span>44 skills, one contract. MIT.</span>
+  <span>{TOTAL} skills, one contract. MIT.</span>
   <a href="{REPO}">github.com/lukedj78/dev-flow</a>
   <span>Generated from <code>skills.json</code> — do not edit by hand.</span>
 </div></footer>

@@ -2,7 +2,7 @@
 
 ![dev-flow v1.0.0 — map of the 46 skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r12.png)
 
-**📖 [Browse the 44 skills →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
+**📖 [Browse the 46 skills →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
 
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
@@ -97,7 +97,7 @@ Two ways in, two philosophies. The **plugin** subscribes you to the suite as a m
 /plugin install dev-flow@dev-flow
 ```
 
-All 44 skills arrive namespaced (`dev-flow:forms`, `dev-flow:rn-bootstrap`, …), and `/plugin marketplace update` pulls new releases. The shipped set is generated from the canonical taxonomy, so what you install always matches [`skills.json`](./skills.json) and the [CHANGELOG](./CHANGELOG.md).
+All 46 skills arrive namespaced (`dev-flow:forms`, `dev-flow:rn-bootstrap`, …), and `/plugin marketplace update` pulls new releases. The shipped set is generated from the canonical taxonomy, so what you install always matches [`skills.json`](./skills.json) and the [CHANGELOG](./CHANGELOG.md).
 
 #### Option B — bundled `install.sh` (editable copies, all runtimes)
 

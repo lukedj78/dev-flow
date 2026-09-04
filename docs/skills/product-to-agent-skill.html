@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>monorepo-bootstrap — dev-flow</title>
-<meta name="description" content="Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client).">
+<title>product-to-agent-skill — dev-flow</title>
+<meta name="description" content="Write the agent-skill for the product you just built, so a coding agent can drive it.">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -113,19 +113,21 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 </div></header>
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
-  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">monorepo-bootstrap</h1>
-  <ul class="meta"><li class="chip">Monorepo</li><li class="chip">operative — changes the codebase</li><li class="chip">204 lines</li><li class="chip">5 references</li><li class="chip">4 scripts</li></ul>
-  <p class="lede">Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Three topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app — the classic case), web+agent (Next.js app + an eve agent in apps/agent, no mobile), or web-only (just the turborepo and shared-package tooling around one web app). Reads <code>.workflow/meta.json</code> with <code>stack.framework=&quot;monorepo&quot;</code> and phase in {prd_drafted, design_extracted}. Always idempotent. Use when dev-flow routes here, or the user says &quot;scaffolda il monorepo&quot;, &quot;create a turborepo with web + mobile&quot;, &quot;bootstrap il monorepo da PRD + DESIGN.md&quot;, &quot;scaffolda un turborepo per web + agent eve&quot;. Not for: scaffolding only web with no monorepo tooling (use design-md-to-app), scaffolding only mobile (use rn-bootstrap), or adding modules after the scaffold (use module-add or rn-module-add).</p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">product-to-agent-skill</h1>
+  <ul class="meta"><li class="chip">Core</li><li class="chip">operative — changes the codebase</li><li class="chip">207 lines</li><li class="chip">2 references</li></ul>
+  <p class="lede">Write the agent-skill for the product you just built, so a coding agent can drive it. Reads the product&#x27;s own API surface — Next.js route handlers, an OpenAPI spec, or an eve agent&#x27;s tools — and produces a distributable <code>skills/&lt;slug&gt;/SKILL.md</code> in the product repo: auth (device flow before raw keys), the loop an agent should perform, the endpoint reference, error shapes, and a common-mistakes table grounded in what actually breaks. Plus the README row and the <code>npx skills add owner/repo</code> line for the product&#x27;s users. Use when the product exposes an API that is not only for its own frontend, when the user says &quot;make my product usable from Claude Code / Cursor&quot;, &quot;ship an agent skill for this&quot;, &quot;how do agents use my API&quot;, or when dev-flow raises it near feature_complete. Refuses when the product has no callable surface. Not for: skills that operate ON this repo (those are dev-flow&#x27;s own), and not a docs generator — the output is a runbook, not a reference dump.</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
-  <ul><li>Orchestrator routes here from <code>dev-flow</code> when <code>stack.framework=&quot;monorepo&quot;</code> and <code>phase ∈ {prd_drafted, design_extracted}</code>.</li><li>User says: &quot;scaffolda il monorepo&quot;, &quot;create a turborepo&quot;, &quot;bootstrap il monorepo&quot;.</li></ul>
+  <ul><li>The product has a <strong>callable surface that is not only its own frontend</strong>:</li><li>The user says &quot;make my product usable from Claude Code&quot;, &quot;ship an agent skill</li><li><code>dev-flow</code> raises it at <code>feature_complete</code> → <code>deployed</code>, once there is a</li></ul>
+  <h3>What it does not do</h3>
+  <ul><li><strong>Doesn&#x27;t write docs.</strong> A reference dump is not a skill; the runbook and the</li><li><strong>Doesn&#x27;t invent endpoints.</strong> Everything in the output is read out of the</li><li><strong>Doesn&#x27;t publish.</strong> It writes files and prints the install line; pushing and</li><li><strong>Doesn&#x27;t touch this repo&#x27;s skills.</strong> Those are dev-flow&#x27;s own and live</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/references/decision-tree.md"><code>decision-tree.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/references/patterns.md"><code>patterns.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/references/post-bootstrap-checklist.md"><code>post-bootstrap-checklist.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/references/structure.md"><code>structure.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/product-to-agent-skill/references/anatomy.md"><code>anatomy.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/product-to-agent-skill/references/contracts.md"><code>contracts.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
-./install.sh --platform claude        # or drop dist/monorepo-bootstrap.skill into Claude Code</code></pre>
-  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/monorepo-bootstrap/SKILL.md">Read monorepo-bootstrap/SKILL.md on GitHub →</a></p>
+./install.sh --platform claude        # or drop dist/product-to-agent-skill.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/product-to-agent-skill/SKILL.md">Read product-to-agent-skill/SKILL.md on GitHub →</a></p>
 </div></section>
 <footer><div class="wrap">
   <span>46 skills, one contract. MIT.</span>

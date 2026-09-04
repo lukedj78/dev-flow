@@ -405,6 +405,10 @@ TOTAL_PATTERNS = [
     r"(\d+) skill folders", r"Install all (\d+) dev-flow skills",
     r"Remove all (\d+) dev-flow skills", r"suite is (\d+) skills",
     r"packaging of all (\d+)", r"one of our (\d+) skills", r"exercising all (\d+) skills",
+    # Found by eye, not by the check: the plugin blurb and the docs link sat at 44
+    # in README + the skill map for two releases. These are safe to match because
+    # no family count is ever phrased "All N skills arrive" or "Browse the N skills".
+    r"All (\d+) skills arrive", r"All (\d+) arrive namespaced", r"Browse the (\d+) skills",
     # The skill-map's metric card is a bare number with no adjacent word, so no
     # prose pattern above could ever match it. It sat at 44 for a full release.
     r'>skills</div><div class="v"[^>]*>(\d+)<',
