@@ -351,13 +351,13 @@ def check_readme_catalogue(readme: Path, all_skills: set[str]) -> None:
         return
     text = readme.read_text()
     # The heading carries the count, so match on the stable half.
-    m = re.search(r"^## The (\d+) skills, in detail$", text, re.M)
+    # The heading deliberately carries no count: it is also the anchor target
+    # (#the-skills-in-detail), and a number in an anchor breaks every inbound
+    # link the day the count changes — which is exactly what happened at 44.
+    m = re.search(r"^## The skills, in detail$", text, re.M)
     if not m:
-        warn(f"{readme}: no '## The N skills, in detail' heading (skipping catalogue check)")
+        warn(f"{readme}: no '## The skills, in detail' heading (skipping catalogue check)")
         return
-    claimed = int(m.group(1))
-    if claimed != len(all_skills):
-        err(f"{readme}: catalogue heading says {claimed} skills, {len(all_skills)} exist on disk")
     try:
         section = text[m.start():text.index(CATALOGUE_END, m.start())]
     except ValueError:

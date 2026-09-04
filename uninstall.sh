@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove all 46 dev-flow skills (7 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) from the chosen
+# Remove every dev-flow skill (core · web · agent · mobile · monorepo · refactor) from the chosen
 # runtime's skills directory. Restores legacy `*.bak` backups (pre-2026-08-28 installs),
 # if present.
 #
