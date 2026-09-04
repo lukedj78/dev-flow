@@ -281,7 +281,7 @@ skill describing an internal route handler is a lie with a nice table in it.
 
 ## External skills — suggest, never install
 
-dev-flow ships 45 skills and stays free. It is also allowed to **mention that
+dev-flow ships 46 skills and stays free. It is also allowed to **mention that
 somebody else's skill exists** when a project reaches a point where one would
 help — the way a colleague tells you which tool down the hall does the thing you
 just asked for.

@@ -340,7 +340,6 @@ def check_routing_references(path: Path, all_skills: set[str]) -> None:
 # checked: those tables also list `module-add` module names (auth, db, ci, …)
 # which are not skills, so "extra" rows are normal and flagging them would be
 # noise.
-CATALOGUE_START = "## The 44 skills, in detail"
 CATALOGUE_END = "## How the skills compose"
 PROSE_RE = re.compile(r"^### `([a-z][a-z0-9-]+)`", re.M)
 ROW_RE = re.compile(r"^\| `([a-z][a-z0-9-]+)`", re.M)
@@ -395,8 +394,14 @@ def check_readme_catalogue(readme: Path, all_skills: set[str]) -> None:
 # verbatim. The alternative (teaching the check to recognise an example) makes
 # it cleverer and less trustworthy, which is the wrong trade for a guard.
 FAMILIES = "core|web|agent|mobile|monorepo|refactor"
+# The list started as the five files a release touches, and that was the bug:
+# `dev-flow/SKILL.md` and its external-skills reference both open by stating the
+# suite size, and both sat at 45 while the check reported clean. A count in prose
+# is in scope wherever it lives — add the file here when you write one.
 COUNT_FILES = ["README.md", "CONTEXT.md", "docs/dev-flow-skill-map.html",
-               "install.sh", "uninstall.sh"]
+               "install.sh", "uninstall.sh", "dev-flow/SKILL.md",
+               "dev-flow/references/external-skills.md",
+               "docs/skill-doctor-referto.html"]
 TOTAL_PATTERNS = [
     r"\b(\d+) skills \(", r"containing (\d+) skills", r"[Ss]hould print (\d+)",
     r"all (\d+) skills", r"map of the (\d+) skills", r"my-skills — (\d+) skills",
@@ -409,6 +414,7 @@ TOTAL_PATTERNS = [
     # in README + the skill map for two releases. These are safe to match because
     # no family count is ever phrased "All N skills arrive" or "Browse the N skills".
     r"All (\d+) skills arrive", r"All (\d+) arrive namespaced", r"Browse the (\d+) skills",
+    r"ships (\d+) skills", r"(\d+) skill nel repo",
     # The skill-map's metric card is a bare number with no adjacent word, so no
     # prose pattern above could ever match it. It sat at 44 for a full release.
     r'>skills</div><div class="v"[^>]*>(\d+)<',

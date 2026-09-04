@@ -1,6 +1,6 @@
 # External skills — what dev-flow can point you at, and never installs
 
-dev-flow ships 45 skills and stays free and offline-capable. It is also allowed to
+dev-flow ships 46 skills and stays free and offline-capable. It is also allowed to
 **tell you that somebody else's skill exists** when your project reaches a point
 where one would help.
 
