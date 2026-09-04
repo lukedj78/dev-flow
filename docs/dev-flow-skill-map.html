@@ -233,15 +233,15 @@
     <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract. Installable as a Claude Code plugin.</p>
 
     <div class="console">
-      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 46 skills · v1.0.0 · 15 checks clean</span></div>
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 46 skills · v1.0.0 · 16 checks clean</span></div>
       <div class="metrics">
         <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">46</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">22</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
         <div class="metric"><div class="k"><i style="background:var(--ac-2)"></i>phases</div><div class="v">11</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">13</div></div>
-        <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>lint · checks</div><div class="v">15</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-pm)"></i>how-tos</div><div class="v">14</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>lint · checks</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mono)"></i>output · checks</div><div class="v">16</div></div>
         <p class="mnote">Two families, two questions. The <b>lint</b> checks ask whether a skill is still well-formed — the twelfth compares <b>what is installed</b> against <b>what is in this repo</b>, because the two silently drifted: a real run found <b>25 of 43</b> installed skills carrying the previous day's text, the lint passed, the skills fired, and every one of them was the wrong version. The <b>output</b> checks ask a different question — <b>did the generation follow its own rules?</b> Every anti-slop rule and mandatory step was a promise about generated code that nothing counted. Both families are self-tested: a check nobody has watched fail is indistinguishable from a clean run.</p>
       </div>

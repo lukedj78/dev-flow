@@ -489,7 +489,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 15
+CHECK_COUNT = 16
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -639,6 +639,64 @@ def check_installed_in_sync(root: Path, all_skills: set[str]) -> None:
         )
 
 
+# --- check 16: the skill map's metric cards -------------------------------
+#
+# The cards next to "skills" were the last hand-written numbers on the page, and
+# two of them had drifted so far that nobody could reconstruct what they counted:
+# `web · next 16` read 22 and `how-tos` read 13, against a registry saying 16 web
+# skills and 14 knowledge-role ones. Their siblings (`mobile · expo`, `engine ·
+# eve`) had always been plain family counts, so the definition was never in doubt
+# — only unenforced. Each card is now derived from skills.json or, for `phases`,
+# from the contract's own Phase enum, which is the only place phases are declared.
+PHASE_ENUM = "contract-package/src/dev_flow_contract/core.py"
+METRIC_RE = re.compile(
+    r'<div class="metric"><div class="k">(?:<[^>]+>)*\s*([a-z0-9 ·-]+?)\s*</div>'
+    r'<div class="v"[^>]*>(\d+)</div>'
+)
+
+
+def phase_count(root: Path) -> int | None:
+    """Members of the Phase enum — the contract is the only place they are declared."""
+    path = root / PHASE_ENUM
+    if not path.exists():
+        return None
+    text = path.read_text(errors="ignore")
+    m = re.search(r"^class Phase\b.*?(?=^class |\Z)", text, re.M | re.S)
+    return len(re.findall(r'^    [A-Z_]+ = "', m.group(0), re.M)) if m else None
+
+
+def check_skill_map_metrics(root: Path) -> None:
+    path = root / SKILL_MAP
+    if not path.exists():
+        return
+    try:
+        registry = json.loads((root / "skills.json").read_text())["skills"]
+    except Exception:
+        return  # check_stated_counts already warned
+    fam = lambda f: sum(1 for e in registry if e["family"] == f)
+    expected = {
+        "skills": len(registry),
+        "web · next 16": fam("web"),
+        "mobile · expo": fam("mobile"),
+        "engine · eve": fam("agent"),
+        "how-tos": sum(1 for e in registry if e["role"] == "knowledge"),
+    }
+    phases = phase_count(root)
+    if phases:
+        expected["phases"] = phases
+    else:
+        warn(f"{path}: cannot read the Phase enum ({PHASE_ENUM}) — `phases` card unchecked")
+
+    seen = set()
+    for m in METRIC_RE.finditer(path.read_text(errors="ignore")):
+        label, value = m.group(1), int(m.group(2))
+        seen.add(label)
+        if label in expected and value != expected[label]:
+            err(f"{path}: metric card `{label}` says {value} — it is {expected[label]}")
+    for label in expected.keys() - seen:
+        warn(f"{path}: metric card `{label}` is gone — check 16 no longer covers it")
+
+
 def main() -> int:
     root = Path(".")
     all_skills = collect_skill_names(root)
@@ -671,6 +729,7 @@ def main() -> int:
     check_installer_skills(root / "uninstall.sh", all_skills)
     check_vendored_source(root)
     check_skill_map_meta(root)
+    check_skill_map_metrics(root)
     check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)
 
