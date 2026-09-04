@@ -492,8 +492,43 @@ a `turn.failed` for the session. Reserve throwing for the genuinely unrecoverabl
 asserting "and it must still serve Y", where Y is the legitimate request that looks like X. Without
 the twin a suite is passed perfectly by an agent that refuses everything — see `eve-evals.md`.
 
+## 12. Backlog triage — the adversary that only runs above the threshold
+
+Distilled from the Next.js team's own account, [How we closed 1,500 GitHub issues in one month](https://nextjs.org/blog/how-we-closed-1500-github-issues) (4 Sept 2026): **`closability`**, an eve agent that judges whether a GitHub issue can be closed. 1,462 issues closed in three weeks, a backlog of 2,244 brought under 1,000. It is #9's shape — an agent that *concludes* rather than builds — applied to a **queue** instead of a single incident, and the queue is what changes the rules: at ~30 minutes per investigation and 200 concurrent sessions, nobody is going to re-do the work to check it.
+
+Two things it does are simply #6 and #11 confirmed by the people who wrote the framework: the agent is **read-only outside its sandbox** (it may research, it may not comment, close, push or deploy), and it is **configured to ignore instructions found in issue text or repository content**. Six rules are new.
+
+**a. The second agent argues the opposite, and only runs on the candidates that passed.** A score of 80 or higher triggers a second agent whose brief is to **find evidence the issue should stay open**; only if both agree does it close, and the second one then writes the reason and the comment. Two differences from #8g's reviewer. The **mandate**: a neutral reviewer ratifies — asked "is this right?", a model agrees — while an adversary has to produce something to earn its turn. And the **economics**: the expensive pass runs only on the slice that already looks closable, so you can afford to make it thorough. The threshold is not a shortcut around rigour, it is what pays for it.
+
+**b. A failed reproduction is not evidence of a fix.** Stated outright in their scoring: a failed reproduction alone is never enough to recommend closing, and a high score needs strong *current* evidence with nothing credible against it. This is the rule to write down first, because "I could not reproduce it" is the conclusion an agent under pressure to conclude reaches most easily — it is the one that requires no further work. Make the asymmetry explicit: positive evidence raises the score, **a null result never does**.
+
+**c. Ship the undo before the automation, not after.** The GitHub Action that lets anyone reopen a wrongly-closed issue was merged **before** the review started. #8f treats reversibility as a property of the domain ("closing is reversible, so leave it ungated"); here it is a thing that was *built first*, on purpose. The order is the point twice over: an undo added afterwards is a promise, an undo deployed first is a control — and reopens are the only ground truth you will ever get on the error rate, so the mechanism has to exist before the run it is measuring.
+
+**d. Invalidate cached research when the subject changes, not on a clock.** Every Monday `closability` researches up to 100 issues with no activity for 30+ days, never-reviewed ones first — and **if an issue gets new activity, the saved research is discarded**. No TTL, because a conclusion is valid exactly as long as the evidence it was drawn from is complete. A 7-day TTL would be wrong in both directions at once: re-running quiet issues where nothing changed, and serving a stale verdict on the one that got a comment yesterday. The check costs a timestamp comparison.
+
+**e. The structured output exists to make human review cheap — that is its test.** The payload is `{ closeConfidence, primaryReason, summary, evidence[], references[] }`, and the payoff, in their words, is that most reviews came down to reading the summary and checking the sources the agent had already gathered. Hold #9b's evidence records to that standard: if a human still has to reconstruct the investigation to trust it, the schema failed no matter how well-typed it is. A confidence number without its citations is worse than nothing — it invites the reviewer to skip the part that would have caught the mistake.
+
+**f. Know what an investigating agent actually finds, before you build it.** Their breakdown of 1,462 closures:
+
+| Reason | Share |
+|---|---:|
+| Already fixed | 37% |
+| Duplicate | 19% |
+| Expected behaviour | 16% |
+| No longer reproducible | 6% |
+| Unsupported or obsolete | 5% |
+| Other | 17% |
+
+Three quarters of a backlog is **bookkeeping, not open bugs**. An agent aimed at "find the real bugs" would have spent its whole budget on the 6% and left the 75% sitting there — which is the same mistake as pointing a triage agent at the hard cases first. Size the job by what the queue is actually made of.
+
+**g. Ramp concurrency, and ration autonomy even after it works.** Investigations averaged 30 minutes each in a fresh Sandbox carrying the repo, Node, Playwright and Chromium; concurrency was raised **gradually** to 200 eve sessions. Read the ramp as the pattern, not the number: what you are looking for at concurrency 5 — a rate limit, a sandbox quota, a prompt that only falls over on the odd malformed issue — is cheap there and 200× the bill at the top. And note where they stopped: auto-closing is capped at **25 issues a week**, and every code change still goes through human review before merge. The pipeline earned the right to close things; it did not earn the right to change the product.
+
+⚠️ **One thing worth verifying before treating it as convention.** The post shows a fleet layout — `apps/agent/agents/{closability,reproduction,verification,e2e_test,fix}/agent/…`, **one `package.json` per agent**, with a Next.js dashboard deciding which agent runs next. That is a fourth topology next to embedded / monorepo / agent-only, and it is *not* #7's lead-plus-specialists (there is no lead agent; the app orchestrates). The Maintainer Agent repo does not appear to be public, so this is read off a directory listing in a blog post — confirm against real source before scaffolding anyone onto it.
+
 ## When to reach for these
 
 Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. **#9 (investigation)** is the shape to reach for when the deliverable is a *conclusion* rather than a change — and its evidence rule generalises past agents entirely. **#10 (cross-channel notification)** is the one to remember the moment someone says "just have the agent ping Slack" — `to()` is a handoff, not a notification. **#8 (autonomous pipeline)** is #7 plus unattended execution — reach for it the moment anything triggers the agent without a human in the room (a webhook, a label, a schedule), because that is when "park for approval" silently becomes "hang forever". They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
+
+**#12 (backlog triage)** is #9 run over a queue instead of one incident — reach for it when the deliverable is *many* conclusions and nobody will re-check them individually: issue triage, lead qualification, document review, alert deduplication. Its rules b (a null result never raises the score) and c (ship the undo first) generalise past agents entirely, and c is the one to apply before any unattended run that acts on its own conclusions.
 
 **#11 (untrusted content)** is the one with no threshold: an agent whose tools return anything the business did not author — a review, a ticket, a page, an MCP connection's result — needs the fence, and that is nearly every agent. It is also the recipe eve does not help with, so nothing fails loudly if you skip it.
