@@ -494,6 +494,10 @@ CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
     r'>lint · checks</div><div class="v"[^>]*>(\d+)<',
+    # The skill map also states it inside a fake terminal line, where the em-dash
+    # belongs to "~/my-skills — 46 skills" and never reaches the number. It sat at
+    # 11 next to a metric card reading 15, on the same screen.
+    r"(\d+) checks clean",
 ]
 
 
