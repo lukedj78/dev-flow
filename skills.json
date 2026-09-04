@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-03T12:05:37Z",
+  "generated_at": "2026-09-04T19:31:18Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 45,
+  "skill_count": 46,
   "families": {
     "core": [
       "compliance-audit",
@@ -10,6 +10,7 @@
       "linear-scrum",
       "prd-from-idea",
       "prd-to-tasks",
+      "product-to-agent-skill",
       "spec-review"
     ],
     "web": [
@@ -88,6 +89,7 @@
       "skill_file": "dev-flow/SKILL.md",
       "references": [
         "contracts.md",
+        "external-skills.md",
         "stack-expo-rn.md",
         "stack-monorepo.md"
       ],
@@ -97,7 +99,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 290,
+      "skill_md_lines": 343,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -146,6 +148,20 @@
       "bundle": "dist/prd-to-tasks.skill"
     },
     {
+      "name": "product-to-agent-skill",
+      "family": "core",
+      "role": "operative",
+      "description": "Write the agent-skill for the product you just built, so a coding agent can drive it. Reads the product's own API surface — Next.js route handlers, an OpenAPI spec, or an eve agent's tools — and produces a distributable `skills/<slug>/SKILL.md` in the product repo: auth (device flow before raw keys)...",
+      "skill_file": "product-to-agent-skill/SKILL.md",
+      "references": [
+        "anatomy.md",
+        "contracts.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 207,
+      "bundle": "dist/product-to-agent-skill.skill"
+    },
+    {
       "name": "spec-review",
       "family": "core",
       "role": "operative",
@@ -169,7 +185,7 @@
         "usage.md"
       ],
       "scripts": [],
-      "skill_md_lines": 108,
+      "skill_md_lines": 112,
       "bundle": "dist/animated-icons.skill"
     },
     {
@@ -374,7 +390,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 141,
+      "skill_md_lines": 151,
       "bundle": "dist/transitions.skill"
     },
     {

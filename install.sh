@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install all 45 dev-flow skills (6 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) + a
+# Install all 46 dev-flow skills (7 core + 16 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor) + a
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
