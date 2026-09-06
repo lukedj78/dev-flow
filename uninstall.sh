@@ -58,6 +58,7 @@ SKILLS=(
   shadscan
   vercel-deploy
   vgpu-shaders
+  iframe-canvas
 
   # Agent engine (eve)
   eve-agent

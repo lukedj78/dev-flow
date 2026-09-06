@@ -169,6 +169,7 @@ SKILLS=(
   shadscan
   vercel-deploy
   vgpu-shaders
+  iframe-canvas
 
   # Agent engine (eve — Vercel filesystem-first agent framework)
   eve-agent

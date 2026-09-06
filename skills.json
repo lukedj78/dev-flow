@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-04T19:31:18Z",
+  "generated_at": "2026-09-06T08:47:02Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 46,
+  "skill_count": 47,
   "families": {
     "core": [
       "compliance-audit",
@@ -20,6 +20,7 @@
       "design-md-to-app",
       "figma-to-design-md",
       "forms",
+      "iframe-canvas",
       "image-to-design-md",
       "module-add",
       "screenshot-to-page",
@@ -289,6 +290,20 @@
       ],
       "skill_md_lines": 500,
       "bundle": "dist/forms.skill"
+    },
+    {
+      "name": "iframe-canvas",
+      "family": "web",
+      "role": "knowledge",
+      "description": "Decide and build a pan/zoom canvas whose artboards are live `<iframe>` previews — the architecture behind AI site/app builders (Reweb, Sleek, Plasmic, Builder.io, Onlook), not the one behind Figma. Owns the decisions that fail late: how many live frames the tab can afford, same-origin vs cross-origi...",
+      "skill_file": "iframe-canvas/SKILL.md",
+      "references": [
+        "contracts.md",
+        "production-survey.md"
+      ],
+      "scripts": [],
+      "skill_md_lines": 225,
+      "bundle": "dist/iframe-canvas.skill"
     },
     {
       "name": "image-to-design-md",

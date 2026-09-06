@@ -420,7 +420,12 @@ TOTAL_PATTERNS = [
     r'>skills</div><div class="v"[^>]*>(\d+)<',
 ]
 # A family name followed by a dash introduces a list, not a count ("2 agent — eve").
-FAMILY_COUNT_RE = re.compile(rf"\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I)
+# And a version number in front of one is not a count either: "Next.js 16 web" is a
+# heading about Next.js 16, not a claim that there are 16 web skills. That false
+# positive showed up the first time a skill was added after this check existed.
+FAMILY_COUNT_RE = re.compile(
+    rf"(?<!next\.js )(?<!next )\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I
+)
 
 
 def check_stated_counts(root: Path, all_skills: set[str]) -> None:

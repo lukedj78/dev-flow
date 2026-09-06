@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>rn-bootstrap — dev-flow</title>
-<meta name="description" content="Scaffold a new Expo + React Native app from a PROJECT.md + PRD.md + DESIGN.md using the opinionated stack (Expo Router, TypeScript, NativeWind v4, Zustand, TanStack Query, Reanimated, expo-i">
+<title>iframe-canvas — dev-flow</title>
+<meta name="description" content="Decide and build a pan/zoom canvas whose artboards are live `&lt;iframe&gt;` previews — the architecture behind AI site/app builders (Reweb, Sleek, Plasmic, Builder.io, Onlook), not the one behind">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -113,19 +113,21 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 </div></header>
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
-  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">rn-bootstrap</h1>
-  <ul class="meta"><li class="chip">Mobile</li><li class="chip">operative — changes the codebase</li><li class="chip">146 lines</li><li class="chip">4 references</li><li class="chip">4 scripts</li></ul>
-  <p class="lede">Scaffold a new Expo + React Native app from a PROJECT.md + PRD.md + DESIGN.md using the opinionated stack (Expo Router, TypeScript, NativeWind v4, Zustand, TanStack Query, Reanimated, expo-image, FlashList). Reads .workflow/meta.json with stack.framework=&quot;expo-rn&quot; and phase in {prd_drafted, design_extracted}. Produces a running Expo app at the project root, sets phase to &quot;scaffolded&quot;. Always idempotent: re-running detects existing files and skips. Use when dev-flow routes here from prd_drafted+expo-rn, or the user says &quot;scaffolda app expo from PRD&quot;, &quot;create RN app from this PRD/DESIGN&quot;, &quot;bootstrap expo app&quot;. Not for: adding screens (rn-add-screen, Wave 2), modules (rn-module-add, Wave 3), Next.js scaffolding (design-md-to-app — different stack).</p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">iframe-canvas</h1>
+  <ul class="meta"><li class="chip">Web</li><li class="chip">knowledge — teaches; changes nothing</li><li class="chip">225 lines</li><li class="chip">2 references</li></ul>
+  <p class="lede">Decide and build a pan/zoom canvas whose artboards are live <code>&lt;iframe&gt;</code> previews — the architecture behind AI site/app builders (Reweb, Sleek, Plasmic, Builder.io, Onlook), not the one behind Figma. Owns the decisions that fail late: how many live frames the tab can afford, same-origin vs cross-origin isolation, snapshot-vs-live per artboard, the interaction mode that gates pointer events, the camera and its two coordinate spaces, and the <code>postMessage</code> contract across the boundary. Use when the user says &quot;infinite canvas&quot;, &quot;canvas infinita&quot;, &quot;tavolozza tipo Figma&quot;, &quot;artboard&quot;, &quot;live preview in an iframe&quot;, &quot;visual editor&quot;, &quot;click to select an element in the preview&quot;, &quot;pan and zoom the workspace&quot;, or when a preview iframe gets slow, blurry, or stops receiving clicks. Refuses outside Next.js 16 web. Not for: WebGL/Konva canvas rendering (a different architecture — this skill says when to switch), React Native, or building the editor UI around the canvas.</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
-  <ul><li>Orchestrator routes here from <code>dev-flow</code> when <code>meta.json#stack.framework == &quot;expo-rn&quot;</code> and <code>meta.json#phase ∈ {prd_drafted, design_extracted}</code>.</li><li>User says: &quot;scaffolda app expo&quot;, &quot;create RN app from PRD&quot;.</li></ul>
+  <ul><li>The user wants a workspace you can pan and zoom with more than one preview on it.</li><li>The user wants to click an element <strong>inside</strong> a preview and edit it.</li><li>A preview iframe went slow, blurry, or stopped receiving clicks.</li><li>The user says &quot;like Figma&quot; about a DOM-and-iframe product — read *The Figma trap* first.</li><li>The user is choosing between an iframe canvas and a rendered one (WebGL/Konva/2D).</li></ul>
+  <h3>What it does not do</h3>
+  <ul><li><strong>Does not build a rendered canvas.</strong> If Decision 2 lands on &quot;rendered&quot;, this skill has</li><li><strong>Does not design the editor UI.</strong> Panels, toolbars, layer trees are <code>screenshot-to-page</code>.</li><li><strong>Does not own export.</strong> Capturing, serialising or exporting artboards is product work.</li><li><strong>Does not cover React Native.</strong> No iframes there.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-bootstrap/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-bootstrap/references/i18n-rn.md"><code>i18n-rn.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-bootstrap/references/post-bootstrap-checklist.md"><code>post-bootstrap-checklist.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-bootstrap/references/stack-defaults.md"><code>stack-defaults.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/iframe-canvas/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/iframe-canvas/references/production-survey.md"><code>production-survey.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
-./install.sh --platform claude        # or drop dist/rn-bootstrap.skill into Claude Code</code></pre>
-  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-bootstrap/SKILL.md">Read rn-bootstrap/SKILL.md on GitHub →</a></p>
+./install.sh --platform claude        # or drop dist/iframe-canvas.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/iframe-canvas/SKILL.md">Read iframe-canvas/SKILL.md on GitHub →</a></p>
 </div></section>
 <footer><div class="wrap">
   <span>47 skills, one contract. MIT.</span>
