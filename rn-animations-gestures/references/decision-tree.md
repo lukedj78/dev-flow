@@ -1,4 +1,4 @@
-> Sources: Reanimated 4 docs, Gesture Handler 3 docs, internal opinion.
+> Sources: Reanimated 4 docs, Gesture Handler docs, internal opinion. Versions come from the Expo SDK's `bundledNativeModules.json`, never from npm `latest` — see `rn-bootstrap/references/stack-defaults.md`.
 
 # Decision tree — animations + gestures
 

@@ -1,6 +1,6 @@
 > Sources: docs.swmansion.com/react-native-reanimated, docs.swmansion.com/react-native-gesture-handler, internal opinion.
 
-# Patterns — Reanimated 4 + Gesture Handler 3
+# Patterns — Reanimated 4 + the Gesture Handler `Gesture` API
 
 ## Press animation (scale + opacity)
 

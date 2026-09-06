@@ -46,6 +46,7 @@ const checks: Check[] = [
   { name: "dep: zustand", run: () => hasDep("zustand") },
   { name: "dep: @tanstack/react-query", run: () => hasDep("@tanstack/react-query") },
   { name: "dep: react-native-reanimated", run: () => hasDep("react-native-reanimated") },
+  { name: "dep: react-native-worklets", run: () => hasDep("react-native-worklets") },
   { name: "dep: react-native-gesture-handler", run: () => hasDep("react-native-gesture-handler") },
   { name: "dep: react-native-safe-area-context", run: () => hasDep("react-native-safe-area-context") },
   { name: "dep: expo-image", run: () => hasDep("expo-image") },

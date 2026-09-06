@@ -29,7 +29,11 @@ echo "[install-stack] installing animations stack (Reanimated + Gesture Handler)
 # react-native-screens (via @react-navigation/bottom-tabs) demands a newer RN than the
 # Expo SDK 57 ships (RN 0.86.2). The Expo CLI's chosen versions are still correct; npm just
 # refuses to resolve without the flag. Drop the flag once the upstream peer ranges align.
-npx expo install react-native-reanimated react-native-gesture-handler -- --legacy-peer-deps
+# `react-native-worklets` is NOT optional: Reanimated 4 separated worklets into their own
+# package, and Expo's own install line is `expo install react-native-reanimated
+# react-native-worklets`. Omitting it builds fine and fails at runtime, which is the worst
+# kind of missing dependency. (The babel plugin needs no config — babel-preset-expo wires it.)
+npx expo install react-native-reanimated react-native-worklets react-native-gesture-handler -- --legacy-peer-deps
 
 echo "[install-stack] installing state + data (Zustand + TanStack Query) …"
 # --legacy-peer-deps preventively applied — see Reanimated install above for context.

@@ -30,7 +30,8 @@ track npm `latest`, since Expo does not manage them.
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
 | `zustand` | `^5.0.15` | Global state | Default for non-trivial global state. |
 | `@tanstack/react-query` | `^5.102.6` | Data fetching | Major 5 only. |
-| `react-native-reanimated` | `^4.5.1` | Animations | Required by Expo Router for native stack animations. |
+| `react-native-reanimated` | `4.5.1` | Animations | Required by Expo Router for native stack animations. |
+| `react-native-worklets` | `0.10.1` | Worklets runtime | **Separate package since Reanimated 4** — `expo install` takes both. Missing it fails at runtime, not at build. |
 | `react-native-gesture-handler` | `~2.32.0` | Gestures | Required by Expo Router. |
 | `react-native-safe-area-context` | `~5.7.0` | Safe area | Required for all root screens. |
 | `expo-image` | `~57.0.3` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
