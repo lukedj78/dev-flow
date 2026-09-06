@@ -114,14 +114,14 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">rn-eas-deploy</h1>
-  <ul class="meta"><li class="chip">Mobile</li><li class="chip">operative — changes the codebase</li><li class="chip">175 lines</li><li class="chip">4 references</li></ul>
+  <ul class="meta"><li class="chip">Mobile</li><li class="chip">operative — changes the codebase</li><li class="chip">184 lines</li><li class="chip">5 references</li></ul>
   <p class="lede">Use to deploy an Expo + RN app end-to-end: initialize eas.json with 3 profiles (development/preview/production), set up credentials (APNs key, Android keystore) via <code>eas credentials</code>, build for preview to smoke-test, build production, submit to App Store Connect + Play Console via EAS Submit, configure EAS Update channels (preview + production), and verify the post-submission checklist from rn-publishing-payments. Reads .workflow/meta.json with stack.framework=&quot;expo-rn&quot; and phase=&quot;feature_complete&quot;. Sets phase to &quot;deployed&quot; on success. Triggers on: &quot;deploy to production&quot;, &quot;ship to App Store / Play Store&quot;, &quot;release the app&quot;. Not for: granular EAS Build/Submit/Update operations (rn-eas-build-submit-update), store metadata work (rn-publishing-payments).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
   <ul><li>Phase is <code>feature_complete</code> (or later, for subsequent releases).</li><li>User says: &quot;deploy&quot;, &quot;ship to stores&quot;, &quot;release&quot;.</li><li>Orchestrator routes here from <code>dev-flow</code>.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/decision-tree.md"><code>decision-tree.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/deploy-checklist.md"><code>deploy-checklist.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/observability.md"><code>observability.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/asc-cli.md"><code>asc-cli.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/decision-tree.md"><code>decision-tree.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/deploy-checklist.md"><code>deploy-checklist.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-eas-deploy/references/observability.md"><code>observability.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
 ./install.sh --platform claude        # or drop dist/rn-eas-deploy.skill into Claude Code</code></pre>

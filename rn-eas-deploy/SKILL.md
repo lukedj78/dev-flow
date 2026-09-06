@@ -107,7 +107,16 @@ For first submission of a new app:
 
 For subsequent submissions:
 - EAS uses the latest production build.
-- User must release the build manually in the store dashboard (or configure auto-release in the Play Console).
+- Releasing is a **human decision**. By default the user does it in the store dashboard
+  (or configures auto-release in the Play Console). If the optional `asc` CLI is present,
+  the whole App Store side is scriptable — `asc review doctor` for blockers *before*
+  submitting, then `asc publish appstore`, then `asc submit status` to poll. **Never run
+  the submit unattended**: it puts the app in front of Apple review, and a rejection is
+  charged to the account's history. See `references/asc-cli.md` for the full permission
+  table (reads free, listing writes ask, submit never).
+- Creating the app record has **no API** either way — `asc` has `apps info` / `apps list` and
+  nothing else, and their own skill states it. It can be driven through the web form with
+  browser automation, with a human confirming the final click; see `references/asc-cli.md`.
 
 ### Step 9 — Configure EAS Update channels (first deploy only)
 

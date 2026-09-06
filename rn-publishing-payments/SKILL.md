@@ -19,6 +19,11 @@ description: 'Use when preparing an Expo + RN app for store submission (metadata
 
 - "IAP, Stripe, or external link?" → `references/decision-tree.md`
 - "What assets do I need for the store?" → `references/store-assets.md`
+- "How do I get them *up there* without the web UI?" → the optional `asc` CLI
+  (`metadata init | apply | keywords`, `screenshots plan | matrix | upload`); the
+  permission table and the credential rules live in `rn-eas-deploy/references/asc-cli.md`.
+  Uploading metadata and screenshots rewrites a listing the public reads — **ask before
+  applying**, and never let an agent run the submit-to-review step on its own.
 - "How do I integrate RevenueCat?" → `references/revenuecat.md`
 - "What about App Store review?" → `references/review-guidelines.md`
 
