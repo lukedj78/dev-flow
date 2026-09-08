@@ -1,6 +1,6 @@
 ---
 name: rn-write-tests
-description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), or testing pure logic outside an Expo project.'
+description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "two-user flow", "multi-user test", "test con due utenti", "shared state between users", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), or testing pure logic outside an Expo project.'
 ---
 
 # rn-write-tests — Jest + RNTL + Maestro testing for Expo + RN
@@ -62,6 +62,7 @@ Ask the user (one round-trip) what to test:
 - **Hook** (`useQuery`, `useMutation`, custom hook) → RNTL `await renderHook(...)`.
 - **Pure function** (utility, helper) → plain Jest.
 - **e2e flow** (sign-in, navigation, form submit) → Maestro.
+- **Shared-state / two-user flow** (user A takes a seat, a slot, an invite; user B must see it taken) → Maestro, two `runFlow` sign-ins in one file with `clearState` between them, against a real test backend — `references/maestro.md` §Two-user flows. Jest cannot express this; it is the check that finds authorization bugs between identities.
 
 If the file under test is `lib/api.ts`, write a Jest test of the function with `fetch` mocked.
 If the file under test is `app/(auth)/sign-in.tsx`, write an RNTL test of the screen + a Maestro flow of the user journey.

@@ -161,6 +161,8 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 **Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
 
+**Optional content layer (CMS).** In the same breath, ask once whether the product has **content a non-developer edits and the app only reads** — a catalogue, pages, articles, FAQs, pricing copy. If yes → `stack.cms = "sanity"` (contract §Recommended default libraries), wired later by `module-add cms` (web) or `rn-module-add cms` (mobile): the hosted **Sanity Studio is the admin panel**, so the project builds **no admin CRUD screens and no admin roles in the transactional database** for that content. User-owned data (accounts, orders, bookings) is never CMS content — it stays in `db` behind RLS. Default `null`; the user can opt in later on demand ("add a CMS", "aggiungi un CMS").
+
 ### Topology policy — app first, monorepo next, agent-only for the rare case
 
 ⚠️ **At init, if the shape is not specified, ASK. Do not derive it.** This is a blocking question,

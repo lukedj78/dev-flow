@@ -32,6 +32,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 | `realtime` | `module-add/references/module-realtime.md` | provider docs | per stack |
 | `voice` | `module-add/references/module-voice.md` | AI Gateway / STT-TTS docs | per stack |
 | `ci` · `test` | `module-add/references/module-ci.md` · `module-test.md` | GitHub Actions · Vitest/Playwright | — |
+| `cms` | `module-add/references/module-cms.md` | <https://github.com/sanity-io/next-sanity>, <https://www.sanity.io/docs/api-versioning>, <https://www.sanity.io/docs/studio/deployment> | Sanity (`next-sanity`, Studio as a `cms/` package) |
 
 ## Mobile stack
 
@@ -40,6 +41,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 | **Server state** | `rn-data-fetching/references/tanstack-query-rn.md` | <https://tanstack.com/query/latest> |
 | **Client state** | `rn-fundamentals/references/zustand-rn.md` | <https://zustand.docs.pmnd.rs> |
 | **E2E tests** | `rn-write-tests/references/maestro.md` | <https://docs.maestro.dev> |
+| **Content (CMS)** | `rn-module-add/references/module-cms-sanity.md` | <https://www.sanity.io/docs/http-query>, <https://www.sanity.io/docs/keeping-your-data-safe>, <https://www.sanity.io/docs/studio/deployment> |
 | **Versions** | `rn-fundamentals/references/stack-defaults.md` | npm registry (snapshot-dated) |
 
 ## Agent engine (eve)

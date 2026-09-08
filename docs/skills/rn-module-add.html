@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>rn-module-add — dev-flow</title>
-<meta name="description" content="Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app.">
+<meta name="description" content="Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app.">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -114,14 +114,14 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">rn-module-add</h1>
-  <ul class="meta"><li class="chip">Mobile</li><li class="chip">operative — changes the codebase</li><li class="chip">167 lines</li><li class="chip">3 references</li></ul>
-  <p class="lede">Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=&quot;expo-rn&quot; and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: &quot;add auth&quot;, &quot;wire up db&quot;, &quot;set up Supabase&quot;, &quot;set up Firebase&quot;, &quot;add payments&quot;, &quot;add push&quot; (the server-side part), &quot;aggiungi modulo X&quot;. Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap).</p>
+  <ul class="meta"><li class="chip">Mobile</li><li class="chip">operative — changes the codebase</li><li class="chip">174 lines</li><li class="chip">4 references</li></ul>
+  <p class="lede">Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=&quot;expo-rn&quot; and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: &quot;add auth&quot;, &quot;wire up db&quot;, &quot;set up Supabase&quot;, &quot;set up Firebase&quot;, &quot;add payments&quot;, &quot;add push&quot; (the server-side part), &quot;add a CMS&quot;, &quot;set up Sanity&quot;, &quot;admin panel for content&quot;, &quot;aggiungi un CMS&quot;, &quot;aggiungi modulo X&quot;. Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
   <ul><li>Phase is <code>scaffolded</code> or <code>page_generated</code> or <code>module_added</code>.</li><li>User asks to add ONE module by name. (To add multiple, run the skill multiple times.)</li><li>Orchestrator routes here from <code>dev-flow</code>.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/decision-tree.md"><code>decision-tree.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/module-matrix.md"><code>module-matrix.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/decision-tree.md"><code>decision-tree.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/module-cms-sanity.md"><code>module-cms-sanity.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/rn-module-add/references/module-matrix.md"><code>module-matrix.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
 ./install.sh --platform claude        # or drop dist/rn-module-add.skill into Claude Code</code></pre>
