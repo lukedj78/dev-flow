@@ -10,7 +10,7 @@ This skill turns an unstructured product idea into two artifacts that downstream
 1. **`PROJECT.md`** — the strategic brief. One page. Audience, problem, value proposition, success criteria. The piece other humans read.
 2. **`PRD.md`** — the product requirements doc. Several pages. User stories, acceptance criteria, non-goals, open questions. The piece engineers and downstream skills consume.
 
-The skill is interactive — it asks the user a small number of high-leverage questions and turns the answers into the docs. It does **not** invent PRD content from nothing.
+The skill is interactive — it asks the user a small number of high-leverage questions and turns the answers into the docs. It does **not** invent PRD content from nothing. When nobody can answer (an autonomous run), it derives the answers from the brief and records them as assumptions instead — see Step 3 §Autonomous runs.
 
 ## When this skill applies
 
@@ -165,6 +165,15 @@ For `PRD.md`, after `PROJECT.md` is in place, ask:
 8. **What technical constraints exist?** (must use Postgres, must be GDPR-compliant, must integrate with X, etc. — `null` is a fine answer)
 
 If the user pastes a long brief, parse it and ask only the unanswered questions. Don't make them re-state things they already wrote.
+
+#### Autonomous runs — nobody to interview
+
+When no one can answer — a background or `claude -p` session, a batch rebuild from a brief, or the user said "don't ask, go end-to-end" (the detection rule is `dev-flow` §Autonomous runs: when in doubt, it is interactive) — do not stall on the interview and do not invent:
+
+1. Answer each question **from the brief**: the pasted idea, the converted document under `.workflow/_source/`, a transcript. Prefer the source's own words; cite the section, page or timestamp that decided it.
+2. Where the brief is silent, take the **contract default**: Q6 → the product type's stack bundle in `dev-flow` §Stack decisions; Q7 → `"shadcn"`; Q8 → `"tanstack-form"`; Q9 → `null`; locales `["en", "it"]`. Where there is no default — audience, problem, wedge, success criteria — write `<TBD — needs user input>` exactly as the constraint below says, never a plausible guess.
+3. Record every derived or defaulted answer in **`PRD.md` §Open questions** as `Assumed: <answer> — because <source | contract default>`, and in the `history` entry as `inputs.assumptions`. That list *is* the interview, deferred: the user reviews it instead of answering live.
+4. **Never derive the topology shape** when Q9 is `eve` (single app / monorepo / agent-only): write `needs a human: shape`, draft everything in the PRD that does not depend on it, and hand off.
 
 ### Step 4 — Draft the documents
 

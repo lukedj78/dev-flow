@@ -122,7 +122,7 @@ Read `.workflow/meta.json`. Branch on `phase`:
 
 **Animated icons.** `heroicons-animated` adds one Motion-animated Heroicon from the `@heroicons-animated/*` shadcn registry (ecosystem-first: don't hand-animate an SVG). It requires the `motion` runtime (`module-add motion`) and enforces the `transitions` reduced-motion discipline the raw components lack. Web only; horizontal; no phase bump.
 
-The orchestrator must propose, not impose. After deciding, **tell the user the proposed next step in one sentence**, and ask for confirmation before invoking. Example: *"You're at `design_extracted` (DESIGN.md + 6 screenshots in place). I propose running `design-md-to-app` to scaffold a Next.js + shadcn project. OK to proceed, or do you want to add modules / change stack first?"*
+The orchestrator must propose, not impose. After deciding, **tell the user the proposed next step in one sentence**, and ask for confirmation before invoking (in an autonomous run — §Autonomous runs — write the proposal into the report and continue). Example: *"You're at `design_extracted` (DESIGN.md + 6 screenshots in place). I propose running `design-md-to-app` to scaffold a Next.js + shadcn project. OK to proceed, or do you want to add modules / change stack first?"*
 
 ### Step 3 — Invoke the right skill
 
@@ -305,12 +305,32 @@ Four rules keep this from turning dev-flow into a paid product:
 Nothing in that file is a dependency: delete every row and dev-flow does exactly
 what it did before.
 
+## Autonomous runs — when nobody can answer
+
+Every question in this skill and its specialists — "OK to proceed?", "which stack?", the seven PRD questions — assumes a person at the keyboard. In an **autonomous run** there is none: a background agent, a scheduled task, `claude -p`, a batch that rebuilds a project from a brief. There a blocking question is not answered; it stalls the pipeline with nothing delivered.
+
+Detect it, don't guess it. The run is autonomous when the user said so up front (*"run it end-to-end without asking"*, *"non chiedermi niente, vai fino in fondo"*) or when the harness states it is non-interactive. **When in doubt, it is interactive — ask.**
+
+In an autonomous run every skill follows the same four rules:
+
+1. **Derive before defaulting.** Answer the question from the material at hand — the brief, the transcript, the PRD, `meta.json`, the repo, git history. A brief that says "book from the phone" has answered "web or mobile?". Quote the passage that decided it.
+2. **Default only where the contract has one.** Locales `["en", "it"]`, the i18n library per stack, the stack bundle for the product type (§Stack decisions), `cms = null`, `agent = null`. A default the contract does not name is an invention.
+3. **Write every derived or defaulted answer down as an assumption**, in the artefact it shaped — `PRD.md` §Open questions as `Assumed: <answer> — because <source | contract default>`, and in the `history` entry as `inputs.assumptions: [...]`. Never silently: the user reviews assumptions, not transcripts.
+4. **Some questions are never derived.** They stop the run with one line — *"needs a human: <question>"* — and the skill finishes everything that does not depend on the answer:
+   - the topology shape (§Topology policy: single app / monorepo / agent-only) — deriving it reaches an answer without asking what the second consumer is;
+   - anything outward-facing or hard to undo: `vercel-deploy`, `rn-eas-deploy` and store submission, `eve deploy`, paid services, deleting data;
+   - credentials and accounts (Supabase, Sanity, Stripe, Apple, Linear): the skill writes `.env.example` and the out-of-band steps, and stops before the step that needs the key.
+
+The report of an autonomous run opens with the assumptions made — count, then the list — before anything else: that list is what the user has to check, and it is short when the brief was good.
+
+"Propose, not impose" (Step 2) still holds: in an autonomous run the proposal is written into the report instead of asked, and the specialist is invoked without waiting.
+
 ## What dev-flow does NOT do
 
 - **Doesn't do specialist work itself.** No PRD writing, no DESIGN.md generation, no scaffolding. If you find yourself doing actual work (other than reading state and routing), stop — call the right specialist.
 - **Doesn't edit `app/`.** That's owned by `design-md-to-app` and friends.
 - **Doesn't edit `apps/agent/`.** That's owned exclusively by `eve-agent`.
-- **Doesn't make stack decisions silently.** Always ask the user, even if a default is obvious.
+- **Doesn't make stack decisions silently.** Always ask the user, even if a default is obvious — or, in an autonomous run, derive or default it and write the assumption down (§Autonomous runs). Silent is the failure, not unasked.
 - **Doesn't skip phases.** If the user tries to jump from `empty` straight to `design-md-to-app`, gently push back: at minimum `PROJECT.md` should exist so the design-to-app skill knows the brand voice.
 
 ## Bundled scripts
