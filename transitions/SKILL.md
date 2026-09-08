@@ -54,7 +54,11 @@ Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle
 when the visual *is* the product (a hero that exists to be looked at); it is wrong as decoration on a
 screen someone keeps open all day. ⚠️ vgpu's own docs never mention `prefers-reduced-motion`, so rule 2
 below is entirely yours to honour there — freeze the clock (`advance(0)`) and hold the first frame
-rather than hiding the canvas. Route to **`vgpu-shaders`** before writing any WGSL.
+rather than hiding the canvas. Route to **`vgpu-shaders`** before writing any WGSL. Once a project is
+already on both Motion and vgpu, `motion/vgpu`'s `vgpuEffect` (Motion 13.2.0+) drives shader uniforms
+and scene params with Motion's spring/gesture engine instead of a hand-rolled render loop — see
+`vgpu-shaders` §Animating once you're here. That is an implementation detail *inside* Tier 4, not a
+reason to reach for it sooner.
 
 ## Non-negotiables (the discipline)
 

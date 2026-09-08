@@ -11,6 +11,11 @@ What a bump means here:
 
 ### Changed
 - **Stripe `apiVersion` pin** (`module-add/references/module-payments.md`) — bumped `2026-07-29.dahlia` → **`2026-08-26.dahlia`**, matching stripe-node 22.6.0's generated types. Caught by the 2026-09-08 ecosystem-watch pass (`docs/vercel-changelog-watch.md`); this pin has now drifted one behind on three consecutive passes.
+- `transitions`' Tier 4 note now cross-references `vgpu-shaders` §Animating once you're here (Motion 13.2.0's `vgpuEffect`) — an implementation detail inside Tier 4, not a change to when Tier 4 is justified.
+
+### Added
+- **`eve-concepts.md` §Workflow tools** — `defineWorkflowTool` from `eve/tools` (shipped eve 0.48.0–0.52.0): a static tool whose own executor is a durable Workflow run, for waiting on a person/webhook/timer without holding compute. Distinct from `experimental_workflow`, which lets the model itself write orchestration code. `eve-docs-coverage.md` gained the new `/docs/tools/workflows` page as a row.
+- **`vgpu-shaders/SKILL.md` §Animating once you're here** — `motion/vgpu`'s `vgpuEffect` (Motion 13.2.0+) as the way to drive vgpu uniforms/scene params with Motion's spring/gesture engine, for a project already on both Motion and vgpu. Does not change the Tier 3→4 decision.
 - **`heroicons-animated` → `animated-icons`** — the skill now covers **two** registries, so the old
   name had started to lie. [heroicons-animated](https://www.heroicons-animated.com/) (316 icons) and
   [hugeicons-animated](https://hugeicons-animated.com/) (165 icons), both MIT, both on `motion`, both
