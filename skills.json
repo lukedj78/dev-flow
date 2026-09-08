@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-08T19:04:16Z",
+  "generated_at": "2026-09-08T19:09:57Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 47,
   "families": {
@@ -100,7 +100,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 345,
+      "skill_md_lines": 365,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -132,7 +132,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 276,
+      "skill_md_lines": 285,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
