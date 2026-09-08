@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit — keep the generated files in step with the skill sources.
+#
+# CI (lint-skills.yml) regenerates skills.json, rebuilds the docs/ site, checks the plugin
+# manifests and compares the skill map's per-skill counts. Every one of those went red at
+# least once because a SKILL.md changed and nobody re-ran the generators. This hook runs
+# them when — and only when — a skill source is in the commit, stages the results, and
+# then runs the linter so a red commit never leaves the machine.
+#
+# Enable once per clone:  ./scripts/install-git-hooks.sh   (sets core.hooksPath=.githooks)
+# Skip for one commit:    SKIP_REGEN=1 git commit …        or   git commit --no-verify
+#
+# Note: the generators read the working tree, not the index. If a SKILL.md has unstaged
+# edits on top of the staged ones, the regenerated files reflect the working tree.
+
+set -euo pipefail
+
+if [ "${SKIP_REGEN:-0}" = "1" ]; then
+  exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged="$(git diff --cached --name-only --diff-filter=ACMRD)"
+if ! grep -qE '(^|/)SKILL\.md$|/references/|/scripts/|^scripts/(build_|sync_skill_map\.py$|regenerate\.sh$)|^skills\.json$|^docs/dev-flow-skill-map\.html$' <<<"$staged"; then
+  exit 0
+fi
+
+echo "[pre-commit] skill sources in this commit — regenerating registry, site, skill map, manifests…"
+./scripts/regenerate.sh
+
+git add skills.json docs/index.html docs/skills docs/dev-flow-skill-map.html \
+        .claude-plugin/plugin.json dist/agent-plugin/plugin.json
+
+if ! python3 scripts/lint_skills.py; then
+  echo
+  echo "[pre-commit] ✗ lint failed — commit aborted. Fix the errors above, or bypass once with --no-verify."
+  exit 1
+fi
+
+echo "[pre-commit] ✓ generated files staged, lint clean"
