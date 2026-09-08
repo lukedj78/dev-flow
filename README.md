@@ -1562,7 +1562,23 @@ The description is the **only** thing a skill is selected on — the body is nev
 
 ### Maintenance scripts
 
-The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
+The repo ships a set of scripts (in `scripts/`) you can run anytime — four of them are what CI enforces, and one hook runs the generators for you:
+
+```bash
+# Once per clone: enable the versioned git hooks (core.hooksPath=.githooks). From then on,
+# committing a SKILL.md / references/ / scripts/ change regenerates skills.json, the docs/
+# site, the skill map's per-skill counts and both plugin manifests, stages them, and lints —
+# so the commit that CI would have rejected never leaves the machine.
+./scripts/install-git-hooks.sh
+
+# The same regeneration by hand, in dependency order (what the hook calls)
+./scripts/regenerate.sh
+REGEN_BUNDLES=1 ./scripts/regenerate.sh   # also repackage dist/*.skill (opt-in)
+
+# Rewrite the skill map's `1122·9r·2s` row meta from skills.json (lint check 13 reads them)
+python3 scripts/sync_skill_map.py           # write
+python3 scripts/sync_skill_map.py --check   # CI-style: fail if stale
+```
 
 ```bash
 # Sanity-check every skill — 16 checks (frontmatter YAML + the 1024-char
