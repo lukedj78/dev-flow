@@ -1,6 +1,6 @@
 ---
 name: module-add
-description: 'Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to install + configure the module end-to-end. Always idempotent — running twice does not duplicate config. Use when the user says "add auth", "wire up the database", "set up Stripe", "add file uploads", "configure deploy", "module aggiungi auth", or the orchestrator routes here from phase `scaffolded` / `page_generated`. Not for: scaffolding the app (`design-md-to-app`) or building UI (`screenshot-to-page`).'
+description: 'Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config, content CMS) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to install + configure the module end-to-end. Always idempotent — running twice does not duplicate config. Use when the user says "add auth", "wire up the database", "set up Stripe", "add file uploads", "configure deploy", "add a CMS", "set up Sanity", "headless CMS", "aggiungi un CMS", "module aggiungi auth", or the orchestrator routes here from phase `scaffolded` / `page_generated`. Not for: scaffolding the app (`design-md-to-app`) or building UI (`screenshot-to-page`).'
 ---
 
 # module-add — wire a backend/infra module into the scaffold
@@ -22,6 +22,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `deploy` | Vercel (project config — `vercel-deploy` ships it) | `references/module-deploy.md` | ✅ implemented |
 | `voice` | AI Gateway realtime (`@ai-sdk/gateway` + `experimental_useRealtime`) | `references/module-voice.md` | ✅ implemented — experimental API |
 | `realtime` | Vercel Functions WebSockets (`experimental_upgradeWebSocket`) | `references/module-realtime.md` | ✅ implemented — experimental API |
+| `cms` | Sanity via `next-sanity` (`sanityFetch` in Server Components; Studio as a `cms/` package — the admin panel) | `references/module-cms.md` | ✅ implemented |
 
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
 

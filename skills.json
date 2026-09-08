@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-06T16:02:27Z",
+  "generated_at": "2026-09-08T19:04:16Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 47,
   "families": {
@@ -100,7 +100,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 343,
+      "skill_md_lines": 345,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -326,12 +326,13 @@
       "name": "module-add",
       "family": "web",
       "role": "operative",
-      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to inst...",
+      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config, content CMS) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project...",
       "skill_file": "module-add/SKILL.md",
       "references": [
         "contracts.md",
         "module-auth.md",
         "module-ci.md",
+        "module-cms.md",
         "module-db.md",
         "module-deploy.md",
         "module-email.md",
@@ -344,7 +345,7 @@
         "module-voice.md"
       ],
       "scripts": [],
-      "skill_md_lines": 157,
+      "skill_md_lines": 158,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -405,7 +406,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 151,
+      "skill_md_lines": 155,
       "bundle": "dist/transitions.skill"
     },
     {
@@ -449,7 +450,7 @@
         "nextjs-wiring.md"
       ],
       "scripts": [],
-      "skill_md_lines": 224,
+      "skill_md_lines": 251,
       "bundle": "dist/vgpu-shaders.skill"
     },
     {
@@ -572,7 +573,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 146,
+      "skill_md_lines": 148,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {
@@ -676,15 +677,16 @@
       "name": "rn-module-add",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat). Installs deps, generates the wi...",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs d...",
       "skill_file": "rn-module-add/SKILL.md",
       "references": [
         "contracts.md",
         "decision-tree.md",
+        "module-cms-sanity.md",
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 167,
+      "skill_md_lines": 174,
       "bundle": "dist/rn-module-add.skill"
     },
     {
@@ -765,7 +767,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 120,
+      "skill_md_lines": 128,
       "bundle": "dist/rn-write-tests.skill"
     },
     {
