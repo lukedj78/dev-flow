@@ -222,6 +222,17 @@ en + it are both LTR, so RTL is dormant for the default set — but write layout
 
 ## TypeScript (cheap, do it)
 
+**TS 6 first.** The SDK 57 `blank-typescript` template ships TypeScript 6, which reports **TS2882** ("Cannot find module or type declarations for side-effect import") for the three polyfill imports at the top of `lib/i18n.ts` — `@formatjs/intl-pluralrules` publishes those entry points without `.d.ts` files reachable under `expo/tsconfig.base`'s resolution. `rn-bootstrap`'s `wire-nativewind.ts` writes a root `declarations.d.ts` covering them (and `*.css`); if the project was scaffolded before that change, add it by hand:
+
+```ts
+// declarations.d.ts
+declare module "*.css";
+declare module "@formatjs/intl-pluralrules/polyfill-force";
+declare module "@formatjs/intl-pluralrules/locale-data/*";
+```
+
+Metro also warns that the package's `exports` map does not list `./polyfill-force` and that the `./locale-data/*` targets lack the `.js` extension — both fall back to file-based resolution and work; the warnings are upstream's, not yours.
+
 ```ts
 // i18next.d.ts — typed keys for t(); needs `strict` (or strictNullChecks) in tsconfig, TS ≥ 5
 import { resources, defaultNS } from './lib/i18n';

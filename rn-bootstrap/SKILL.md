@@ -9,7 +9,7 @@ description: 'Scaffold a new Expo + React Native app from a PROJECT.md + PRD.md 
 
 See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"expo-rn"`.
-- Reads `<project-root>/{PROJECT.md, PRD.md, DESIGN.md}`. DESIGN.md is required for tokens; if absent, uses defaults from `references/stack-defaults.md`.
+- Reads `<project-root>/.workflow/{PROJECT.md, PRD.md, DESIGN.md}` (the contract location — a `DESIGN.md` at the project root is accepted as a legacy fallback with a warning). DESIGN.md is required for tokens; if absent, uses defaults from `references/stack-defaults.md`.
 - Writes the app to `<project-root>/` (the same directory).
 - Sets `meta.json#phase = "scaffolded"` on success.
 - Always idempotent: re-running detects existing `package.json` + `app/` and exits 0.
@@ -47,7 +47,7 @@ Run `scripts/install-stack.sh <project-root>`. Installs NativeWind v4 (with Tail
 
 ### Step 4 — Wire NativeWind from DESIGN.md tokens
 
-Run `npx tsx scripts/wire-nativewind.ts <project-root>`. Generates `tailwind.config.js`, `global.css`, `babel.config.js`, `metro.config.js`. Reads tokens from a fenced ` ```json tokens ` block in DESIGN.md (accepts LF + CRLF line endings).
+Run `npx tsx scripts/wire-nativewind.ts <project-root>`. Generates `tailwind.config.js`, `global.css`, `babel.config.js`, `metro.config.js`, `nativewind-env.d.ts` and `declarations.d.ts` (ambient `declare module` for `*.css` and the formatjs polyfills — TypeScript 6 rejects side-effect imports without a declaration, error TS2882). Reads tokens from a fenced ` ```json tokens ` block in `.workflow/DESIGN.md` (accepts LF + CRLF line endings).
 
 ### Step 5 — Generate folder structure + boilerplate
 
@@ -56,7 +56,7 @@ Create (only if absent — idempotent):
 - `app/index.tsx` — hello-world screen using NativeWind classes (wraps in `SafeAreaView` from `react-native-safe-area-context`).
 - `components/`, `lib/`, `store/`, `types/`, `assets/` — empty dirs with `.gitkeep`.
 - `.env.example` — empty stub with `EXPO_PUBLIC_API_URL=`.
-- `tsconfig.json` — extend `expo/tsconfig.base`, add `paths` for `@/*`.
+- `tsconfig.json` — extend `expo/tsconfig.base`, add `paths` for `@/*` **without `baseUrl`**: TypeScript 6 makes `baseUrl` a hard error (TS5101, removed in 7.0); `paths` resolve relative to the tsconfig on their own. Add `"types": ["jest"]` once `rn-write-tests` installs the test stack. Include `declarations.d.ts` (written by step 4) in `include` if the project narrows it.
 
 Also patch `app.json`:
 - `expo.scheme` — set to a kebab-case of `meta.json#project_name`.
@@ -67,6 +67,8 @@ Also patch `app.json`:
 ### Step 6 — Verify (scripts/verify.ts)
 
 Run `npx tsx scripts/verify.ts <project-root>`. If exit code != 0, do NOT bump phase. Report failures from `references/post-bootstrap-checklist.md`.
+
+The last check runs `npx expo export --platform ios` into a temp dir: it is the only check that proves Metro can build the app, which `tsc` cannot — a missing expo-router peer (`expo-linking`, `expo-constants`, `react-native-screens`) type-checks clean and fails on the first `expo start`. It takes 30–60 s; `RN_BOOTSTRAP_SKIP_BUNDLE=1` skips it when the user is iterating on the scaffold. Then **run the empty app once on a simulator before adding anything** — an app that has never started has nowhere to debug from when a later package breaks it.
 
 ### Step 7 — Update meta.json + commit
 

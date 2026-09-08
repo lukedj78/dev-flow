@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-08T19:45:41Z",
+  "generated_at": "2026-09-08T19:48:20Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 47,
   "families": {
@@ -572,7 +572,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 146,
+      "skill_md_lines": 148,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {
@@ -765,7 +765,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 120,
+      "skill_md_lines": 127,
       "bundle": "dist/rn-write-tests.skill"
     },
     {
