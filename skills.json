@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-06T16:02:27Z",
+  "generated_at": "2026-09-08T19:45:41Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 47,
   "families": {
@@ -405,7 +405,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 151,
+      "skill_md_lines": 155,
       "bundle": "dist/transitions.skill"
     },
     {
@@ -449,7 +449,7 @@
         "nextjs-wiring.md"
       ],
       "scripts": [],
-      "skill_md_lines": 224,
+      "skill_md_lines": 251,
       "bundle": "dist/vgpu-shaders.skill"
     },
     {
