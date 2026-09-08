@@ -40,9 +40,16 @@ npx expo install --dev \
   @testing-library/react-native@^14 \
   test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
+
+# jest-expo 57 declares `@react-native/jest-preset ^0.86.3` as a peer, and that package is
+# NOT in the SDK's bundledNativeModules — so `expo install` would hand you npm latest (0.87.x),
+# whose setup looks for `react-native/src/setup-env.js` and fails on RN 0.86. Pin it to the
+# React Native version the project actually has:
+RN_VERSION="$(node -p "require('react-native/package.json').version")"
+npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSION}"
 ```
 
-(`test-renderer@^1` is a **required** peer dep of RNTL v14 — it replaced `react-test-renderer`. Node `^22.13 || >=24` is also required. Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
+(Without the `@react-native/jest-preset` line the very first `jest` run dies with *"The React Native Jest preset that jest-expo relies on has moved to a separate package"*; with the wrong minor it dies with *"Could not locate module react-native/setup-env"* — observed 2026-09-08 on SDK 57 / RN 0.86.3. `test-renderer@^1` is a **required** peer dep of RNTL v14 — it replaced `react-test-renderer`. Node `^22.13 || >=24` is also required. Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
 
 ⚠️ **RNTL v14 is async**: `render`, `renderHook`, `fireEvent` and `act` all return Promises and MUST be awaited, and the `UNSAFE_*` queries are gone. Read the v14 section of `references/rntl-patterns.md` before writing a test — a missing `await` produces a test that passes for the wrong reason. Migrating an existing suite: `npx codemod@latest rntl-v14-update-deps --target .` then `npx codemod@latest rntl-v14-async-functions --target ./src`.
 

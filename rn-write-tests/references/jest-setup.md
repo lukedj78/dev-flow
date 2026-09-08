@@ -4,7 +4,7 @@
 > `react-native >=0.78`, **`test-renderer ^1.0.0`**; `engines.node` = **`^22.13.0 || >=24`**.
 > `test-renderer` is a real package (latest `1.2.0`, peer `react ^19.0.0`), published as `1.0.0` /
 > `1.1.0` / `1.2.0` — one line per React 19 minor, exactly as described below.
-> ⚠️ **Only `jest-expo` is pinned by the SDK** (`~57.0.4` in `expo@57.0.16`'s `bundledNativeModules`);
+> ⚠️ **Only `jest-expo` is pinned by the SDK** (and `@react-native/jest-preset` is not either — see §1) (`~57.0.4` in `expo@57.0.16`'s `bundledNativeModules`);
 > `jest`, `@testing-library/react-native` and `test-renderer` are **not**, so `npx expo install` hands
 > you npm `latest` for those three. That is why the version ranges above are written by hand.
 
@@ -20,8 +20,16 @@ npx expo install --dev \
   @testing-library/react-native@^14 \
   test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
+
+# jest-expo 57 declares `@react-native/jest-preset ^0.86.3` as a peer, and that package is
+# NOT in the SDK's bundledNativeModules — so `expo install` would hand you npm latest (0.87.x),
+# whose setup looks for `react-native/src/setup-env.js` and fails on RN 0.86. Pin it to the
+# React Native version the project actually has:
+RN_VERSION="$(node -p "require('react-native/package.json').version")"
+npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSION}"
 ```
 
+- **`@react-native/jest-preset` must match the React Native minor.** jest-expo 57 lists it as a peer (`^0.86.3` — `npm view jest-expo@57 peerDependencies`), but peers are not installed under `--legacy-peer-deps`, and the package is not SDK-pinned, so `npx expo install` picks npm `latest`. On 2026-09-08 that was `0.87.1` against RN `0.86.3`: its `jest/setup.js` mocks `react-native/setup-env`, a file that only exists from RN 0.87, so every suite fails before running. The `RN_VERSION` line above resolves the exact match; re-run it after every `rn-upgrade`.
 - **`test-renderer@^1` is a required peer dependency of RNTL v14** — it replaces the deprecated `react-test-renderer`, which was dropped. If the project still has `react-test-renderer` / `@types/react-test-renderer`, remove them.
 - Pick the `test-renderer` line that matches your React 19 minor: `1.2` for React 19.2, `1.1` for 19.1, `1.0` for 19.0. A newer line than your React version produces peer warnings (or an install error on npm); an older line blocks newer React 19 features in tests.
 - **Node `^22.13 || >=24` is required** by RNTL v14 (along with React ≥ 19 and RN ≥ 0.78). CI images pinned to Node 20 will fail to install — bump the runner before pinning the dep.
