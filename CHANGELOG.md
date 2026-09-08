@@ -10,6 +10,7 @@ What a bump means here:
 ## [Unreleased]
 
 ### Changed
+- **Stripe `apiVersion` pin** (`module-add/references/module-payments.md`) — bumped `2026-07-29.dahlia` → **`2026-08-26.dahlia`**, matching stripe-node 22.6.0's generated types. Caught by the 2026-09-08 ecosystem-watch pass (`docs/vercel-changelog-watch.md`); this pin has now drifted one behind on three consecutive passes.
 - **`heroicons-animated` → `animated-icons`** — the skill now covers **two** registries, so the old
   name had started to lie. [heroicons-animated](https://www.heroicons-animated.com/) (316 icons) and
   [hugeicons-animated](https://hugeicons-animated.com/) (165 icons), both MIT, both on `motion`, both
