@@ -8,12 +8,13 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 - [ ] `app/_layout.tsx` imports `../global.css` and renders `<Stack />`.
 - [ ] `app/index.tsx` exists with a "hello world" screen using NativeWind classes.
 - [ ] `global.css` with `@tailwind base/components/utilities`.
-- [ ] `tailwind.config.js` with `nativewind/preset` and tokens from DESIGN.md.
+- [ ] `tailwind.config.js` with `nativewind/preset` and tokens from `.workflow/DESIGN.md`.
 - [ ] `babel.config.js` with `nativewind/babel`.
 - [ ] `metro.config.js` with `withNativeWind`.
 - [ ] `nativewind-env.d.ts` with `/// <reference types="nativewind/types" />` (required for NativeWind v4 `className` to type-check).
 - [ ] `app.json` with `expo.scheme` and `expo.experiments.typedRoutes: true`. (**No `newArchEnabled`** — ignored since SDK 55.)
-- [ ] `tsconfig.json` with `extends: "expo/tsconfig.base"` and `paths` for `@/*`.
+- [ ] `declarations.d.ts` with `declare module "*.css"` and the `@formatjs/intl-pluralrules/*` modules (TS 6 reports TS2882 on side-effect imports without it).
+- [ ] `tsconfig.json` with `extends: "expo/tsconfig.base"` and `paths` for `@/*` — and **no `baseUrl`** (TS 6 error TS5101).
 - [ ] `.env.example` listing `EXPO_PUBLIC_*` vars used by the app.
 - [ ] `components/`, `lib/`, `store/`, `types/`, `assets/` directories (can be empty with `.gitkeep`).
 
