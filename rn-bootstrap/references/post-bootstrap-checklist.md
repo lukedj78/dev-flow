@@ -4,7 +4,7 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 
 ## File existence
 
-- [ ] `package.json` with `expo`, `expo-router`, `nativewind`, `tailwindcss`, `zustand`, `@tanstack/react-query`, `react-native-reanimated`, `react-native-gesture-handler`, `react-native-safe-area-context`, `expo-image`, `@shopify/flash-list`.
+- [ ] `package.json` with `expo`, `expo-router` **and its peers `expo-linking`, `expo-constants`, `react-native-screens`** (peers are not auto-installed under `--legacy-peer-deps`; without them Metro fails on the first start), `nativewind`, `tailwindcss`, `zustand`, `@tanstack/react-query`, `react-native-reanimated`, `react-native-gesture-handler`, `react-native-safe-area-context`, `expo-image`, `@shopify/flash-list`.
 - [ ] `app/_layout.tsx` imports `../global.css` and renders `<Stack />`.
 - [ ] `app/index.tsx` exists with a "hello world" screen using NativeWind classes.
 - [ ] `global.css` with `@tailwind base/components/utilities`.
@@ -20,6 +20,8 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 ## Tooling
 
 - [ ] `npx tsc --noEmit` exits 0.
+- [ ] `npx expo export --platform ios --output-dir <tmp>` exits 0 (`verify.ts` runs this; it is the check that catches unresolvable modules — `tsc` does not).
+- [ ] The empty app has been opened once on a simulator **before** any further package is added, so there is a known-good baseline to debug from.
 - [ ] `npx expo doctor` exits 0 or with only documented warnings (e.g. "no native modules").
 - [ ] `npx expo start` starts Metro and the app opens in a **development build** (`expo-dev-client`), the iOS simulator, or Expo Go on Android. ⚠️ The App Store build of Expo Go is frozen at **SDK 54** and cannot open an SDK 57 project on a physical iPhone — use a dev build, or `eas go` via TestFlight. See `rn-fundamentals/references/decision-tree.md` Q2.
 

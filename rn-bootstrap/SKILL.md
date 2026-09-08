@@ -68,6 +68,8 @@ Also patch `app.json`:
 
 Run `npx tsx scripts/verify.ts <project-root>`. If exit code != 0, do NOT bump phase. Report failures from `references/post-bootstrap-checklist.md`.
 
+The last check runs `npx expo export --platform ios` into a temp dir: it is the only check that proves Metro can build the app, which `tsc` cannot — a missing expo-router peer (`expo-linking`, `expo-constants`, `react-native-screens`) type-checks clean and fails on the first `expo start`. It takes 30–60 s; `RN_BOOTSTRAP_SKIP_BUNDLE=1` skips it when the user is iterating on the scaffold. Then **run the empty app once on a simulator before adding anything** — an app that has never started has nowhere to debug from when a later package breaks it.
+
 ### Step 7 — Update meta.json + commit
 
 Update `meta.json`:

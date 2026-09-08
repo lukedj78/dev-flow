@@ -69,13 +69,23 @@ echo "[init-expo-app] installing base dependencies …"
 # stabilize.
 npm install --legacy-peer-deps
 
-echo "[init-expo-app] adding expo-router (SDK-matched version) …"
+echo "[init-expo-app] adding expo-router + its runtime peers (SDK-matched versions) …"
 # Use `npx expo install` so the Expo CLI picks the version compatible with the
 # installed Expo SDK. Plain `npm install expo-router` grabs latest from npm, which
 # can be one SDK ahead and fail with peer-dep conflicts (e.g. RN version mismatch).
 # `-- --legacy-peer-deps` is passed through to the underlying npm install — same
 # reason as install-stack.sh: Expo SDK 57 transitively pulls packages (e.g.
 # react-native-screens) that demand a newer RN than SDK 57 ships (RN 0.86.2).
-npx --yes expo install expo-router -- --legacy-peer-deps
+#
+# expo-linking, expo-constants and react-native-screens are NOT optional. They are
+# peerDependencies of expo-router (`npm view expo-router@57 peerDependencies`:
+# expo-linking ^57.0.9, expo-constants ^57.0.17, react-native-screens ^4.26.0) and
+# `npm install --legacy-peer-deps` does not auto-install peers. Without them
+# `tsc --noEmit` passes and the very first `expo start` fails with
+#   Unable to resolve "expo-linking" from "node_modules/expo-router/build/fork/useLinking.native.js"
+# (observed 2026-09-08 on SDK 57 / expo-router 57.0.20). The remaining peers
+# (@expo/log-box, @expo/metro-runtime, reanimated, gesture-handler, safe-area) come
+# from the blank-typescript template or from install-stack.sh.
+npx --yes expo install expo-router expo-linking expo-constants react-native-screens -- --legacy-peer-deps
 
 echo "[init-expo-app] done. Next: install-stack.sh"
