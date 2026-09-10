@@ -134,7 +134,7 @@ A monorepo can include an optional **`apps/agent/`** — an **eve** agent (Verce
 - The agent deploys to Vercel via `eve deploy`; its model calls bill through the Vercel AI Gateway.
 - No other skill writes inside `apps/agent/`; `eve-agent` does not write `apps/web/` or `apps/mobile/`.
 
-When the user asks for an "agent engine / AI core / agent backend" or names "eve", route to `eve-agent` regardless of `phase`. See the `eve-agent` skill's `references/eve-conventions.md` for the full contract.
+When the user asks for an "agent engine / AI core / agent backend" or names "eve", route to `eve-agent` regardless of `phase`. See `eve-agent/references/eve-conventions.md` for the full contract.
 
 ## Decision rules
 

@@ -39,7 +39,7 @@ Our skills are **horizontal**, so the risk is that they let someone build a **hi
 **Strengths**
 - **Human oversight (Art. 14):** eve approval / HITL is exactly the control high-risk systems need.
 - **Traceability (Art. 12):** durable event log + instrumentation.
-- **Deployer obligations:** already codified in `eve-agent`'s `references/eve-concepts.md` §Responsible use.
+- **Deployer obligations:** already codified in `eve-agent/references/eve-concepts.md` §Responsible use.
 
 **Gaps / risks**
 | # | Area | Article | Risk |

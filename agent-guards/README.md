@@ -16,7 +16,7 @@ entry in every project — for four functions any project may legitimately want 
 label, the extra blocked patterns and the cap are domain decisions.
 
 So this directory is **the tested home of a file that gets copied**, not a package to depend on. The
-`eve-agent` skill writes `references/guards.template.ts` into a project at `agent/lib/guards.ts`,
+`eve-agent` skill writes `eve-agent/references/guards.template.ts` into a project at `agent/lib/guards.ts`,
 verbatim.
 
 What a dependency buys is *not drifting*, and that is bought here by the toolchain instead:

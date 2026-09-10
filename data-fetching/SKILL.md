@@ -323,7 +323,7 @@ const nextConfig: NextConfig = {
 
 **Partial Prefetching** (its own adoption guide) changes `<Link>`: each visible link prefetches the destination's **App Shell**, shared across every link to the same route — so rendering a `<Link>` is effectively free (no more one request per link). `prefetch={true}` adds the page content *and* opts into **runtime prefetching**, resolving that link's `params` / `searchParams` / full URL before the click.
 
-**Tooling.** *Navigation Inspector* (DevTools) freezes the page at its initial loading state — "Pause on navigations", then Resume — showing the static shell on direct visits and the prefetched destination on client navigations; pair with the React DevTools Suspense panel. Regression guard: the `instant()` helper from `@next/playwright` (see `write-tests` → `references/test-page-e2e.md`).
+**Tooling.** *Navigation Inspector* (DevTools) freezes the page at its initial loading state — "Pause on navigations", then Resume — showing the static shell on direct visits and the prefetched destination on client navigations; pair with the React DevTools Suspense panel. Regression guard: the `instant()` helper from `@next/playwright` (see `write-tests/references/test-page-e2e.md`).
 
 **How it maps onto our ladder:** nothing here replaces it. Rung 1 (async Server Component) + `<Suspense>` **is** Stream; the Cache Components section above **is** Cache. What 16.3 adds is a *validator* that tells you when a route silently fell off the ladder, plus the vocabulary to say "this one blocks on purpose".
 

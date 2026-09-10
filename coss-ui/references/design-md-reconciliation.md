@@ -8,7 +8,7 @@ The single fact that makes Coss slot into dev-flow cleanly: **Coss's design toke
 
 ## How it maps to `design-md-to-app`
 
-`design-md-to-app` already has a **token-first install via `registry.json`**: it emits a `registry.json` from DESIGN.md tokens (`scripts/build_registry.py`) and runs `shadcn init ./registry.json`. With Coss:
+`design-md-to-app` already has a **token-first install via `registry.json`**: it emits a `registry.json` from DESIGN.md tokens (`design-md-to-app/scripts/build_registry.py`) and runs `shadcn init ./registry.json`. With Coss:
 
 1. Install Coss first (`init @coss/style` or `add @coss/style`) so the neutral tokens + components land.
 2. Then apply the DESIGN.md overrides. Two equivalent routes:

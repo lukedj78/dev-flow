@@ -494,7 +494,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 17
+CHECK_COUNT = 18
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -504,6 +504,50 @@ CHECK_COUNT_PATTERNS = [
     # 11 next to a metric card reading 15, on the same screen.
     r"(\d+) checks clean",
 ]
+
+
+# --- check 18: a path is resolved from the skill that contains it -----------
+#
+# `references/eve-conventions.md` written inside dev-flow means dev-flow's copy,
+# and dev-flow has none — the file belongs to eve-agent. Six of these had built up.
+# They read fine because the prose named the owning skill a few words earlier, and
+# they break the moment anyone follows the path instead of the sentence.
+#
+# The rule: a bare `references/x` or `scripts/x` resolves against the skill it is
+# written in. Pointing at another skill's file means writing that skill's name.
+SKILL_REL_RE = re.compile(r"`((?:references|scripts)/[A-Za-z0-9._-]+)`")
+
+
+def check_local_paths_resolve(root: Path, all_skills: set[str]) -> None:
+    owner: dict[str, list[str]] = {}
+    for skill in all_skills:
+        for sub in ("references", "scripts"):
+            d = root / skill / sub
+            if d.is_dir():
+                for f in d.iterdir():
+                    owner.setdefault(f"{sub}/{f.name}", []).append(skill)
+
+    scanned = 0
+    for skill in sorted(all_skills):
+        docs = [root / skill / "SKILL.md", *sorted((root / skill / "references").glob("*.md"))]
+        for md in docs:
+            if not md.exists():
+                continue
+            scanned += 1
+            for m in SKILL_REL_RE.finditer(md.read_text(errors="ignore")):
+                rel = m.group(1)
+                if (root / skill / rel).exists():
+                    continue
+                elsewhere = [o for o in owner.get(rel, []) if o != skill]
+                if elsewhere:
+                    err(
+                        f"{md}: `{rel}` resolves inside `{skill}`, which has no such file — "
+                        f"it belongs to `{elsewhere[0]}`. Write `{elsewhere[0]}/{rel}`."
+                    )
+                else:
+                    err(f"{md}: `{rel}` points at a file that does not exist in `{skill}`")
+    if not scanned:
+        warn("check 18 scanned no skill documents — the glob is wrong, not the repo")
 
 
 # --- check 17: the agent-guards suite size, where prose states it ----------
@@ -765,6 +809,7 @@ def main() -> int:
     check_skill_map_meta(root)
     check_skill_map_metrics(root)
     check_guards_test_count(root)
+    check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)
 

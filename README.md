@@ -1537,7 +1537,7 @@ stamp.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 17 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 18 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1581,7 +1581,7 @@ python3 scripts/sync_skill_map.py --check   # CI-style: fail if stale
 ```
 
 ```bash
-# Sanity-check every skill — 17 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 18 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
 # every skill count stated in prose, the skill map's per-skill meta, the number of

@@ -112,7 +112,7 @@ post can announce a preview that has since gone stable (see the 16.3 row).
 
 ## shadcn/ui (<https://ui.shadcn.com/docs/changelog>)
 
-**Skills that track shadcn:** `design-md-to-app` (+ `references/shadcn-mapping.md`, `library-choice.md`, `base-ui-mapping.md`, `chat-and-typeset.md`), `coss-ui` (rides the shadcn CLI + `@coss/*` registry), `screenshot-to-page`, `module-add`, `forms`, `dev-flow` (shadcn create params + `stack.ui_base`), the `.workflow` contract (`ui_base` enum/default).
+**Skills that track shadcn:** `design-md-to-app` (+ in `design-md-to-app/references/`: `shadcn-mapping.md`, `library-choice.md`, `base-ui-mapping.md`, `chat-and-typeset.md`), `coss-ui` (rides the shadcn CLI + `@coss/*` registry), `screenshot-to-page`, `module-add`, `forms`, `dev-flow` (shadcn create params + `stack.ui_base`), the `.workflow` contract (`ui_base` enum/default).
 
 **Last pass: 2026-08-26** (package-level only — `npm pack @shadcn/helpers@0.2.0`; the docs site itself not re-swept, previous full sweep 2026-08-06).
 
