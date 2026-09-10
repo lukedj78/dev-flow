@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-06T16:02:27Z",
+  "generated_at": "2026-09-10T20:21:18Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 47,
   "families": {
@@ -326,7 +326,7 @@
       "name": "module-add",
       "family": "web",
       "role": "operative",
-      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to inst...",
+      "description": "Wire a backend or infrastructure module (auth, database, payments, email, file storage, PDF/document generation, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at...",
       "skill_file": "module-add/SKILL.md",
       "references": [
         "contracts.md",
@@ -337,6 +337,7 @@
         "module-email.md",
         "module-motion.md",
         "module-payments.md",
+        "module-pdf.md",
         "module-realtime.md",
         "module-storage.md",
         "module-stubs.md",
@@ -344,7 +345,7 @@
         "module-voice.md"
       ],
       "scripts": [],
-      "skill_md_lines": 157,
+      "skill_md_lines": 158,
       "bundle": "dist/module-add.skill"
     },
     {
