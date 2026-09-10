@@ -21,7 +21,7 @@ verbatim.
 
 What a dependency buys is *not drifting*, and that is bought here by the toolchain instead:
 
-- CI runs the 28 tests against `src/guards.ts` on Node 20, 22 and 24;
+- CI runs the 29 tests against `src/guards.ts` on Node 20, 22 and 24;
 - on every push it **deletes one defence and requires the suite to notice**;
 - the linter's **check 15** fails if `guards.template.ts` differs from `src/guards.ts` by a byte.
 

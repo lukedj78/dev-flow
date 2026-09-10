@@ -493,7 +493,7 @@ It was a published package for about an hour, and that was the wrong shape for t
 means a version to bump and a lockfile entry in every project, for four functions any project may
 legitimately want to tune — the fence label, the blocked patterns and the cap are domain decisions.
 
-What a dependency buys is *not drifting*, and the toolchain buys it instead. CI runs 28 tests on Node
+What a dependency buys is *not drifting*, and the toolchain buys it instead. CI runs 29 tests on Node
 20, 22 and 24, then **removes one defence and requires the suite to notice**. The linter's check 15
 fails if the copy the skill hands out differs from the source CI tested by a single byte. So what
 lands in a project is what was tested, and an upstream improvement arrives as a re-copy and a readable
@@ -1537,7 +1537,7 @@ stamp.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 16 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 17 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1581,7 +1581,7 @@ python3 scripts/sync_skill_map.py --check   # CI-style: fail if stale
 ```
 
 ```bash
-# Sanity-check every skill — 16 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 17 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
 # every skill count stated in prose, the skill map's per-skill meta, the number of

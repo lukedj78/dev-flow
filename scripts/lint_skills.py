@@ -494,7 +494,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 16
+CHECK_COUNT = 17
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -504,6 +504,35 @@ CHECK_COUNT_PATTERNS = [
     # 11 next to a metric card reading 15, on the same screen.
     r"(\d+) checks clean",
 ]
+
+
+# --- check 17: the agent-guards suite size, where prose states it ----------
+#
+# Three files said "28 tests" while `npm test` printed 29. Nothing connected the
+# number to the suite, so it went stale the commit a test was added and stayed
+# stale across releases. Read it from the runner's own plan line instead.
+GUARDS_TEST_COUNT_RE = re.compile(r"(\d+) tests\b")
+
+
+def check_guards_test_count(root: Path) -> None:
+    src = root / "agent-guards" / "test"
+    if not src.exists():
+        return
+    real = 0
+    # The suite is compiled JS, not TS — an *.ts glob here found nothing, the check
+    # warned instead of failing, and a wrong count sailed through. Match both.
+    for f in [*src.rglob("*.js"), *src.rglob("*.ts")]:
+        real += len(re.findall(r"^\s*test\(", f.read_text(errors="ignore"), re.M))
+    if not real:
+        warn("agent-guards: no `test(` calls found — check 17 skipped")
+        return
+    for rel in ("README.md", "agent-guards/README.md", "eve-agent/references/eve-patterns.md"):
+        path = root / rel
+        if not path.exists():
+            continue
+        for m in re.finditer(r"(?:CI runs (?:the )?\*{0,2})(\d+)\*{0,2} tests", path.read_text(errors="ignore")):
+            if int(m.group(1)) != real:
+                err(f"{path}: \"{m.group(0)}\" — the guards suite has {real}")
 
 
 def check_lint_check_count(root: Path) -> None:
@@ -735,6 +764,7 @@ def main() -> int:
     check_vendored_source(root)
     check_skill_map_meta(root)
     check_skill_map_metrics(root)
+    check_guards_test_count(root)
     check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)
 

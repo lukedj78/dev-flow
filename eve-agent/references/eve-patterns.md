@@ -410,7 +410,7 @@ import { createFence, createProvenance, validateFact, blocked } from "../lib/gua
 It is not an npm dependency on purpose. A published package would mean a version to bump, a registry
 to publish to, and a lockfile entry in every project — for four functions that any project may
 legitimately want to tune. What a dependency buys is *not drifting*, and that is bought here instead
-by the toolchain: the same file lives in dev-flow's `agent-guards/`, where CI runs **28 tests** against
+by the toolchain: the same file lives in dev-flow's `agent-guards/`, where CI runs **29 tests** against
 it and, on every push, **deletes one defence to check the suite notices**; the linter's **check 15**
 refuses to pass if the template and the tested source differ by a byte. So what lands in a project is
 what was tested, and when it improves upstream you re-copy it and read the diff.
