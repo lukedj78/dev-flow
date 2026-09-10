@@ -134,6 +134,33 @@ page advertises **MP4 at 60 fps** while the shipped docs contain **zero** occurr
 video/mp4/encoder/ffmpeg/webm; the headless example is `examples/by-example-s13-headless`. Treat video
 as "read frames, encode them yourself" until proven otherwise.
 
+## Animating once you're here: `motion/vgpu`, not a hand-rolled loop
+
+**Motion 13.2.0** (2026-09) added `vgpuEffect` — a `motion/vgpu` subpath that binds Motion values
+directly to vgpu subjects: shared uniforms (`"params.time"`), Effect/Draw/Compute bindings, scene
+nodes (`x`/`rotateY`/`scale`), cameras, lights, materials, orbit controls and clear colors. Register
+it once and `animate()` targets a shader or scene node like it would a DOM element:
+
+```ts
+import { animate } from "motion";
+import { vgpuEffect } from "motion/vgpu";
+
+animate.addEffect(vgpuEffect);      // once, at setup
+animate(cube, { rotateY: 360 }, { type: "spring", stiffness: 60 });   // now drives the scene node
+```
+
+**This does not change the Tier 3→4 decision above** — reaching for vgpu is still justified by the
+three questions (product-vs-decoration, who's on the page, the no-WebGPU fallback), never by "Motion
+can drive it now." What it changes is the *inside* of Tier 4: once a shader or `vgpu/scene` node is
+already justified, drive its uniforms/camera/material params with Motion's spring and gesture engine
+(`useMotionValue` + `vgpuEffect`, drag-to-orbit, scroll-linked uniforms) instead of a hand-rolled
+`requestAnimationFrame` loop recomputing values every frame. Changed values are batched into one
+`set()` per subject per frame in `frame.preRender`, ahead of vgpu's own `frame.render` — so it composes
+with, rather than fights, vgpu's render loop. `module-add motion` still installs the runtime; this is
+an additional entry point (`motion/vgpu`) on top of it, relevant only to a project that has already
+adopted both. The reduced-motion obligation below is unchanged either way — `vgpuEffect` gives you a
+nicer way to *drive* values, not an opt-out from freezing them.
+
 ## ⚠️ The obligation the library does not give you: reduced motion
 
 **Checked 2026-08-26 across vgpu's getting-started, Next.js and external-ticker guides: they never

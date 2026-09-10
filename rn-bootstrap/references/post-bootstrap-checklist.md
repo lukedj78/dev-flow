@@ -4,22 +4,25 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 
 ## File existence
 
-- [ ] `package.json` with `expo`, `expo-router`, `nativewind`, `tailwindcss`, `zustand`, `@tanstack/react-query`, `react-native-reanimated`, `react-native-gesture-handler`, `react-native-safe-area-context`, `expo-image`, `@shopify/flash-list`.
+- [ ] `package.json` with `expo`, `expo-router` **and its peers `expo-linking`, `expo-constants`, `react-native-screens`** (peers are not auto-installed under `--legacy-peer-deps`; without them Metro fails on the first start), `nativewind`, `tailwindcss`, `zustand`, `@tanstack/react-query`, `react-native-reanimated`, `react-native-gesture-handler`, `react-native-safe-area-context`, `expo-image`, `@shopify/flash-list`.
 - [ ] `app/_layout.tsx` imports `../global.css` and renders `<Stack />`.
 - [ ] `app/index.tsx` exists with a "hello world" screen using NativeWind classes.
 - [ ] `global.css` with `@tailwind base/components/utilities`.
-- [ ] `tailwind.config.js` with `nativewind/preset` and tokens from DESIGN.md.
+- [ ] `tailwind.config.js` with `nativewind/preset` and tokens from `.workflow/DESIGN.md`.
 - [ ] `babel.config.js` with `nativewind/babel`.
 - [ ] `metro.config.js` with `withNativeWind`.
 - [ ] `nativewind-env.d.ts` with `/// <reference types="nativewind/types" />` (required for NativeWind v4 `className` to type-check).
 - [ ] `app.json` with `expo.scheme` and `expo.experiments.typedRoutes: true`. (**No `newArchEnabled`** — ignored since SDK 55.)
-- [ ] `tsconfig.json` with `extends: "expo/tsconfig.base"` and `paths` for `@/*`.
+- [ ] `declarations.d.ts` with `declare module "*.css"` and the `@formatjs/intl-pluralrules/*` modules (TS 6 reports TS2882 on side-effect imports without it).
+- [ ] `tsconfig.json` with `extends: "expo/tsconfig.base"` and `paths` for `@/*` — and **no `baseUrl`** (TS 6 error TS5101).
 - [ ] `.env.example` listing `EXPO_PUBLIC_*` vars used by the app.
 - [ ] `components/`, `lib/`, `store/`, `types/`, `assets/` directories (can be empty with `.gitkeep`).
 
 ## Tooling
 
 - [ ] `npx tsc --noEmit` exits 0.
+- [ ] `npx expo export --platform ios --output-dir <tmp>` exits 0 (`verify.ts` runs this; it is the check that catches unresolvable modules — `tsc` does not).
+- [ ] The empty app has been opened once on a simulator **before** any further package is added, so there is a known-good baseline to debug from.
 - [ ] `npx expo doctor` exits 0 or with only documented warnings (e.g. "no native modules").
 - [ ] `npx expo start` starts Metro and the app opens in a **development build** (`expo-dev-client`), the iOS simulator, or Expo Go on Android. ⚠️ The App Store build of Expo Go is frozen at **SDK 54** and cannot open an SDK 57 project on a physical iPhone — use a dev build, or `eas go` via TestFlight. See `rn-fundamentals/references/decision-tree.md` Q2.
 

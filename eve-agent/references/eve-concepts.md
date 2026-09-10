@@ -151,6 +151,36 @@ It's a **coordination layer only** — no filesystem/network/shell, only calls t
 
 Config is `run({ source, hostFunctions, limits: { timeoutMs, memoryLimitBytes } })`, or `createRunner()` for a shared budget. Node 22.13+ / Bun. `[VERIFY]` before wiring it directly into an eve agent — eve exposes the workflow tool, not `run`, and whether you should reach past it is a design decision, not a default.
 
+## Workflow tools — `defineWorkflowTool` (durable waits, not model-orchestrated fan-out)
+
+Landed **0.48.0–0.52.0**; a different mechanism from `experimental_workflow` above, and easy to conflate by name alone: `experimental_workflow` lets **the model** write the coordination code as one durable step; `defineWorkflowTool` lets **you** write an ordinary static tool whose executor is *itself* a durable Workflow run — for a tool that must wait on a person, a webhook, or a timer without holding compute, not for model-orchestrated multi-agent fan-out.
+
+```ts title="agent/tools/deploy.ts"
+import { defineWorkflowTool } from "eve/tools";
+import { z } from "zod";
+
+export default defineWorkflowTool({
+  description: "Deploy a service to production. Pauses for a human to approve the plan.",
+  inputSchema: z.object({ service: z.string() }),
+  async execute({ service }, ctx) {
+    "use workflow";                       // required, first statement, or the build fails
+    const plan = await planDeploy(service);            // "use step" function — side effects go here
+    const answer = await ctx.ask({ prompt: `Deploy ${service}?`, display: "confirmation",
+      options: [{ id: "approve", label: "Deploy", style: "primary" }, { id: "cancel", label: "Cancel" }] });
+    if (answer.optionId !== "approve") return { deployed: false, reason: "rejected" };
+    return { deployed: true, url: await applyDeploy(plan) };
+  },
+});
+```
+
+- **`"use workflow"` must open the executor**, inline or as a top-level `async function` in the same module or an imported one — a missing directive is a build error. Side effects, the clock, randomness and `process.env` belong in a separate `"use step"` function; the workflow body itself is replayed and must stay deterministic.
+- `ctx` inside the body is `WorkflowToolContext`, not the ordinary `ToolContext`: only `session`, `callId`, `toolName`, `abortSignal`, plus two workflow-only methods — `ctx.ask(request)` (ask the human on the session's channel; awaiting it suspends the run) and `ctx.agent(input)` (call a visible subagent with a required, replay-stable `key`, and wait for its result). `getSandbox`/`getSkill`/`getToken`/`requireAuth` are **not** on this context.
+- **Two independent execution axes.** Durable suspension (`ctx.ask`, an awaited `createHook`/`createWebhook`, `sleep` — all from the vendored `workflow` package) is orthogonal to `execution: "background"`. Default execution parks the calling turn until the run settles; `execution: "background"` returns `{ status: "working", taskId }` immediately and delivers the result as a later task notification, `yield task.postMessage(...)` to nudge the parent mid-run.
+- Input must be a plain JSON object, and the tool must live under `agent/tools/` — a `defineDynamic` resolver cannot return a workflow tool.
+- The workflow's identity derives from the executor's module path and function name; renaming or moving it starts a *new* workflow lineage, and a run resumed on a deployment that no longer has it fails naming the missing workflow.
+
+This is the general form of the `deploy`/`refund_order`/`render_video` shapes `eve-patterns.md` and `eve-scaffold.md` describe by hand today with `approval` + a webhook route — `defineWorkflowTool` is now the first-party way to write that as one function instead of gluing a route handler to a resumed session. `[VERIFY]` against `node_modules/eve/docs/tools/workflows.mdx` before relying on a detail not repeated here — this section summarizes, it does not reproduce the full page (background/waiting semantics table, cancellation grace period, retry-and-idempotency notes).
+
 ## Responsible use (deployer obligations — do this before production)
 
 ### Remove the defaults you did not ask for — before the first run

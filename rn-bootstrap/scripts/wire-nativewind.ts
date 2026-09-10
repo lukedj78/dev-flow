@@ -15,10 +15,27 @@ type Tokens = {
   fontSize?: Record<string, string | [string, { lineHeight?: string }]>;
 };
 
+/**
+ * The contract puts DESIGN.md in `.workflow/` (contracts.md §Folder layout). An earlier
+ * revision of this script read `<root>/DESIGN.md` instead, so a project following the
+ * contract silently got the default tokens. Contract path first; root kept as a legacy
+ * fallback with a warning.
+ */
+export function resolveDesignPath(projectRoot: string): string | null {
+  const contractPath = path.join(projectRoot, ".workflow", "DESIGN.md");
+  if (fs.existsSync(contractPath)) return contractPath;
+  const legacyPath = path.join(projectRoot, "DESIGN.md");
+  if (fs.existsSync(legacyPath)) {
+    console.warn(`[wire-nativewind] DESIGN.md found at project root — the contract location is .workflow/DESIGN.md; move it there`);
+    return legacyPath;
+  }
+  return null;
+}
+
 function readDesignTokens(projectRoot: string): Tokens {
-  const designPath = path.join(projectRoot, "DESIGN.md");
-  if (!fs.existsSync(designPath)) {
-    console.warn(`[wire-nativewind] no DESIGN.md at ${designPath}, using defaults`);
+  const designPath = resolveDesignPath(projectRoot);
+  if (!designPath) {
+    console.warn(`[wire-nativewind] no .workflow/DESIGN.md (nor a legacy root DESIGN.md), using defaults`);
     return defaultTokens();
   }
   const md = fs.readFileSync(designPath, "utf8");
@@ -114,6 +131,24 @@ function writeNativewindEnvDts(projectRoot: string) {
   );
 }
 
+function writeDeclarationsDts(projectRoot: string) {
+  // TypeScript 6 (what the SDK 57 blank-typescript template ships) reports TS2882 for a
+  // side-effect import that resolves to no declaration file: `import "../global.css"` in
+  // app/_layout.tsx and the @formatjs/intl-pluralrules polyfill imports in lib/i18n.ts
+  // (see references/i18n-rn.md). One ambient file covers both. Idempotent: only written if
+  // absent, so a project can add its own declarations to it.
+  const target = path.join(projectRoot, "declarations.d.ts");
+  if (fs.existsSync(target)) return;
+  fs.writeFileSync(
+    target,
+    `// Ambient declarations for side-effect imports that ship no types (TS 6 reports TS2882 without them).
+declare module "*.css";
+declare module "@formatjs/intl-pluralrules/polyfill-force";
+declare module "@formatjs/intl-pluralrules/locale-data/*";
+`,
+  );
+}
+
 function main() {
   const projectRoot = process.argv[2];
   if (!projectRoot) {
@@ -130,7 +165,8 @@ function main() {
   writeBabelConfig(projectRoot);
   writeMetroConfig(projectRoot);
   writeNativewindEnvDts(projectRoot);
-  console.log("[wire-nativewind] wrote tailwind.config.js, global.css, babel.config.js, metro.config.js, nativewind-env.d.ts");
+  writeDeclarationsDts(projectRoot);
+  console.log("[wire-nativewind] wrote tailwind.config.js, global.css, babel.config.js, metro.config.js, nativewind-env.d.ts, declarations.d.ts");
 }
 
 main();

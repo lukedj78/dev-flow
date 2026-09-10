@@ -10,7 +10,7 @@ description: 'Use to add a new screen to an existing Expo + RN app: from a descr
 See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"expo-rn"`.
 - Requires `meta.json#phase ≥ "scaffolded"` (run `rn-bootstrap` first).
-- Reads `DESIGN.md` from project root for the design tokens.
+- Reads `.workflow/DESIGN.md` (the contract location) for the design tokens; the NativeWind classes it emits must exist in the `tailwind.config.js` that `rn-bootstrap` generated from it.
 - Writes ONE new file under `<project-root>/app/...` per call — **routes only**: Expo Router treats every file under `app/` as a route, so nothing else may live there. Optional: screen-private components under `<project-root>/components/<feature>/` (L0, OUTSIDE `app/` — see Folder structure rules below), hooks under `<project-root>/lib/queries/`.
 - Sets `meta.json#phase = "page_generated"` after the first screen, then leaves it (subsequent screens are still `page_generated`).
 - Always idempotent: re-adding the same route detects the existing file and reports.

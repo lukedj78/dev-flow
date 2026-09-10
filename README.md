@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the dev-flow skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r12.png)
+![dev-flow v1.0.0 — map of the dev-flow skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r13.png)
 
 **📖 [Browse every skill →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
 
@@ -162,7 +162,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
 | `coss-ui` | Coss/UI (Cal.com design system on Base UI) via the shadcn `@coss/*` registry — Init/Add modes, DESIGN.md token reconciliation; requires Tailwind v4, mixed MIT/AGPLv3 license |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
-| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` modules |
+| `module-add` | Wire `auth` / `db` / `payments` / `email` / `test` / `ci` / `motion` / `voice` / `realtime` / `storage` / `deploy` / `cms` modules |
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 | `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
@@ -1234,7 +1234,7 @@ The 16 mobile skills mirror the web stack philosophy: opinionated defaults, idem
 |---|---|---|
 | `rn-bootstrap` | `prd_drafted` → `scaffolded` | Scaffolds a new Expo app from PRD + DESIGN.md. 4-script chain (init → install → wire-NativeWind → verify). Idempotent. |
 | `rn-add-screen` | `scaffolded` → `page_generated` | Adds a route to `app/` via 5 canonical templates (list / detail / form / modal / auth-gated). Wires data layer if needed. |
-| `rn-module-add` | `scaffolded` → `module-added` | Wires `auth` / `db` / `storage` / `realtime` / `push` / `payments` modules. Provider-agnostic (Supabase, Firebase, custom REST, tRPC, RevenueCat). |
+| `rn-module-add` | `scaffolded` → `module-added` | Wires `auth` / `db` / `storage` / `realtime` / `push` / `payments` / `cms` modules. Provider-agnostic (Supabase, Firebase, custom REST, tRPC, RevenueCat; Sanity for `cms` — the Studio is the admin panel). |
 | `rn-write-tests` | any | Jest + RNTL + Maestro setup + tests for one source file. Mirrors `write-tests` for RN. |
 | `rn-eas-deploy` | `feature_complete` → `deployed` | End-to-end deploy: pre-submission checklist → preview build → smoke → production build → EAS Submit → channels. Refuses incomplete checklist. |
 | `rn-upgrade` | any (maintenance) | Upgrades an Expo/RN project's SDK: `expo install --fix` → `expo-doctor` → cache clear → prebuild (CNG vs bare) → breaking-changes checklist. Defers per-version detail to Expo docs/MCP. |
@@ -1562,7 +1562,23 @@ The description is the **only** thing a skill is selected on — the body is nev
 
 ### Maintenance scripts
 
-The repo ships eight scripts (in `scripts/`) you can run anytime — four of them are what CI enforces:
+The repo ships a set of scripts (in `scripts/`) you can run anytime — four of them are what CI enforces, and one hook runs the generators for you:
+
+```bash
+# Once per clone: enable the versioned git hooks (core.hooksPath=.githooks). From then on,
+# committing a SKILL.md / references/ / scripts/ change regenerates skills.json, the docs/
+# site, the skill map's per-skill counts and both plugin manifests, stages them, and lints —
+# so the commit that CI would have rejected never leaves the machine.
+./scripts/install-git-hooks.sh
+
+# The same regeneration by hand, in dependency order (what the hook calls)
+./scripts/regenerate.sh
+REGEN_BUNDLES=1 ./scripts/regenerate.sh   # also repackage dist/*.skill (opt-in)
+
+# Rewrite the skill map's `1122·9r·2s` row meta from skills.json (lint check 13 reads them)
+python3 scripts/sync_skill_map.py           # write
+python3 scripts/sync_skill_map.py --check   # CI-style: fail if stale
+```
 
 ```bash
 # Sanity-check every skill — 16 checks (frontmatter YAML + the 1024-char

@@ -99,6 +99,135 @@ maestro test -e EMAIL=user@example.com -e PASSWORD="$TEST_PASSWORD" .maestro/sig
 
 Shell variables prefixed `MAESTRO_` are picked up automatically by the CLI (not by Studio). Never commit credentials into a flow file — pass them with `-e`.
 
+## Two-user flows (shared state)
+
+A single-user journey cannot express the bug class that costs the most in production: **user A takes
+something, user B must see it taken.** A seat on a flight, a slot in a calendar, an invite code, the
+last unit in stock. It is exactly the test that surfaced a cross-user RLS bug in the flight-booking
+tutorial this section was written after — the seat map was fed by a query the second user was not
+allowed to read, so every seat looked free. Jest + RNTL cannot see it (one client, mocked backend);
+only a real binary against the real backend can.
+
+Layout — the shared steps are subflows, the scenario is one file that reads top to bottom:
+
+```
+.maestro/
+├── common/
+│   ├── sign-in-as.yaml        # env: EMAIL, PASSWORD — fresh install state, then sign in
+│   ├── sign-out.yaml          # profile tab → sign out → asserts the auth screen is back
+│   └── open-seat-map.yaml     # env: ORIGIN, DESTINATION, DATE — search → first result → seats
+└── two-users-seat-lock.yaml   # the scenario
+```
+
+```yaml
+# .maestro/common/sign-in-as.yaml
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true            # a "just installed" app: no cached session, no query cache
+    clearKeychain: true         # iOS: drop anything left in SecureStore too
+- tapOn:
+    id: "email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn:
+    id: "sign-in"
+- assertVisible:
+    id: "tab-home"              # signed in = the tab bar is there
+```
+
+```yaml
+# .maestro/common/sign-out.yaml
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "tab-profile"
+- tapOn:
+    id: "sign-out"
+- assertVisible:
+    id: "sign-in"               # back on the auth screen
+- assertNotVisible:
+    id: "tab-home"
+```
+
+```yaml
+# .maestro/two-users-seat-lock.yaml
+appId: ${APP_ID}
+tags:
+  - multi-user
+env:
+  ORIGIN: "Lagos"
+  DESTINATION: "London"
+---
+# --- user A books the seat ---------------------------------------------------
+- runFlow:
+    file: common/sign-in-as.yaml
+    env:
+      EMAIL: ${USER_A_EMAIL}
+      PASSWORD: ${USER_A_PASSWORD}
+- runFlow:
+    file: common/open-seat-map.yaml
+    env:
+      DATE: ${DATE}
+- tapOn:
+    id: "seat-${SEAT}"
+- tapOn:
+    id: "pay-now"
+- tapOn:
+    id: "pay-with-card"
+- assertVisible:
+    id: "view-booking"          # payment succeeded
+- runFlow: common/sign-out.yaml
+
+# --- user B must find it taken -------------------------------------------------
+- runFlow:
+    file: common/sign-in-as.yaml
+    env:
+      EMAIL: ${USER_B_EMAIL}
+      PASSWORD: ${USER_B_PASSWORD}
+- runFlow:
+    file: common/open-seat-map.yaml
+    env:
+      DATE: ${DATE}
+- assertVisible:
+    id: "seat-${SEAT}"
+    enabled: false              # the seat exists and is NOT tappable for B
+```
+
+```bash
+maestro test \
+  -e APP_ID=com.example.app \
+  -e USER_A_EMAIL=a@test.example -e USER_A_PASSWORD="$TEST_PW_A" \
+  -e USER_B_EMAIL=b@test.example -e USER_B_PASSWORD="$TEST_PW_B" \
+  -e DATE=2026-12-05 -e SEAT=11A \
+  .maestro/two-users-seat-lock.yaml
+```
+
+Rules that make the flow trustworthy:
+
+- **`clearState: true` between users, always.** Without it user B inherits A's persisted session or
+  A's TanStack Query cache and the assertion passes for the wrong reason. This is the E2E mirror of
+  `rn-backend` rule 5 (sign-out clears token, store and query cache) — and a flow that only passes
+  *with* `clearState` is telling you sign-out leaks state.
+- **Assert on `testID` + state, not on copy.** `id: "seat-11A"` with `enabled: false` survives a copy
+  edit and the second locale; `assertVisible: "Booked"` does not. Map booked/locked to
+  `accessibilityState={{ disabled: true }}` (Maestro's `enabled` reads it) — `rn-add-screen` lands
+  the `testID`s when it generates the screen.
+- **One unique resource per run.** Pass `SEAT` (or the slot / code) with `-e` and pick a value no
+  previous run has taken; on CI, reset the test dataset before the suite (a seed script, a scratch
+  Supabase branch, or a nightly truncate). A flow that hardcodes `11A` passes once.
+- **Two real accounts, created out of band**, never in the flow — sign-up flows belong to their own
+  file. Credentials arrive with `-e` or `MAESTRO_`-prefixed shell variables; nothing is committed.
+- **Backend, not mock.** The point is the authorization boundary between two identities: RLS policies,
+  `security definer` functions, ownership checks. Run it against a real (test) project, on a dev or
+  release build — not Expo Go (see above).
+
+Name the variant after the resource: `two-users-seat-lock`, `two-users-slot-conflict`,
+`two-users-invite-once`. Tag them `multi-user` and run them in the nightly job, not on every PR — they
+are slow and they need the seeded backend.
+
 ## testID conventions in RN (stable selectors)
 
 Maestro maps React Native's `testID` to its `id` selector on both platforms. Text selectors are the easy path and the brittle one — they break on copy edits and on the second locale (and this repo ships i18n from day one).

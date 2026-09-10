@@ -1,6 +1,6 @@
 ---
 name: rn-write-tests
-description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), or testing pure logic outside an Expo project.'
+description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "two-user flow", "multi-user test", "test con due utenti", "shared state between users", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), or testing pure logic outside an Expo project.'
 ---
 
 # rn-write-tests — Jest + RNTL + Maestro testing for Expo + RN
@@ -40,9 +40,16 @@ npx expo install --dev \
   @testing-library/react-native@^14 \
   test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
+
+# jest-expo 57 declares `@react-native/jest-preset ^0.86.3` as a peer, and that package is
+# NOT in the SDK's bundledNativeModules — so `expo install` would hand you npm latest (0.87.x),
+# whose setup looks for `react-native/src/setup-env.js` and fails on RN 0.86. Pin it to the
+# React Native version the project actually has:
+RN_VERSION="$(node -p "require('react-native/package.json').version")"
+npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSION}"
 ```
 
-(`test-renderer@^1` is a **required** peer dep of RNTL v14 — it replaced `react-test-renderer`. Node `^22.13 || >=24` is also required. Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
+(Without the `@react-native/jest-preset` line the very first `jest` run dies with *"The React Native Jest preset that jest-expo relies on has moved to a separate package"*; with the wrong minor it dies with *"Could not locate module react-native/setup-env"* — observed 2026-09-08 on SDK 57 / RN 0.86.3. `test-renderer@^1` is a **required** peer dep of RNTL v14 — it replaced `react-test-renderer`. Node `^22.13 || >=24` is also required. Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+ — no separate `@testing-library/jest-native` needed. See `references/jest-setup.md` for the full config.)
 
 ⚠️ **RNTL v14 is async**: `render`, `renderHook`, `fireEvent` and `act` all return Promises and MUST be awaited, and the `UNSAFE_*` queries are gone. Read the v14 section of `references/rntl-patterns.md` before writing a test — a missing `await` produces a test that passes for the wrong reason. Migrating an existing suite: `npx codemod@latest rntl-v14-update-deps --target .` then `npx codemod@latest rntl-v14-async-functions --target ./src`.
 
@@ -55,6 +62,7 @@ Ask the user (one round-trip) what to test:
 - **Hook** (`useQuery`, `useMutation`, custom hook) → RNTL `await renderHook(...)`.
 - **Pure function** (utility, helper) → plain Jest.
 - **e2e flow** (sign-in, navigation, form submit) → Maestro.
+- **Shared-state / two-user flow** (user A takes a seat, a slot, an invite; user B must see it taken) → Maestro, two `runFlow` sign-ins in one file with `clearState` between them, against a real test backend — `references/maestro.md` §Two-user flows. Jest cannot express this; it is the check that finds authorization bugs between identities.
 
 If the file under test is `lib/api.ts`, write a Jest test of the function with `fetch` mocked.
 If the file under test is `app/(auth)/sign-in.tsx`, write an RNTL test of the screen + a Maestro flow of the user journey.

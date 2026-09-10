@@ -1,6 +1,6 @@
 ---
 name: rn-module-add
-description: 'Use to wire a backend/infra module (auth, db, storage, realtime, push, payments) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework="expo-rn" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: "add auth", "wire up db", "set up Supabase", "set up Firebase", "add payments", "add push" (the server-side part), "aggiungi modulo X". Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap).'
+description: 'Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework="expo-rn" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: "add auth", "wire up db", "set up Supabase", "set up Firebase", "add payments", "add push" (the server-side part), "add a CMS", "set up Sanity", "admin panel for content", "aggiungi un CMS", "aggiungi modulo X". Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap).'
 ---
 
 # rn-module-add — wire a backend/infra module into a scaffolded RN app
@@ -17,6 +17,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
   - `realtime` module → `meta.json#stack.realtime` (new sub-key)
   - `push` module → `meta.json#stack.push` (new sub-key)
   - `payments` module → `meta.json#stack.payments`
+  - `cms` module → `meta.json#stack.cms` (new sub-key — content the app only reads)
 - Sets `meta.json#phase = "module_added"` after the first module, then leaves it.
 - Always idempotent: re-running with same provider detects existing wiring and exits 0.
 
@@ -33,6 +34,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - `rn-backend/references/<provider>.md` — provider-specific wiring (supabase.md / firebase.md / custom-rest.md / trpc.md).
 - `rn-push-notifications/references/setup.md` — for the push module.
 - `rn-publishing-payments/references/revenuecat.md` — for the payments module.
+- `references/module-cms-sanity.md` — for the cms module (Sanity Studio as the admin panel, HTTP Query API in the app).
 
 ## Monorepo awareness
 
@@ -54,12 +56,13 @@ If `stack.framework == "monorepo"`, all subsequent file paths are relative to `a
 
 ### Step 2 — Identify the module + provider
 
-Module the user requested: one of `auth | db | storage | realtime | push | payments`.
+Module the user requested: one of `auth | db | storage | realtime | push | payments | cms`.
 
 If the user didn't specify a provider, default to:
 - `auth`, `db`, `storage`, `realtime` → **Supabase** (the default in `rn-backend/references/decision-tree.md`).
 - `push` → **expo-notifications + Expo push service** (the default).
 - `payments` → **RevenueCat** (the default).
+- `cms` → **Sanity** (the hosted Studio is the admin panel; the app reads over the HTTP Query API with no SDK in the bundle — `references/module-cms-sanity.md`). Use it for content a non-developer edits and the app only reads; user-owned data stays in `db`.
 
 If the user specifies a non-default provider, accept it: Firebase / custom-rest / tRPC for backend; Stripe for non-digital payments.
 
@@ -83,6 +86,7 @@ Provider matrix:
 | realtime | (uses `@supabase/supabase-js`) | (uses `@react-native-firebase/firestore`) | (WebSocket of your choice) | (tRPC subscriptions) |
 | push | `expo-notifications`, `expo-device` | (same + `@react-native-firebase/messaging`) | (same; server-side uses your backend) | (same) |
 | payments | `react-native-purchases` (RevenueCat) | (same) | (same) | (same) |
+| cms | **Sanity** — nothing in the app (plain `fetch` on the HTTP Query API); `sanity`, `@sanity/vision`, `@sanity/client` live in the separate `cms/` package | — | — | — |
 
 ### Step 5 — Generate the wiring
 
@@ -94,6 +98,7 @@ For each (module, provider) combination, write to `<project-root>/lib/`:
 - `auth/tRPC` → `lib/trpc.ts` + `lib/auth.ts`. See `rn-backend/references/trpc.md`.
 - `payments/RevenueCat` → `lib/purchases.ts` + `hooks/usePro.ts`. See `rn-publishing-payments/references/revenuecat.md`.
 - `push/expo-notifications` → `lib/push.ts` + edits to `app/_layout.tsx` (handlers + permissions). See `rn-push-notifications/references/patterns.md`.
+- `cms/Sanity` → `cms/` Studio package (config, schema types from the PRD domain, seed script, README) + `lib/cms.ts` (`cmsFetch` over the HTTP Query API) + query hooks under `lib/queries/` + `metro.config.js` blockList for `cms/`. See `references/module-cms-sanity.md`.
 
 ALWAYS also create `store/auth.ts` (Zustand) and ensure `app/(app)/_layout.tsx` redirects when unauthenticated — see `rn-backend/references/patterns.md`.
 
@@ -106,6 +111,7 @@ Per provider, add the env vars to `.env.example`:
 - Custom REST: `EXPO_PUBLIC_API_URL=`
 - tRPC: `EXPO_PUBLIC_API_URL=`
 - RevenueCat: `EXPO_PUBLIC_REVENUECAT_IOS_KEY=`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=`
+- Sanity (cms): `EXPO_PUBLIC_SANITY_PROJECT_ID=`, `EXPO_PUBLIC_SANITY_DATASET=production` — **no token**: `EXPO_PUBLIC_*` ships in the bundle, so the catalogue dataset stays public. The Editor token for seeding lives in `cms/.env` only.
 
 For Firebase or RevenueCat or push notifications, add the relevant `app.json` config plugin entries (see provider-specific reference).
 
@@ -118,7 +124,7 @@ For modules with native config plugin changes (Firebase, push), the next build w
 ### Step 8 — Update meta.json + commit
 
 Update `meta.json`:
-- `stack.<module>`: set to the provider name (e.g. `"supabase"`, `"firebase"`, `"custom-rest"`, `"trpc"`, `"revenuecat"`, `"stripe"`, `"expo-notifications"`).
+- `stack.<module>`: set to the provider name (e.g. `"supabase"`, `"firebase"`, `"custom-rest"`, `"trpc"`, `"revenuecat"`, `"stripe"`, `"expo-notifications"`, `"sanity"`).
 - `phase`: if currently `"scaffolded"` or `"page_generated"`, set to `"module_added"`. Otherwise leave.
 - `history`: append `{ skill: "rn-module-add", ran_at: <iso>, inputs: { module, provider }, outputs: [<files>], phase_before, phase_after }`.
 
@@ -158,6 +164,7 @@ When wiring a module for RN/Expo, respect the canonical structure (spec: `docs/s
 - **`realtime` module**: subscriptions wired in screens or in `store/` if cross-feature.
 - **`push` module**: `lib/push.ts` + handlers in `app/_layout.tsx`.
 - **`payments` module**: client in `lib/purchases.ts`. Paywall UI in `app/(app)/paywall/_components/`. Pro gating hook → `hooks/use-pro.ts`.
+- **`cms` module**: the Studio is its own package in `cms/` (own `package.json`, excluded from Metro and from the app's `tsconfig`); read client in `lib/cms.ts`; GROQ query hooks in `lib/queries/`. Never an admin screen in `app/` for content — that is the Studio.
 
 For monorepo (`stack.framework="monorepo"`): backend client (auth/db/storage/realtime) goes in `packages/api/` and is consumed via `@<slug>/api/*` workspace import.
 

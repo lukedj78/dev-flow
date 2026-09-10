@@ -37,7 +37,7 @@ The `stack` object follows the existing contract (see `contracts.md`). `framewor
 | Phase | Skill |
 |---|---|
 | `prd_drafted` or `design_extracted` | `rn-bootstrap` |
-| `scaffolded` or `page_generated` or `module_added` | `rn-add-screen` (UI), `rn-write-tests` (tests), `rn-module-add` (auth/db/storage/realtime/push/payments) |
+| `scaffolded` or `page_generated` or `module_added` | `rn-add-screen` (UI), `rn-write-tests` (tests), `rn-module-add` (auth/db/storage/realtime/push/payments/cms) |
 | `feature_complete` | `rn-eas-deploy` |
 | `deployed` | maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes |
 
@@ -67,7 +67,7 @@ Operative skills in this stack (all shipped):
 - `rn-bootstrap` — scaffold an Expo app from PRD + DESIGN
 - `rn-add-screen` — add a route to a scaffolded app (5 canonical templates)
 - `rn-write-tests` — Jest + RNTL + Maestro setup + tests
-- `rn-module-add` — wire auth/db/storage/realtime/push/payments (provider-agnostic)
+- `rn-module-add` — wire auth/db/storage/realtime/push/payments/cms (provider-agnostic; cms = Sanity)
 - `rn-eas-deploy` — end-to-end deploy orchestration (init → preview → production → submit → channels)
 
 ## NEVER use these skills on this stack

@@ -43,6 +43,7 @@ When a project needs one of these capabilities, reach for the default below inst
 | **WebGPU shaders** | `vgpu-shaders` (`stack.shaders`) — `transitions`' Tier 4, MIT, first-party skill for the API | — (no WebGPU rung on RN) |
 | **Documents → Markdown** | [`anydoc`](https://github.com/firecrawl/anydoc) (Firecrawl, MIT) — `.docx`/`.pptx`/`.xlsx`/`.pdf`/ODF/RTF/EPUB/CSV, **converted locally**; first-party skill `npx skills add firecrawl/anydoc`. ⚠️ `--ocr hosted` sends the **whole** document to a third party — an R3 transfer decision, not a flag | same CLI |
 | **Forms** | `forms` (`stack.forms`) | RN form stack |
+| **Content / headless CMS** | **Sanity** via `next-sanity` — `module-add cms`; how-to `module-add/references/module-cms.md`. The hosted Studio is the editors' admin panel. `stack.cms = "sanity"` | **Sanity** over the HTTP Query API (plain `fetch`, no SDK in the bundle) — `rn-module-add cms`; how-to `rn-module-add/references/module-cms-sanity.md`. Same `cms/` Studio package as web in a monorepo |
 
 Per the **Knowledge principle**, each of these defaults must ship (or point at) a **doc-grounded how-to** — not just a name — before it's used to scaffold; `[VERIFY]` install command + license + API against the official site each time (docs move). These are starting defaults; a project may override with a documented reason.
 
@@ -66,6 +67,7 @@ A "dev-flow project" is a **standard codebase root** (the directory that contain
 ├── app/, components/, lib/       # ← framework conventions, untouched
 ├── registry.json                 # ← shadcn registry (when applicable), at root
 ├── drizzle.config.ts             # ← config files at root
+├── cms/                          # ← Sanity Studio package when stack.cms = "sanity" (own package.json; excluded from the app's bundler)
 └── ...                           # ← anything else the framework expects
 ```
 
@@ -217,6 +219,7 @@ Captures user choices that downstream skills need. Keys:
 - `deploy`: `"vercel"` | `"fly"` | `"cloudflare-pages"` | `"eas"` (mobile) | `null`
 - `storage` (optional — file/blob storage): **web** → `"vercel-blob"` (**default** when `deploy = "vercel"` — same platform, no extra vendor/sub-processor; how-to `module-add/references/module-storage.md`) | `"uploadthing"` | `"s3"`; **mobile** → `"supabase"` | `"firebase"` | `"custom-rest"`; `null` when the product stores no files.
 - `realtime` (mobile, optional): `"supabase"` | `"firebase"` | `"custom-rest"` | `null`
+- `cms` (optional — content a non-developer edits and the product only *reads*: catalogue, pages, articles, FAQs): `"sanity"` (**default when the product needs one** — the hosted Sanity Studio is the admin panel, so no admin CRUD and no admin roles are built into `db`; how-to `module-add/references/module-cms.md` for web, `rn-module-add/references/module-cms-sanity.md` for mobile) | `"payload"` | `"contentful"` | `null`. User-owned data (accounts, orders, bookings) never goes here — it stays in `db` behind RLS.
 - `push` (mobile, optional): `"expo-notifications"` | `null`
 - `route_groups` (web/monorepo, optional): array of `"(marketing)"` | `"(auth)"` | `"(app)"` | `"(tabs)"` (mobile). E.g. `["(marketing)", "(auth)", "(app)"]` for SaaS, `["(auth)", "(app)"]` for internal tool, `["(marketing)"]` for marketing site. Written by `prd-from-idea` based on deduction from the PRD; can be overridden by user later.
 - `i18n` (frontend, **golden rule 2**): `"next-intl"` (web canonical default) | `"i18next"` | `"react-i18next"` | `null`. Every frontend has i18n — do not leave `null` for a frontend. Web new projects default to `"next-intl"`; mobile uses the RN i18n stack.

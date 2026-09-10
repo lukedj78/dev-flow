@@ -30,6 +30,18 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-09-08 against eve@0.52.2** (eve shipped 0.47.7 → 0.52.2 in the week since
+> the 09-01 pass; `npm pack eve@0.52.2`, then `CHANGELOG.md` + `docs/` + the `.d.ts`, same technique —
+> scoped to the one real new capability in range, not a full re-walk of every prior claim). **One page
+> is new**: `docs/tools/workflows.mdx` (`defineWorkflowTool` from `eve/tools`, shipped 0.48.0–0.52.0)
+> — a durable-tool mechanism distinct from `experimental_workflow`, which the naming invites confusing:
+> the existing tool lets **the model** write orchestration code as one durable step; this one lets
+> **you** write an ordinary static tool whose own executor is a durable Workflow run, for waiting on a
+> person/webhook/timer without holding compute. Written up in `eve-concepts.md` §Workflow tools,
+> against the full shipped page (executor rules, `WorkflowToolContext`, the background-vs-waiting
+> execution table, identity/replay semantics) rather than the changelog bullets alone. `task.delegated()`
+> was removed the same cycle (0.52.0) — not an identifier this skill ever cited, no action.
+>
 > **Verification pass 2026-09-01 against eve@0.47.6** (eve shipped 0.45.1 → 0.47.6 in the six days
 > since the 08-26 pass; `npm pack eve@0.47.6`, then `CHANGELOG.md` + `docs/` + the `exports` map and
 > `.d.ts`, same technique). Mechanical checks first: **38 of the 39 `eve/…` subpaths this skill cites
@@ -224,6 +236,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 |---|---|---|
 | `/docs/guides/dynamic-capabilities` | `eve-concepts.md` §Dynamic capabilities + `eve-capabilities.md` §Connection (the `connections/` form, 0.47.4) | ✅ |
 | the `Workflow` tool (now inside `/docs/concepts/built-in-tools`; there is no `guides/dynamic-workflows` page) | `eve-concepts.md` §Dynamic workflows (`experimental_workflow()` from `eve/tools/workflow`) | ✅ |
+| `/docs/tools/workflows` — **new page, shipped between 0.48.0 and 0.52.0**, not present at the 0.45.0/0.47.6 passes | `eve-concepts.md` §Workflow tools (`defineWorkflowTool` from `eve/tools`, `"use workflow"`/`"use step"`, `ctx.ask`/`ctx.agent`, background-vs-waiting) — distinct from `experimental_workflow` above, added 2026-09-08 | ✅ |
 | `/docs/guides/session-context` | `eve-conventions.md` + `eve-concepts.md` + `eve-patterns.md` (`ctx.session.auth`) | ✅ |
 | `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |

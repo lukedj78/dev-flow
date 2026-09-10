@@ -4,6 +4,7 @@
 // Usage: npx tsx verify.ts <project-root>
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -41,6 +42,11 @@ const checks: Check[] = [
   { name: "package.json exists", run: () => fileExists("package.json") },
   { name: "dep: expo", run: () => hasDep("expo") },
   { name: "dep: expo-router", run: () => hasDep("expo-router") },
+  // expo-router peers that npm --legacy-peer-deps does NOT pull in. Missing any of
+  // them: tsc passes, Metro fails on the first `expo start`.
+  { name: "dep: expo-linking (expo-router peer)", run: () => hasDep("expo-linking") },
+  { name: "dep: expo-constants (expo-router peer)", run: () => hasDep("expo-constants") },
+  { name: "dep: react-native-screens (expo-router peer)", run: () => hasDep("react-native-screens") },
   { name: "dep: nativewind", run: () => hasDep("nativewind") },
   { name: "dep: tailwindcss", run: () => hasDep("tailwindcss") },
   { name: "dep: zustand", run: () => hasDep("zustand") },
@@ -58,6 +64,7 @@ const checks: Check[] = [
   { name: "file: babel.config.js", run: () => fileExists("babel.config.js") },
   { name: "file: metro.config.js", run: () => fileExists("metro.config.js") },
   { name: "file: nativewind-env.d.ts", run: () => fileExists("nativewind-env.d.ts") },
+  { name: "file: declarations.d.ts (TS 6 side-effect imports)", run: () => fileExists("declarations.d.ts") },
   { name: "file: app.json with typedRoutes", run: () => {
     const p = path.join(projectRoot, "app.json");
     if (!fileExists("app.json")) return false;
@@ -76,6 +83,33 @@ const checks: Check[] = [
       return true;
     } catch {
       return false;
+    }
+  }},
+  // The one check that catches what tsc cannot: does Metro actually produce a
+  // bundle? `expo export` runs the same resolver as `expo start` (missing peers,
+  // broken metro.config.js, a bad babel preset all surface here) without needing
+  // a simulator. ~30-60 s on a fresh project; skip with RN_BOOTSTRAP_SKIP_BUNDLE=1.
+  { name: "metro bundles (expo export --platform ios)", run: () => {
+    if (process.env.RN_BOOTSTRAP_SKIP_BUNDLE === "1") {
+      console.log("   (skipped: RN_BOOTSTRAP_SKIP_BUNDLE=1)");
+      return true;
+    }
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "rn-bootstrap-export-"));
+    try {
+      execSync(`npx expo export --platform ios --output-dir "${outDir}"`, {
+        cwd: projectRoot,
+        stdio: "pipe",
+        env: { ...process.env, CI: "1" },
+      });
+      return true;
+    } catch (e) {
+      const err = e as { stderr?: Buffer; stdout?: Buffer };
+      const text = `${err.stdout ?? ""}\n${err.stderr ?? ""}`;
+      const unresolved = text.match(/Unable to resolve "[^"]+" from "[^"]+"/);
+      if (unresolved) console.error(`   ${unresolved[0]}`);
+      return false;
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
     }
   }},
 ];
