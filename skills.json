@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-11T06:25:26Z",
+  "generated_at": "2026-09-11T06:47:36Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 47,
+  "skill_count": 48,
   "families": {
     "core": [
       "compliance-audit",
@@ -55,6 +55,7 @@
       "rn-write-tests"
     ],
     "monorepo": [
+      "monorepo-add-python-service",
       "monorepo-add-shared-package",
       "monorepo-bootstrap",
       "monorepo-sync-types"
@@ -100,7 +101,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 365,
+      "skill_md_lines": 366,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -770,6 +771,28 @@
       "scripts": [],
       "skill_md_lines": 128,
       "bundle": "dist/rn-write-tests.skill"
+    },
+    {
+      "name": "monorepo-add-python-service",
+      "family": "monorepo",
+      "role": "operative",
+      "description": "Add a Python service (FastAPI, managed by uv) as an app of a turborepo scaffolded by `monorepo-bootstrap`, wired into pnpm workspaces and the turbo task graph, with a generated TypeScript client so `apps/web` never hand-writes a `fetch`. Two variants: `generic` (any HTTP service) and `ml` (vision/OC...",
+      "skill_file": "monorepo-add-python-service/SKILL.md",
+      "references": [
+        "contracts.md",
+        "deploy-container.md",
+        "openapi-client.md",
+        "service-layout.md",
+        "turbo-integration.md",
+        "variant-ml.md"
+      ],
+      "scripts": [
+        "check_python_service.py",
+        "scaffold_python_service.sh",
+        "test_scaffold_python_service.sh"
+      ],
+      "skill_md_lines": 196,
+      "bundle": "dist/monorepo-add-python-service.skill"
     },
     {
       "name": "monorepo-add-shared-package",

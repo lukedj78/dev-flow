@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **47 skills (7 core + 17 web + 2 agent + 16 mobile + 3 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **48 skills (7 core + 17 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -144,7 +144,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 47. Restart Claude Code if you don't see them in /skills.
+# Should print 48. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -166,7 +166,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 | `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
-`install.sh` installs **every skill**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 3 monorepo skills. Full breakdown in [the catalogue](#the-skills-in-detail).
+`install.sh` installs **every skill**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 4 monorepo skills. Full breakdown in [the catalogue](#the-skills-in-detail).
 
 ### 2. Create a project
 
@@ -834,7 +834,7 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ## The skills, in detail
 
-> 7 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, and `product-to-agent-skill` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 3 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 7 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, and `product-to-agent-skill` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -1259,7 +1259,7 @@ Typical timeline: 12–16 hours of focused work from PRD to live submission.
 
 ### Monorepo stack (turborepo: web + mobile + shared packages)
 
-The 3 monorepo skills compose a single repo where both a Next.js web app AND an Expo + RN mobile app live side-by-side, sharing types, design tokens, and the backend client. Activated by answering "both / monorepo" at the target-platform question in `prd-from-idea` (sets `meta.json#stack.framework="monorepo"`).
+The 4 monorepo skills compose a single repo where both a Next.js web app AND an Expo + RN mobile app live side-by-side, sharing types, design tokens, and the backend client. Activated by answering "both / monorepo" at the target-platform question in `prd-from-idea` (sets `meta.json#stack.framework="monorepo"`).
 
 **Stack opinions baked in**:
 
@@ -1270,12 +1270,13 @@ The 3 monorepo skills compose a single repo where both a Next.js web app AND an 
 - **Backend shared, payment split**: auth/db/storage shared via `packages/api/`; web payments via Stripe, mobile via RevenueCat (Apple 3.1.1 mandate).
 - **Deploy split**: web on Vercel, mobile on EAS — two pipelines in parallel.
 
-**The 3 monorepo skills**:
+**The 4 monorepo skills**:
 
 | Skill | When it triggers |
 |---|---|
 | `monorepo-bootstrap` | Phase `prd_drafted` + `stack.framework="monorepo"`. Scaffolds root configs (pnpm-workspace.yaml, turbo.json, tsconfig.base.json), invokes `design-md-to-app` in `apps/web/`, invokes `rn-bootstrap` in `apps/mobile/`, generates the 3 shared package skeletons, patches Metro config for the workspace topology. Idempotent. |
 | `monorepo-add-shared-package` | "Estrai questa logica in shared", "crea un package @<slug>/forms condiviso". Creates a new package OR extracts files from an app into an existing/new shared package, updates path aliases in `tsconfig.base.json`, adds the package as `workspace:*` to both apps. Two modes: create-empty and extract-from-app. |
+| `monorepo-add-python-service` | "Aggiungi un servizio python", "add a fastapi service", "apps/ml". Puts a **FastAPI service managed by uv** in `apps/<name>/`, joined to the task graph by a scripts-only `package.json` and to `apps/web` by a **generated** TypeScript client — so a Pydantic rename is a compile error, not a runtime 422. Two variants: `generic` and `ml` (one resident model, `model_version` on every response, Metal locally / CUDA in production). Owns that app the way `eve-agent` owns `apps/agent/`: no web skill is ever proposed for it, and golden rule 2 does not apply because it has no UI. |
 | `monorepo-sync-types` | "Rigenera i tipi da Supabase", "sync DB schema". Provider-aware: Supabase → `supabase gen types typescript`, tRPC → TS inference re-export, Firebase → manual + Zod runtime validation, custom REST → Zod/OpenAPI/manual. Always writes into `packages/shared/src/types/`. |
 
 **Use case — idea to two-platform launch**:

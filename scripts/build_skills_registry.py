@@ -95,10 +95,11 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "rn-module-add":                ("mobile", "operative"),
     "rn-eas-deploy":                ("mobile", "operative"),
     "rn-upgrade":                   ("mobile", "operative"),
-    # --- monorepo (3): turborepo + shared packages --------------------------
+    # --- monorepo (4): turborepo + shared packages --------------------------
     "monorepo-bootstrap":           ("monorepo", "operative"),
     "monorepo-add-shared-package":  ("monorepo", "operative"),
     "monorepo-sync-types":          ("monorepo", "operative"),
+    "monorepo-add-python-service":  ("monorepo", "operative"),
     # --- refactor (2): stack-agnostic composition ---------------------------
     "promote-component":            ("refactor", "operative"),
     "composition-patterns-guide":   ("refactor", "knowledge"),

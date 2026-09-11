@@ -66,6 +66,7 @@
     "./rn-styling",
     "./rn-upgrade",
     "./rn-write-tests",
+    "./monorepo-add-python-service",
     "./monorepo-add-shared-package",
     "./monorepo-bootstrap",
     "./monorepo-sync-types",

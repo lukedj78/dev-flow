@@ -41,6 +41,7 @@ When `stack.framework="monorepo"`, the full `stack` object looks like:
 | `scaffolded` | `screenshot-to-page` (operates in `apps/web/`), `rn-add-screen` (operates in `apps/mobile/`), `eve-agent` (operates in `apps/agent/` — optional agent engine, see below), `monorepo-add-shared-package`, `monorepo-sync-types` |
 | `page_generated` | `module-add` (web side) or `rn-module-add` (mobile side) — both check `stack.framework="monorepo"` and operate in the right sub-folder |
 | `module_added` | iterative: more screens, more modules, more shared packages |
+| `scaffolded` / `page_generated` / `module_added` (optional) | `monorepo-add-python-service` — a FastAPI service in `apps/<name>/` managed by `uv`, joined by a scripts-only `package.json` and a generated TS client in `packages/api/`. **Proposed, never imposed**: a second runtime is a stack decision. Recorded in `stack.monorepo.services` |
 | `feature_complete` | (mobile side) `rn-eas-deploy`; (web side) Vercel deploy via `vercel-deploy` |
 | `deployed` | both stores + Vercel live; maintenance via EAS Update for mobile + Vercel redeploys for web |
 
@@ -78,6 +79,7 @@ New operative skills:
 - `monorepo-bootstrap` — scaffolds the full repo (root + apps + packages)
 - `monorepo-add-shared-package` — extracts logic into `packages/shared/`
 - `monorepo-sync-types` — generates backend types into `packages/shared/types/` (Supabase types, tRPC inference)
+- `monorepo-add-python-service` — adds a non-JS app: FastAPI + `uv` in `apps/<name>/`, with the generated client in `packages/api/src/<name>/`. Owns that app the way `eve-agent` owns `apps/agent/`
 
 All other skills (24 existing) are consumed via monorepo-aware patches.
 
@@ -92,6 +94,7 @@ After `monorepo-bootstrap`:
 - `stack_config.monorepo_tool` = `"turborepo"` (only valid value in v1)
 - `stack_config.workspace_pm` = `"pnpm"` (only valid value in v1)
 - `stack_config.shared_packages` = array of created shared packages, e.g. `["@myapp/shared", "@myapp/design", "@myapp/api"]`
+- `stack.monorepo.services` (optional) = array of non-JS apps under `apps/`, e.g. `[{"name": "ml", "runtime": "python", "framework": "fastapi", "path": "apps/ml", "package_manager": "uv"}]`. Written by `monorepo-add-python-service`. A path listed here is **not** a JS app: no web skill is ever proposed for it, and golden rule 2 does not apply to it
 
 ## Phase progression example for a fresh monorepo project
 

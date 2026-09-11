@@ -744,7 +744,7 @@ def phase_count(root: Path) -> int | None:
     return len(re.findall(r'^    [A-Z_]+ = "', m.group(0), re.M)) if m else None
 
 
-def check_skill_map_metrics(root: Path) -> None:
+def check_skill_map_metrics(root: Path, all_skills: set[str]) -> None:
     path = root / SKILL_MAP
     if not path.exists():
         return
@@ -766,8 +766,23 @@ def check_skill_map_metrics(root: Path) -> None:
     else:
         warn(f"{path}: cannot read the Phase enum ({PHASE_ENUM}) — `phases` card unchecked")
 
+    # The by-function list is the other half of the map, and nothing checked it: adding
+    # skill 48 bumped a group header to 4 while the group still listed 3 rows, and the
+    # metric-card check above was perfectly happy. Membership first, then the cards.
+    html = path.read_text(errors="ignore")
+    rows = re.findall(r'<span class="sk">([a-z0-9-]+)</span>', html)
+    for missing in sorted(all_skills - set(rows)):
+        err(f"{path}: `{missing}` is not listed in the by-function section")
+    for block in re.split(r'<div class="card grp">', html)[1:]:
+        head = re.search(r'<span class="gt">([^<]+)</span><span class="gn">(\d+)</span>', block)
+        if not head:
+            continue
+        actual = len(re.findall(r'<span class="sk">', block))
+        if int(head.group(2)) != actual:
+            err(f"{path}: group `{head.group(1)}` claims {head.group(2)} skills, lists {actual}")
+
     seen = set()
-    for m in METRIC_RE.finditer(path.read_text(errors="ignore")):
+    for m in METRIC_RE.finditer(html):
         label, value = m.group(1), int(m.group(2))
         seen.add(label)
         if label in expected and value != expected[label]:
@@ -808,7 +823,7 @@ def main() -> int:
     check_installer_skills(root / "uninstall.sh", all_skills)
     check_vendored_source(root)
     check_skill_map_meta(root)
-    check_skill_map_metrics(root)
+    check_skill_map_metrics(root, all_skills)
     check_guards_test_count(root)
     check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)

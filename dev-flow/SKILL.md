@@ -51,7 +51,8 @@ When `meta.json#stack.framework == "monorepo"`:
 - `prd_drafted` or `design_extracted` → invoke `monorepo-bootstrap`
 - `monorepo_initialized` (new phase, mid-bootstrap) → `monorepo-bootstrap` continues (invokes `design-md-to-app` in `apps/web/` then `rn-bootstrap` in `apps/mobile/`)
 - `scaffolded` or `page_generated` or `module_added` → web side: `screenshot-to-page` / `module-add` (operate in `apps/web/`). Mobile side: `rn-add-screen` / `rn-module-add` (operate in `apps/mobile/`). Agent side: `eve-agent` (operates in `apps/agent/` — see the agent-engine track below). Cross-cutting: `monorepo-add-shared-package`, `monorepo-sync-types`
-- `feature_complete` → web: `vercel-deploy` (Vercel). Mobile: `rn-eas-deploy`. Agent: `eve-agent` ships via `eve deploy` (Vercel). Run all that apply.
+- `scaffolded` / `page_generated` / `module_added`, when the PRD needs work the JS ecosystem does not do well (vision, OCR, classical ML, scientific computing) → **propose** `monorepo-add-python-service`. A second runtime is a stack decision: offer it, never impose it. The app it creates (`apps/<name>/`) is **owned by that skill** — never propose `design-md-to-app`, `screenshot-to-page`, `forms`, `transitions`, `shadscan` or `coss-ui` for a path listed in `stack.monorepo.services`, and do not apply golden rule 2 to it: a JSON service has no UI to localise.
+- `feature_complete` → web: `vercel-deploy` (Vercel). Mobile: `rn-eas-deploy`. Agent: `eve-agent` ships via `eve deploy` (Vercel). A Python service in `stack.monorepo.services` is a **container**, not a Vercel target — see `monorepo-add-python-service/references/deploy-container.md`. Run all that apply.
 - `deployed` → maintenance loop on all sides
 
 When `meta.json#stack.framework == "agent"` (shape ③ — no web app):

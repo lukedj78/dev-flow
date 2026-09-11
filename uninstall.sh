@@ -86,6 +86,7 @@ SKILLS=(
   monorepo-bootstrap
   monorepo-add-shared-package
   monorepo-sync-types
+  monorepo-add-python-service
 
   # Refactor & composition skills
   promote-component

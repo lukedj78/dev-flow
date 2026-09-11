@@ -20,9 +20,10 @@
 #                                        shadscan, vercel-deploy, vgpu-shaders
 #   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
 #   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
-#   * Monorepo (web + mobile shared):    3 skills  — monorepo-bootstrap,
+#   * Monorepo (web + mobile shared):    4 skills  — monorepo-bootstrap,
 #                                        monorepo-add-shared-package,
-#                                        monorepo-sync-types
+#                                        monorepo-sync-types,
+#                                        monorepo-add-python-service
 #   * Refactor & composition:            2 skills  — promote-component,
 #                                        composition-patterns-guide
 #
@@ -197,6 +198,7 @@ SKILLS=(
   monorepo-bootstrap
   monorepo-add-shared-package
   monorepo-sync-types
+  monorepo-add-python-service
 
   # Refactor & composition skills
   promote-component
