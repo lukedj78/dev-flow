@@ -209,6 +209,112 @@ The actions in the template **return** `{ ok: false }` for **business** errors (
 
 If you want to gate the form at render time instead of catching the throw, do an `await getSession()` check in the parent RSC and `redirect("/sign-in")` if null — that's the right place to handle "user not logged in", not deep inside the action.
 
+## When the product **is** an MCP server — OAuth for coding agents
+
+Everything above builds an app that signs *people* in. If the product exposes an MCP server,
+a coding agent has to get a token for it, and the MCP spec settles how: OAuth 2.1 with PKCE,
+RFC 9728 protected-resource metadata for discovery, and clients that register themselves
+because you will never have met them.
+
+better-auth ships this. It is **not** part of the core package.
+
+> **Checked 2026-09-11** against the shipped declarations (`npm pack`, then the `.d.mts`) —
+> `better-auth@1.7.4`, `@better-auth/oauth-provider@1.7.4`, `@better-auth/mcp@1.7.4`,
+> `@better-auth/cimd` — all MIT.
+
+### The package is `oauth-provider`, not `oidc-provider`
+
+`@better-auth/oidc-provider` **does not exist on npm** (404, checked today). The plugin is
+**`@better-auth/oauth-provider`**, and the old name is still what circulates in blog posts and
+half-remembered notes. Installing the one you remember gets you nothing; installing the one
+that exists gets you an OAuth 2.1 **and** OIDC provider — it serves
+`/.well-known/openid-configuration` alongside `/.well-known/oauth-authorization-server`.
+
+### `mcp()` *is* the provider — do not wire both
+
+```bash
+npm install @better-auth/mcp @better-auth/cimd
+```
+
+`@better-auth/mcp` depends on `@better-auth/oauth-provider`; you do not install it separately.
+And from the plugin's own doc comment: *"Because it is the OAuth provider, it cannot be
+combined with a separate `oauthProvider()`."* Wiring both — the obvious reading of "I need the
+OIDC provider plugin **and** the MCP plugin" — is the first way this goes wrong.
+
+```ts
+// lib/auth.ts
+import { betterAuth } from "better-auth";
+import { jwt } from "better-auth/plugins";
+import { mcp } from "@better-auth/mcp";
+import { cimd } from "@better-auth/cimd";
+
+export const auth = betterAuth({
+  // …database, emailAndPassword, etc. as above
+  plugins: [
+    jwt(),
+    mcp({
+      loginPage: "/login",
+      consentPage: "/consent",
+      resource: "https://api.example.com/mcp",
+    }),
+    cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+  ],
+});
+```
+
+`resource` is the canonical protected-resource identifier (RFC 8707 / RFC 9728). Issued tokens
+are **audience-bound** to it and it is published in the protected-resource metadata. It must be
+an **HTTPS URL with no query, fragment or credentials**; HTTP is accepted only on loopback, for
+local development.
+
+Mounted once the plugin is in: `/.well-known/oauth-authorization-server`,
+`/.well-known/oauth-protected-resource`, `/.well-known/openid-configuration`, and the
+`/oauth2/*` endpoints (`authorize`, `token`, `consent`, `register`, `create-client`, …).
+
+### Dynamic client registration is opt-in, and the mode is a security decision
+
+The reflex — "MCP needs dynamic registration, so it must be on" — is wrong twice. It is
+**`allowDynamicClientRegistration: false` by default**, and enabling it only opens
+`POST /oauth2/register`; *who may register* is a second choice, with three modes:
+
+| Mode | How it is authorized | Turned on by |
+|---|---|---|
+| **session-backed** | a logged-in user with client-create privileges | `allowDynamicClientRegistration: true` alone |
+| **token-backed** | an RFC 7591 initial access token in `Authorization: Bearer` | defining `validateInitialAccessToken` |
+| **open** | nobody — unauthenticated | `allowUnauthenticatedClientRegistration: true` |
+
+Open registration means **anyone on the internet can create a client on your authorization
+server**. Sometimes that is the requirement; it is never a default you drift into. Say it out
+loud before enabling it, and prefer what MCP itself recommends: **`@better-auth/cimd`**, Client
+ID Metadata Documents, which verify client identity through *domain ownership* instead of
+letting the registration endpoint stand open. MCP 2026-07-28 pins CIMD draft-00 — hence
+`metadataProfile: "mcp-2026-07-28"` plus an application-owned metadata-resource transport.
+
+### PKCE is per client, not a global switch
+
+There is no `requirePKCE: true` on the plugin. `requirePKCE` is a **field on the OAuth
+application record** (the `oauthApplication` schema, `type: "boolean"`, not required), so it is
+set per registered client. Do not go looking for a plugin option that does not exist, and do
+not assume every client that registered has it on.
+
+### Guarding the MCP route
+
+`@better-auth/mcp` exports `requireMcpAuth` and `createMcpProtectedRequestHandler` for the
+resource-server side — the token has to be checked against the **audience** (`resource`) and
+the required scopes, not merely be a valid token. `RequireMcpAuthOptions` carries `resource`,
+`issuer`, `jwksUrl`, `challengeScopes`, `requiredScopes`, a custom `isScopeSatisfied`, and a
+`dpop` block with `proofMaxAgeSeconds`.
+
+One behavioural difference worth knowing: `mcp()` sets **`refreshTokenReuseInterval` to 30
+seconds** for its clients so a retried refresh recovers the rotated response. The OAuth
+provider on its own stays strict. Set it to `0` to get strict handling back.
+
+### What this is not
+
+This is the **authorization** half. Writing the MCP server itself — tools, resources,
+transport — is product work. And do not confuse it with `product-to-agent-skill`, which
+documents an API *for* coding agents: that one writes the runbook, this one issues the token.
+
 ## Update meta.json
 
 ```json

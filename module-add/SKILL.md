@@ -11,7 +11,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 
 | Module | Default tech | Reference file | Status |
 |---|---|---|---|
-| `auth` | better-auth (email/password + magic link) | `references/module-auth.md` | ✅ implemented |
+| `auth` | better-auth (email/password + magic link; `@better-auth/mcp` + `@better-auth/cimd` when the product **is** an MCP server) | `references/module-auth.md` | ✅ implemented |
 | `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` | ✅ implemented |
 | `payments` | Stripe (subscriptions + one-time) | `references/module-payments.md` | ✅ implemented |
 | `email` | Resend + React Email | `references/module-email.md` | ✅ implemented |
