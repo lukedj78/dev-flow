@@ -309,7 +309,8 @@ ROUTING_REF_RE = re.compile(
 # external CLIs or packages. Add a line here when a legitimate external name
 # trips the check.
 ROUTING_REF_ALLOWLIST: frozenset[str] = frozenset({
-    "vercel-doctor",   # a skill AND the upstream CLI it wraps; cited both ways
+    "vercel-doctor",       # a skill AND the upstream CLI it wraps; cited both ways
+    "expo-auth-session",   # npm package — the OAuth client half on mobile
 })
 
 

@@ -69,20 +69,45 @@ Do NOT send verification email and require the user to verify before they can us
 
 ## OAuth — adding social providers
 
-For "Sign in with Google / Apple / GitHub", use `expo-auth-session` on the client + your own OAuth handler on the server:
+For "Sign in with Google / Apple / GitHub", use `expo-auth-session` on the client + your own OAuth
+handler on the server.
+
+⚠️ **`AuthSession.startAsync` no longer exists.** It was the old one-call helper and it is gone
+from the package (checked 2026-09-11 against `expo-auth-session@57.0.11`, MIT — the build's
+`.d.ts` has no such export). Code that still calls it is copied from a pre-SDK-48 answer. The
+current API is a hook plus `promptAsync`, and **`usePKCE` defaults to `true`** — the authorization
+code never leaves the device unprotected:
 
 ```ts
-// Simplified pseudo-code, client side
-import * as AuthSession from "expo-auth-session";
+// Client side. `useAuthRequest` builds the request (PKCE on by default);
+// `promptAsync` opens the system browser and resolves on the deep-link return.
+import { useAuthRequest, useAutoDiscovery, exchangeCodeAsync, makeRedirectUri } from "expo-auth-session";
 
-const result = await AuthSession.startAsync({ authUrl: `${BASE_URL}/auth/google` });
-if (result.type === "success") {
-  // The result returns to our redirect URI with the token in the URL params
-  // Server-side: we handle the OAuth callback, exchange code for token, return our own JWT
-}
+const discovery = useAutoDiscovery(`${BASE_URL}/.well-known/openid-configuration`);
+const [request, response, promptAsync] = useAuthRequest(
+  {
+    clientId: CLIENT_ID,
+    scopes: ["openid", "profile"],
+    redirectUri: makeRedirectUri({ scheme: "myapp" }), // must match app.json#expo.scheme
+  },
+  discovery,
+);
+
+// response.type === "success" → exchange the CODE for tokens; never expect a token in the URL.
+// `request.codeVerifier` is the PKCE verifier the hook generated.
 ```
 
-This is more work than Supabase/Firebase (which handle OAuth callbacks for you). Use only if you have a strong reason to own the auth flow.
+Two things the old snippet got wrong beyond the dead function, and they are the ones that matter:
+
+- **The redirect returns a `code`, not a token.** A token in the URL is the implicit flow, which
+  OAuth 2.1 removes. Exchange the code (`exchangeCodeAsync`) — on your server if the client is
+  confidential, on the device with PKCE if it is public.
+- **The redirect URI is the deep link**, so `app.json#expo.scheme` and the URI registered with the
+  provider have to agree, or the browser comes back to nothing. See
+  `rn-expo-router/references/deep-linking-setup.md`.
+
+This is more work than Supabase/Firebase (which handle OAuth callbacks for you). Use only if you
+have a strong reason to own the auth flow.
 
 ## Tipi end-to-end (without tRPC)
 

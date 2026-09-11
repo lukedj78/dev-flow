@@ -13,6 +13,18 @@ This is the operational lookup for `rn-module-add`. For each row, the skill cons
 | Custom REST | `rn-backend/references/custom-rest.md` | `lib/api.ts` extended (refresh-on-401), `lib/auth.ts`, `store/auth.ts`, `lib/token-store.ts`, `app/(app)/_layout.tsx` patch | No |
 | tRPC | `rn-backend/references/trpc.md` | `lib/trpc.ts`, `lib/auth.ts`, `store/auth.ts`, `app/_layout.tsx` patch (provider) | No |
 
+**MCP authorization is not a mobile module, and this is the one place someone will look for it.**
+An Expo app is not a server: it cannot host an authorization server, so `@better-auth/mcp` and
+`@better-auth/oauth-provider` have no target here. They belong to **`module-add auth`** (see
+`module-add/references/module-auth.md` §When the product *is* an MCP server) — in a monorepo the
+Next app under `apps/web` (or `apps/api`) is the MCP server, and the mobile app is just another
+client of the same identity.
+
+What *is* mobile is the other side: the app as an **OAuth client** — PKCE in the system browser
+with a deep-link redirect. That is `expo-auth-session`, documented under Custom REST above. Two
+things make it work or fail: the redirect returns a **code**, never a token, and the redirect URI
+must equal `app.json#expo.scheme`.
+
 ## `db`
 
 | Provider | Knowledge ref | Files generated | Notes |
