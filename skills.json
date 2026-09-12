@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-12T12:02:43Z",
+  "generated_at": "2026-09-12T12:06:02Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 48,
   "families": {
@@ -344,10 +344,11 @@
         "module-storage.md",
         "module-stubs.md",
         "module-test.md",
-        "module-voice.md"
+        "module-voice.md",
+        "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 159,
+      "skill_md_lines": 167,
       "bundle": "dist/module-add.skill"
     },
     {

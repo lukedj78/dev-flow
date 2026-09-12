@@ -306,6 +306,18 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
 
+### An EU-hosted model endpoint, when residency reaches the prompts
+
+`model` accepts a direct-provider AI SDK `LanguageModel`, not only a Gateway id — so an
+OpenAI-compatible endpoint in the EU is a supported configuration rather than a workaround.
+Scaleway's Generative APIs is the worked example: base URL, the trade you are making by leaving
+the AI Gateway (routing, failover, one bill, observability — and the config stops being
+compile-only), and the fact that the **Sandbox stays Vercel's** either way. See
+`module-add/references/provider-scaleway.md` §Slot 4.
+
+Reach for it when the prompts themselves carry personal data that must not leave the EEA — and
+ask what the prompts actually contain first. That requirement is claimed more often than it holds.
+
 ### eve's CLI phones home
 
 `docs/reference/telemetry.md` (shipped, read at 0.54.3): the **CLI** sends usage data to Vercel by

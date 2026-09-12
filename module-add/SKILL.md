@@ -25,6 +25,14 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `cms` | Sanity via `next-sanity` (`sanityFetch` in Server Components; Studio as a `cms/` package — the admin panel) | `references/module-cms.md` | ✅ implemented |
 | `pdf` | Forme (or Takumi) + the [pdfcn](https://www.pdfcn.dev) shadcn registry | `references/module-pdf.md` | ✅ implemented — renderers pre-1.0 |
 
+**Provider notes** (not modules — where an alternative vendor slots into the modules above):
+
+| Provider | What it can replace | Reference |
+|---|---|---|
+| **Scaleway** | `deploy` (containers / GPU), `db` (Managed Postgres), `storage` (S3-compatible), and the **model endpoint** for an eve agent (OpenAI-compatible, EU-hosted) | `references/provider-scaleway.md` |
+
+A provider note is a decision layer, never a second module: it says which slot the vendor fills, what the swap costs, and when the default stays. Read it before offering the vendor, not after.
+
 The user can override any default. If they say "add auth with Clerk", read `references/module-auth.md` for the Clerk variant if present; otherwise refuse and explain — better-auth is the default and adding new variants is a contract change.
 
 Every module in the table now has a full reference file. What's still open is **alternative variants inside** a module (Clerk instead of better-auth, Prisma instead of Drizzle, Fly.io instead of Vercel) — `references/module-stubs.md` tracks those. Implement a variant on first request: copy `module-auth.md` or `module-db.md` as the structural template, ground every identifier in the vendor's current docs, then run.
