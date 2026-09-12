@@ -40,6 +40,21 @@ section.
 serve one page is not a product an agent can drive, and a skill describing it
 would be a lie with a nice table in it.
 
+## The sibling: a runbook, or an MCP server?
+
+This skill writes a **runbook** — a `SKILL.md` a user installs so their coding agent can drive your
+HTTP API. `module-add mcp` does the other thing: it makes the product **an MCP server**, so a client
+discovers the tools itself and never reads anything.
+
+| | this skill | `module-add mcp` |
+|---|---|---|
+| The agent learns the API by | reading a file you wrote | asking the server |
+| Works with | any agent, any client, today | MCP clients |
+| Costs | one markdown file | an OAuth server, discovery documents, a tool surface |
+| Reach for it | almost always — it is the cheap one | when your users live inside a coding agent |
+
+They compose. Ship the runbook first; add MCP when the audience justifies the auth surface.
+
 ## Contract
 
 Follows the dev-flow contract — see `references/contracts.md`. Key facts:

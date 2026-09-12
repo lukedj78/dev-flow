@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-12T19:02:54Z",
+  "generated_at": "2026-09-12T19:09:04Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 48,
   "families": {
@@ -160,7 +160,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 207,
+      "skill_md_lines": 222,
       "bundle": "dist/product-to-agent-skill.skill"
     },
     {
@@ -337,6 +337,7 @@
         "module-db.md",
         "module-deploy.md",
         "module-email.md",
+        "module-mcp.md",
         "module-motion.md",
         "module-payments.md",
         "module-pdf.md",
@@ -348,7 +349,7 @@
         "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 167,
+      "skill_md_lines": 168,
       "bundle": "dist/module-add.skill"
     },
     {
