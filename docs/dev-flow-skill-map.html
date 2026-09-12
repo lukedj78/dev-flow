@@ -115,12 +115,12 @@
   /* pipeline */
   .pipe-wrap{margin-top:1.7rem; background:var(--panel); border:1px solid var(--bd); border-radius:var(--r); box-shadow:var(--shadow); padding:8px 4px 4px}
   .pipe-scroll{overflow-x:auto; scrollbar-width:thin; padding:18px 16px 20px}
-  .pipe{min-width:960px; position:relative}
-  .stages{display:grid; grid-template-columns:repeat(10,1fr); margin-bottom:20px}
+  .pipe{min-width:1060px; position:relative}
+  .stages{display:grid; grid-template-columns:repeat(11,1fr); margin-bottom:20px}
   .stage{position:relative; border-top:1px solid var(--bd-2); padding-top:8px;
     font-family:var(--fM); font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--faint)}
   .stage::before{content:""; position:absolute; left:0; top:-1px; width:18px; height:2px; background:var(--ac)}
-  .nodes{display:grid; grid-template-columns:repeat(10,1fr); position:relative}
+  .nodes{display:grid; grid-template-columns:repeat(11,1fr); position:relative}
   .nd{position:relative}
   .nd .dot{width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-family:var(--fM); font-weight:700; font-size:.84rem; color:var(--ac); font-variant-numeric:tabular-nums;
@@ -261,7 +261,7 @@
           <div class="stages">
             <div class="stage" style="grid-column:span 4">Plan</div>
             <div class="stage" style="grid-column:span 1">Design</div>
-            <div class="stage" style="grid-column:span 3">Build</div>
+            <div class="stage" style="grid-column:span 4">Build</div>
             <div class="stage" style="grid-column:span 2">Ship</div>
           </div>
           <div class="nodes">
@@ -461,7 +461,7 @@
   <div class="wrap">
     <div class="kick"><span class="no">06</span> the rules</div>
     <h2 class="sec-t">What every skill is held to</h2>
-    <p class="sec-p">Three rules that apply before any skill does its job — one about how the skills are <i>written</i>, two about how the code they produce <i>looks</i>.<br><b>Eleven lint checks</b> hold the suite to them, and three of those exist because the same thing kept happening: <b>the content held and the metadata rotted</b>. A capability documented in a body but missing from its <code>description</code> never loads. A skill absent from the README index is invisible. A count written in prose drifts the moment a skill is added.</p>
+    <p class="sec-p">Three rules that apply before any skill does its job — one about how the skills are <i>written</i>, two about how the code they produce <i>looks</i>.<br><b>The lint checks</b> hold the suite to them, and most of them exist because the same thing kept happening: <b>the content held and the metadata rotted</b>. A capability documented in a body but missing from its <code>description</code> never loads. A skill absent from the README index is invisible. A count written in prose drifts the moment a skill is added.</p>
 
     <div class="modes">
       <div class="card mode">
