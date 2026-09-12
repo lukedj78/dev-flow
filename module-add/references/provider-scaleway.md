@@ -51,7 +51,7 @@ prd_drafted → design_extracted → scaffolded → page_generated → module_ad
 | The PRD says | The skill that answers | What happens |
 |---|---|---|
 | "it recognises what is in the photo" | `monorepo-add-python-service` (`--variant ml`) | creates `apps/ml`, which needs a GPU. Scaleway is *where you deploy it*, decided at `feature_complete` |
-| "it reprocesses the whole archive nightly" | the same `apps/ml` + **Serverless Jobs** | eve starts the job; the result arrives later |
+| "it reprocesses the whole archive nightly" | the same `apps/ml` image + **Serverless Jobs** | Scaleway's cron runs it — **eve is not the trigger** — and the agent is woken by a webhook when it is done (§2) |
 | "patient data does not leave the EU" | `module-add` (`db` / `storage`) + `compliance-audit` | the corpus stays in the EU, tools read it, only the extract reaches the model |
 
 **If the PRD says none of the three, Scaleway is never mentioned.** In most projects it never
@@ -148,13 +148,75 @@ eve's Sandbox is for agent-driven execution *inside* a session, with a timeout. 
 documents, re-embedding a corpus after a model change, transcoding a video library — that is not a
 sandbox, and holding a turn open for forty minutes is not a design.
 
-**Serverless Jobs** is: batch runs, multiple cron triggers per job, automatic retries. The agent
-starts the job and the result arrives later, which is precisely the shape `eve-patterns.md` §10
-already describes — *record the intent before attempting delivery, and post through the destination's
-API rather than `to()`, which would start a turn you did not want*.
+**Serverless Jobs** is: batch runs, multiple cron triggers per job, automatic retries, injected
+environment variables. A **job definition** is *"a template… including the container image used, the
+resources allocated, and the command to execute"*; a **job run** is one execution of it.
 
-Again additive: the Sandbox stays for what it is good at, and the long job stops being something the
-agent has to pretend it can hold.
+### The trick that makes this cheap: it is the same image
+
+You do not build a second artifact. `apps/ml` is already a container; a Job is **that image with a
+different command**. One Dockerfile, one registry entry, one set of dependencies that are guaranteed
+to match the ones the API is serving with — which is the actual reason this is worth doing rather
+than writing a separate batch service that drifts.
+
+```python
+# apps/ml/src/ml/jobs/reindex.py — a module, not a server. Same package, same models.
+def main() -> None:
+    for batch in iter_documents_missing_embeddings(size=256):
+        write_embeddings(embed(batch), model_version=current_version())
+    notify_done(processed=..., model_version=current_version())
+```
+
+The job definition points at the same image and overrides the entrypoint:
+
+```
+image:            rg.<region>.scw.cloud/<namespace>/ml:<tag>
+startup_command:  python
+args:             ["-m", "ml.jobs.reindex"]
+cron:             0 3 * * *
+```
+
+⚠️ `[VERIFY]` the field names against the API version you are on: `command` is **deprecated in
+v1alpha1** in favour of **`startup_command` + `args` in v1alpha2**. A job definition written from an
+old example fails at run time, when nobody is watching — which is 03:00.
+
+### Worked example — the nightly re-embedding
+
+The archive is 400k documents. The embedding model changes, and everything has to be re-embedded.
+
+1. **Nobody wakes the agent.** Scaleway's cron fires the job at 03:00. eve is not involved, and that
+   is the design, not an omission — see the decision below.
+2. The job re-embeds in batches, writing straight to the database. Every row carries the
+   `model_version` that produced it, so a half-finished run is **resumable and auditable** rather
+   than a mystery.
+3. When it finishes it POSTs to eve's **webhook channel** — `agent/channels/webhook.ts`, the shape
+   `eve-patterns.md` §9e already describes: verify a shared secret, start the session under
+   `waitUntil`, return an ack immediately because nobody is reading the reply.
+4. The agent, awake for the first time in this story, does one turn: post "re-embedded 400k
+   documents, model `<sha>`, 12 failures" to the channel the team reads.
+5. Meanwhile a `job_status` tool lets anyone ask *"how is the reindex going?"* mid-run. The agent
+   **reads** the status; it does not hold the job.
+
+⚠️ The notification goes through the **platform's API**, not `ctx.to()`. `to()` starts or resumes an
+agent session — a turn and a model call to say "the batch finished". `eve-patterns.md` §10 is that
+mistake written down.
+
+### eve `schedules` or Scaleway cron? — the decision
+
+eve has its own scheduler (`defineSchedule({ cron, markdown | run })`), so the question is real:
+
+| Use | When |
+|---|---|
+| **eve `schedules`** | the **agent** must do something on a cadence — read yesterday's tickets and summarise, review open PRs, decide whether to escalate. The work *is* reasoning |
+| **Scaleway cron on a Job** | **infrastructure** must chew through data — re-embed, re-OCR, transcode, rebuild an index. The work is compute, and a language model adds nothing to it |
+
+The failure mode worth naming: putting the nightly batch on an eve schedule makes an LLM turn the
+trigger for a four-hour compute job. You pay for a model call to start it, the turn's timeout has no
+relationship to the job's duration, and a retry means a second *conversation* rather than a second
+run. **Don't wake a language model to press start.**
+
+Additive throughout: the Sandbox stays for what it is good at, eve's schedules stay for reasoning on
+a clock, and the long job stops being something the agent has to pretend it can hold.
 
 ## 3. The data stays in the EU without the model moving
 
