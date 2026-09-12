@@ -55,6 +55,50 @@ discovers the tools itself and never reads anything.
 
 They compose. Ship the runbook first; add MCP when the audience justifies the auth surface.
 
+### When to add MCP — five signals
+
+The default is not a preference, it is an asymmetry: a runbook is one file, written in an hour, that
+works with every agent today. **MCP never replaces it.** It is added when specific things are true,
+and **two of these five** are enough to pay for it.
+
+**1. The users already live in a terminal.** Technical teams, data teams, DevOps. If your typical
+user opens a coding agent every morning, that is where the product should be reachable. If they open
+Chrome, it is not.
+
+**2. You already have an OAuth server.** This is the biggest cost multiplier, and it is binary. With
+`better-auth` plus users and organisations already standing, MCP is a plugin and a route. Without it
+you are building an authorization server to expose three endpoints — and that is out of proportion to
+what you get. **A product with only API keys should ship the runbook.**
+
+**3. There are many operations.** Five endpoints fit in a markdown file an agent reads whole. Fifty
+do not: the context window fills with documentation instead of work. MCP serves them on demand, one
+schema at a time. The practical threshold is around **15–20 operations**.
+
+**4. Something can destroy data.** If an agent can delete a dataset, revoke an access, cancel an
+order, MCP's tool annotations (`destructiveHint`) make the **host** stop and ask — by protocol. A
+runbook can only write the warning in a sentence and hope it was read as one. **This is the single
+signal that can justify MCP on its own.**
+
+**5. The surface is stable.** MCP is a contract you maintain: change a tool and clients feel it. A
+runbook can say plainly *"this part moves, re-check it"*. If the API changes weekly, MCP is ballast.
+
+### Three signals that say no, even when the others fire
+
+- **The product is for consumers.** A shop, a booking app, an internal tool with a UI. Those users do
+  not have a coding agent, and the tool surface would serve nobody.
+- **The surface is five endpoints.** One file, half an hour, done.
+- **You must reach clients that do not speak MCP.** The runbook works everywhere, today, including an
+  agent somebody wrote in-house.
+
+### And the "both" case, which is not a compromise
+
+The mature configuration is both, because **the runbook is also the MCP server's documentation**. It
+explains the domain — what a dataset is, why assets get assigned, which order of operations makes
+sense — and MCP supplies the typed calls. Tools carry schemas; they do not carry why.
+
+So when a product ends up with both, the runbook is not redundant: it stops being an endpoint
+reference and becomes the part a schema cannot express.
+
 ## Contract
 
 Follows the dev-flow contract — see `references/contracts.md`. Key facts:

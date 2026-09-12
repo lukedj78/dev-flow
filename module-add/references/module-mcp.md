@@ -29,6 +29,16 @@ Two different things get called "an MCP server", and picking the wrong one costs
 This module is the second row. If what you want is "Claude Code can ask my agent things", stop here
 and read the eve channel instead.
 
+## Second decision: does this product need MCP at all?
+
+Most do not, and the honest default is the cheaper artefact. **`product-to-agent-skill` §When to add
+MCP carries the five signals** — users already in a terminal, an OAuth server you already have, more
+than ~15–20 operations, something that can destroy data, a stable surface — with the rule that **two
+are enough** and the destructive-operations one can justify it alone.
+
+Read that before running this module. A product for consumers, or with five endpoints, or with only
+API keys and no authorization server, should ship the runbook and stop.
+
 ## Prerequisites — auth is not optional and not last
 
 `module-add auth` must have run **with the MCP section applied** (`@better-auth/mcp`, the resource
