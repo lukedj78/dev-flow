@@ -236,10 +236,12 @@ only when a residency requirement leaves no alternative, and say the cost out lo
 ## Slot 1 — `deploy` for a container that is not the Next app
 
 Already the documented target for `monorepo-add-python-service` (see
-`monorepo-add-python-service/references/deploy-container.md`). **Serverless Containers** scales to zero and bills per request;
-A GPU means **GPU Instances** (`/docs/gpu/`), a machine you run — *not* a serverless
-runtime. `[VERIFY]`: "Serverless GPU" is not a documented Scaleway product; the serverless family is
-Containers, Functions and Jobs.
+`monorepo-add-python-service/references/deploy-container.md`). **Serverless Containers** scales to
+zero and bills per request, with a request timeout up to one hour.
+
+For a GPU it is **GPU Instances** (`/docs/gpu/`) — a machine you run, with Docker or Kubernetes on
+it, *not* a serverless runtime. `[VERIFY]`: "Serverless GPU" is **not** a documented Scaleway
+product; the serverless family is Containers, Functions and Jobs.
 
 This is the least controversial slot, because `apps/web` stays on Vercel and only the container
 moves. Nothing about the Next app changes.
