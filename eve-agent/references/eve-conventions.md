@@ -306,12 +306,65 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
 
+### eve's CLI phones home
+
+`docs/reference/telemetry.md` (shipped, read at 0.54.3): the **CLI** sends usage data to Vercel by
+default — eve version, OS, CPU architecture, whether stdin is a terminal, the command you ran and
+its outcome, whether `eve dev` connected to a local or remote agent, and random identifiers for
+session, installation and project. The project identifier is **derived from the Git remote** when
+one exists, so it is stable across runs without carrying the project's name or path.
+
+It states what it does *not* collect: command arguments, prompts, agent files, URLs, request
+headers, error messages, environment variables, file paths, file contents.
+
+Two things to do with this rather than nod at it:
+
+- **Inspect before you trust it.** `EVE_TELEMETRY_DEBUG=1 eve info` prints the batch to stderr
+  instead of sending it. That is a claim you can check in ten seconds, and checking is the point.
+- **On a client project, turn it off and say you did.** `eve telemetry disable` for the machine, or
+  `EVE_TELEMETRY_DISABLED=1 eve dev` for one command without changing the saved setting. It is
+  defensible and well-scoped, and it is still a third-party transfer that `compliance-audit` asks
+  about under **R3**. A sub-processor nobody declared because it was on by default is the finding.
+
+### The span contract has a version, and it is 4
+
+`agent.trace.schema.version` went **3 → 4** in this range, and the bump **removed two spans**:
+`agent.session` and `agent.channel.delivery`. The changelog's own instruction is to move dashboards
+to the per-activation `invoke_agent` span instead.
+
+Read the current set from the build, not from a dashboard someone wrote last quarter —
+`dist/src/tracing/agent-span-contract.js`, verified at **0.54.3**:
+
+```js
+AGENT_TRACE_SCHEMA_VERSION = 4
+AGENT_SPAN_NAMES = {
+  action:         "agent.action",
+  approval:       "agent.approval",
+  channelRequest: "agent.channel.request",
+  step:           "agent.step",
+}
+```
+
+**Why this matters beyond eve.** An observability integration is a contract with a version, and a
+minor bump can retire a span name your alerts are built on — silently, because a query against a
+span that no longer exists returns *no rows*, which looks exactly like *nothing went wrong*. If a
+project has dashboards or alerts on eve spans, pin the schema version next to them and re-read this
+constant on every upgrade. Same failure shape as `compliance-audit`'s traceability requirement
+(§5 of `eve-patterns.md`): the audit trail that quietly stopped recording is worse than none, because
+it is trusted.
+
 ### What each trace records — `tracePolicy` (0.46.0, extended 0.47.4)
 
-⚠️ **Read this from the types, not the docs.** `tracePolicy` appears **zero times** in
-`docs/guides/instrumentation.md` at 0.47.6; the whole surface is only in the shipped `.d.ts`
-(`eve/instrumentation`, `TraceCapturePolicy` in `dist/src/shared/trace-policy.d.ts`). That is the
-inverse of the usual advice and worth stating plainly: here the docs page is the stale source.
+⚠️ **This was undocumented for four minors, and now it is not.** `tracePolicy` appeared **zero
+times** in `docs/guides/instrumentation.md` at 0.47.6, so this section was written from the shipped
+`.d.ts` (`eve/instrumentation`, `TraceCapturePolicy` in `dist/src/shared/trace-policy.d.ts`). At
+**0.54.3** the page has been replaced by `docs/guides/instrumentation-providers.md`, which mentions
+`tracePolicy` six times and adds sections this file should be read against: *Add a provider*,
+*Control inputs and outputs*, *Redact fields in a custom provider*, *Add an OpenTelemetry
+destination*, *Redact managed OpenTelemetry destinations*, *Built-in slots*, *Lifecycle events*.
+Read both — and note the general lesson, which is the reason the note stays: a surface that is
+"types-only" is a **snapshot**, not a property. Re-check on every pass instead of trusting the
+sentence that said so.
 
 A policy is a **function of the trace's context**, not a flag:
 

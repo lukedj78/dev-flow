@@ -164,6 +164,30 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > `patterns/durable-cross-channel-notifications`, which became **`eve-patterns.md` §10**. Coverage is
 > back to 82/82.
 >
+> > **Full pass 2026-09-12 — eve@0.54.3, nine minors on from the 08-26 one.** Method: `npm pack`, then
+> > the shipped `docs/` (89 pages, 79 non-tutorial) and `dist/src/**/*.d.ts` — no docs site.
+> >
+> > **Nothing our skills cite has broken.** All **28** `eve/…` subpaths quoted across `eve-agent/`
+> > resolve in 0.54.3's `exports`; `experimental_workflow` and `defineWorkflowTool` both still ship.
+> > The 09-08 pass had already landed `defineWorkflowTool` / `"use workflow"` / `ctx.agent(target,
+> > input)`, so those needed nothing.
+> >
+> > **Three pages had no home**, now three new rows under §Observability, telemetry, providers:
+> > `reference/telemetry` (the CLI phones home — new to us), `guides/instrumentation-providers`
+> > (which **replaced** `guides/instrumentation.md` and finally documents `tracePolicy`), and
+> > `memory/custom-provider`, marked ⛔ on purpose. `subagents/index` was already covered under other
+> > paths.
+> >
+> > **One removal cost us nothing and one is worth knowing**: `task_update` was deleted and we never
+> > documented it; `agent.trace.schema.version` went 3 → 4, dropping the `agent.session` and
+> > `agent.channel.delivery` spans. That one is now its own section in `eve-conventions.md`, because a
+> > query against a retired span returns *no rows*, which reads identically to *nothing went wrong*.
+> >
+> > **A claim of ours expired quietly**, which is the reusable lesson: we had written that
+> > `tracePolicy` is "types-only, the docs page is the stale source". At 0.54.3 that is false. A
+> > surface being undocumented is a **snapshot, not a property** — re-check it, do not inherit the
+> > sentence.
+>
 > **Method note for the next pass:** the package's `docs/` folder is the set to diff against, and it
 > is *not* identical to eve.dev — `docs/README.md` plays the role of `/docs/introduction`. Treat a
 > page missing from the package as "not in the shipped set", not as proof the website deleted it.
@@ -258,6 +282,13 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/frontend/{overview,nextjs}` | `eve-web-integration.md` (`withEve()` + `useEveAgent()`) | ✅ |
 | `/docs/guides/frontend/{nuxt,sveltekit,use-eve-agent-svelte,use-eve-agent-vue}` | dev-flow web is **Next-only**; RN consumes over HTTP (`eve/client`) | ⛔ |
 | `/docs/guides/deployment/{overview,vercel,self-hosting}` | `eve-scaffold.md` §Deploy + `eve-conventions.md` §self-host | ✅ |
+
+## Observability, telemetry, providers
+| Page | Covered in | |
+|---|---|---|
+| `/docs/reference/telemetry` | `eve-conventions.md` §eve's CLI phones home — what the CLI sends, `EVE_TELEMETRY_DEBUG=1` to inspect it, `eve telemetry disable` / `EVE_TELEMETRY_DISABLED=1`, and why it is an R3 question on a client project | ✅ |
+| `/docs/guides/instrumentation-providers` | `eve-conventions.md` §What each trace records — the page that **replaced** `guides/instrumentation.md`; it finally documents `tracePolicy` (6 mentions) plus provider slots, redaction and lifecycle events | ✅ |
+| `/docs/memory/custom-provider` | ⛔ **deliberately not covered** — building a memory *provider* is framework extension work, not product work. `eve-capabilities.md` §Memory covers using the slots (`defineMemory`, `fileMemory()` + backends); write a provider and you are maintaining infrastructure the product did not ask for. Revisit if a project actually needs a store eve does not ship | ⛔ |
 
 ## Evals, patterns, reference
 | Page | Covered in | |
