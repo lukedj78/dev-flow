@@ -195,16 +195,21 @@ decision, not a given:
 
 | | |
 |---|---|
-| Regions | `iad1` · `sfo1` · `cle1` · `cdg1` ("all Vercel regions coming soon") |
+| Regions | **all Vercel compute regions** since 2026-09-10. The SDK's own union (`@vercel/sandbox@3.3.0`, `SandboxRegion`) names 19: `iad1` `sfo1` `cle1` `cdg1` `fra1` `arn1` `sin1` `pdx1` `lhr1` `icn1` `bom1` `cpt1` `dub1` `gru1` `hkg1` `syd1` `yul1` `hnd1` `kix1`, plus `(string & {})` so a new one type-checks before the union catches up |
 | **Default** | **`iad1`** — US East. An EU project gets a US sandbox unless someone says otherwise |
-| Project default | Settings → Sandboxes, or `--sandbox-region` |
-| Per sandbox | `region` (SDK) / `--region` (CLI) |
-| Failover | `failoverRegions` (SDK) / `--sandbox-failover-regions` (CLI) — **Pro and Enterprise only**, so don't design around it on Hobby |
+| Per sandbox | `region` (SDK) / **`--region`** (CLI) |
+| Failover | `failoverRegions` (SDK) / **`--failover-regions`** (CLI) — **Pro and Enterprise only**, so don't design around it on Hobby. From the CLI's own help: *"Must not include the sandbox region. Pass `none` for no failover regions, overriding the project default."* |
+| Project default | Settings → Sandboxes. `[VERIFY]` there is no `--sandbox-region` flag on `vercel sandbox create` or `vercel project` (checked 2026-09-12) — this table said there was, and it was wrong |
+| Cost | **rates vary by region** since the expansion: Active CPU and Provisioned Memory are priced per region, so "put it near the data" now has a bill attached |
 
 Two consequences worth planning for rather than discovering:
 
 - **The default is US.** A sandbox in `iad1` reaching an EU-resident database is both slow and a transfer question
   `compliance-audit` asks under **R3**. Put the sandbox where the data already is, and record the choice.
+- **Update the SDK/CLI before naming a new region.** Vercel's changelog is explicit: *"If you use the Sandbox
+  SDK or CLI, update it to the latest version before selecting one of the newly supported regions."* An old
+  client with a valid region string fails at create time, not at type-check.
+- **Existing sandboxes do not move.** *"Existing sandboxes remain in the regions where they were created."*
 - **Snapshots are region-locked** — *"snapshots stay in the region where they were created and can't be moved."* So
   the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
 

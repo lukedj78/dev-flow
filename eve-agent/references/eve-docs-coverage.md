@@ -173,7 +173,14 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > structural passthrough of the SDK's create params minus a fixed exclusion list (`region` is not on
 > it), but eve compiles in `@vercel/sandbox` **2.8.0**, and `region`/`failoverRegions` only exist from
 > **3.x** — so the region is a project-level setting today, and it will start working through
-> `vercel()` the moment eve revendors, with nothing to announce it. **One table was wrong**: the module
+> `vercel()` the moment eve revendors, with nothing to announce it.
+>
+> > **Closed 2026-09-12: it revendored, and nothing announced it — exactly as predicted.** `eve@0.54.3`
+> > bundles `@vercel/sandbox` **3.2.1**, whose types carry both `region?: SandboxRegion` and
+> > `failoverRegions?`. So the passthrough now works: `vercel({ region, failoverRegions })` reaches the
+> > SDK, and the region is no longer stuck at the project level. Read this as the pattern rather than the
+> > fact — a vendored dependency's capabilities change under you on a normal minor bump, and the only
+> > signal is the version. (Also: **eve is at 0.54.3**, nine minors past the 08-26 pass. Due a full one.) **One table was wrong**: the module
 > map put `vercel()`/`docker()` on `eve/sandbox`; each backend has **its own subpath**
 > (`eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox`), and only `defineSandbox` +
 > `defaultBackend` come from `eve/sandbox` itself. The `just-bash` `[VERIFY]` is confirmed and dropped.
