@@ -1,6 +1,6 @@
 > Sources: <https://docs.astral.sh/uv/guides/integration/docker/> (base image, cache mounts, `UV_COMPILE_BYTECODE`, `UV_LINK_MODE`) ·
 > <https://hub.docker.com/_/python> · <https://vercel.com/docs/projects/environment-variables> ·
-> <https://www.scaleway.com/en/docs/serverless-containers/> · <https://www.scaleway.com/en/docs/serverless-gpu/>.
+> <https://www.scaleway.com/en/docs/serverless-containers/> · <https://www.scaleway.com/en/docs/gpu/> · <https://www.scaleway.com/en/docs/serverless-jobs/>.
 > Verified **2026-09-11** for the Dockerfile; the provider steps are marked `[VERIFY]` — consoles move faster than docs.
 
 # Two deploy targets, because there are two runtimes
@@ -86,8 +86,14 @@ EU-hosted, which matters when `compliance-audit` asks where the data goes):
 
 <https://www.scaleway.com/en/docs/serverless-containers/quickstart/>
 
-**Scaleway Serverless GPU** for the `ml` variant when a model needs one — same image shape, a
-CUDA base instead of `python:3.12-slim-trixie` (`variant-ml.md`).
+For the `ml` variant, a GPU means **GPU Instances** (`https://www.scaleway.com/en/docs/gpu/`) — a
+machine you run, with Docker or Kubernetes on it, not a serverless runtime. Same image shape, a CUDA
+base instead of `python:3.12-slim-trixie` (`variant-ml.md`).
+
+⚠️ **Correction, 2026-09-12.** This file first said "Scaleway Serverless GPU" and linked
+`/docs/serverless-gpu/`. That URL **404s** and no such product is documented: the serverless family is
+Containers, Functions and Jobs, and GPUs are Instances. Written from a summary instead of a checked
+URL — the repo's own rule is `curl -o /dev/null -w '%{http_code}'` over every URL a skill cites.
 
 **Alternatives**, same container, different trade:
 

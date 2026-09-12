@@ -306,17 +306,30 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
 
-### An EU-hosted model endpoint, when residency reaches the prompts
+### Reaching a cloud eve does not run on — through a tool, never through config
 
-`model` accepts a direct-provider AI SDK `LanguageModel`, not only a Gateway id — so an
-OpenAI-compatible endpoint in the EU is a supported configuration rather than a workaround.
-Scaleway's Generative APIs is the worked example: base URL, the trade you are making by leaving
-the AI Gateway (routing, failover, one bill, observability — and the config stops being
-compile-only), and the fact that the **Sandbox stays Vercel's** either way. See
-`module-add/references/provider-scaleway.md` §Slot 4.
+The question that comes up as "should we use Scaleway / Hetzner / AWS instead of Vercel here?" is
+almost always the wrong one. Configuration **swaps a component out** and you pay in whatever that
+component was giving you; a **tool adds a capability** and costs nothing you already had.
 
-Reach for it when the prompts themselves carry personal data that must not leave the EEA — and
-ask what the prompts actually contain first. That requirement is claimed more often than it holds.
+So the rule: **eve reaches another cloud through a tool.** The agent keeps its Gateway, its Sandbox,
+its observability and its one bill, and gains something it could not do at all — most often a GPU
+running *your* model (SAM 3, OCR, a fine-tuned classifier), which no Gateway configuration produces,
+or a batch job that outlives a turn.
+
+The two configuration-level exceptions, both real and both narrow:
+
+- **`model` accepts `defineDynamic({ events })`**, so a second provider can be an *addition*: the
+  default stays a Gateway id and specific turns route to an OpenAI-compatible endpoint. Write it this
+  way rather than as a flat `model:` — the difference is whether the rest of the agent keeps the
+  Gateway. Note that a dynamic or direct-provider model makes the config a runtime entry rather than
+  compile-only.
+- **The Sandbox is not one of them.** The backends are
+  `eve/sandbox/{vercel,docker,just-bash,microsandbox}` (0.54.3) — another cloud can host the
+  `docker()` backend, but that is a self-hosting project, not a setting.
+
+Worked example, with the EU-residency case and the honest cost of each swap:
+`module-add/references/provider-scaleway.md`.
 
 ### eve's CLI phones home
 
