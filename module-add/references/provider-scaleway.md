@@ -6,24 +6,89 @@
 
 # Scaleway — what it adds to an eve product, and what it must never take away
 
-**It is not a skill, and it should not become one.** A skill per cloud vendor is how a repo ends up
-with sixty skills that all say "install their CLI and log in".
+## The picture at runtime — who calls whom
 
-**And it is not a replacement for anything.** The first version of this file asked the wrong
-question — *"what would you swap out?"* — and produced a list of things you lose. The right question
-is the opposite: **what does eve not do, that Scaleway does, and how does eve reach it?**
+```
+        ┌──────────────── Vercel ────────────────┐
+        │                                        │
+        │   apps/web  (Next)                     │
+        │      │                                 │
+        │      └──> eve agent                    │
+        │             │                          │
+        │             ├── model   ──> AI Gateway ┼──> Anthropic / OpenAI / …
+        │             ├── sandbox ──> Vercel Sandbox
+        │             └── tools                  │
+        │                  │                     │
+        └──────────────────┼─────────────────────┘
+                           │  HTTPS — one tool, like any other
+                           ▼
+                 ┌──── Scaleway ────┐
+                 │  apps/ml         │   ← SAM 3 / OCR / YOLO, on a GPU
+                 │  Jobs            │   ← the 40-minute batch
+                 │  Object Storage  │   ← the files, when they must stay in the EU
+                 └──────────────────┘
+```
 
-The answer to *how* is one sentence, and it is the whole architecture:
+**Read it for what does *not* change.** The model stays on the Gateway. The sandbox stays Vercel's.
+The deploy stays Vercel. The bill stays one. **Scaleway appears nowhere inside eve** — it is a
+destination a tool calls, the same way a tool calls Stripe or Resend. To the agent, `apps/ml` is
+indistinguishable from any other HTTP API, and it neither knows nor needs to know where it runs.
 
-> **eve reaches Scaleway through a tool, not through configuration.**
+That is the whole answer to "how does it integrate with eve": **through a tool, never through
+configuration.** Configuration swaps a component out and you pay in whatever that component was
+giving you. A tool adds a capability and takes nothing.
 
-Configuration swaps a component out — a different model provider, a different database — and you pay
-for it in what that component was giving you. **A tool adds a capability and takes nothing**: the
-agent keeps its Gateway, its Sandbox, its observability and its one bill, and gains something it
-could not do at all.
+## Where it enters the flow
 
-Read §1–§5 as additions. §6 is the honest list of swaps, kept because someone will eventually have a
-residency requirement that forces one — but a swap is a last resort here, not the plan.
+Never as a question about eve. Only as the answer to a question about the **product**, at one point:
+
+```
+prd_drafted → design_extracted → scaffolded → page_generated → module_added → feature_complete
+                                                  ▲
+                              here, and only if the PRD asks for one of three things
+```
+
+| The PRD says | The skill that answers | What happens |
+|---|---|---|
+| "it recognises what is in the photo" | `monorepo-add-python-service` (`--variant ml`) | creates `apps/ml`, which needs a GPU. Scaleway is *where you deploy it*, decided at `feature_complete` |
+| "it reprocesses the whole archive nightly" | the same `apps/ml` + **Serverless Jobs** | eve starts the job; the result arrives later |
+| "patient data does not leave the EU" | `module-add` (`db` / `storage`) + `compliance-audit` | the corpus stays in the EU, tools read it, only the extract reaches the model |
+
+**If the PRD says none of the three, Scaleway is never mentioned.** In most projects it never
+appears at all, and that is the correct outcome — not a gap.
+
+## A worked example, end to end
+
+A product where you upload photos of a building site and ask questions about what is in them.
+
+1. **`monorepo-bootstrap`** → `apps/web` (Next) + `packages/`.
+2. **`eve-agent`** → `apps/agent`. Model: a Gateway id. Untouched from here on.
+3. The PRD asks for segmentation → **`monorepo-add-python-service --variant ml`** → `apps/ml`,
+   FastAPI, SAM 3.
+4. **One eve tool**, twelve lines:
+
+```ts title="agent/tools/segment.ts"
+export default defineTool({
+  description: "Segment a construction-site photo. Returns masks + model_version.",
+  inputSchema: z.object({ imageUrl: z.string().url(), prompt: z.string() }),
+  async execute({ imageUrl, prompt }) {
+    const res = await fetch(`${process.env.ML_SERVICE_URL}/segment`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ imageUrl, prompt }),
+    });
+    return fence("segment-result", await res.json());   // §11 — it is not your text
+  },
+});
+```
+
+5. **`vercel-deploy`** ships `apps/web` + the agent to Vercel. `apps/ml` goes to a Scaleway GPU
+   Instance. The only thing joining them is `ML_SERVICE_URL`.
+
+A user asks *"how many pipes are in this photo?"* and the agent: reasons (Gateway) → calls `segment`
+(Scaleway) → gets masks plus `model_version` → answers (Gateway).
+
+**Nothing was replaced. The agent gained a sense it did not have.**
 
 ## The argument that decides it: the data stays in the EU
 
@@ -35,12 +100,20 @@ Everything else here has an equivalent elsewhere. This does not:
 
 Scaleway is a French company operating EU regions. For a project where `compliance-audit` raises
 **R3 (transfers outside the EEA)** and the client's answer is "it must not leave", that turns a
-paragraph of justification into a sentence. That is the whole case; reach for Scaleway when the case
-applies, and use the default stack when it does not.
+paragraph of justification into a sentence.
 
 Two limits, stated so the sentence stays honest: they retain *aggregated and anonymised* API usage
 data for up to **6 months**, and incident data for up to **two weeks**, *"only to reproduce,
 investigate, and fix the underlying issue"*.
+
+---
+
+# The three reasons, in detail
+
+Sections 1–5 are the additions above, spelled out. **§6 is a separate thing**: swaps that *replace*
+part of the default stack. Those are a last resort someone's legal requirement forces on you, never
+the plan — and this file is not a skill, because a skill per cloud vendor is how a repo ends up with
+sixty skills that all say "install their CLI and log in".
 
 ## 1. Your own models — the thing eve structurally cannot do
 

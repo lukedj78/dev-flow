@@ -328,7 +328,8 @@ The two configuration-level exceptions, both real and both narrow:
   `eve/sandbox/{vercel,docker,just-bash,microsandbox}` (0.54.3) — another cloud can host the
   `docker()` backend, but that is a self-hosting project, not a setting.
 
-Worked example, with the EU-residency case and the honest cost of each swap:
+The worked example — a runtime diagram of who calls whom, where the question arises in the flow,
+and a twelve-line tool that gives an agent a GPU without touching its model, sandbox or bill:
 `module-add/references/provider-scaleway.md`.
 
 ### eve's CLI phones home

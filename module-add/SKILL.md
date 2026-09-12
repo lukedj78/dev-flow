@@ -29,7 +29,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 
 | Provider | What it can replace | Reference |
 |---|---|---|
-| **Scaleway** | `deploy` (containers / GPU), `db` (Managed Postgres), `storage` (S3-compatible), and the **model endpoint** for an eve agent (OpenAI-compatible, EU-hosted) | `references/provider-scaleway.md` |
+| **Scaleway** | Nothing, by default — it **adds**: a GPU for a model eve cannot run itself, a batch job that outlives a turn, and an EU home for data that must not leave. eve reaches it **through a tool**, never through config. Start at the file's runtime diagram and worked example | `references/provider-scaleway.md` |
 
 A provider note is a decision layer, never a second module: it says which slot the vendor fills, what the swap costs, and when the default stays. Read it before offering the vendor, not after.
 
