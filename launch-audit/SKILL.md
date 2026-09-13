@@ -39,6 +39,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 | `sitemap` | Present *and containing the public routes*, not just the root |
 | Favicon set | The tab, the bookmark, the phone home screen |
 | Social preview | `shadscan` checks the file exists. This checks it **resolves and has dimensions** — a broken OG image is a grey box in every share |
+| No route indexable **by accident** | The mirror of the sitemap check: `/showcase`, `/playground`, `/styleguide` served publicly with no `noindex`. A title check passes it and a sitemap check passes it, so nobody looks at it |
 
 ⚠️ **The two that are dangerous rather than missing** are `robots` and `sitemap`: existing and wrong
 is worse than absent, and no file-existence check can tell the difference. Read them.

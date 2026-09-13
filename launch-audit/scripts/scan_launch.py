@@ -65,6 +65,59 @@ def route_of(app: Path, page: Path) -> str:
     return "/" + "/".join(parts)
 
 
+# Segments that name a page built for the team, not for a customer. Matched whole,
+# never as substrings: `/developers` is not `/dev` and `/testimonials` is not `/test`.
+INTERNAL_SEGMENTS = frozenset((
+    "showcase", "styleguide", "style-guide", "design-system", "kitchen-sink",
+    "playground", "sandbox", "debug", "internal", "dev", "test", "preview",
+))
+
+
+def static_params(page: Path) -> list[str]:
+    """The literal slugs a dynamic segment is pre-rendered with.
+
+    `legal/[page]` is not an unknown when the page ships `generateStaticParams`:
+    the slugs are usually a module-level array in the same file. Annotix put its
+    privacy notice and its terms behind exactly that, and this scanner — matching
+    route strings literally — called both missing. The two most alarming findings
+    it can produce, both false, from one unread `const PAGES = [...]`.
+
+    Returns [] when the values are not literal in the file (fetched, imported,
+    computed). The caller then leaves the segment dynamic rather than guessing —
+    a slug this cannot see is a slug it must not claim exists.
+    """
+    text = page.read_text(encoding="utf-8", errors="ignore")
+    if "generateStaticParams" not in text:
+        return []
+    out: list[str] = []
+    for arr in re.findall(r"\bconst\s+\w+\s*(?::[^=]+)?=\s*\[([^\]]*)\]", text):
+        out += re.findall(r"[\"\'`]([A-Za-z0-9_-]+)[\"\'`]", arr)
+    return sorted(set(out))
+
+
+def _chain(page: Path, app: Path) -> list[Path]:
+    """The page and every layout above it, up to and including app/.
+
+    Path comparison is lexicographic, not ancestry — `d >= app` silently excluded
+    every layout and made the scanner report a missing title on a page that
+    inherits one. Caught by the test.
+    """
+    chain: list[Path] = [page]
+    d = page.parent
+    while True:
+        chain.append(d / "layout.tsx")
+        if d == app:
+            break
+        d = d.parent
+    return chain
+
+
+def chain_text(page: Path, app: Path) -> str:
+    """Everything Next would consult to resolve this route's metadata."""
+    return "\n".join(f.read_text(encoding="utf-8", errors="ignore")
+                     for f in _chain(page, app) if f.is_file())
+
+
 def _metadata_object(text: str) -> str | None:
     """The body of `export const metadata = { … }`, brace-matched.
 
@@ -94,17 +147,7 @@ def has_metadata(page: Path, app: Path, key: str) -> bool:
     a page without a title — checking only the page produces a wrong finding on
     every well-built docs section.
     """
-    # Walk from the page's own directory up to (and including) app/. Path comparison
-    # is lexicographic, not ancestry — `d >= app` silently excluded every layout and
-    # made the scanner report a title on a page that inherits one. Caught by the test.
-    chain: list[Path] = [page]
-    d = page.parent
-    while True:
-        chain.append(d / "layout.tsx")
-        if d == app:
-            break
-        d = d.parent
-    for f in chain:
+    for f in _chain(page, app):
         if not f.is_file():
             continue
         text = f.read_text(encoding="utf-8", errors="ignore")
@@ -135,11 +178,12 @@ def scan(root: Path) -> list[Finding]:
 
     robots = next((p for p in (app / "robots.ts", app / "robots.txt", src / "public" / "robots.txt")
                    if p.is_file()), None)
+    robots_text = robots.read_text(encoding="utf-8", errors="ignore") if robots else ""
     if robots is None:
         found.append(Finding("robots-missing", MISS, "no robots.ts or public/robots.txt", [],
                              "screenshot-to-page"))
     else:
-        text = robots.read_text(encoding="utf-8", errors="ignore")
+        text = robots_text
         blocks = re.search(r'disallow\s*[:=]\s*["\']?/["\']?\s*$', text, re.I | re.M) or \
                  re.search(r'disallow:\s*\[?\s*["\']/["\']\s*\]?', text, re.I)
         env_gated = bool(re.search(r"NODE_ENV|VERCEL_ENV", text))
@@ -171,6 +215,28 @@ def scan(root: Path) -> list[Finding]:
              else "every public route appears in the sitemap"),
             listed[:10], "screenshot-to-page" if (listed and not dynamic) else None))
 
+    # The mirror of sitemap-missing-routes: a route that should NOT be found, and is.
+    # Annotix shipped /showcase — the living reference for its DESIGN.md — as a public
+    # 200 with no noindex, reachable by any crawler. Nothing else here looks for that,
+    # because every other check asks whether a page can be found.
+    internal = []
+    for page in pages:
+        route = route_of(app, page)
+        segs = [x.lower() for x in route.strip("/").split("/") if x]
+        hits = [x for x in segs if x in INTERNAL_SEGMENTS]
+        if not hits:
+            continue
+        if any(x in robots_text.lower() for x in hits):
+            continue  # named in robots — somebody already thought about it
+        if re.search(r"noindex|index\s*:\s*false", chain_text(page, app), re.I):
+            continue
+        internal.append(route)
+    found.append(Finding("internal-route-indexable", MISS if internal else OK,
+                         f"{len(internal)} route(s) named for the team are public, not in robots "
+                         "and not noindex" if internal
+                         else "no internal-looking route is left publicly indexable",
+                         internal[:10], "screenshot-to-page" if internal else None))
+
     icons = [n for n in ("icon.tsx", "icon.png", "icon.svg", "favicon.ico") if (app / n).is_file()]
     apple = [n for n in ("apple-icon.tsx", "apple-icon.png") if (app / n).is_file()]
     found.append(Finding("favicon-incomplete", OK if (icons and apple) else MISS,
@@ -185,9 +251,18 @@ def scan(root: Path) -> list[Finding]:
                          None if og else "screenshot-to-page"))
 
     # --- trustworthy ------------------------------------------------------
-    routes = {route_of(app, p) for p in pages}
+    # A dynamic route serves the slugs it pre-renders: `/legal/[page]` over
+    # ["privacy","terms",…] IS the privacy page. Matching the route string alone
+    # reported both as missing on a project that had both. See static_params().
+    vocabulary: dict[str, str] = {}
+    for p in pages:
+        r = route_of(app, p)
+        slugs = static_params(p) if "[" in r else []
+        label = f"{r} ({', '.join(slugs)})" if slugs else r
+        vocabulary[label] = f"{r} {' '.join(slugs)}".lower()
+
     def route_like(*words: str) -> list[str]:
-        return [r for r in routes if any(w in r.lower() for w in words)]
+        return [label for label, hay in vocabulary.items() if any(w in hay for w in words)]
 
     for check, words, owner in (
         ("privacy-page-missing", ("privacy", "privacidad", "privacy-policy"), "screenshot-to-page"),
@@ -206,13 +281,26 @@ def scan(root: Path) -> list[Finding]:
                          "above-the-fold is a rendered property — open the landing route at 1280px "
                          "and at 375px and look. This script will not guess."))
 
-    forms = [p for p in src.rglob("*.tsx")
-             if "node_modules" not in str(p) and re.search(r"<form\b|useActionState|action=\{", 
-                                                           p.read_text(encoding="utf-8", errors="ignore"))]
-    confirming = [p for p in forms
-                  if re.search(r"toast|redirect\(|success|thank|confirm", 
-                               p.read_text(encoding="utf-8", errors="ignore"), re.I)]
-    silent = [str(p.relative_to(root)) for p in forms if p not in confirming]
+    # `<form\b` also matches `<form.Field` and `<form.Subscribe` — TanStack Form's
+    # render-prop components — so every form PRIMITIVE in a form toolkit read as a
+    # form with no success path. Require the tag to actually end.
+    is_form = re.compile(r"<form(?=[\s/>])|useActionState|action=\{")
+    # A success path is not only a toast. `router.push` after a sign-in and
+    # `router.refresh` after an in-place settings save are both confirmations — and
+    # on a settings form a confirmation *page* would be the wrong fix, so a scanner
+    # that demands one is asking for a regression.
+    has_success = re.compile(r"toast|redirect\(|router\.(push|replace|refresh)\(|"
+                             r"success|thank|confirm", re.I)
+    forms, silent = [], []
+    for p in src.rglob("*.tsx"):
+        if "node_modules" in str(p):
+            continue
+        text = p.read_text(encoding="utf-8", errors="ignore")
+        if not is_form.search(text):
+            continue
+        forms.append(p)
+        if not has_success.search(text):
+            silent.append(str(p.relative_to(root)))
     found.append(Finding("form-without-confirmation", MISS if silent else OK,
                          f"{len(silent)} of {len(forms)} form file(s) show no success path"
                          if silent else f"all {len(forms)} form file(s) show a success path",

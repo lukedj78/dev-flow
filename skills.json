@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-13T07:57:48Z",
+  "generated_at": "2026-09-13T09:57:04Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 49,
   "families": {
@@ -339,7 +339,7 @@
         "scan_launch.py",
         "test_scan_launch.py"
       ],
-      "skill_md_lines": 121,
+      "skill_md_lines": 122,
       "bundle": "dist/launch-audit.skill"
     },
     {

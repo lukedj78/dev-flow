@@ -1167,6 +1167,8 @@ The part that turns a marketing checklist into something checkable is the middle
 
 `scripts/scan_launch.py` produces signals, never verdicts, and the test suite is mostly about the second half — a scanner that cries wolf three times stops being read, so the fixtures assert what it must *not* report: metadata inherited from a layout, a `robots.ts` that branches on the environment, authenticated routes absent from a sitemap on purpose. Above-the-fold reports `unknown` and asks for a browser rather than guessing from source. Reports, never blocks, and there is no score to optimise.
 
+The first real project it ran against ([annotix](https://github.com/lukedj78/dev-flow)) paid for three of those fixtures. It reported the privacy notice and the terms as **missing** on a site that had both, because they live behind `legal/[page]` and it never read the `generateStaticParams` — the two most alarming findings it can make, both false. It called six form files silent because `<form\b` also matches `<form.Field>`, TanStack Form's render prop, and because it did not count `router.refresh()` after an in-place settings save as the confirmation it is. And it passed `/showcase` — a DESIGN.md reference page, public, indexable, no `noindex` — because every findable check asks whether a page *can* be found and none asked the mirror question. That last one is now `internal-route-indexable`.
+
 ### `shadscan` — UI-quality & accessibility pre-deploy gate
 
 **Input**: "audit my UI" / "check accessibility" / "is this accessible" / a pre-deploy check on a React + shadcn app.

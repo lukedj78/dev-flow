@@ -31,6 +31,10 @@ def status(findings, check_name: str) -> str | None:
     return next((f.status for f in findings if f.check == check_name), None)
 
 
+def detail(findings, check_name: str) -> str:
+    return next((f.detail for f in findings if f.check == check_name), "")
+
+
 def build(root: Path, files: dict[str, str]) -> None:
     for rel, body in files.items():
         p = root / rel
@@ -58,6 +62,7 @@ with tempfile.TemporaryDirectory() as d:
     check("no terms route → reported", status(f, "terms-page-missing") == "missing")
     check("no identity route → reported", status(f, "identity-block-missing") == "missing")
     check("no analytics dep → reported", status(f, "analytics-absent") == "missing")
+    check("no internal route → nothing claimed", status(f, "internal-route-indexable") == "ok")
     check("identity block routes to the user",
           next(x.routed_to for x in f if x.check == "identity-block-missing") == "the user")
 
@@ -121,6 +126,124 @@ with tempfile.TemporaryDirectory() as d:
     f = scan(root)
     check("dynamic sitemap → unknown, not a false finding",
           status(f, "sitemap-missing-routes") == "unknown")
+
+# The three regressions that a real project found, each with its false-positive twin.
+# Annotix produced six findings from these and every one of them was wrong.
+LEGAL_DYNAMIC = """const PAGES = ["privacy", "cookies", "terms"] as const
+export function generateStaticParams() {
+  return PAGES.map((page) => ({ page }))
+}
+export default function Page() { return <main/> }
+"""
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "app/legal/[page]/page.tsx": LEGAL_DYNAMIC,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("privacy behind generateStaticParams → NOT reported",
+          status(f, "privacy-page-missing") == "ok")
+    check("terms behind generateStaticParams → NOT reported",
+          status(f, "terms-page-missing") == "ok")
+    check("the slugs are shown as the evidence",
+          "privacy" in detail(f, "privacy-page-missing"))
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        # a dynamic route whose slugs are fetched: the scanner must NOT claim they exist
+        "app/legal/[page]/page.tsx": ("export async function generateStaticParams() {\n"
+                                      "  return (await getPages()).map((page) => ({ page }))\n}\n"
+                                      + PAGE_BARE),
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("slugs it cannot read → privacy still reported, never assumed",
+          status(f, "privacy-page-missing") == "missing")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "app/showcase/page.tsx": PAGE_BARE,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("an internal route left public → reported",
+          status(f, "internal-route-indexable") == "missing")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        # three ways of having already thought about it
+        "app/showcase/page.tsx": "export const metadata = { robots: { index: false } }\n" + PAGE_BARE,
+        "app/playground/page.tsx": PAGE_BARE,
+        "app/robots.ts": ("export default function robots() {\n"
+                          "  return { rules: { userAgent: '*', disallow: ['/playground'] } }\n}\n"),
+        # whole-segment matching: these are product pages that merely contain the words
+        "app/developers/page.tsx": PAGE_BARE,
+        "app/testimonials/page.tsx": PAGE_BARE,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("noindex on the internal route → NOT reported",
+          status(f, "internal-route-indexable") == "ok")
+    check("/developers and /testimonials are not /dev and /test",
+          status(f, "internal-route-indexable") == "ok")
+
+FORM_PRIMITIVE = ("export function FormField() {\n"
+                  "  return <form.Field name={name}>{(f) => <input/>}</form.Field>\n}\n")
+FORM_ROUTER = ("export function SignIn() {\n"
+               "  const router = useRouter()\n"
+               "  return <form onSubmit={async () => { await go(); router.push(next) }} />\n}\n")
+FORM_SILENT = "export function Contact() { return <form onSubmit={send} /> }\n"
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "lib/forms/FormField.tsx": FORM_PRIMITIVE,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("<form.Field is a render prop, not a form → NOT reported",
+          status(f, "form-without-confirmation") == "ok")
+    check("and it is not counted as a form at all",
+          detail(f, "form-without-confirmation").startswith("all 0 "))
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "components/sign-in-form.tsx": FORM_ROUTER,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("router.push counts as a success path",
+          status(f, "form-without-confirmation") == "ok")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "components/contact-form.tsx": FORM_SILENT,
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("a form that really does go silent is still reported",
+          status(f, "form-without-confirmation") == "missing")
 
 print("\n== it refuses to guess ==")
 with tempfile.TemporaryDirectory() as d:

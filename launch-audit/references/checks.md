@@ -42,6 +42,24 @@ before reporting — a `robots.ts` that disallows everything except in productio
 `(marketing)` route-group duplicates of a canonical URL. Authenticated routes **should** be absent —
 report only the public ones.
 
+### `internal-route-indexable`
+**Looks for**: the mirror image of the check above — a route that should **not** be found, and is.
+A whole segment named `showcase`, `styleguide`, `design-system`, `playground`, `sandbox`, `debug`,
+`internal`, `dev`, `test`, `preview` or `kitchen-sink`, served publicly with no `noindex` in its
+metadata chain and no mention in `robots`.
+
+**Why it is not covered by the others**: every other findable check asks whether a page *can* be
+found. This one exists because annotix shipped `/showcase` — the living reference for its
+`DESIGN.md`, complete with sample copy and component states — as a public 200 that any crawler could
+index. The title check passed it (it inherits one from the root layout) and the sitemap check passed
+it (it is correctly absent). Nothing looked at it.
+
+**Legitimately fine when**: the segment is the product — `/playground` on a developer tool, `/demo`
+on a SaaS. Matching is whole-segment, so `/developers` is not `/dev` and `/testimonials` is not
+`/test`; a real hit means the word *is* the segment.
+
+**Routes to**: `screenshot-to-page` — a `robots` line or `export const metadata = { robots: { index: false } }`.
+
 ### `favicon-incomplete`
 **Looks for**: `app/icon.*` / `favicon.ico`, and `apple-icon.*` for the iOS home screen.
 
@@ -63,6 +81,13 @@ file-existence cannot see that.
 
 **Legitimately fine when**: an internal tool with no external users (privacy); no money changes hands
 and there is no account (terms).
+
+⚠️ **A dynamic route serves the slugs it pre-renders.** `legal/[page]` with
+`generateStaticParams` over `["privacy", "terms", …]` *is* the privacy page, and the scanner now
+reads those literals and shows them as the evidence. It reads them **only when they are literal in
+the file** — fetched or imported slugs leave the check reporting `missing`, because a slug it cannot
+see is a slug it must not claim exists. This is the regression annotix found: matching the route
+string alone produced the two most alarming findings this skill can make, both false.
 
 **Routes to**: `screenshot-to-page` for the page, **the user** for the words. Generated terms of sale
 are a liability, not a deliverable — see `identity-block.md`.
@@ -104,10 +129,17 @@ laptop is three on a phone, and the button lands under the fold on the device wh
 matcher did not expand. Everything else is a dead button on the most important element of the page.
 
 ### `form-without-confirmation`
-**Looks for**: a form that submits with no success route, no success state and no toast.
+**Looks for**: a form that submits with no success route, no success state, no `router.push` /
+`router.refresh`, and no toast.
 
 **Legitimately fine when**: the success state is inline and the script did not resolve it — common
 with `useActionState`. Read the component.
+
+⚠️ **Two ways this used to be wrong, both found on annotix, six findings and six false.** A
+`<form>` matcher anchored on `<form\b` also matches `<form.Field>` and `<form.Subscribe>` — TanStack
+Form's render-prop components — so every primitive in a form toolkit read as a form with no success
+path. And `router.refresh()` after an in-place settings save **is** the confirmation: demanding a
+confirmation *page* there would be asking for a regression.
 
 **Routes to**: `forms`, which owns submit-state discipline.
 
