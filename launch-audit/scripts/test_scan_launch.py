@@ -167,6 +167,62 @@ with tempfile.TemporaryDirectory() as d:
     check("slugs it cannot read → privacy still reported, never assumed",
           status(f, "privacy-page-missing") == "missing")
 
+# One hop, because the list moves out of the page the moment the sitemap needs it
+# too — which is exactly what fixing the sitemap finding did to annotix.
+SHARED = 'export const LEGAL_PAGES = ["privacy", "terms"] as const\n'
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "lib/legal-pages.ts": SHARED,
+        "app/legal/[page]/page.tsx": ('import { LEGAL_PAGES } from "@/lib/legal-pages"\n'
+                                      "export function generateStaticParams() {\n"
+                                      "  return LEGAL_PAGES.map((page) => ({ page }))\n}\n"
+                                      + PAGE_BARE),
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("slugs behind an @/ import → followed one hop",
+          status(f, "privacy-page-missing") == "ok")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        "app/legal/[page]/pages.ts": SHARED,
+        "app/legal/[page]/page.tsx": ('import { LEGAL_PAGES } from "./pages"\n'
+                                      "export function generateStaticParams() {\n"
+                                      "  return LEGAL_PAGES.map((page) => ({ page }))\n}\n"
+                                      + PAGE_BARE),
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("slugs behind a relative import → followed one hop",
+          status(f, "privacy-page-missing") == "ok")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {
+        "app/layout.tsx": "export const metadata = { title: 'A', description: 'B' }\n",
+        "app/page.tsx": PAGE_BARE,
+        # an unrelated module that happens to contain the word — the binding is
+        # never used inside generateStaticParams, so following it would turn a
+        # missing privacy page into a silent pass
+        "lib/nav.ts": 'export const FOOTER = ["privacy", "terms"] as const\n',
+        "app/legal/[page]/page.tsx": ('import { FOOTER } from "@/lib/nav"\n'
+                                      'import { getSlugs } from "some-package"\n'
+                                      "export async function generateStaticParams() {\n"
+                                      "  return (await getSlugs()).map((page) => ({ page }))\n}\n"
+                                      + PAGE_BARE),
+        "package.json": "{}",
+    })
+    f = scan(root)
+    check("an import the body never uses → NOT followed, privacy still reported",
+          status(f, "privacy-page-missing") == "missing")
+
 with tempfile.TemporaryDirectory() as d:
     root = Path(d)
     build(root, {

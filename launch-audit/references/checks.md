@@ -83,11 +83,20 @@ file-existence cannot see that.
 and there is no account (terms).
 
 ⚠️ **A dynamic route serves the slugs it pre-renders.** `legal/[page]` with
-`generateStaticParams` over `["privacy", "terms", …]` *is* the privacy page, and the scanner now
-reads those literals and shows them as the evidence. It reads them **only when they are literal in
-the file** — fetched or imported slugs leave the check reporting `missing`, because a slug it cannot
-see is a slug it must not claim exists. This is the regression annotix found: matching the route
-string alone produced the two most alarming findings this skill can make, both false.
+`generateStaticParams` over `["privacy", "terms", …]` *is* the privacy page, and the scanner reads
+those literals and shows them as the evidence. This is the regression annotix found: matching the
+route string alone produced the two most alarming findings this skill can make, both false.
+
+It follows **one import hop**, because the list leaves the page the moment the sitemap needs it too —
+fixing the sitemap finding on annotix moved `LEGAL_PAGES` into `lib/legal-pages.ts` and both false
+findings came straight back. The hop is local modules only (`./x`, `@/x`), and only those whose
+imported binding actually appears inside the `generateStaticParams` body: follow every import and an
+unrelated array two files away turns a genuinely missing privacy page into a silent pass, which is
+the worse failure.
+
+Two hops, a fetch, or a computed list leave the check reporting `missing`. **A slug it cannot see is
+a slug it must not claim exists** — the conservative direction here is to keep crying wolf, not to
+stop.
 
 **Routes to**: `screenshot-to-page` for the page, **the user** for the words. Generated terms of sale
 are a liability, not a deliverable — see `identity-block.md`.

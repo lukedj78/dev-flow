@@ -1169,6 +1169,8 @@ The part that turns a marketing checklist into something checkable is the middle
 
 The first real project it ran against ([annotix](https://github.com/lukedj78/dev-flow)) paid for three of those fixtures. It reported the privacy notice and the terms as **missing** on a site that had both, because they live behind `legal/[page]` and it never read the `generateStaticParams` — the two most alarming findings it can make, both false. It called six form files silent because `<form\b` also matches `<form.Field>`, TanStack Form's render prop, and because it did not count `router.refresh()` after an in-place settings save as the confirmation it is. And it passed `/showcase` — a DESIGN.md reference page, public, indexable, no `noindex` — because every findable check asks whether a page *can* be found and none asked the mirror question. That last one is now `internal-route-indexable`.
 
+Fixing annotix's sitemap then paid for a fourth. Listing the legal pages meant the slug list had to leave the route file so the sitemap could read it too — and the moment it moved to `lib/legal-pages.ts`, both false findings came straight back. `static_params()` now follows **one** import hop: local modules only, and only those whose imported binding actually appears inside the `generateStaticParams` body. Follow every import instead and an unrelated array two files away turns a genuinely missing privacy page into a silent pass, which is the worse failure of the two.
+
 ### `shadscan` — UI-quality & accessibility pre-deploy gate
 
 **Input**: "audit my UI" / "check accessibility" / "is this accessible" / a pre-deploy check on a React + shadcn app.

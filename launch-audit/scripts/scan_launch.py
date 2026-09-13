@@ -73,25 +73,81 @@ INTERNAL_SEGMENTS = frozenset((
 ))
 
 
-def static_params(page: Path) -> list[str]:
+def _braced(text: str, start: int) -> str:
+    """The `{ … }` block that opens at or after `start`, brace-matched."""
+    i = text.find("{", start)
+    if i < 0:
+        return ""
+    depth = 0
+    for j in range(i, len(text)):
+        if text[j] == "{":
+            depth += 1
+        elif text[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[i + 1:j]
+    return ""
+
+
+def _literal_arrays(text: str) -> list[str]:
+    """Strings inside module-level `const NAME = [ … ]` declarations."""
+    out: list[str] = []
+    for arr in re.findall(r"\bconst\s+\w+\s*(?::[^=]+)?=\s*\[([^\]]*)\]", text):
+        out += re.findall(r"[\"\'`]([A-Za-z0-9_-]+)[\"\'`]", arr)
+    return out
+
+
+def _resolve_import(spec: str, here: Path, alias_base: Path | None) -> Path | None:
+    """A local module specifier as a file. Package imports resolve to None."""
+    if spec.startswith("."):
+        base = (here / spec).resolve()
+    elif spec.startswith("@/") and alias_base is not None:
+        base = (alias_base / spec[2:]).resolve()
+    else:
+        return None  # node_modules — not ours to read
+    for cand in (base.with_suffix(".ts"), base.with_suffix(".tsx"),
+                 base / "index.ts", base / "index.tsx"):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def static_params(page: Path, alias_base: Path | None = None) -> list[str]:
     """The literal slugs a dynamic segment is pre-rendered with.
 
     `legal/[page]` is not an unknown when the page ships `generateStaticParams`:
-    the slugs are usually a module-level array in the same file. Annotix put its
-    privacy notice and its terms behind exactly that, and this scanner — matching
-    route strings literally — called both missing. The two most alarming findings
-    it can produce, both false, from one unread `const PAGES = [...]`.
+    the slugs are a module-level array. Annotix put its privacy notice and its
+    terms behind exactly that, and this scanner — matching route strings
+    literally — called both missing. The two most alarming findings it can
+    produce, both false, from one unread `const PAGES = [...]`.
 
-    Returns [] when the values are not literal in the file (fetched, imported,
-    computed). The caller then leaves the segment dynamic rather than guessing —
-    a slug this cannot see is a slug it must not claim exists.
+    The list then moved to `lib/legal-pages.ts`, so the route and the sitemap
+    could not drift apart, and both findings came straight back. So this follows
+    **one** import hop: local modules only, and only those whose imported binding
+    is actually used inside the `generateStaticParams` body — otherwise every
+    unrelated array in every imported file would widen the vocabulary and turn a
+    missing privacy page into a silent pass.
+
+    Returns [] when the values are not literal (fetched, computed, two hops away).
+    The caller then leaves the segment dynamic rather than guessing — a slug this
+    cannot see is a slug it must not claim exists.
     """
     text = page.read_text(encoding="utf-8", errors="ignore")
     if "generateStaticParams" not in text:
         return []
-    out: list[str] = []
-    for arr in re.findall(r"\bconst\s+\w+\s*(?::[^=]+)?=\s*\[([^\]]*)\]", text):
-        out += re.findall(r"[\"\'`]([A-Za-z0-9_-]+)[\"\'`]", arr)
+    out = _literal_arrays(text)
+    if out:
+        return sorted(set(out))
+
+    body = _braced(text, text.index("generateStaticParams"))
+    for names, spec in re.findall(r"import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*[\"\']([^\"\']+)[\"\']",
+                                  text):
+        bound = [n.split(" as ")[-1].strip() for n in names.split(",") if n.strip()]
+        if not any(re.search(rf"\b{re.escape(n)}\b", body) for n in bound if n):
+            continue
+        target = _resolve_import(spec, page.parent, alias_base)
+        if target is not None:
+            out += _literal_arrays(target.read_text(encoding="utf-8", errors="ignore"))
     return sorted(set(out))
 
 
@@ -257,7 +313,7 @@ def scan(root: Path) -> list[Finding]:
     vocabulary: dict[str, str] = {}
     for p in pages:
         r = route_of(app, p)
-        slugs = static_params(p) if "[" in r else []
+        slugs = static_params(p, src) if "[" in r else []
         label = f"{r} ({', '.join(slugs)})" if slugs else r
         vocabulary[label] = f"{r} {' '.join(slugs)}".lower()
 
