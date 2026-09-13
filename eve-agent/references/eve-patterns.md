@@ -242,6 +242,29 @@ is a per-tenant policy decision (and, for a customer's contract or tender, a tra
 retry. If you do allow it, gate it with `approval: always()` like any other irreversible external
 write, and say in the tool description that the whole file leaves.
 
+**The third door: send it, minus the people.** Fail-closed and ask-permission are not the only two
+answers. A local redactor turns a blocked egress into an allowed one — replace every identifier with
+a stable placeholder *before* the call, send `[FULLNAME_1] · [CF_1]`, and swap the real values back
+into the answer locally. The frontier model reasons over a coherent document and never receives a
+name. The dictionary stays on the machine; rule 1 holds without losing the capability.
+
+⚠️ **And here is the trap that makes this worse than fail-closed if you get it wrong: a redactor
+that finds nothing returns success.** Measured, not hypothetical: a generic Italian NER (a BERT
+fine-tuned on Wikipedia prose) found **zero** person names across a 325-page bank statement —
+not fewer, none — because a statement has no sentences for it to read, and the endpoint answered
+`200` with every name in the clear. Fail-closed at least stops. A broken redactor **ships the
+document while reporting that it was cleaned**.
+
+Three consequences for the tool you wrap:
+
+1. **Pair the model with checked rules** and let the rules win every overlap. A codice fiscale has
+   a control character, an IBAN has ISO 7064: those are decidable, and a model should never
+   override a checksum.
+2. **Verify the redactor against the shapes you actually handle**, not against prose. Statements,
+   tables, forms and registries are where a prose-trained model silently returns nothing.
+3. **Make "found nothing" loud.** A zero-span result on a document with content is a signal to
+   surface, not a clean bill. Egress on an empty redaction is the failure mode worth an alarm.
+
 Concrete: enriching a contact, the agent may read the whole Acme email thread, but must turn `web_search("<pasted customer sentence>")` into `web_search("what did Acme announce in 2026?")`. **Library analogy:** read any book, but you can't photocopy pages and mail them out — the control is at the *door* (egress), not the *shelf* (read). This is the governance layer above eve's sandbox **network policy** + **credential brokering** (see `eve-concepts.md` §Sandbox), and it maps onto `compliance-audit` R3 (transfers), R7 (PII in logs), R4 (sandbox retention). For a multi-tenant agent, combine it with #1 (the read scope itself is tenant-derived).
 
 > Recipes #5–#6 are distilled from the MIT reference implementation **[trycompai/crm](https://github.com/trycompai/crm)** (`apps/agent/agent/hooks/audit.ts`, `agent/skills/data-boundaries.md`) — a production eve monorepo whose structure independently matches this skill's conventions.

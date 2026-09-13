@@ -80,7 +80,9 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - `references/turbo-integration.md` — the task graph, and the caching trap that eats a day.
 - `references/openapi-client.md` — FastAPI → `packages/api` → a typecheck that fails on drift.
 - `references/deploy-container.md` — the Dockerfile, the registry, the runtime, both env sides.
-- `references/variant-ml.md` — the model variant: memory, `model_version`, Metal vs CUDA.
+- `references/variant-ml.md` — the model variant: memory, `model_version`, Metal vs CUDA, the
+  narrowest interface that makes a model swappable, the differential bench that decides whether
+  to swap it, and why a token limit is a wall the pipeline walks through rather than hits.
 
 ## Workflow
 

@@ -33,6 +33,28 @@ Severity guide: **H** = likely non-compliance or store rejection · **M** = gap 
 **Safe-fix:** a documented retention policy (`docs/compliance/retention.md`); a cleanup/TTL **job stub** tied to the R1 erasure path; purge persisted caches on sign-out; a `lib/log.ts` redaction helper.
 **Flag:** the retention **periods** per data class (a product/legal decision).
 
+⚠️ **A scrubber that exists is not a scrubber that works, and the failure is silent.** Where the
+scrubbing is a *model* rather than a regex — an NER finding names, a classifier finding
+special-category text — it can return zero findings on a document full of them and the endpoint
+answers `200`. Measured on a real project: a BERT fine-tuned on Wikipedia found **no person at
+all** across a 325-page bank statement, because a statement has no sentences to read. Nothing in
+the code was broken; the model was out of domain, and the system reported success.
+
+So when a project claims PII-scrubbing or redaction, **do not stop at "it is implemented"**:
+
+- Ask what the model was **trained on**, and compare it with the documents the product actually
+  ingests. Prose-trained NER against statements, tables, forms, registries and listings is the
+  common mismatch, and it fails to nothing rather than to noise.
+- Check the scrubber **pairs the model with checked rules** (codice fiscale control character,
+  IBAN ISO 7064) and that the rules win every overlap — a model must not override a checksum.
+- Check a **zero-finding result is surfaced**, not treated as a clean document. This is the single
+  signal that separates "nothing to redact" from "the redactor could not read this".
+- Look for a **token limit crossed silently**: a 512-position encoder handed a long document
+  truncates and answers rather than raising, so everything past the first page is never examined.
+
+Finding this needs a run against real documents, not a code read. Where `stack.monorepo.services`
+has an ML service, say so in the report if nobody has ever measured it.
+
 ## R5 — AI transparency & synthetic content · AI Act Art. 50 · H
 
 **Audit signals:** a chat/agent/voice surface (eve `useEveAgent`, `chat-and-typeset` primitives, `module-voice`) whose only "AI" signal is an avatar/`"Assistant"` label; no first-turn/persistent disclosure; TTS output not labeled as AI-generated.

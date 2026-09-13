@@ -166,6 +166,77 @@ Weights are hundreds of megabytes to tens of gigabytes. A repository that ate on
 repository every clone pays for, forever — git does not forget. In the container, mount the
 cache as a volume so a cold start does not re-download.
 
+## 6. The narrowest interface, so a model is one argument
+
+A model you cannot swap is a model you cannot evaluate, and you will want to swap one: a better
+checkpoint appears, or the one you picked turns out to be wrong for your documents. Give it the
+**smallest interface the caller actually needs**, not the model's own API:
+
+```python
+class NerModel(Protocol):
+    version: str
+    def persons(self, text: str) -> list[tuple[int, int, str, float]]: ...
+```
+
+Two methods. A second model is then an adapter, an A/B is one argument, and the integration *is*
+the adapter you already wrote to run the comparison.
+
+**Prefer a union to a replacement when the models fail on different inputs.** A composite that
+satisfies the same Protocol and merges the answers needs no change in the caller at all:
+
+```python
+class EnsembleNer:
+    def persons(self, text):
+        return merge([s for m in self.models for s in m.persons(text)])
+```
+
+Decide the merge policy explicitly and write down why. Overlapping spans merging into their union
+extent, for a redactor, because *a name half redacted is a name in the clear* — while a confidence
+threshold governs whether a candidate is admitted at all, not whether half of an admitted one is
+kept. Touching-but-not-overlapping spans stay apart: a comma between two names is a boundary.
+
+## 7. Deciding whether to swap: a differential bench, not a score
+
+You will not have labelled data. You do not need it to answer *"is this model better for us"* —
+run both over the same documents and look at where they **disagree**. Agreement is not accuracy,
+and the bench should say so on every run.
+
+What made the difference between a bench that answered and one that misled:
+
+- **Three arms, including a floor.** Rules alone, rules+A, rules+B. A span the rules already found
+  is credited to neither model, so what separates A from B is the thing only a model can do.
+- **Distinct values, not span counts.** A first run reported "370 spans only B found". They were
+  **16 distinct strings**, one of them counted 325 times because it was a running page header.
+  Print both numbers side by side or the aggregate will lie.
+- **Per document, not only totals.** One long document carried 93% of that corpus by words and
+  every finding. The per-document row is what separates *"B is better"* from *"B is better on one
+  document type"* — a much narrower and much more useful claim.
+- **Measure the pipeline separately from the model.** An arm reproducing the shipped path exactly
+  (there: no chunking, whole document into a 512-token encoder) answers *what would fixing the
+  plumbing buy, with the same model*. A pipeline fix and a model swap must never be credited to
+  each other. Here the prediction was that chunking explained the gap; it explained **two spans**.
+- **The corpus ships empty and the output is gitignored.** Real documents are neither shareable
+  nor committable, and the disagreement file carries the values the models found.
+- **A document that produces no text is dropped and counted, never entered as an empty string** —
+  it would score as a perfect agreement on a document nobody read.
+
+## 8. A token limit is a wall the pipeline walks through
+
+The trap that cost the most here. A 512-position encoder handed a longer document does **not**
+raise: the `transformers` pipeline truncates, warns on stderr and returns. So the service answers
+`200` having examined the first page, and for anything safety-adjacent — redaction, screening,
+classification — that is the worst available failure: success reported, the rest never looked at.
+
+Window the input, and size the windows **against the tokenizer**, not against a guessed character
+count: propose a window by characters, cut it at a sentence boundary, halve it until the tokenizer
+agrees it fits. Overlap consecutive windows by more than the longest entity you expect, so
+something split by a seam is whole in the next one, and map the spans back to global offsets.
+
+Inject the budget as a callable — `fits(piece) -> bool` — and the windowing is testable without
+loading the weights: every window fits, every offset points where it claims, **every character is
+covered** (a gap between windows is an entity nobody looks at), and the thing at the very end
+survives.
+
 ## What belongs in the service, and what does not
 
 **In**: the HTTP contract, the Pydantic models, one slot with explicit eviction, the device
