@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-12T19:34:32Z",
+  "generated_at": "2026-09-13T07:57:48Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 48,
+  "skill_count": 49,
   "families": {
     "core": [
       "compliance-audit",
@@ -22,6 +22,7 @@
       "forms",
       "iframe-canvas",
       "image-to-design-md",
+      "launch-audit",
       "module-add",
       "screenshot-to-page",
       "shadscan",
@@ -80,7 +81,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 108,
+      "skill_md_lines": 123,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -324,6 +325,24 @@
       "bundle": "dist/image-to-design-md.skill"
     },
     {
+      "name": "launch-audit",
+      "family": "web",
+      "role": "operative",
+      "description": "The fourth pre-deploy gate. `shadscan` asks whether the code is good, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it costs — this one asks **can a stranger find this, trust it, and buy from it?** Three surfaces nobody owns: **findable** (title + description on every ...",
+      "skill_file": "launch-audit/SKILL.md",
+      "references": [
+        "checks.md",
+        "contracts.md",
+        "identity-block.md"
+      ],
+      "scripts": [
+        "scan_launch.py",
+        "test_scan_launch.py"
+      ],
+      "skill_md_lines": 121,
+      "bundle": "dist/launch-audit.skill"
+    },
+    {
       "name": "module-add",
       "family": "web",
       "role": "operative",
@@ -377,7 +396,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 287,
+      "skill_md_lines": 305,
       "bundle": "dist/shadscan.skill"
     },
     {

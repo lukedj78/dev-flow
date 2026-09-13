@@ -18,6 +18,21 @@ Runs on a **project that already exists** (any dev-flow stack — Next.js web, E
 
 > **Not legal advice.** This produces *engineering* findings and remediations. A DPO / qualified counsel confirms materiality, legal basis, and high-risk classification per deployment. Every generated artifact carries that caveat.
 
+
+## The gate next door
+
+`launch-audit` asks whether the **pages** a user reads exist and are reachable; this skill asks
+whether the **handling** behind them is lawful. Both, never one instead of the other:
+
+- **R2 (consent capture)** here · *does a privacy page exist and is it linked* there.
+- The **provider identity block** — name, geographic address, email, trade register, VAT number,
+  *"easily, directly and permanently accessible"* under Article 5 of Directive 2000/31/EC — is
+  `launch-audit`'s, not this skill's. It is an information duty about the *seller*, not about the
+  *data*, which is why it sits in the other gate.
+
+A product can hold a flawless lawful basis and publish nothing a user can read. It can also publish
+a beautiful policy describing handling it does not do. Two failures, two gates.
+
 ## The 10-point risk register (canonical)
 
 Full checklist + article mapping + remediation recipes in `references/gdpr-ai-act-checklist.md`. In short:

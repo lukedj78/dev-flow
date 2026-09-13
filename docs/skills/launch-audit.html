@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>compliance-audit — dev-flow</title>
-<meta name="description" content="Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds.">
+<title>launch-audit — dev-flow</title>
+<meta name="description" content="The fourth pre-deploy gate.">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -113,19 +113,19 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 </div></header>
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
-  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">compliance-audit</h1>
-  <ul class="meta"><li class="chip">Core</li><li class="chip">operative — changes the codebase</li><li class="chip">123 lines</li><li class="chip">2 references</li><li class="chip">2 scripts</li></ul>
-  <p class="lede">Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and <code>meta.json#stack</code> against a 10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-transparency Art.50, high-risk Annex III, sub-processors — into a report with severity, evidence and article mapping) and Remediate (apply the safe mechanical mitigations, flag the ones needing a legal decision, never deciding legal basis or high-risk for the user). A pre-deploy gate; run it any time. Triggers: &quot;audit GDPR&quot;, &quot;compliance check&quot;, &quot;AI Act&quot;, &quot;siamo conformi?&quot;, &quot;DSAR / cancellazione account / cookie consent / data residency&quot;. Not for: legal advice or DPIA sign-off (a DPO confirms), building features, or writing the PRD (use prd-from-idea).</p>
+  <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">launch-audit</h1>
+  <ul class="meta"><li class="chip">Web</li><li class="chip">operative — changes the codebase</li><li class="chip">121 lines</li><li class="chip">3 references</li><li class="chip">2 scripts</li></ul>
+  <p class="lede">The fourth pre-deploy gate. <code>shadscan</code> asks whether the code is good, <code>compliance-audit</code> whether the data handling is lawful, <code>vercel-doctor</code> what it costs — this one asks <strong>can a stranger find this, trust it, and buy from it?</strong> Three surfaces nobody owns: <strong>findable</strong> (title + description on every route, robots, sitemap, favicon, social preview), <strong>trustworthy</strong> (privacy, terms, and the provider-identity block EU law requires on a commercial site), <strong>convertible</strong> (a CTA above the fold, reachable on mobile, a confirmation page after every form, analytics). Reports and routes; never blocks, never scores. Needs <code>stack.framework</code> in {next, monorepo} and <code>phase &gt;= feature_complete</code>. Triggers: &quot;launch audit&quot;, &quot;è pronto per il lancio?&quot;, &quot;pre-launch checklist&quot;, &quot;controlla prima di pubblicare&quot;, &quot;ready to launch&quot;. Not for: a11y (<code>shadscan</code>), GDPR risk (<code>compliance-audit</code>), cost (<code>vercel-doctor</code>), or writing the missing pages.</p>
 </div>
 <section><div class="wrap prose">
   <h3>What it does not do</h3>
-  <ul><li><strong>Not legal advice / not a DPIA sign-off</strong> — it produces findings + a DPIA *template*; a DPO/lawyer confirms.</li><li><strong>Doesn&#x27;t decide</strong> region, legal basis, or high-risk classification — it flags them.</li><li><strong>Doesn&#x27;t build product features</strong> (use <code>design-md-to-app</code> / <code>module-add</code> / <code>rn-*</code>); it adds only the compliance controls.</li><li><strong>Doesn&#x27;t bump <code>phase</code>.</strong></li></ul>
+  <ul><li><strong>Does not write the pages.</strong> It finds that <code>/terms</code> is missing; <code>screenshot-to-page</code> builds it and</li><li><strong>Does not invent the identity block.</strong> Ever. See the routing table.</li><li><strong>Does not re-check <code>shadscan</code> or <code>compliance-audit</code>.</strong> Where they overlap, it defers and says so.</li><li><strong>Does not score.</strong> There is no number to optimise.</li><li><strong>Does not block a deploy.</strong> It reports before one.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/compliance-audit/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/compliance-audit/references/gdpr-ai-act-checklist.md"><code>gdpr-ai-act-checklist.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/launch-audit/references/checks.md"><code>checks.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/launch-audit/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/launch-audit/references/identity-block.md"><code>identity-block.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
-./install.sh --platform claude        # or drop dist/compliance-audit.skill into Claude Code</code></pre>
-  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/compliance-audit/SKILL.md">Read compliance-audit/SKILL.md on GitHub →</a></p>
+./install.sh --platform claude        # or drop dist/launch-audit.skill into Claude Code</code></pre>
+  <p class="sub"><a href="https://github.com/lukedj78/dev-flow/blob/main/launch-audit/SKILL.md">Read launch-audit/SKILL.md on GitHub →</a></p>
 </div></section>
 <footer><div class="wrap">
   <span>49 skills, one contract. MIT.</span>

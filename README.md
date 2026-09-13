@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **48 skills (7 core + 17 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **49 skills (7 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -144,7 +144,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 48. Restart Claude Code if you don't see them in /skills.
+# Should print 49. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -1155,6 +1155,17 @@ Inspired by the **[transitions.dev](https://transitions.dev/)** motion library (
 **Output**: a `docs/vercel/doctor-report.md` (health score + findings), the **safe fixes applied**, and the judgment calls **routed to the owning skill**.
 
 **How it works**: wraps the third-party [vercel-doctor](https://www.vercel-doctor.com/) CLI, which scans a Next.js codebase for costly Vercel patterns across six areas — caching that defeats the CDN, dead code, function duration, image waste, excessive invocations, config. The skill applies the mechanical fixes (dead-code removal with `tsc` green, config/image tweaks) and routes the rest to the skill that owns it: caching + invocations → `data-fetching` (Next 16 `"use cache"` / Server-Component reads), images → `design-md-to-app`. The **cost/perf sibling of `compliance-audit`** (legal-risk gate) — both are `feature_complete` pre-deploy gates, both record to `meta.json`, both never bump `phase` or block deploy. Third-party tool, `[VERIFY]` the invocation + license. Refuses for non-Vercel/non-Next targets.
+
+### `launch-audit` — can a stranger find this, trust it, and buy from it?
+
+**Input**: "launch audit" / "è pronto per il lancio?" / "pre-launch checklist" / "controlla prima di pubblicare", or dev-flow proposing the gates at `feature_complete`.
+**Output**: findings in three groups — **findable**, **trustworthy**, **convertible** — each routed to the skill that fixes it, plus `meta.json#launch_audit` with the reasons for anything dismissed.
+
+**How it works**: the fourth pre-deploy gate, and it exists because the other three leave a hole. `shadscan` asks whether the code is well made, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it will cost — **an app can pass all three and still have no way to buy, no company name, and no address**. This one looks only at that.
+
+The part that turns a marketing checklist into something checkable is the middle group. "Real contact address" is, in the EU, **Article 5 of Directive 2000/31/EC**: name, geographic address, email, trade register and number, VAT number, rendered *"easily, directly and permanently accessible"* — an enumerated list, quoted verbatim in [`references/identity-block.md`](./launch-audit/references/identity-block.md), so the check is "these items are present or they are not" rather than "the site should feel trustworthy". And the skill **never writes that block**: an invented registration number is materially worse than a missing one.
+
+`scripts/scan_launch.py` produces signals, never verdicts, and the test suite is mostly about the second half — a scanner that cries wolf three times stops being read, so the fixtures assert what it must *not* report: metadata inherited from a layout, a `robots.ts` that branches on the environment, authenticated routes absent from a sitemap on purpose. Above-the-fold reports `unknown` and asks for a browser rather than guessing from source. Reports, never blocks, and there is no score to optimise.
 
 ### `shadscan` — UI-quality & accessibility pre-deploy gate
 

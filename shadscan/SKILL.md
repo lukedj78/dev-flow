@@ -268,6 +268,24 @@ Consistent with rule zero: when the tool ships the knowledge, use the tool's cop
   couldn't run named explicitly.
 - Nothing was added purely to move the number.
 
+## The gate next door
+
+`launch-audit` asks the question this one does not: **can a stranger find this, trust it, and buy
+from it?** The overlap is deliberate and narrow, and stated in both directions so neither skill
+assumes the other did it:
+
+| | this skill | `launch-audit` |
+|---|---|---|
+| `not-found` route | checks it **exists** | — |
+| social preview | checks the **file exists** | checks it **resolves and has dimensions** |
+| SEO files | checks they exist | checks `robots` does not blanket-disallow and the sitemap names the public routes |
+| metadata per route | — | title and description on **every** public route |
+| privacy / terms / identity block | — | owns it |
+| a11y, empty states, labels, focus | owns it | defers here, always |
+
+A product passes this gate and still has no company name on it. That is not a hole in this skill —
+it is a different question, and it has its own gate now.
+
 ## What this skill does NOT do
 
 - **Not a legal/privacy audit** — that's `compliance-audit`. **Not a cost audit** — that's `vercel-doctor`.

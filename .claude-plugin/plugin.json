@@ -39,6 +39,7 @@
     "./forms",
     "./iframe-canvas",
     "./image-to-design-md",
+    "./launch-audit",
     "./module-add",
     "./screenshot-to-page",
     "./shadscan",

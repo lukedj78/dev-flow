@@ -168,6 +168,7 @@ SKILLS=(
   animated-icons
   vercel-doctor
   shadscan
+  launch-audit
   vercel-deploy
   vgpu-shaders
   iframe-canvas
