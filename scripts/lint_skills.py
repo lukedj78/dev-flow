@@ -495,7 +495,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 18
+CHECK_COUNT = 19
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -578,6 +578,47 @@ def check_guards_test_count(root: Path) -> None:
         for m in re.finditer(r"(?:CI runs (?:the )?\*{0,2})(\d+)\*{0,2} tests", path.read_text(errors="ignore")):
             if int(m.group(1)) != real:
                 err(f"{path}: \"{m.group(0)}\" — the guards suite has {real}")
+
+
+# --- check 19: the eve recipe count, derived from the recipes ---------------
+#
+# The README said "Ten composed recipes" while eve-patterns.md had twelve. It had
+# been wrong since §11 was written and nobody noticed, because no check derived
+# it — the same failure mode as the skill count and the guards suite, in a file
+# that gets read far more often than it gets counted.
+WORDS = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
+    8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen",
+    14: "fourteen", 15: "fifteen", 16: "sixteen", 17: "seventeen", 18: "eighteen",
+    19: "nineteen", 20: "twenty",
+}
+
+
+NUMBER_WORD_RE = re.compile(
+    r"\b(" + "|".join(WORDS.values()) + r"|\d+) composed recipes", re.I
+)
+
+
+def check_eve_recipe_count(root: Path) -> None:
+    """`N composed recipes` must match the numbered sections in eve-patterns.md."""
+    patterns = root / "eve-agent" / "references" / "eve-patterns.md"
+    if not patterns.exists():
+        return
+    real = len(re.findall(r"^## \d+\.", patterns.read_text(errors="ignore"), re.M))
+    if not real:
+        warn("eve-patterns.md: no numbered recipes found — check 19 skipped")
+        return
+    word = WORDS.get(real, str(real))
+    for rel in ("README.md", "CONTEXT.md", "eve-agent/SKILL.md", SKILL_MAP):
+        path = root / rel
+        if not path.exists():
+            continue
+        # Only a number word or a digit counts. `[A-Za-z]+` also matched the `s`
+        # of "eve's composed recipes", because \b sits between the apostrophe and
+        # the letter — a guard whose first run is a false positive gets disabled.
+        for m in re.finditer(NUMBER_WORD_RE, path.read_text(errors="ignore")):
+            if m.group(1).lower() not in {word, str(real)}:
+                err(f"{path}: \"{m.group(0)}\" — eve-patterns.md has {real}")
 
 
 def check_lint_check_count(root: Path) -> None:
@@ -825,6 +866,7 @@ def main() -> int:
     check_skill_map_meta(root)
     check_skill_map_metrics(root, all_skills)
     check_guards_test_count(root)
+    check_eve_recipe_count(root)
     check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)
     check_installed_in_sync(root, all_skills)
