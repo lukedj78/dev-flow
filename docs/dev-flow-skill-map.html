@@ -253,7 +253,7 @@
   <div class="wrap">
     <div class="kick"><span class="no">01</span> backbone</div>
     <h2 class="sec-t">The phase pipeline</h2>
-    <p class="sec-p">A monotonic sequence: no skill skips a step. The orchestrator suggests the next one by reading the state — it doesn't impose it.</p>
+    <p class="sec-p">A monotonic sequence: no skill skips a step. The orchestrator suggests the next one by reading the state — it doesn't impose it. <b>One transition it does impose:</b> a web app enters <code>scaffolded</code> only with its design-system lint wired, or an opt-out recorded with its reason.</p>
 
     <div class="pipe-wrap">
       <div class="pipe-scroll">
@@ -449,9 +449,14 @@
         <div class="ss"><span class="s">product-to-agent-skill</span></div>
       </div>
       <div class="card lyr">
+        <div class="h"><i style="background:var(--c-web)"></i> Design-system lint</div>
+        <p>From the first scaffold, <code>@shadcn/lint</code> answers every class an agent writes against the theme — and names the token or variant to use instead. Wired by a script for all three web topologies; the one layer that can stop a phase, not just report on it.</p>
+        <div class="ss"><span class="s">design-md-to-app</span><span class="s">monorepo-bootstrap</span><span class="s">dev-flow</span></div>
+      </div>
+      <div class="card lyr">
         <div class="h"><i style="background:var(--c-pm)"></i> Pre-deploy gates</div>
-        <p>At <code>feature_complete</code>: legal risk, cost risk, UI risk. They report, they never block.</p>
-        <div class="ss"><span class="s">compliance-audit</span><span class="s">vercel-doctor</span><span class="s">shadscan</span></div>
+        <p>At <code>feature_complete</code>: legal risk, cost risk, UI risk, launch readiness. They report, they never block.</p>
+        <div class="ss"><span class="s">compliance-audit</span><span class="s">vercel-doctor</span><span class="s">shadscan</span><span class="s">launch-audit</span></div>
       </div>
     </div>
   </div>
@@ -494,7 +499,7 @@
         <div class="step"><div class="cmd"><span class="sk">storage</span> Vercel Blob <span class="cm"># same platform as the deploy, one less sub-processor</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">maps</span> mapcn <span class="cm">· web</span> · mapcn-rn <span class="cm">· mobile — mind the tile licence</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">motion</span> tw-animate-css <span class="pr">→</span> CSS <span class="pr">→</span> view transitions <span class="pr">→</span> Motion <span class="cm"># cheapest tier that works</span></div></div>
-        <div class="step"><div class="cmd"><span class="sk">design lint</span> @shadcn/lint <span class="cm"># errors that name the token to use — on from the first scaffold</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">design lint</span> @shadcn/lint <span class="cm"># wired by a script, gated at scaffolded — errors name the token to use</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">illustration</span> Koboyo <span class="cm"># sparingly — only if DESIGN.md admits hand-drawn art</span></div></div>
       </div>
     </div>

@@ -28,7 +28,7 @@ PHASE_NEXT_BY_STACK = {
         "scaffolded":       "screenshot-to-page  OR  module-add",
         "page_generated":   "spec-review on the diff  THEN  module-add  OR  more screenshot-to-page",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan  THEN  vercel-deploy",
+        "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit  THEN  vercel-deploy",
     },
     "expo-rn": {
         "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  OR  rn-bootstrap",
@@ -47,7 +47,7 @@ PHASE_NEXT_BY_STACK = {
         "scaffolded":       "web: screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent",
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan for web)  THEN  vercel-deploy + rn-eas-deploy",
+        "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy",
     },
     "agent": {
         "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app)",

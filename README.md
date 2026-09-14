@@ -78,6 +78,7 @@ The skill count is an implementation detail. The contract is the moat.
 - **Portability.** The contract is just JSON + Markdown + folders. It survives a model swap, a tooling pivot, even a rewrite of the skills in another language.
 - **Auditability.** Every skill run appends to `meta.json#history` with inputs, outputs, phase delta. You always know who wrote what when.
 - **Idempotency.** Re-running a skill is safe — it sees its own previous output and skips/updates instead of duplicating.
+- **Enforced transitions, where it matters.** The orchestrator *suggests* the next step; one transition it *refuses*. A Next web app on a Tailwind UI does not enter `scaffolded` until its design-system lint is wired — `update_meta.py set-phase` runs the check — or an opt-out is recorded with its reason. A guardrail is worth most before the first violation exists, and a rule an agent is merely asked to follow is the rule a hurried agent skips.
 - **Drift detection.** Every contract file is content-addressed. When the user edits `DESIGN.md` by hand, the system knows that `registry.json` and `/showcase` (which were derived from it) are now stale — and it knows transitively, so a chain of derivations propagates.
 
 The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. The skills are interchangeable consumers; the package is the durable surface.
@@ -852,12 +853,14 @@ phase=prd_drafted      → branches by stack.framework:
 phase=tasks_split      → figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app
 phase=design_extracted → "next"    → design-md-to-app
                          "expo-rn" → rn-bootstrap
+                         (entering scaffolded is gated for web: the design lint must be wired)
 phase=scaffolded       → "next"    → screenshot-to-page  OR  module-add
                          "expo-rn" → rn-add-screen  OR  rn-module-add  OR  rn-write-tests
 phase=page_generated   → module-add (next)  OR  rn-module-add (expo-rn)  OR  more screen-gen
 phase=module-added     → write-tests / rn-write-tests  OR  iterate
                          → eventually the stack's deploy skill, once feature-complete
-phase=feature_complete → gates (any stack): compliance-audit  +  vercel-doctor (web on Vercel)
+phase=feature_complete → gates: compliance-audit (any stack)  +  vercel-doctor (web on Vercel)
+                                +  shadscan (web on shadcn)  +  launch-audit (web)
                          "next"    → vercel-deploy
                          "expo-rn" → rn-eas-deploy
                          eve agent → eve deploy
@@ -871,7 +874,8 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 
 **Bundled scripts:**
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`.
-- `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step.
+- `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step. On a project already past `scaffolded` without the design lint, it prints what is missing and the command that fixes it.
+- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and is **the design-lint gate**: entering `scaffolded` is refused until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason`. Skills move phase through it so the gate runs; mobile, agent-only and MUI projects are not affected.
 
 ### `prd-from-idea` — paragraph → PRD
 
@@ -1294,7 +1298,7 @@ The 4 monorepo skills compose a single repo where both a Next.js web app AND an 
 
 | Skill | When it triggers |
 |---|---|
-| `monorepo-bootstrap` | Phase `prd_drafted` + `stack.framework="monorepo"`. Scaffolds root configs (pnpm-workspace.yaml, turbo.json, tsconfig.base.json), invokes `design-md-to-app` in `apps/web/`, invokes `rn-bootstrap` in `apps/mobile/`, generates the 3 shared package skeletons, patches Metro config for the workspace topology. Idempotent. |
+| `monorepo-bootstrap` | Phase `prd_drafted` + `stack.framework="monorepo"`. Scaffolds root configs (pnpm-workspace.yaml, turbo.json, tsconfig.base.json), invokes `design-md-to-app` in `apps/web/`, invokes `rn-bootstrap` in `apps/mobile/`, generates the 3 shared package skeletons, patches Metro config for the workspace topology. After `pnpm install` it wires the design-system lint with `design-md-to-app/scripts/setup_design_lint.py` — the shadcn monorepo preset in `packages/eslint-config`, or `apps/web` as a single app in the web+mobile topology — and moves the phase through `set-phase`, where the gate runs. Idempotent. |
 | `monorepo-add-shared-package` | "Estrai questa logica in shared", "crea un package @<slug>/forms condiviso". Creates a new package OR extracts files from an app into an existing/new shared package, updates path aliases in `tsconfig.base.json`, adds the package as `workspace:*` to both apps. Two modes: create-empty and extract-from-app. |
 | `monorepo-add-python-service` | "Aggiungi un servizio python", "add a fastapi service", "apps/ml". Puts a **FastAPI service managed by uv** in `apps/<name>/`, joined to the task graph by a scripts-only `package.json` and to `apps/web` by a **generated** TypeScript client — so a Pydantic rename is a compile error, not a runtime 422. Two variants: `generic` and `ml` (one resident model, `model_version` on every response, Metal locally / CUDA in production, the narrowest interface that makes a model **swappable** — so the adapter written to A/B it *is* the integration — the differential bench that decides whether to swap, and why a token limit is a wall the pipeline *walks through*, truncating and answering `200`, rather than hits). Owns that app the way `eve-agent` owns `apps/agent/`: no web skill is ever proposed for it, and golden rule 2 does not apply because it has no UI. |
 | `monorepo-sync-types` | "Rigenera i tipi da Supabase", "sync DB schema". Provider-aware: Supabase → `supabase gen types typescript`, tRPC → TS inference re-export, Firebase → manual + Zod runtime validation, custom REST → Zod/OpenAPI/manual. Always writes into `packages/shared/src/types/`. |
