@@ -768,6 +768,12 @@ is worth most before the first violation exists. Full block, overrides and verif
 override for that file, or no carousel if the product has none — so the first agent told to "fix all
 errors" does not rewrite a vendored primitive.
 
+⚠️ **Check `packages/eslint-config/base.js` for `eslint-plugin-only-warn`** — the shadcn monorepo
+template ships it, and it turns every `error` into a warning, so `pnpm lint` never fails. There the
+gate is `--max-warnings 0` in the UI packages' `lint` scripts, not the rule severity. Monorepo layout
+(a separate `design-system` preset spread into `apps/web` and `packages/ui` only, shadows read from
+`@theme` at load) is in the reference.
+
 Record `stack.design_lint = "shadcn-lint"`.
 
 ### Step 5 — `/showcase` page (mandatory in dev-flow mode)

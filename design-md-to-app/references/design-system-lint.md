@@ -92,6 +92,56 @@ already has a shared preset, spread that preset instead: in annotix the working 
 `...nextJsConfig` from `@annotix/eslint-config/next-js`, and importing `@typescript-eslint/parser`
 directly from `apps/web` failed because pnpm does not hoist it there.
 
+### Monorepo: a separate preset, spread only where UI is rendered
+
+What worked on annotix (committed `e4008bc`): a `packages/eslint-config/design-system.js` exporting the
+plugin block and the overrides, added to the package's `exports`, and spread **only** into
+`apps/web/eslint.config.js` and `packages/ui/eslint.config.js` —
+`export default [...nextJsConfig, ...designSystemConfig]`. `packages/api` and `packages/shared` are
+never asked about Tailwind classes they do not write. Overrides can live in the shared file because
+each glob matches only in the package where it exists: `src/components/**` in `packages/ui`,
+`app/**/showcase/**` in `apps/web`.
+
+The shadow allow-list is read **from the theme when the config loads**, not typed into it:
+
+```js
+function declaredShadows() {
+  try {
+    const css = readFileSync(new URL("../ui/src/styles/globals.css", import.meta.url), "utf8")
+    const theme = css.match(/@theme[^{]*\{([\s\S]*?)\n\}/)?.[1] ?? ""
+    return [...theme.matchAll(/--shadow-([a-z0-9-]+)\s*:/g)].map((m) => `shadow-${m[1]}`)
+  } catch {
+    return []
+  }
+}
+// "shadcn/no-raw-colors": ["warn", { allow: declaredShadows() }]
+```
+
+Adding a shadow to the theme then never produces a lint finding nobody understands. Reported
+`shadow-float` count on annotix after the change: 0.
+
+### ⚠️ `eslint-plugin-only-warn` makes every rule a warning
+
+The shadcn monorepo template's `packages/eslint-config/base.js` loads `eslint-plugin-only-warn`.
+annotix and gym-saas have it; eve-hospitality and bidmaster, scaffolded differently, do not. With it,
+**`"error"` reports as a warning and `pnpm lint` never fails** — on annotix, before this plugin,
+`0 errors` on a repo with 40 findings. A rule at `error` in that repo is a suggestion.
+
+So the gate is the warning count, per UI package:
+
+| Project | `lint` script |
+|---|---|
+| new scaffold with `only-warn` | `eslint --max-warnings 0` — this *is* "error from day one" there |
+| retrofit | `eslint --max-warnings <today's measured total>`, lowered as findings are fixed, never raised |
+
+*Verified* on annotix: caps at 1114 (`apps/web`) and 9 (`packages/ui`), one `bg-pink-500` added to a
+page → `ESLint found too many warnings`, lint fails; file restored → passes. A cap of 0 also means the
+pre-existing warnings count — on a fresh scaffold that is the carousel's
+`react-hooks/set-state-in-effect`, which is why it has to be decided before the cap goes in.
+
+Do not remove `only-warn` to "restore" errors without looking: it would turn every other rule in
+the repo into a hard failure at once.
+
 **Discovery needs no settings** when `components.json` exists: the linter reads its `tailwind.css`
 for the theme (following `@import`s), its aliases for the component directory, and workspace package
 `exports` for shared components. On annotix it resolved `@annotix/ui/components/button` to
@@ -213,6 +263,10 @@ its type scale was moved into the theme:
 Most of that was deliberate choices, not defects — and the smallest rule's 19 were ten shadow-token
 reports (§ above) and nine literal colours in a theme *picker*, where the palette is the content.
 Yet inside the 850 sat the real finding: 531 `text-[…]` literals meaning a missing type scale.
+
+What that looked like on annotix once installed, after its type scale moved into the theme:
+`no-arbitrary-values` **850 → 193**, `no-raw-colors` 19 → 10 (the shadow reports gone), 1074 findings
+in `apps/web`, 7 in `packages/ui`.
 
 So: rules at `warn`, `eslint . --max-warnings <measured count>` in CI so the number can only go
 down, fix repeated patterns first (a missing token beats 500 one-line edits), and promote each rule to
