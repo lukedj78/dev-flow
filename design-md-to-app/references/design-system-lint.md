@@ -6,6 +6,41 @@
 > required**, so it applies to `stack.ui` = `shadcn`, `base-ui` and `coss` alike. Written **2026-09-14**.
 > Everything marked *verified* below was run, not read.
 
+## It is automated — use the script
+
+```bash
+python3 design-md-to-app/scripts/setup_design_lint.py <project-root>          # install, wire, cap, record
+python3 design-md-to-app/scripts/setup_design_lint.py <project-root> --check  # verify only
+```
+
+`design-md-to-app` runs it at Step 4.10; `monorepo-bootstrap` runs it at Step 8, after the workspace
+is installed. `dev-flow/scripts/update_meta.py set-phase scaffolded` runs `--check` and **refuses the
+phase** until it passes or `stack.design_lint = "none"` is recorded with
+`stack_config.design_lint_reason`; `show_state.py` flags projects that are already past it. The rest
+of this file is the evidence each rule in the script was written from.
+
+What the script was run against before it was committed, from scratch each time:
+
+| Project | Topology | Result |
+|---|---|---|
+| gym-saas at the commit before its lint was added | shadcn monorepo, `only-warn` | caps 0 / 0, lint green, identical to the hand-made commit; second run changes nothing |
+| a copy of notarius-crm | single app, no `only-warn`, already built | 113 findings, cap 114, 2 pre-existing errors reported and not blocked on |
+| the same copy set to `design_extracted` | fresh single app | **refused** — 113 findings listed, nothing recorded, `--check` still failing |
+| a web+mobile fixture (notarius as `apps/web`) | `apps/web` as a single app inside a workspace | installed with `--filter`, same numbers as the copy |
+| desko | web app with no ESLint at all | `--check` names the cause: `next lint`, which Next 16 removed |
+
+Running it on the single app turned up two things the hand-wired projects had not: shadcn's
+`sidebar.tsx` fails `react-hooks/purity` (`Math.random` during render) under `eslint-config-next`,
+and the first version installed and wired the plugin **before** discovering pre-existing errors, then
+exited — leaving a project wired but uncapped and unrecorded. Pre-existing errors on an existing app
+are now reported and the run continues; only a fresh scaffold is refused, and only after reporting.
+
+`design-md-to-app/scripts/test_setup_design_lint.py` (18 tests, no network, run in CI) covers the
+decisions: topology detection, where the spread lands and that it lands once, that the cap is
+replaced not appended, that the policy never allows `shadow-*` or turns raw colours off in the
+component directory, and that `set-phase` refuses an unwired app — including a jump straight past
+`scaffolded` — while letting a reasoned opt-out, other stacks and later transitions through.
+
 ## Why it exists in this skill
 
 This skill writes the theme — colours, the type scale, radii — from DESIGN.md, then hands the app to

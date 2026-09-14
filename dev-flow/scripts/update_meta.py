@@ -180,6 +180,23 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # Crossing into `scaffolded` requires the design lint to be wired, or an explicit
+    # opt-out recorded. Checked here because this is where phase moves: a skill that edits
+    # meta.json#phase by hand skips it, which is why the skills that scaffold call set-phase.
+    scaffold_idx = PHASES.index("scaffolded")
+    if cur_idx < scaffold_idx <= new_idx:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from design_lint_gate import remedy, verify
+
+        passed, why = verify(root, meta)
+        if not passed:
+            sys.stderr.write(
+                f"Phase change refused: {current!r} → {requested!r} needs the design lint.\n"
+                + "".join(f"  {line}\n" for line in why.splitlines())
+                + remedy(root) + "\n"
+            )
+            return 1
+
     meta["phase"] = requested
     save_meta(meta_path, meta)
     print(f"phase: {current_raw} → {requested}")

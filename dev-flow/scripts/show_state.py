@@ -122,6 +122,22 @@ def main() -> int:
             print(f"  - {h.get('skill')} @ {h.get('ran_at')}  → phase={h.get('phase_after')}")
         print()
 
+    # A project already at or past `scaffolded` without the design lint — it predates the gate,
+    # or its phase was edited by hand. Not blocking here; set-phase blocks the transition.
+    phase_norm = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    if phase_norm not in {'empty', 'idea_captured', 'prd_drafted', 'tasks_split',
+                          'design_extracted', 'monorepo_initialized', ''}:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from design_lint_gate import remedy, verify
+
+        passed, why = verify(root, meta)
+        if not passed:
+            print("⚠ Design lint missing on a scaffolded project:")
+            for line in why.splitlines():
+                print(f"  {line}")
+            print(remedy(root))
+            print()
+
     framework = stack.get('framework')
     nxt = next_step(meta.get('phase'), framework)
     print(f"Next step proposal ({framework or 'next, default'}): {nxt}")

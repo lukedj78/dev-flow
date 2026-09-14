@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-14T20:06:50Z",
+  "generated_at": "2026-09-14T20:33:44Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 49,
   "families": {
@@ -98,11 +98,12 @@
       ],
       "scripts": [
         "check_drift.py",
+        "design_lint_gate.py",
         "init_workflow.py",
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 366,
+      "skill_md_lines": 371,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -249,9 +250,11 @@
       ],
       "scripts": [
         "build_registry.py",
-        "parse_design_md.py"
+        "parse_design_md.py",
+        "setup_design_lint.py",
+        "test_setup_design_lint.py"
       ],
-      "skill_md_lines": 1219,
+      "skill_md_lines": 1218,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -849,7 +852,7 @@
         "scaffold-web.sh",
         "verify.ts"
       ],
-      "skill_md_lines": 204,
+      "skill_md_lines": 221,
       "bundle": "dist/monorepo-bootstrap.skill"
     },
     {

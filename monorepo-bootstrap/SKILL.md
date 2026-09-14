@@ -148,9 +148,26 @@ Then verify:
 - `pnpm tsc --noEmit` from `apps/web/`, from `apps/mobile/` (topology `"web-mobile"` only), and each `packages/*/` succeeds.
 - `pnpm turbo dev --dry-run` lists every workspace that exists for the chosen topology (5 for `"web-mobile"`: web, mobile, and the 3 packages; 4 for `"web-agent"`/`"web-only"`: web, and the 3 packages — `apps/agent/` joins later once `eve-agent` scaffolds it).
 
+Then wire the design lint — automatically, here, because this is the first point where the workspace
+is installed and `packages/ui` (or `apps/web/components/ui`) is populated:
+
+```bash
+python3 design-md-to-app/scripts/setup_design_lint.py <project-root>
+```
+
+It handles all three topologies on its own: the shadcn monorepo (`web-only` / `web-agent`: preset in
+`packages/eslint-config`, spread into `apps/web` and `packages/ui`, `--max-warnings` because the
+template loads `eslint-plugin-only-warn`) and `web-mobile` (`apps/web` is a full create-next-app,
+wired as a single app). A non-zero exit is a failed verify. `design-md-to-app` skipped its own
+Step 4.10 when invoked from Step 4 for exactly this reason.
+
 If any verify fails, do NOT bump phase. Report and stop.
 
 ### Step 9 — Update meta.json + commit
+
+Move the phase with `python3 dev-flow/scripts/update_meta.py <project-root> set-phase scaffolded`,
+never by writing `phase` into the JSON: the design-lint gate lives in `set-phase` and refuses the
+transition until the lint from Step 8 is wired. The rest of the block below is written as before.
 
 ```json
 {

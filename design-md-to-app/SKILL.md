@@ -751,33 +751,29 @@ Skipping any of these = scaffold is desktop-only and the user has to fix it befo
 
 ### Step 4.10 — Design-system lint (mandatory, `stack.framework` in {next, monorepo})
 
-Install `@shadcn/lint` in the package that owns the lint config, extend the existing Next config with
-the plugin, and set the rules at **`error` from day one** — a scaffold has no backlog, and a guardrail
-is worth most before the first violation exists. Full block, overrides and verified results:
-`references/design-system-lint.md`. Four things that are not optional:
+**Run the script — do not wire it by hand:**
 
-- **Extend, do not replace**, the `eslint.config.mjs` that `create-next-app@16` wrote.
-- **Override the component directory** (`no-restyle`, `no-arbitrary-values`,
-  `require-static-classes` off) plus `chart.tsx` (`no-inline-styles` off) and the showcase specimen.
-- **Derive the shadow allow-list from `@theme`**: every `--shadow-<name>` becomes `"shadow-<name>"`.
-  Never `"shadow-*"` — verified to let `shadow-pink-500` through.
-- **Add the line to `AGENTS.md`**: *"After making changes, run `pnpm lint` and fix all errors."*
+```bash
+python3 scripts/setup_design_lint.py <project-root>          # install, wire, measure, record
+python3 scripts/setup_design_lint.py <project-root> --check  # verify only
+```
 
-⚠️ `shadcn add --all` installs a `carousel.tsx` that fails Next 16's own
-`react-hooks/set-state-in-effect` before this plugin is involved. Decide it here — a commented
-override for that file, or no carousel if the product has none — so the first agent told to "fix all
-errors" does not rewrite a vendored primitive.
+It detects the topology (single app at the root; a web+mobile app in `apps/*`; the shadcn monorepo
+with `packages/eslint-config` + `packages/ui`), installs `@shadcn/lint` in the package that owns the
+lint config, writes the preset, spreads it into the existing config without replacing it, sets the
+lint cap, appends a block to `AGENTS.md`, and records `stack.design_lint = "shadcn-lint"`. Re-running
+changes nothing. Every rule it encodes was hit on a real project first
+(`references/design-system-lint.md`): shadows allowed by exact name from `@theme` (never `shadow-*`),
+the vendored component directory exempt except for raw colours and inline styles, `chart.tsx` and the
+showcase specimen exempt, `carousel.tsx` / `hooks/use-mobile.ts` / `sidebar.tsx` overridden as shadcn
+delivers them, and `eslint-plugin-only-warn` answered with a `--max-warnings` cap.
 
-⚠️ **Check `packages/eslint-config/base.js` for `eslint-plugin-only-warn`** — the shadcn monorepo
-template ships it, and it turns every `error` into a warning, so `pnpm lint` never fails. There the
-gate is `--max-warnings 0` in the UI packages' `lint` scripts, not the rule severity. Under that cap
-every warning fails, so `no-unknown-classes` is off inside the vendored component directory too, and
-`hooks/use-mobile.ts` (the sidebar primitive's hook, which lands in the app rather than the UI package) needs the same commented
-`react-hooks/set-state-in-effect` override as `carousel.tsx`. Monorepo layout
-(a separate `design-system` preset spread into `apps/web` and `packages/ui` only, shadows read from
-`@theme` at load) is in the reference.
+On a **fresh scaffold** the rules are `error` and the script **fails** — listing them — if the
+scaffold itself produced design-lint findings or other lint errors. Fix those; never cap them. On an
+existing app it uses `warn` and caps at today's count.
 
-Record `stack.design_lint = "shadcn-lint"`.
+**In a monorepo, `monorepo-bootstrap` runs this at its Step 8**, after `pnpm install --recursive` —
+here in Step 4 the workspace is not installed yet. Skip it when invoked from `monorepo-bootstrap`.
 
 ### Step 5 — `/showcase` page (mandatory in dev-flow mode)
 
@@ -1031,7 +1027,11 @@ not that the primitives are wrong.
 ### Step 6 — Hand off + state update
 
 **Dev-flow mode:** before reporting, update `<root>/.workflow/meta.json`:
-- set `phase = "scaffolded"`
+- move the phase **through the script, never by editing the field**:
+  `python3 <dev-flow>/scripts/update_meta.py <root> set-phase scaffolded`. That is where the
+  design-lint gate runs — it refuses `scaffolded` until `setup_design_lint.py --check` passes or an
+  opt-out is recorded (`stack.design_lint = "none"` plus `stack_config.design_lint_reason`). Writing
+  `phase` by hand skips the gate, and `show_state.py` will flag the project on every read after.
 - bump `updated_at` to ISO-8601 UTC now
 - append a `history` entry:
   ```json
@@ -1045,7 +1045,6 @@ not that the primitives are wrong.
   }
   ```
 - if `stack.framework` / `stack.ui` were null and the user picked them now, persist them in `stack`.
-- set `stack.design_lint = "shadcn-lint"` once Step 4.10 has run and `pnpm lint` is at 0 errors.
 
 Do this **after** confirming the build succeeded — don't bump phase on a broken scaffold.
 

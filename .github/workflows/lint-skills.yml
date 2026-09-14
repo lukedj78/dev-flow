@@ -26,6 +26,10 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
+      # The design-lint setup and the phase gate in set-phase. Every new web app's move
+      # into `scaffolded` depends on them, so a change to either must run their tests.
+      - "design-md-to-app/scripts/**"
+      - "dev-flow/scripts/**"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -51,6 +55,10 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
+      # The design-lint setup and the phase gate in set-phase. Every new web app's move
+      # into `scaffolded` depends on them, so a change to either must run their tests.
+      - "design-md-to-app/scripts/**"
+      - "dev-flow/scripts/**"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
@@ -69,6 +77,9 @@ jobs:
 
       - name: Lint all skills
         run: python3 scripts/lint_skills.py
+
+      - name: Test the design-lint setup and the phase gate
+        run: cd design-md-to-app/scripts && python3 -m unittest test_setup_design_lint -v
 
       - name: Regenerate skills.json and check it's committed
         run: |
