@@ -959,6 +959,8 @@ The skill is explicit about confidence: every guess is flagged in the prose. A 1
 
   It also carries the **three human-in-the-loop mechanisms**, which are easy to cross and produce a UI nobody is listening to. *Ask* — a tool with an `outputSchema` and **no `execute`** parks on the client, renders a `<Questionnaire />` (the same component `forms` owns) and returns the human's answer as the tool output. *Approval* — `needsApproval` + `addToolApprovalResponse`. *eve* — `input.requested` on the agent's event stream, answered with `respond()`, and **not** interchangeable with the first two.
 
+- **The type scale is a token, not a literal** — `--text-<name>` with its line-height, letter-spacing and weight modifiers in `@theme inline`, so Tailwind generates `text-<name>`. Two greps verify it before anyone looks at a screenshot, because `text-[17px]` and `text-body-lg` render identically and only one survives a change to the scale. This exists because a real project shipped **zero `--text-*` tokens and 531 `text-[…]` literals**: the reference said to emit them, the skeleton template next to it used `style={{ fontSize }}`, and the copy-pasteable one won. The skeleton is fixed and the type **specimen** stays literal on purpose — it demonstrates the scale rather than consuming it, like a palette swatch.
+
 The structure is mandatory in dev-flow mode — see [docs/conventions.md](./docs/conventions.md).
 
 ### `coss-ui` — Coss/UI, the Cal.com design system on Base UI

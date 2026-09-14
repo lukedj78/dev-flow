@@ -43,7 +43,10 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 1. The chosen UI library (shadcn/ui or MUI) is installed and configured.
 2. **Design tokens** from the YAML frontmatter are wired into the theme:
    - `colors` → CSS variables (shadcn) or `palette` (MUI). **Always two modes**: dark + light, with the source DESIGN.md driving the canonical mode and the other auto-derived (see §Dark + light below).
-   - `typography` → typography scale (Tailwind theme extension or `theme.typography`).
+   - `typography` → typography scale, emitted as **theme tokens** — `--text-<name>` with its
+     `--line-height` / `--letter-spacing` / `--font-weight` modifiers in `@theme inline`, so Tailwind
+     generates `text-<name>`. See `references/shadcn-mapping.md` §Typography. A scale that exists in
+     DESIGN.md but not in the theme is a scale every consumer retypes as `text-[17px]`.
    - `rounded` → radius scale (`borderRadius` extension or `theme.shape`).
    - `spacing` → spacing scale (Tailwind extension or `theme.spacing` overrides).
 3. **Components** from the `components` block are reflected in:
@@ -830,10 +833,10 @@ The site-shell is what makes the showcase **a complete document about the design
   <div className="mx-auto max-w-[1280px] px-6 lg:px-12 py-20 space-y-10">
     <div className="space-y-3">
       <Eyebrow>{ section name uppercase }</Eyebrow>
-      <h2 style={{ fontSize: "48px", lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: 600 }}>
+      <h2 className="text-headline-xl">
         { brand-voice tagline, ends with period }
       </h2>
-      <p className="text-on-surface-variant" style={{ fontSize: "16px" }}>
+      <p className="text-body-lg text-on-surface-variant">
         { 1–2 sentence description with token references in <code> chips }
       </p>
     </div>
@@ -841,6 +844,17 @@ The site-shell is what makes the showcase **a complete document about the design
   </div>
 </section>
 ```
+
+⚠️ **The heading uses a token class, not `style={{ fontSize }}`,** and this skeleton used to do the
+opposite. That mattered: `shadcn-mapping.md` §Typography already said to emit each level as
+`--text-<name>` in `@theme inline`, but two places in this skill taught opposite things and the one
+with the copy-pasteable code won. A real project shipped **zero `--text-*` tokens and 531
+`text-[…]` literals** — its type scale lived in DESIGN.md and in class strings, never in the theme,
+so changing the display size means finding 531 literals. Emit the tokens, then consume them.
+
+The type **specimen** rows are the one exception, and they stay inline: a specimen renders the
+literal spec because it is demonstrating the scale, not consuming it — the same reason a palette
+swatch renders a literal colour. Everything else on the page consumes tokens like any other screen.
 
 **Three rules that distinguish a real showcase from a generic one**:
 1. **Every section is full-width with `border-b`**. The whole page is a vertical stack of bordered bands. Not a single container with everything inside.
@@ -944,10 +958,38 @@ Same wrapper, but `py-20` and the h1 is bigger (`72px / 80px / -0.02em / 600`). 
 
 Then start the dev server (`pnpm dev` / `npm run dev`) and report the URL.
 
+**Token verification — two greps, before you look at anything.** A screenshot cannot tell a token
+from a literal that happens to render the same pixel, which is exactly how a scale goes missing
+without anyone noticing:
+
+```bash
+grep -cE '^\s*--text-' <ui>/globals.css          # 0 means the type scale never reached the theme
+grep -rn 'text-\[' app components | grep -v showcase   # each one is a consumer retyping the scale
+```
+
+The first must be the number of levels in DESIGN.md. The second must be empty outside the type
+specimen. A project that shipped without this check ended up with **zero tokens and 531 literals**;
+both greps would have caught it on day one. If DESIGN.md defines a level the Tailwind scale already
+has at the same value, say so and use the built-in name rather than minting a duplicate.
+
+> **The greps catch it once; a linter catches it every time an agent writes a class.**
+> [`@shadcn/lint`](https://github.com/shadcn-ui/lint) (MIT, Tailwind v4, ESLint or Oxlint, shadcn/ui
+> not required) is built for exactly this: its errors name the fix and the file —
+> *"`rounded-full` is not allowed on `<Button>`: `<Button>` owns its shape. Use a variant: default,
+> outline, secondary, ghost, destructive, link."*
+>
+> **Evaluated, not adopted.** Run against a finished hand-tuned app it reports mostly policy
+> disagreement, not defects — a trial on a real project produced 1749 findings of which the two
+> largest rules were deliberate choices, and the smallest rule's 19 were **10 mechanically wrong**
+> (`shadow-float` is a declared shadow token, read as an undeclared colour) and 9 arguable. Its
+> value is as a guardrail *while* an agent writes, which is what its own evals measure. It is
+> `0.1.0`. This skill does not install it; adding a lint dependency to every project is a stack
+> decision, so raise it and let the user decide.
+
 **Visual verification — best-effort obbligatorio.** The work is not done until you've either looked at it or explicitly told the user you couldn't:
 
 1. Scan the available tools for a browser-control surface. The common names are `mcp__plugin_playwright_playwright__*`, `browse`, `gstack`, `mcp__Claude_Preview__*`, `mcp__Claude_in_Chrome__*`, `connect-chrome`. **Any** of these counts.
-2. **If at least one is available**: navigate to `/showcase` (and the equivalent dark/light counterpart), take a screenshot, and compare against the DESIGN.md. Spot-check 3 colors, 2 typography levels, and 1 component hover state. If anything is off, fix it and re-shoot. Don't declare done from a single broken screenshot.
+2. **If at least one is available**: navigate to `/showcase` (and the equivalent dark/light counterpart), take a screenshot, and compare against the DESIGN.md. Spot-check 3 colors, 2 typography levels, and 1 component hover state — on the typography, check the *class* in the DOM as well as the rendered size, because `text-[17px]` and `text-body-lg` look identical in a screenshot and only one of them survives a change to the scale. If anything is off, fix it and re-shoot. Don't declare done from a single broken screenshot.
 3. **If none is available**: do not silently claim done. State explicitly in your hand-off message:
 
    > ⚠ **Verifica manuale richiesta**: nessun browser tool è disponibile in questa sessione, quindi non posso confermare visivamente che `/showcase` rispecchi il DESIGN.md. Apri http://localhost:3000/showcase e verifica i colori e la tipografia prima di considerare il task chiuso.
