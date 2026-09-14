@@ -770,7 +770,10 @@ errors" does not rewrite a vendored primitive.
 
 ⚠️ **Check `packages/eslint-config/base.js` for `eslint-plugin-only-warn`** — the shadcn monorepo
 template ships it, and it turns every `error` into a warning, so `pnpm lint` never fails. There the
-gate is `--max-warnings 0` in the UI packages' `lint` scripts, not the rule severity. Monorepo layout
+gate is `--max-warnings 0` in the UI packages' `lint` scripts, not the rule severity. Under that cap
+every warning fails, so `no-unknown-classes` is off inside the vendored component directory too, and
+`hooks/use-mobile.ts` (the sidebar primitive's hook, which lands in the app rather than the UI package) needs the same commented
+`react-hooks/set-state-in-effect` override as `carousel.tsx`. Monorepo layout
 (a separate `design-system` preset spread into `apps/web` and `packages/ui` only, shadows read from
 `@theme` at load) is in the reference.
 

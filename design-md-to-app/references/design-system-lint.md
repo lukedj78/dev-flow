@@ -73,6 +73,8 @@ export default defineConfig([
       "shadcn/no-restyle": "off",
       "shadcn/no-arbitrary-values": "off",
       "shadcn/require-static-classes": "off",
+      // the registry's own variant strings trip it — see §Severity
+      "shadcn/no-unknown-classes": "off",
     },
   },
   // shadcn's chart injects per-series CSS variables at runtime
@@ -139,6 +141,12 @@ page → `ESLint found too many warnings`, lint fails; file restored → passes.
 pre-existing warnings count — on a fresh scaffold that is the carousel's
 `react-hooks/set-state-in-effect`, which is why it has to be decided before the cap goes in.
 
+*Verified* on gym-saas as a fresh scaffold: `--max-warnings 0` in both packages, green; a
+`bg-pink-500` in app code fails it, and so does one inserted into `badge.tsx`'s `cva(...)` string —
+the component-directory override switches off restyle and arbitrary values, not `no-raw-colors`.
+Break-test a primitive through its `cva` string: primitives have no `className="…"` to insert into,
+and a test that silently edits nothing reports "not caught" about a file it never changed.
+
 Do not remove `only-warn` to "restore" errors without looking: it would turn every other rule in
 the repo into a hard failure at once.
 
@@ -169,15 +177,31 @@ The two rules that stay on inside the component directory fire twice on stock pr
 tooltip indicator) — hence its override. The 7 warnings are `cn-input-otp`, a registry marker class,
 and six variant strings in `navigation-menu.tsx` such as `xs:w-(--popup-width)` and
 `data-[ending-style]:easing-[ease]` that the linter says generate no CSS. They may be dead classes
-upstream; that was not confirmed by rendering. At `warn` they do not fail the lint — do not let an
-agent "fix" vendored primitives to silence them.
+upstream; that was not confirmed by rendering. On gym-saas a further one appeared, `toaster` in
+`sonner.tsx`. At `warn` they would not fail a normal lint — but under `eslint-plugin-only-warn` with
+`--max-warnings 0` (§ below) **every warning fails it**, so a clean scaffold would not pass. That is why
+`no-unknown-classes` is off inside the vendored component directory in the block above: those strings
+are the registry's, not the agent's to fix. It stays on for app code, where a misspelled class is
+exactly what it should catch.
 
-⚠️ **One error on the same fixture is not shadcn/lint's.** `components/ui/carousel.tsx` fails
+⚠️ **Errors that are not shadcn/lint's.** `components/ui/carousel.tsx` fails
 `eslint-config-next`'s `react-hooks/set-state-in-effect` (a synchronous `setState` inside an effect).
 A scaffold that runs `shadcn add --all` therefore does not pass `pnpm lint` on Next 16 *before* this
 plugin is added. With `AGENTS.md` telling agents to fix every error, the first agent to run lint will
 rewrite a vendored primitive. Decide it once at scaffold time — override the rule for that file with a
 comment, or drop the carousel if the product does not need it — rather than leaving it to the agent.
+The same rule fails `hooks/use-mobile.ts`, which `shadcn add sidebar` drops into the **app**, not the
+UI package (found on gym-saas). What was applied there, per package config and commented:
+
+```js
+{
+  files: ["src/components/carousel.tsx"],        // packages/ui — "hooks/use-mobile.ts" in apps/web
+  rules: { "react-hooks/set-state-in-effect": "off" },
+},
+```
+
+An override rather than a rewrite: re-adding the component from the registry must not silently bring
+back a failure an agent would then "fix" by editing vendored code.
 
 ## A flood of "unknown class" warnings means the theme did not build
 
@@ -194,6 +218,18 @@ bundled with @shadcn/lint there until it can.
 On the fixture above that turned 7 warnings into **129** — every `data-open:fade-in-0` and
 `zoom-in-95` in the primitives. Read the first line of the output before any of the rest, and run
 lint after `pnpm install`, never before it.
+
+## "This project's cn is 0.2.4"
+
+On a project that uses the `cn` package (shadcn's newer `lib/utils`), the linter checks its version:
+
+```text
+[@shadcn/lint] This project's cn is 0.2.4. The linter's grammar needs cn 0.2.6 or later, so it used
+its bundled cn 0.2.6 instead. Update cn to lint with the grammar your app merges with.
+```
+
+Not an error and not a false result — it lints with its own copy. Upgrade `cn` in the UI package so
+the grammar the lint checks against is the one the app actually merges classes with.
 
 ## The shadow-token trap — verified, with the fix
 
