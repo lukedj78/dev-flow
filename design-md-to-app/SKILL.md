@@ -43,10 +43,13 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 1. The chosen UI library (shadcn/ui or MUI) is installed and configured.
 2. **Design tokens** from the YAML frontmatter are wired into the theme:
    - `colors` → CSS variables (shadcn) or `palette` (MUI). **Always two modes**: dark + light, with the source DESIGN.md driving the canonical mode and the other auto-derived (see §Dark + light below).
-   - `typography` → typography scale, emitted as **theme tokens** — `--text-<name>` with its
-     `--line-height` / `--letter-spacing` / `--font-weight` modifiers in `@theme inline`, so Tailwind
-     generates `text-<name>`. See `references/shadcn-mapping.md` §Typography. A scale that exists in
-     DESIGN.md but not in the theme is a scale every consumer retypes as `text-[17px]`.
+   - `typography` → typography scale, **inside shadcn's own scale**: each DESIGN.md level redefines
+     its *nearest* Tailwind slot (`--text-xs`, `--text-sm`, `--text-base`, `--text-xl`, `--text-3xl`…)
+     with its `--line-height` / `--letter-spacing` / `--font-weight` modifiers in `@theme inline`.
+     **Never a parallel set of semantic names** (`text-body`, `text-headline-xl`): the primitives are
+     written with `text-sm` / `text-xs` / `text-base`, and a scale they cannot see never reaches them.
+     See `references/shadcn-mapping.md` §Type scale. A scale that exists in DESIGN.md but not in the
+     theme is a scale every consumer retypes as `text-[17px]`.
    - `rounded` → radius scale (`borderRadius` extension or `theme.shape`).
    - `spacing` → spacing scale (Tailwind extension or `theme.spacing` overrides).
 3. **Components** from the `components` block are reflected in:
@@ -55,7 +58,10 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 4. A `/showcase` page renders every styled primitive so the user can verify the result.
 5. Fonts referenced in `typography.fontFamily` are loaded — via `next/font/google` when on Next, via direct `<link>` for Vite/Remix when the font is on Google Fonts, otherwise self-hosted from a local `public/fonts/` (see §Font loading).
 6. A `_design-md-mapping.json` is written at the project root showing exactly how each DESIGN.md token resolved to library values — useful for debugging and for the user to verify the mapping at a glance.
-7. The markdown body's qualitative rules (gradients, glow, glassmorphism, "do's and don'ts") are encoded as utility classes / theme effects where they translate to CSS, and otherwise summarized in a `STYLE_NOTES.md` so the user — and future agents — can apply them consistently.
+7. **`@shadcn/lint` is installed and registered** with the design-system rules at `error`, so an agent
+   that writes `bg-pink-500`, `text-[17px]` or `rounded-full` on a `<Button>` gets an error naming the
+   token or variant to use instead. See `references/design-system-lint.md`.
+8. The markdown body's qualitative rules (gradients, glow, glassmorphism, "do's and don'ts") are encoded as utility classes / theme effects where they translate to CSS, and otherwise summarized in a `STYLE_NOTES.md` so the user — and future agents — can apply them consistently.
 
 **Never invent the spec.** When in doubt about a token shape, valid units, references like `{colors.primary}`, or canonical section ordering, read `references/spec.md` first.
 
@@ -743,6 +749,27 @@ Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12
 
 Skipping any of these = scaffold is desktop-only and the user has to fix it before shipping.
 
+### Step 4.10 — Design-system lint (mandatory, `stack.framework` in {next, monorepo})
+
+Install `@shadcn/lint` in the package that owns the lint config, extend the existing Next config with
+the plugin, and set the rules at **`error` from day one** — a scaffold has no backlog, and a guardrail
+is worth most before the first violation exists. Full block, overrides and verified results:
+`references/design-system-lint.md`. Four things that are not optional:
+
+- **Extend, do not replace**, the `eslint.config.mjs` that `create-next-app@16` wrote.
+- **Override the component directory** (`no-restyle`, `no-arbitrary-values`,
+  `require-static-classes` off) plus `chart.tsx` (`no-inline-styles` off) and the showcase specimen.
+- **Derive the shadow allow-list from `@theme`**: every `--shadow-<name>` becomes `"shadow-<name>"`.
+  Never `"shadow-*"` — verified to let `shadow-pink-500` through.
+- **Add the line to `AGENTS.md`**: *"After making changes, run `pnpm lint` and fix all errors."*
+
+⚠️ `shadcn add --all` installs a `carousel.tsx` that fails Next 16's own
+`react-hooks/set-state-in-effect` before this plugin is involved. Decide it here — a commented
+override for that file, or no carousel if the product has none — so the first agent told to "fix all
+errors" does not rewrite a vendored primitive.
+
+Record `stack.design_lint = "shadcn-lint"`.
+
 ### Step 5 — `/showcase` page (mandatory in dev-flow mode)
 
 It is not optional, not "nice to have", not skippable for time. The reason: without `/showcase` the user has no way to visually verify that the DESIGN.md tokens landed correctly in the running app. Every primitive that shadcn `add --all` installed is dark code unless `/showcase` proves it's themed. Skipping `/showcase` and declaring the scaffold "done" is a contract violation.
@@ -833,10 +860,10 @@ The site-shell is what makes the showcase **a complete document about the design
   <div className="mx-auto max-w-[1280px] px-6 lg:px-12 py-20 space-y-10">
     <div className="space-y-3">
       <Eyebrow>{ section name uppercase }</Eyebrow>
-      <h2 className="text-headline-xl">
+      <h2 className="text-3xl">
         { brand-voice tagline, ends with period }
       </h2>
-      <p className="text-body-lg text-on-surface-variant">
+      <p className="text-base text-on-surface-variant">
         { 1–2 sentence description with token references in <code> chips }
       </p>
     </div>
@@ -847,7 +874,7 @@ The site-shell is what makes the showcase **a complete document about the design
 
 ⚠️ **The heading uses a token class, not `style={{ fontSize }}`,** and this skeleton used to do the
 opposite. That mattered: `shadcn-mapping.md` §Typography already said to emit each level as
-`--text-<name>` in `@theme inline`, but two places in this skill taught opposite things and the one
+the type scale as theme tokens in `@theme inline`, but two places in this skill taught opposite things and the one
 with the copy-pasteable code won. A real project shipped **zero `--text-*` tokens and 531
 `text-[…]` literals** — its type scale lived in DESIGN.md and in class strings, never in the theme,
 so changing the display size means finding 531 literals. Emit the tokens, then consume them.
@@ -963,33 +990,27 @@ from a literal that happens to render the same pixel, which is exactly how a sca
 without anyone noticing:
 
 ```bash
-grep -cE '^\s*--text-' <ui>/globals.css          # 0 means the type scale never reached the theme
+grep -cE '^\s*--text-(xs|sm|base|lg|[0-9]?xl):' <ui>/globals.css   # 0: the scale never reached the theme
 grep -rn 'text-\[' app components | grep -v showcase   # each one is a consumer retyping the scale
 ```
 
 The first must be the number of levels in DESIGN.md. The second must be empty outside the type
 specimen. A project that shipped without this check ended up with **zero tokens and 531 literals**;
 both greps would have caught it on day one. If DESIGN.md defines a level the Tailwind scale already
-has at the same value, say so and use the built-in name rather than minting a duplicate.
+sits on a slot, the slot carries it; every level lands on its **nearest** slot, never on a new name —
+`grep -E '^\s*--text-[a-z0-9-]+:' <ui>/globals.css | grep -vE -- '--text-(xs|sm|base|lg|[0-9]?xl)(--|:)'` — a name that is not a slot — must print nothing.
 
-> **The greps catch it once; a linter catches it every time an agent writes a class.**
-> [`@shadcn/lint`](https://github.com/shadcn-ui/lint) (MIT, Tailwind v4, ESLint or Oxlint, shadcn/ui
-> not required) is built for exactly this: its errors name the fix and the file —
-> *"`rounded-full` is not allowed on `<Button>`: `<Button>` owns its shape. Use a variant: default,
-> outline, secondary, ghost, destructive, link."*
->
-> **Evaluated, not adopted.** Run against a finished hand-tuned app it reports mostly policy
-> disagreement, not defects — a trial on a real project produced 1749 findings of which the two
-> largest rules were deliberate choices, and the smallest rule's 19 were **10 mechanically wrong**
-> (`shadow-float` is a declared shadow token, read as an undeclared colour) and 9 arguable. Its
-> value is as a guardrail *while* an agent writes, which is what its own evals measure. It is
-> `0.1.0`. This skill does not install it; adding a lint dependency to every project is a stack
-> decision, so raise it and let the user decide.
+**Then run the design-system lint.** The greps catch drift once; `@shadcn/lint` catches it every time
+an agent writes a class, and names the fix: *"`rounded-full` is not allowed on `<Button>`: `<Button>`
+owns its shape. Use a variant: default, outline, secondary, ghost, destructive, link."* It is installed
+in Step 4.10; here `pnpm lint` must end with **0 errors**. Read the **first line** of the output
+before the rest — a flood of `no-unknown-classes` warnings means a theme `@import` did not resolve,
+not that the primitives are wrong.
 
 **Visual verification — best-effort obbligatorio.** The work is not done until you've either looked at it or explicitly told the user you couldn't:
 
 1. Scan the available tools for a browser-control surface. The common names are `mcp__plugin_playwright_playwright__*`, `browse`, `gstack`, `mcp__Claude_Preview__*`, `mcp__Claude_in_Chrome__*`, `connect-chrome`. **Any** of these counts.
-2. **If at least one is available**: navigate to `/showcase` (and the equivalent dark/light counterpart), take a screenshot, and compare against the DESIGN.md. Spot-check 3 colors, 2 typography levels, and 1 component hover state — on the typography, check the *class* in the DOM as well as the rendered size, because `text-[17px]` and `text-body-lg` look identical in a screenshot and only one of them survives a change to the scale. If anything is off, fix it and re-shoot. Don't declare done from a single broken screenshot.
+2. **If at least one is available**: navigate to `/showcase` (and the equivalent dark/light counterpart), take a screenshot, and compare against the DESIGN.md. Spot-check 3 colors, 2 typography levels, and 1 component hover state — on the typography, check the *class* in the DOM as well as the rendered size, because `text-[17px]` and `text-base` look identical in a screenshot and only one of them survives a change to the scale. If anything is off, fix it and re-shoot. Don't declare done from a single broken screenshot.
 3. **If none is available**: do not silently claim done. State explicitly in your hand-off message:
 
    > ⚠ **Verifica manuale richiesta**: nessun browser tool è disponibile in questa sessione, quindi non posso confermare visivamente che `/showcase` rispecchi il DESIGN.md. Apri http://localhost:3000/showcase e verifica i colori e la tipografia prima di considerare il task chiuso.
@@ -1015,6 +1036,7 @@ has at the same value, say so and use the built-in name rather than minting a du
   }
   ```
 - if `stack.framework` / `stack.ui` were null and the user picked them now, persist them in `stack`.
+- set `stack.design_lint = "shadcn-lint"` once Step 4.10 has run and `pnpm lint` is at 0 errors.
 
 Do this **after** confirming the build succeeded — don't bump phase on a broken scaffold.
 

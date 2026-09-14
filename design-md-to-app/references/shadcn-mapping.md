@@ -646,27 +646,59 @@ In `globals.css`:
 
 Tailwind v4 reads `--font-X` directly to generate `font-X` utilities. **Always include a fallback chain** so layout doesn't shift before the variable resolves.
 
-### Step 4 — Type scale tokens
+### Step 4 — Type scale tokens: inside shadcn's scale, never beside it
 
-For each typography level, write a `--text-<name>` set in `@theme inline {}`. Tailwind v4 reads these to generate `text-<name>` utilities:
+**Redefine Tailwind's own slots. Do not add semantic names.** The shadcn primitives are written with
+`text-sm`, `text-xs` and `text-base` — on a real `base-nova` scaffold, `text-sm` ×92, `text-xs` ×29,
+`text-base` ×10 across 60 components, and no other type vocabulary. A parallel set such as
+`--text-body` / `--text-headline-xl` compiles, renders, and never reaches a single `<Button>`, which
+keeps Tailwind's default line-height while the design system talks to nobody.
+
+Map each DESIGN.md level onto its **nearest** slot, so every name keeps the sense it has in any
+shadcn block, and carry DESIGN.md's line-height, tracking and weight as modifiers:
 
 ```css
 @theme inline {
-  --text-headline-xl: 72px;
-  --text-headline-xl--line-height: 80px;
-  --text-headline-xl--letter-spacing: -0.04em;
-  --text-headline-xl--font-weight: 700;
-
-  --text-body-md: 16px;
-  --text-body-md--line-height: 24px;
-  --text-body-md--font-weight: 500;
-  /* …one block per DESIGN.md typography level… */
+  /* DESIGN.md caption 12px → text-xs (default 12px) */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.4;
+  --text-xs--letter-spacing: 0.01em;
+  /* DESIGN.md body 14px → text-sm (default 14px) */
+  --text-sm: 14px;
+  --text-sm--line-height: 1.55;
+  /* DESIGN.md body-lg 16px → text-base (default 16px) */
+  --text-base: 16px;
+  --text-base--line-height: 1.6;
+  /* DESIGN.md h2 22px → text-xl (default 20px, nearest) */
+  --text-xl: 22px;
+  --text-xl--line-height: 1.25;
+  --text-xl--letter-spacing: -0.01em;
+  --text-xl--font-weight: 600;
+  /* DESIGN.md h1 32px → text-3xl (default 30px, nearest) */
+  --text-3xl: 32px;
+  --text-3xl--line-height: 1.15;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-3xl--font-weight: 700;
 }
 ```
 
-Now `<h1 className="text-headline-xl font-display">…</h1>` resolves to the full size + line-height + tracking + weight.
+Rules that fall out of it:
 
-Keep names identical to the DESIGN.md tokens for traceability.
+- **A level with the same size as another and a different weight is not a token.** An `h3` at 16px/600
+  next to a `body-lg` at 16px/400 is `text-base font-semibold`.
+- **Two levels that land on the same slot need a decision, not a new name.** Either one moves (a
+  13px `label` beside a 12px `caption` both want `text-xs`) and DESIGN.md is updated to match, or the
+  document is wrong about having two levels. Record the choice in `_design-md-mapping.json`.
+- **Write the mapping as a comment beside each slot**, as above. Traceability to DESIGN.md lives there,
+  not in the class name.
+- **Redefining a slot changes every existing use of it.** On a scaffold that is the point — the
+  primitives start rendering DESIGN.md. On an existing app, compare computed font-size, weight,
+  line-height and tracking before and after on real pages; on annotix that comparison found exactly
+  two size transitions across 680 text nodes, both intended, and 148 line-height changes the code had
+  never declared and was inheriting by accident.
+
+`@shadcn/lint`'s `no-arbitrary-values` then speaks the same scale: `text-[17px]` is reported with
+*"Nearest on the scale: text-base (16px), text-lg (18px)"*, reading the redefined values.
 
 ### Tailwind v3 legacy — type scale
 

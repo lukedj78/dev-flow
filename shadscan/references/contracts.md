@@ -43,6 +43,7 @@ When a project needs one of these capabilities, reach for the default below inst
 | **WebGPU shaders** | `vgpu-shaders` (`stack.shaders`) — `transitions`' Tier 4, MIT, first-party skill for the API | — (no WebGPU rung on RN) |
 | **Documents → Markdown** | [`anydoc`](https://github.com/firecrawl/anydoc) (Firecrawl, MIT) — `.docx`/`.pptx`/`.xlsx`/`.pdf`/ODF/RTF/EPUB/CSV, **converted locally**; first-party skill `npx skills add firecrawl/anydoc`. ⚠️ `--ocr hosted` sends the **whole** document to a third party — an R3 transfer decision, not a flag | same CLI |
 | **Forms** | `forms` (`stack.forms`) | RN form stack |
+| **Design-system lint** | **[`@shadcn/lint`](https://github.com/shadcn-ui/lint)** (`stack.design_lint`) — errors that name the token or variant to use; `error` from day one on a scaffold. How-to: `design-md-to-app/references/design-system-lint.md`. | — (no RN equivalent) |
 | **Content / headless CMS** | **Sanity** via `next-sanity` — `module-add cms`; how-to `module-add/references/module-cms.md`. The hosted Studio is the editors' admin panel. `stack.cms = "sanity"` | **Sanity** over the HTTP Query API (plain `fetch`, no SDK in the bundle) — `rn-module-add cms`; how-to `rn-module-add/references/module-cms-sanity.md`. Same `cms/` Studio package as web in a monorepo |
 
 Per the **Knowledge principle**, each of these defaults must ship (or point at) a **doc-grounded how-to** — not just a name — before it's used to scaffold; `[VERIFY]` install command + license + API against the official site each time (docs move). These are starting defaults; a project may override with a documented reason.
@@ -211,6 +212,7 @@ Captures user choices that downstream skills need. Keys:
 - `ui_theme` (web, only when `ui="shadcn"`): `"vega"` | `"nova"` | `"maia"` | `"lyra"` | `"mira"` | `null`. The shadcn create starting theme. Default `null` (plain). DESIGN.md tokens override.
 - `icon_library` (web): `"lucide"` | `"radix-icons"` | `"tabler"` | string. Default `"lucide"`.
 - `illustrations` (frontend, optional): `"koboyo"` | string | `null`. **Default `null` — the honest value for most products.** Spot art / illustration for *moments* (empty states, onboarding, 404), distinct from `icon_library` (UI icons). Set it only when DESIGN.md's visual language actually admits illustration; how-to + the restraint rules + the licence boundary are in `design-md-to-app/references/illustrations.md`.
+- `design_lint` (web, optional): `"shadcn-lint"` | `null`. Set by `design-md-to-app` Step 4.10 once `@shadcn/lint` is registered and `pnpm lint` is at 0 errors. `null` on a project that predates it or opted out — an opt-out is a decision to record, not an omission. Retrofitting an existing app starts at `warn` with `--max-warnings`, never straight to `error`.
 - `css_variables` (web): `true` | `false`. shadcn `--css-variables`. Default `true` (required for token-driven theming from DESIGN.md).
 - `rtl` (web, optional): `true` | `false`. shadcn `--rtl` (right-to-left support). Default `false`.
 - `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase"` | `"supabase-auth"` | `"firebase"` | `"custom-rest"` | `"trpc"` | `null`
