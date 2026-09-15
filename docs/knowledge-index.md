@@ -16,6 +16,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 | **Motion (Tier 0)** | `transitions/references/tw-animate-css.md` | <https://github.com/Wombosvideo/tw-animate-css> | `transitions`, shadcn scaffolds |
 | **Motion (runtime)** | `module-add/references/module-motion.md` | <https://motion.dev/docs/react> | `transitions` Tier 3, `animated-icons` |
 | **Illustrations** | `design-md-to-app/references/illustrations.md` | <https://koboyo.com/icons> + its [licence](https://koboyo.com/icons/license) | `design-md-to-app` (⚠️ use sparingly — DESIGN.md decides; licence forbids art-as-the-product) |
+| **Node graphs** | `design-md-to-app/references/react-flow.md` | <https://reactflow.dev/learn> · [React Flow UI](https://reactflow.dev/ui) · [repo](https://github.com/xyflow/xyflow) | `design-md-to-app` (`stack.graphs`); ⚠️ `--xy-*` names and props re-verified per minor version |
 | **Maps — web** | `design-md-to-app/references/maps-mapcn.md` | <https://mapcn.dev/docs> | `design-md-to-app` (⚠️ CARTO tiles: commercial licence) |
 | **Maps — mobile** | `rn-components-apis/references/maps-mapcn-rn.md` | <https://mapcn-rn.dev/docs> | `rn-add-screen` (⚠️ needs a dev build) |
 
