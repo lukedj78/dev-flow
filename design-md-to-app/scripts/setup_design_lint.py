@@ -386,6 +386,11 @@ Do not edit the vendored primitives to silence a finding there.
     s = p.read_text() if p.exists() else ""
     if AGENTS_BEGIN in s:
         s = re.sub(re.escape(AGENTS_BEGIN) + r".*?" + re.escape(AGENTS_END) + r"\n?", body, s, flags=re.S)
+    elif re.search(r"^#+\s*Design[- ]system lint\b", s, re.M | re.I) or "@shadcn/lint" in s:
+        # a section written by hand before this script existed (annotix, gym-saas): it is the
+        # project's own, so leave it rather than appending a second copy under markers
+        print("  AGENTS.md already has a design-system lint section without markers — left as is")
+        return
     else:
         s = (s.rstrip() + "\n\n" if s.strip() else "") + body
     p.write_text(s)

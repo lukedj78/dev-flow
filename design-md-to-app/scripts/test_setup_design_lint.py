@@ -298,6 +298,23 @@ class Check(unittest.TestCase):
             self.assertTrue(any("--max-warnings" in p for p in problems))
 
 
+class HandWrittenAgentsSection(unittest.TestCase):
+    def test_no_second_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            write(root, "AGENTS.md", "# Rules\n\n## Design-system lint\n\nOur own words.\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                sdl.write_agents(root, "gate")
+            text = (root / "AGENTS.md").read_text()
+            self.assertEqual(text.lower().count("design-system lint"), 1)
+            self.assertNotIn(sdl.AGENTS_BEGIN, text)
+            # annotix: no heading, the paragraph names the plugin
+            write(root, "AGENTS.md", "# Agents\n\n`apps/web` runs `@shadcn/lint`, the design-system lint.\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                sdl.write_agents(root, "gate")
+            self.assertNotIn(sdl.AGENTS_BEGIN, (root / "AGENTS.md").read_text())
+
+
 class ComponentDir(unittest.TestCase):
     def test_src_layout_behind_the_alias(self) -> None:
         # idea-validator: components.json says @/components/ui, tsconfig maps @/* to ./src/*
