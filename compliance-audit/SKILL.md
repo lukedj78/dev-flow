@@ -62,6 +62,7 @@ Full checklist + article mapping + remediation recipes in `references/gdpr-ai-ac
 
 Goal: a truthful, actionable report — no changes to the app.
 
+0. **Baseline = the decisions already recorded.** Run `python3 <dev-flow>/scripts/data_residency.py check <root> --json` and read `stack.data_residency`, `compliance.data_categories` and `compliance.sub_processors` (`dev-flow/references/eu-data-sovereignty.md`). R3, R8 and R9 are audited **against those choices**: is every service the code actually calls in the register, does the configured region match the declared residency, does each flagged row carry a transfer basis, is a declared special category handled as R9 requires. When residency was never decided, that is itself the R3 finding.
 1. For each R#, gather evidence: scan hits **you verified** by reading the code, plus stack facts (e.g. `stack.db="neon-drizzle"` + no EU region marker → R3; `stack.agent="eve"` → check R5/R4/R9/R10 in the agent).
 2. Write `<root>/docs/compliance/audit-report.md`: per finding → **ID · severity (H/M/L) · article · evidence (`file:line`) · what's missing · recommended fix (safe-fix or decision)**. Group by severity. Lead with a one-paragraph posture summary and the "not legal advice" caveat.
 3. Update `meta.json#compliance` (see below) + append `history` (`{ "skill": "compliance-audit", "action": "audit" }`). **No phase bump.**
@@ -75,7 +76,7 @@ Goal: apply the **safe, mechanical** mitigations; **flag** the decisions. Reuse 
 - **R2 consent** — a `CookieConsentBanner` + `lib/consent.ts` gate (blocks non-essential cookies/scripts until consent) + a `/legal/privacy` + `/legal/cookies` page stub. Mobile: log the push/ATT consent decision.
 - **R5 AI-disclosure** — a first-turn/persistent "you're interacting with an AI" disclosure (eve: into `agent/instructions.md` + the chat header; voice: a label on synthetic audio).
 - **R4 retention/scrubbing** — a `lib/log.ts` redaction helper (replace raw `console.error(e)` with a scrubbed logger) + a documented retention policy + a TTL/cleanup job stub tied to erasure; purge persisted caches on sign-out.
-- **R8 sub-processors** — generate `docs/compliance/subprocessors.md` **from `meta.json#stack`** (LLM provider, Vercel, Neon/Supabase/Firebase, Resend, Linear, RevenueCat, Expo push…), each with role + a DPA-link TODO.
+- **R8 sub-processors** — the register is kept by `module-add`/`rn-module-add` through `data_residency.py add`; here, **add the rows the code shows and the register lacks** (same command) and re-render `docs/compliance/subprocessors.md`. Only when a project predates the register, generate it **from `meta.json#stack`** (LLM provider, Vercel, Neon/Supabase/Firebase, Resend, Linear, RevenueCat, Expo push…), each with role + a DPA-link TODO.
 - **R9/R10 guardrails** — extend the eve memory guardrail (special-category + anti-manipulation) where an agent exists.
 
 **Flag only (needs a product/legal decision — never decide it):** as `TODO(compliance)` entries in the report + inline:
@@ -93,7 +94,9 @@ After remediating: rewrite `audit-report.md` with each finding marked `fixed` / 
   "findings": { "high": 0, "medium": 0, "low": 0 },
   "remediated": ["R1","R2","R5","R7","R8"],
   "flagged": ["R3","R6"],
-  "data_residency": "eu" | "us" | null,
+  "data_categories": ["identity-documents", "tax", …],   // written by data_residency.py decide
+  "sub_processors": [ … ],                              // written by data_residency.py add; rendered to docs/compliance/subprocessors.md
+  "residency_verified_at": "<ISO>",                     // the decision itself lives in stack.data_residency
   "high_risk": true | false | null
 }
 ```

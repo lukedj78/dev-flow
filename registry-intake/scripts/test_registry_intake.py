@@ -335,7 +335,7 @@ class PhaseGate(unittest.TestCase):
                               capture_output=True, text=True, check=False)
 
     def meta(self, root: Path, **stack) -> None:
-        write(root, ".workflow/meta.json", {"phase": "design_extracted", "stack": stack,
+        write(root, ".workflow/meta.json", {"phase": "design_extracted", "stack": {"data_residency": "none", **stack},
                                             "stack_config": {"design_lint_reason": "not under test here"}})
 
     def test_scaffolded_needs_intake_on_web_and_agent_stacks(self) -> None:

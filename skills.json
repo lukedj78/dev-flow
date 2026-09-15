@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-15T14:48:38Z",
+  "generated_at": "2026-09-15T17:43:34Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -82,7 +82,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 123,
+      "skill_md_lines": 126,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -93,6 +93,7 @@
       "skill_file": "dev-flow/SKILL.md",
       "references": [
         "contracts.md",
+        "eu-data-sovereignty.md",
         "external-skills.md",
         "merge-conflicts.md",
         "stack-expo-rn.md",
@@ -100,13 +101,16 @@
       ],
       "scripts": [
         "check_drift.py",
+        "data_residency.py",
+        "data_residency_gate.py",
         "design_lint_gate.py",
         "init_workflow.py",
         "registry_intake_gate.py",
         "show_state.py",
+        "test_data_residency.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 390,
+      "skill_md_lines": 393,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -392,7 +396,7 @@
         "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 169,
+      "skill_md_lines": 178,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -482,7 +486,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 136,
+      "skill_md_lines": 140,
       "bundle": "dist/vercel-doctor.skill"
     },
     {
@@ -540,7 +544,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 181,
+      "skill_md_lines": 185,
       "bundle": "dist/eve-agent.skill"
     },
     {
@@ -733,7 +737,7 @@
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 175,
+      "skill_md_lines": 179,
       "bundle": "dist/rn-module-add.skill"
     },
     {

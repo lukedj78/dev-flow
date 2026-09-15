@@ -23,6 +23,7 @@ Severity guide: **H** = likely non-compliance or store rejection · **M** = gap 
 
 ## R3 — International transfer & EU data residency · Art. 44+ · H (eve) / M
 
+**Baseline first:** `stack.data_residency` and the register (`python3 dev-flow/scripts/data_residency.py check <root> --json`) — the audit verifies the code against the decision recorded at the stack decision (`dev-flow/references/eu-data-sovereignty.md`). An undecided residency is itself the finding. Known traps from that reference: Neon's only EU region is `aws-eu-central-1`; Supabase's generic "Europe" includes London and Zurich; Resend's EU region moves sending only; Sentry, Linear and Clerk keep account data in the US; Firebase Auth and Expo Push have no EU option; the AI Gateway `inferenceRegion` does not pin the gateway hop.
 **Audit signals:** `stack.db="neon-drizzle"`/`supabase`/`firebase` with no EU-region marker; `DATABASE_URL` = generic `*.neon.tech`; Vercel default `iad1`; `stack.agent="eve"` → prompts routed through the AI Gateway to US LLM providers (Anthropic/OpenAI/Google); voice audio → US.
 **Safe-fix:** a note in `docs/compliance/` + `meta.json#compliance.data_residency` flag; a data-minimization pass so prompts/logs carry no unnecessary PII.
 **Flag:** *which* EU region to pick (Neon/Vercel/Supabase project region) and whether **SCCs / adequacy / a provider DPA** are in place — a contractual/product decision. Note: self-hosting the eve app runtime does **not** relocate the LLM inference call.
@@ -76,7 +77,7 @@ has an ML service, say so in the report if nobody has ever measured it.
 ## R8 — Sub-processors & DPA · Art. 28 · M
 
 **Audit signals:** third parties receiving personal data — LLM provider(s), Vercel (host/AI Gateway/Sandbox/Connect), Neon/Supabase/Firebase, Resend, Linear (via `linear-scrum`), RevenueCat, Expo push relay — with no sub-processor register or DPA note.
-**Safe-fix:** **generate `docs/compliance/subprocessors.md` from `meta.json#stack`** — one row per provider (service, data categories, region, DPA-link `TODO`). It's a standing customer-facing artifact, not one-time setup.
+**Safe-fix:** the register is `meta.json#compliance.sub_processors`, kept by every `module-add` through `data_residency.py add` and rendered to `docs/compliance/subprocessors.md`. Add the rows the code shows and the register lacks (same command); only for a project that predates the register, **generate `docs/compliance/subprocessors.md` from `meta.json#stack`** — one row per provider (service, data categories, region, DPA-link `TODO`). It's a standing customer-facing artifact, not one-time setup.
 **Flag:** obtaining/verifying each DPA.
 
 ## R9 — Special-category data · Art. 9 · M/H

@@ -146,6 +146,10 @@ For each: read the matching section of `node_modules/eve/docs/` first, add the s
 
 **Multi-tenant SaaS agent?** Before adding any tool, schedule, connection, or memory that touches tenant data, read `references/eve-patterns.md`. Tenant auth, per-tenant approvals, tenant-scoped long-term memory, and dynamic scheduling are **composed recipes** with one non-negotiable rule — derive tenant/user from `ctx.session.auth`, never from model input — not ad-hoc code. This is the same tenant-safety backbone `eve-registry-porting` enforces when porting.
 
+## Where the agent's data goes
+
+When `meta.json#stack.data_residency` is `"eu"` or `"eu-sovereign"` (`dev-flow/references/eu-data-sovereignty.md`): the model call is the transfer that matters — self-hosting the eve runtime does **not** move inference. Choose the model route from the reference's AI/LLM rows (EU processing, no training on API data, retention stated), set the Sandbox region to an EU one (`references/eve-conventions.md` §Sandbox regions), keep session and event-log retention bounded (compliance-audit R4), and keep sensitive categories out of workflow payloads and prompts unless the step needs them — pass an id and let the tool read the record. Record the gateway and each model provider with `data_residency.py add`; a model with no EU option is flagged there, not refused.
+
 ## Definition of Done (every mode)
 
 A run is complete only when these pass with exit code 0:

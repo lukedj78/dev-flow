@@ -86,6 +86,9 @@ jobs:
       - name: Test registry intake (allowlist, review, snapshot, hook, phase gate)
         run: cd registry-intake/scripts && python3 -m unittest test_registry_intake -v
 
+      - name: Test data residency (decision, sub-processor register, check, phase gate)
+        run: cd dev-flow/scripts && python3 -m unittest test_data_residency -v
+
       - name: Regenerate skills.json and check it's committed
         run: |
           python3 scripts/build_skills_registry.py

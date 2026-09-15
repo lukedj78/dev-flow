@@ -53,6 +53,10 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 
 `design-md-to-app/references/` — `shadcn-mapping.md`, `base-ui-mapping.md`, `mui-mapping.md`, `library-choice.md`, `chat-and-typeset.md`, `anti-slop-fallbacks.md`; plus `coss-ui/references/` for the Coss/UI registry.
 
+## EU data residency and sovereignty
+
+`dev-flow/references/eu-data-sovereignty.md` + `dev-flow/scripts/data_residency.py`. The service table (13 categories, default · EU region · European alternative) and the regulation table were read on primary sources on **2026-09-15**. Vendor rows: re-verify **quarterly**; regulation rows: on the cadence in the file's §5 (monthly while the DPF appeal C-703/25 P and the Data Omnibus are open).
+
 ## Third-party registries (supply chain)
 
 `registry-intake/SKILL.md` + `scripts/registry_intake.py`. Three moving surfaces it is pinned against — re-verify

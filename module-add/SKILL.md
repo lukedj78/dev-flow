@@ -74,6 +74,15 @@ The user tells you which module (one per invocation: `auth`, `db`, etc.). Sub-de
 
 If the user picks a tech the skill doesn't have a reference file for, refuse and offer to add it (i.e., they want a new variant — that's a contract update, not a runtime choice).
 
+### Step 1b — Where this module's data goes (every module that adds a provider)
+
+Read `meta.json#stack.data_residency` before wiring anything (`dev-flow/references/eu-data-sovereignty.md`):
+
+- **`"eu"` / `"eu-sovereign"`** — set the provider's **EU region explicitly** in the config you write (a region left to the vendor default is usually a US one), using the ids in the reference's service table. Under `"eu-sovereign"`, offer the European alternative from that table first and note when the chosen vendor is US-controlled.
+- **The provider has no EU region, or the user keeps a non-EU option** — do not refuse and do not stop. Say it in one line, wire it, and record it with its transfer basis (DPF, SCC, adequacy, or `unknown`) — the register flags it for `compliance-audit`.
+- **Always** add or update the row: `python3 <dev-flow>/scripts/data_residency.py add <root> --name <vendor> --service <what it does> --data <personal data it receives> --region <region> --transfer <basis> [--dpa <url>] [--eu-alternative <name>] [--us-controlled] --by module-add`. A library that keeps data in the app's own database (better-auth, Drizzle) adds no sub-processor — the database provider is the row.
+- **`null`** — the decision was skipped: ask the four questions now (`data_residency.py decide`) instead of guessing a region.
+
 ### Step 2 — Read the variant reference
 
 Open `references/module-<name>.md` for the chosen module. The reference is the source of truth for the install steps and the file paths. Read it end-to-end before doing anything.

@@ -95,6 +95,10 @@ it reports rather than guessing.
 5. **Route the judgment calls** to the owning skill rather than hand-fixing: caching + invocation findings → `data-fetching` (it owns the Next 16 read/caching ladder); image-pattern findings → `design-md-to-app`. Don't re-implement their rules here.
 6. **Persist**: write the report to `docs/vercel/doctor-report.md`, update `meta.json#vercel_doctor`, append `history`. **No phase bump.**
 
+## Regions against the residency decision
+
+When `meta.json#stack.data_residency` is `"eu"` or `"eu-sovereign"`, a function region outside the EU is not only a latency question. `python3 <dev-flow>/scripts/data_residency.py check <root>` reports every `regions` in `vercel.json` (project-level and per function) and region-bearing hosts in `.env*.example` that are not EU; surface those in the report as **flagged** and route the decision to `module-add deploy` / `dev-flow/references/eu-data-sovereignty.md` — never move a region on your own (a Blob store's region cannot be changed after creation).
+
 ## `meta.json#vercel_doctor` block
 
 ```jsonc

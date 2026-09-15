@@ -165,6 +165,8 @@ Ask the user the project type, propose the bundle, let them override individual 
 
 **Optional content layer (CMS).** In the same breath, ask once whether the product has **content a non-developer edits and the app only reads** — a catalogue, pages, articles, FAQs, pricing copy. If yes → `stack.cms = "sanity"` (contract §Recommended default libraries), wired later by `module-add cms` (web) or `rn-module-add cms` (mobile): the hosted **Sanity Studio is the admin panel**, so the project builds **no admin CRUD screens and no admin roles in the transactional database** for that content. User-owned data (accounts, orders, bookings) is never CMS content — it stays in `db` behind RLS. Default `null`; the user can opt in later on demand ("add a CMS", "aggiungi un CMS").
 
+**Where the data lives — asked in the same decision, never deferred.** Once the bundle is agreed, ask the four questions in `references/eu-data-sovereignty.md` §The four questions: (a) does the product process data of people in the EU? (b) which sensitive categories — identity documents, tax, health, biometrics, minors, financial? (c) do customers or sectors impose residency (public administration, healthcare, finance)? (d) must exposure to the US CLOUD Act be avoided? Record them with `scripts/data_residency.py decide` — it writes `stack.data_residency` (`"eu"` | `"eu-sovereign"` | `"none"`), `compliance.data_categories` and the answers. Then, when residency is not `"none"`, walk the bundle through the reference's service table and **propose, for each service, its EU region and the European alternative** — the user picks; the defaults stay available. `set-phase scaffolded` refuses an undecided residency; it never refuses a provider. A service with no EU option is **flagged in the sub-processor register with its transfer basis, and the work goes on**.
+
 ### Topology policy — app first, monorepo next, agent-only for the rare case
 
 ⚠️ **At init, if the shape is not specified, ASK. Do not derive it.** This is a blocking question,
@@ -366,6 +368,7 @@ The report of an autonomous run opens with the assumptions made — count, then 
     `stack_config.registry_intake_reason`. Skills move phase through this command so the gates
     run; a phase written by hand skips them.
   - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
+- `scripts/data_residency.py <decide|add|check|render> <project-root>` — the data-residency decision (four answers → `stack.data_residency`, `compliance.data_categories`), the sub-processor register (`meta.json#compliance.sub_processors`, rendered to `docs/compliance/subprocessors.md`), and `check`: register vs. declared stack, regions in `vercel.json` and `.env*.example`. Flags inform and never fail; only an undecided residency does. How-to: `references/eu-data-sovereignty.md`.
 - `scripts/check_drift.py <project-root>` — diagnostic command. Compares `meta.json#artifacts` against the on-disk files and reports:
   - **fresh**: file matches its recorded hash, all upstreams match too.
   - **self-drift**: the file has been edited since the producing skill last hashed it.

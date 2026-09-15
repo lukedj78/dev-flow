@@ -187,10 +187,12 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
     scaffold_idx = PHASES.index("scaffolded")
     if cur_idx < scaffold_idx <= new_idx:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import data_residency_gate
         import design_lint_gate
         import registry_intake_gate
 
-        for gate, what in ((design_lint_gate, "the design lint"), (registry_intake_gate, "registry intake")):
+        for gate, what in ((data_residency_gate, "a data-residency decision"),
+                           (design_lint_gate, "the design lint"), (registry_intake_gate, "registry intake")):
             passed, why = gate.verify(root, meta)
             if not passed:
                 sys.stderr.write(

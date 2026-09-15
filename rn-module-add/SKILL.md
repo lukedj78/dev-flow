@@ -66,6 +66,10 @@ If the user didn't specify a provider, default to:
 
 If the user specifies a non-default provider, accept it: Firebase / custom-rest / tRPC for backend; Stripe for non-digital payments.
 
+### Step 2b — Where this module's data goes
+
+Read `meta.json#stack.data_residency` (`dev-flow/references/eu-data-sovereignty.md`). If it is `"eu"` or `"eu-sovereign"`, create the provider's project in an EU region and say which (a Supabase project's region and a Firebase project's default resource location are chosen at creation). A provider with no EU option — the push relay, the purchase backend — is **flagged, not refused**: wire it, state the transfer, and record every provider with `python3 <dev-flow>/scripts/data_residency.py add <root> --name … --service … --data … --region … --transfer … --by rn-module-add`. `null` → ask the four questions first (`data_residency.py decide`).
+
 ### Step 3 — Idempotency check
 
 Read `meta.json#stack.<module-key>`. If non-null:

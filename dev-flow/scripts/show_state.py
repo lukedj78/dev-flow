@@ -128,10 +128,18 @@ def main() -> int:
     if phase_norm not in {'empty', 'idea_captured', 'prd_drafted', 'tasks_split',
                           'design_extracted', 'monorepo_initialized', ''}:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import data_residency_gate
         import design_lint_gate
         import registry_intake_gate
 
-        for gate, what in ((design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake")):
+        passed, why = data_residency_gate.verify(root, meta)
+        if passed and ("⚠" in why or "⚑" in why):
+            print("⚑ Data residency — flagged, not blocking:")
+            for line in why.splitlines()[1:]:
+                print(f"  {line}")
+            print()
+        for gate, what in ((data_residency_gate, "Data-residency decision"),
+                           (design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake")):
             passed, why = gate.verify(root, meta)
             if not passed:
                 print(f"⚠ {what} missing on a scaffolded project:")
