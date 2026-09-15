@@ -179,6 +179,9 @@ def component_dir(pkg: Path) -> str:
         rel = alias.split("/", 1)[1] if alias.startswith("@") and "/" in alias else alias
         if (pkg / rel).is_dir():
             return rel
+        # "@/*" → "./src/*" in tsconfig: the alias names components/ui, the files are in src/
+        if (pkg / "src" / rel).is_dir():
+            return f"src/{rel}"
     except (OSError, KeyError, json.JSONDecodeError, IndexError):
         pass
     return "components/ui"
@@ -291,7 +294,7 @@ export const designSystemConfig = [
   {{ files: {json.dumps(chart_globs)}, rules: {{ "shadcn/no-inline-styles": "off" }} }},
   // the DESIGN.md type specimen renders literal values on purpose
   {{
-    files: ["app/**/showcase/**"],
+    files: ["app/**/showcase/**", "src/app/**/showcase/**"],
     rules: {{ "shadcn/no-inline-styles": "off", "shadcn/no-arbitrary-values": "off" }},
   }},
   // shadcn delivers these failing react-hooks/set-state-in-effect: an override, never a

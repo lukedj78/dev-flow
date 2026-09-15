@@ -298,6 +298,19 @@ class Check(unittest.TestCase):
             self.assertTrue(any("--max-warnings" in p for p in problems))
 
 
+class ComponentDir(unittest.TestCase):
+    def test_src_layout_behind_the_alias(self) -> None:
+        # idea-validator: components.json says @/components/ui, tsconfig maps @/* to ./src/*
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (root / "components" / "ui").rmdir()
+            (root / "src" / "components" / "ui").mkdir(parents=True)
+            self.assertEqual(sdl.component_dir(root), "src/components/ui")
+            (u,) = sdl.detect(root)
+            self.assertIn('ignores: ["src/components/ui/**"]', sdl.preset_source({**u, "ui": "shadcn"}, "warn"))
+            self.assertIn('"src/app/**/showcase/**"', sdl.preset_source({**u, "ui": "shadcn"}, "warn"))
+
+
 class Rerun(unittest.TestCase):
     """Re-running on a project that already has the lint must not loosen it."""
 
