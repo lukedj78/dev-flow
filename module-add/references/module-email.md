@@ -84,8 +84,17 @@ What an install brings, and what to change before shipping:
   `registry-intake` reports it as S4. They serve previews. **Never send remote images you do not own**: a
   third-party image in an email is an open-tracking beacon for that host (GDPR). Host your logo yourself or
   send none.
-- `[VERIFY]` whether the project's design-system lint recognises the theme's class names (`bg-bg`,
-  `text-foreground-muted`, `text-primary-fg`…). If it flags them, ask before exempting `components/email/`.
+- ⚠️ **The blocks' class names do not match the theme config (found 2026-09-15).** Blocks use `bg-background`,
+  `text-foreground`, `text-foreground-muted`, `bg-primary`, `text-primary-fg`, `max-w-container`, while
+  `createEmailTailwindConfig` defines `bg`, `fg`, `fg-2`, `brand`, `brand-fg`, `max-w-email`: the rendered
+  email keeps those classes unresolved and **no colour or width is applied** (checked on the magic-link and OTP
+  blocks). Always render once and count leftover `class="…"` attributes — zero is the target. The fix that also
+  satisfies the design lint: in your copy, rename the classes to **the app's token names** (`background`,
+  `foreground`, `muted-foreground`, `primary`, `primary-foreground`, `max-w-<container>`) and make the theme
+  config define exactly those names. No lint exemption needed.
+- **Use relative imports inside `components/email/`** when a CLI loads the template outside Next's path aliases
+  (better-auth's `auth generate` loads the auth config, which imports the sender, which imports the block).
+- **Set `lang` on `<Body>` as well as `<Html>`**: React Email's `Body` otherwise renders `lang="en"`.
 
 ### Writing one by hand
 
