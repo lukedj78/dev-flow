@@ -147,6 +147,8 @@ A minimal echo/broadcast demo the user keeps as reference and deletes once inter
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useSocket } from "@/lib/realtime/use-socket";
 
 export default function RealtimeDemoPage() {
@@ -164,13 +166,13 @@ export default function RealtimeDemoPage() {
         }}
         className="flex gap-2"
       >
-        <input
+        <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="flex-1 border rounded-lg px-3 h-10"
+          className="flex-1"
           placeholder="Type and press enter…"
         />
-        <button className="h-10 px-4 rounded-lg bg-foreground text-background">Send</button>
+        <Button type="submit">Send</Button>
       </form>
       <ul className="space-y-1 font-mono text-sm">
         {log.map((m, i) => <li key={i}>{m}</li>)}

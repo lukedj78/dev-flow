@@ -18,7 +18,7 @@ Reference material (`references/*.md`) exists to satisfy #3 — every "use X" de
 
 ## Golden rules (all projects, all stacks)
 
-Two non-negotiable rules every dev-flow skill enforces, regardless of the user's or team's spoken language:
+Three non-negotiable rules every dev-flow skill enforces, regardless of the user's or team's spoken language:
 
 1. **Code is written in English.** Every code identifier — functions, variables, constants, types, enums, file/folder names, DB columns, API field names, commit messages — **and all code comments** are in English, always. This holds even when the user converses in another language (e.g. Italian): the conversation language and the code language are independent. English code stays portable, greppable, and consistent across contributors and tools. The one thing that is *not* English-by-default is **user-facing copy** — that goes through i18n (rule 2), never hardcoded.
 
@@ -27,7 +27,14 @@ Two non-negotiable rules every dev-flow skill enforces, regardless of the user's
    - **Mobile (Expo/RN)** → the RN i18n stack (e.g. `i18next` + `expo-localization`) — next-intl is web-only.
    Record both `stack.i18n` and `stack.locales` in `meta.json`. Adding i18n later touches every screen, so it is set up **at scaffold**, not deferred.
 
-These are recorded in the `stack` block (`i18n`, `locales`) and treated as defaults, not questions — skip asking; only confirm extra locales beyond en/it.
+3. **UI is composed only from the chosen library's primitives.** For shadcn: components installed with the shadcn CLI into `components/ui/`, customised only through DESIGN.md tokens and `cva` variants. Domain components are compositions of those primitives. Never hand-roll a primitive the library already ships (sidebar, dialog, sheet, tooltip, popover, combobox, date picker, table, tabs, toast, skeleton, empty state, field/input…), never add a second component library, never fork a primitive's behaviour. If no primitive fits, compose existing ones; a truly new primitive requires an explicit, recorded exception (ADR or `meta.json` note) with the reason. Same rule for MUI, Base UI standalone, Coss/UI and, on mobile, the RN/NativeWind component stack declared in `meta.json#stack`.
+   - **Before writing a component, look for the primitive.** Search `components/ui/` (in a shadcn monorepo `packages/ui/src/components/`; MUI and standalone Base UI: the library's component list; mobile: React Native / Expo core components plus what `meta.json#stack` declares, and `components/shared/`) for one that covers the pattern. If it is there, use it; if two together cover it, compose them.
+   - **Primitives are installed at `scaffolded`, all of them** — `shadcn add --all` (Coss/UI: its full `@coss/*` set, via `coss-ui`), so "the primitive isn't installed" is never a reason to write one. A primitive missing later is added with the library's CLI, never re-created by hand.
+   - **`components/ui/` files change only in their `cva` variants and token classes** — not their markup, handlers, state or accessibility wiring. A behaviour change there is a fork.
+   - **The exception record.** An ADR in `docs/adr/` or an entry in `meta.json#stack_config.primitive_exceptions`: `{ "component": "<Name>", "path": "<file>", "reason": "<why no primitive or composition fits>", "recorded_at": "<ISO-8601>" }`. An exception without a reason is not an exception.
+   - **Enforced by:** the design-system lint (`design-md-to-app/scripts/setup_design_lint.py` bans imports of undeclared component libraries, and imports of the primitives' headless bases — `radix-ui`, `@base-ui/react`, `cmdk`, `vaul`… — outside `components/ui/`), `spec-review`'s Standards axis on every diff, and `shadscan`'s routing.
+
+Rules 1–2 are recorded in the `stack` block (`i18n`, `locales`) and treated as defaults, not questions — skip asking; only confirm extra locales beyond en/it. Rule 3 is recorded through `stack.ui` (and `ui_base`, `shadcn_preset`): the library a project declares is the only one it composes.
 
 ### Recommended default libraries (ecosystem-first)
 
@@ -186,7 +193,7 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 | `tasks_split` | all | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or scaffold |
 | `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile, `monorepo-bootstrap` for monorepo) |
 | `monorepo_initialized` | **monorepo only** | turborepo root exists (`pnpm-workspace.yaml` + `turbo.json`), before the apps are scaffolded | `monorepo-bootstrap` continues — scaffolds `apps/web` (`design-md-to-app`), `apps/mobile` (`rn-bootstrap`), and/or `apps/agent` (`eve-agent`) |
-| `scaffolded` | all | `app/` exists with framework + UI library installed | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
+| `scaffolded` | all | `app/` exists with framework + UI library installed — **every primitive of it** (`shadcn add --all`), so golden rule 3 always has something to compose | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
 | `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |
 | `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; leads to `feature_complete` when the build is done (all stacks) |
 | `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gate `compliance-audit`, then deploy: web → `vercel-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
@@ -268,7 +275,7 @@ Skills that scaffold a codebase (`design-md-to-app`, `rn-bootstrap`, `monorepo-b
 
 - **Co-location via `_components/`**: page-private components live in `app/<route>/_components/`. The underscore prefix is Next.js convention for non-routable folders. **Web only** — this applies to Next.js (`stack.framework ∈ {next, monorepo}` web side). **Expo Router (`stack.framework = "expo-rn"`) has NO private-folder convention** — every file under `app/` becomes a route, so on mobile screen-private components live in `components/<feature>/` **outside** `app/`, not in `app/<route>/_components/` (see `rn-add-screen` / `promote-component`).
 - **Shared components by domain**: cross-route-group shared business components live in `components/shared/<dominio>/<Component>.tsx`. The domain folder name is the business domain (post/, user/, billing/), never generic ("shared"/"common"/"global").
-- **UI primitives separate**: shadcn/Base UI/MUI primitives live in `components/ui/`. Never mixed with business components.
+- **UI primitives separate**: shadcn/Base UI/MUI primitives live in `components/ui/`. Never mixed with business components, and never authored there by hand (golden rule 3).
 - **Theme system explicit**: ThemeProvider + ModeToggle live in `components/theme/`, NOT loose in `components/`.
 - **No `src/` directory**: code lives at project root, alongside config files. Aligned with Vercel commerce, Cal.com, and shadcn templates.
 - **Route groups opt-in via `route_groups`**: scaffold only the route groups listed in `stack.route_groups`. Never create empty `(marketing)/` for a project that doesn't need it.

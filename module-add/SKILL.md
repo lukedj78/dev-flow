@@ -135,6 +135,7 @@ Tell the user:
 - **Don't pick alternative tech silently.** If the variant reference doesn't cover the user's tech of choice, refuse and explain.
 - **Preserve user code.** If the user has already written something at the path the reference implementation would land (e.g., they made a custom `/sign-in` page), don't overwrite. Ask, or write to `<route>-example/` instead.
 - **Stay within `<project-root>/`.** Don't touch other parts of `.workflow/`. Other skills own those.
+- **UI a module adds obeys golden rule 3.** Sign-in and settings screens, upload widgets, billing tables, realtime feeds: before writing any of it, search `components/ui/` for the primitive (`Field`, `Input`, `Button`, `Table`, `Dialog`, `Sonner`, `Skeleton`, `Empty`…) and use it. The reference snippets show the wiring, not a licence to render raw `<input>`/`<button>`; never pull in a provider's own component kit (a second component library) when the declared primitives can render it. A truly new primitive is a recorded exception (`meta.json#stack_config.primitive_exceptions`).
 
 ## Cross-module dependencies
 

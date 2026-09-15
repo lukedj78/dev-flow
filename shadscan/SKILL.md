@@ -252,6 +252,20 @@ Consistent with rule zero: when the tool ships the knowledge, use the tool's cop
 - **`design-md-to-app`** / **`coss-ui`** — own the shell, providers, responsive layout and metadata:
   most of *Foundation*, *Interaction* and *Production Polish*.
 - **`composition-patterns-guide`** — owns component anatomy (input groups, item grouping, alert anatomy).
+- **Golden rule 3** (`references/contracts.md` §Golden rules) — a finding whose cause is **a component
+  that duplicates a primitive** (a hand-built dropdown missing ARIA, a custom modal without a focus trap, a
+  `div` skeleton without `aria-busy`, a home-made empty state) is not fixed by patching the copy: the fix
+  is to replace it with the installed primitive. Route by where it lives — a page's `_components/` →
+  `screenshot-to-page`; a form control → `forms`; a module's screen → `module-add`; the shell or a
+  primitive missing from `components/ui/` → `design-md-to-app` (`shadcn add <name>`; Coss/UI → `coss-ui`).
+  Adding the missing ARIA to the hand-rolled copy makes the rule go green and keeps the violation.
+
+  Example, from an actionable to the route:
+
+  > `interaction/menu-keyboard` · `fix` · `app/(app)/_components/account-menu.tsx:9` — *menu items not
+  > reachable by keyboard.* Reading the file: a `div` list toggled by `useState`, no roving focus.
+  > `components/ui/dropdown-menu.tsx` is installed. → **Golden rule 3**, routed to `screenshot-to-page`:
+  > replace with `DropdownMenu`; do not add `tabIndex`/`onKeyDown` to the copy.
 - **`write-tests`** — complementary, not overlapping: shadscan is static and finds *missing* fundamentals;
   tests assert *behaviour*. A shadscan fix is a good prompt for a regression test.
 

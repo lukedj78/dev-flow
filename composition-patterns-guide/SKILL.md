@@ -23,6 +23,10 @@ It does NOT execute refactors — for that, use `promote-component`. It provides
 
 Orchestrator does NOT route here automatically — invoked by the agent's own judgment when the patterns match.
 
+## Rule zero — compose the library's primitives (golden rule 3)
+
+Every rule below is about **how** to compose. **What** to compose is fixed by golden rule 3 (`references/contracts.md` §Golden rules): the primitives of the library `meta.json#stack` declares. Before writing a component, search `components/ui/` (shadcn monorepo: `packages/ui/src/components/`; mobile: React Native / Expo core components and `components/shared/`) for a primitive that covers the pattern; if it is there, use it, and if two together cover it, compose them. Never hand-roll one the library ships, never import a second component library, never change a primitive beyond its `cva` variants and tokens. A compound component here is built *from* those primitives (`Card`, `Tabs`, `Dialog`…), never a parallel `<Tabs.Root>` of your own; a truly new primitive needs a recorded exception with its reason (ADR or `meta.json#stack_config.primitive_exceptions`).
+
 ## The 7 composition rules (priority order)
 
 ### Priority 1 — Component Architecture (HIGH)
@@ -160,7 +164,7 @@ For variants that change visual identity significantly, create explicit named ex
 
 #### Rule 8: No forwardRef
 
-In React 19, `ref` is a normal prop. Don't use `forwardRef` for new code.
+In React 19, `ref` is a normal prop. Don't use `forwardRef` for new code. (The snippets below are the shape of a primitive **inside `components/ui/`** — the one place a raw `<button>` belongs; application code imports that `Button`.)
 
 **Wrong**:
 ```tsx
@@ -217,6 +221,7 @@ Composition decisions above interact with the Server/Client split — get this w
 - ❌ `useContext` in React 19+ for conditional access → suggest `use()`.
 - ❌ Compound components split across files at different colocation levels → suggest unifying.
 - ❌ Premature promotion of a component to L2 at the 2nd use → suggest waiting + duplicating.
+- ❌ A component that re-implements a primitive already in `components/ui/` (a custom dropdown, modal, tabs, tooltip, skeleton) → golden rule 3: use or compose the primitive; a new one only as a recorded exception.
 
 ## Sources
 

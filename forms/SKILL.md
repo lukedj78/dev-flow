@@ -79,6 +79,8 @@ Write the resolved value to `meta.json#stack.forms` immediately (Step 1 of the [
 
 When scaffolding (`scripts/scaffold_lib_forms.py`) or hand-writing `lib/forms/FormField.tsx` for a `stack.ui = "mui"` project, keep the render-prop shape identical to the shadcn version — only the JSX inside changes.
 
+**Golden rule 3 — primitives first** (`references/contracts.md` §Golden rules). Before writing a component, search `components/ui/` (shadcn monorepo: `packages/ui/src/components/`) for a primitive that covers the pattern; if it is there, use it, and if two together cover it, compose them. Never hand-roll one the library ships, never import a second component library, never change a primitive beyond its `cva` variants and tokens. A truly new primitive needs a recorded exception with its reason (ADR or `meta.json#stack_config.primitive_exceptions`). For forms specifically: every control is the library's (`Field`, `Input`, `Textarea`, `Select`, `Combobox`, `Checkbox`, `Switch`, `RadioGroup`, the date picker composition) — `lib/forms/` wraps them for state, it never re-implements one.
+
 ## Multi-step question flows — `<Questionnaire />`
 
 shadcn ships a first-party component for the one shape this skill's two patterns don't cover: a

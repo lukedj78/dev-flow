@@ -21,7 +21,7 @@ Each `@heroicons-animated/<name>` or `@hugeicons-animated/<name>` item is a sing
   switch is subtler than it looks: `useImperativeHandle` sets `isControlledRef.current = true` as a
   side effect, so **merely attaching a ref flips the component out of self-animating mode**. From then
   on hover no longer animates; the component calls *your* `onMouseEnter`/`onMouseLeave` instead. That
-  is why the controlled example below wires the hover handlers on the `<button>`: without them the
+  is why the controlled example below wires the hover handlers on the `Button`: without them the
   icon goes inert.
 - Imports `cn` from `@/lib/utils` — see the non-shadcn note at the bottom, it matters there.
 
@@ -33,6 +33,7 @@ Example shapes (bell shakes `rotate: [0,-10,10,-10,0]`; menu morphs to X; heart 
 "use client";
 import { BellIcon, type BellIconHandle } from "@/components/ui/bell";
 import { useRef } from "react";
+import { Button } from "@/components/ui/button";
 
 // 1) Hover (default) — zero wiring
 <BellIcon size={20} className="text-muted-foreground" aria-hidden />
@@ -41,13 +42,15 @@ import { useRef } from "react";
 function NotificationsButton({ hasNew }: { hasNew: boolean }) {
   const bell = useRef<BellIconHandle>(null);
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
       onMouseEnter={() => bell.current?.startAnimation()}
       onMouseLeave={() => bell.current?.stopAnimation()}
       aria-label="Notifications"
     >
       <BellIcon ref={bell} />
-    </button>
+    </Button>
   );
 }
 ```

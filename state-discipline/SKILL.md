@@ -170,7 +170,7 @@ function Form() {
       setSubmitted(false);
     }
   }, [submitted]);
-  return <button onClick={() => setSubmitted(true)}>Save</button>;
+  return <Button onClick={() => setSubmitted(true)}>Save</Button>;
 }
 ```
 
@@ -179,9 +179,9 @@ function Form() {
 ```tsx
 function Form() {
   return (
-    <button onClick={() => { void save(); toast.success("Saved!"); }}>
+    <Button onClick={() => { void save(); toast.success("Saved!"); }}>
       Save
-    </button>
+    </Button>
   );
 }
 ```
@@ -225,12 +225,13 @@ export function useMountEffect(fn: () => void | (() => void)) {
 
 ```tsx
 "use client";
+import { Input } from "@/components/ui/input";
 import { useMountEffect } from "@/lib/hooks/use-mount-effect";
 
 export function FocusOnMount() {
   const ref = useRef<HTMLInputElement>(null);
   useMountEffect(() => { ref.current?.focus(); });
-  return <input ref={ref} />;
+  return <Input ref={ref} />;
 }
 ```
 
@@ -309,14 +310,18 @@ When a state update triggers heavy re-render (filter a large list, switch tabs t
 ```tsx
 "use client";
 import { useTransition, useState } from "react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function HeavyTabs() {
   const [tab, setTab] = useState("a");
   const [pending, startTransition] = useTransition();
   return (
-    <button onClick={() => startTransition(() => setTab("b"))}>
-      {pending ? "Loading…" : "Tab B"}
-    </button>
+    <Tabs value={tab} onValueChange={(value) => startTransition(() => setTab(String(value)))}>
+      <TabsList>
+        <TabsTrigger value="a">Tab A</TabsTrigger>
+        <TabsTrigger value="b">{pending ? "Loading…" : "Tab B"}</TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 ```
@@ -330,6 +335,7 @@ For URL-state transitions, wrap the `router.replace` call in `startTransition` �
 ```tsx
 "use client";
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
 import { archiveClient } from "@/lib/server/clienti";
 
 export function ArchiveButton({ id }: { id: number }) {
@@ -337,7 +343,7 @@ export function ArchiveButton({ id }: { id: number }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="id" value={id} />
-      <button disabled={isPending}>{isPending ? "Archiving…" : "Archive"}</button>
+      <Button type="submit" disabled={isPending}>{isPending ? "Archiving…" : "Archive"}</Button>
       {!state.ok && <p className="text-error">{state.error}</p>}
     </form>
   );

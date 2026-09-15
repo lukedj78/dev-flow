@@ -210,6 +210,8 @@ After writing the theme files, also write `_design-md-mapping.json` at the proje
 
 **Rule**: when the chosen UI library (shadcn or MUI) ships a primitive for the pattern, **use it**. Don't roll custom.
 
+> This step is where **golden rule 3** (`references/contracts.md` §Golden rules) is applied first, and the rule does not end here: every skill that writes UI after the scaffold repeats the same "search `components/ui/` before writing" step, the design-system lint bans imports of undeclared component libraries and of the primitives' headless bases outside `components/ui/`, and `spec-review` checks it on every diff. The `add --all` below is what makes the rule always applicable. A primitive that genuinely does not exist is a recorded exception (`meta.json#stack_config.primitive_exceptions`), not a quiet custom component.
+
 This is the single most-violated rule in scaffolders. The skill installs `shadcn add --all` (or MUI's full theme), giving the project access to dozens of pre-built, accessible, mobile-aware, theme-integrated primitives — and then the skill writes a custom 100-line `<Sidebar>` from scratch using `<aside>` + flex + lucide icons. The custom version is worse on every axis: less accessible, no mobile drawer, no collapsed state, no tooltip support, no keyboard shortcuts, no persistent state.
 
 #### The mandate

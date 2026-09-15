@@ -99,6 +99,7 @@ If typing fails, fix and re-verify before reporting done.
 - ❌ Use `FlatList` for a long list — `FlashList`.
 - ❌ Use `fetch + useEffect` for production data — TanStack Query.
 - ❌ Touch unrelated files (`tailwind.config.js`, `app.json`, other routes).
+- ❌ Hand-roll a UI primitive (golden rule 3, `references/contracts.md` §Golden rules). **Before writing a component, search** React Native / Expo core components (`Pressable`, `Modal`, `TextInput`, `Switch`, `expo-image`, `FlashList`…), whatever component stack `meta.json#stack` declares, and `components/shared/` — if one covers the pattern, use it; if two together do, compose them. Never add a second component library, never fork a declared component's behaviour; a truly new primitive needs a recorded exception (`meta.json#stack_config.primitive_exceptions`).
 
 ## Updating meta.json (recommended pattern)
 

@@ -133,6 +133,7 @@ If git repo: `git add` the new files + `git commit -m "feat(<module>): wire <pro
 ## Common anti-patterns (NEVER do)
 
 - ❌ Wire two providers for the same module simultaneously (e.g. Supabase + Firebase auth) — pick one.
+- ❌ Hand-roll a UI primitive in the screens a module adds (sign-in, paywall, settings) (golden rule 3, `references/contracts.md` §Golden rules). **Before writing a component, search** React Native / Expo core components (`Pressable`, `Modal`, `TextInput`, `Switch`, `expo-image`, `FlashList`…), whatever component stack `meta.json#stack` declares, and `components/shared/` — if one covers the pattern, use it; if two together do, compose them. Never add a second component library, never fork a declared component's behaviour; a truly new primitive needs a recorded exception (`meta.json#stack_config.primitive_exceptions`).
 - ❌ Skip the `stack.<module>` update in meta.json — future re-runs will re-install.
 - ❌ Hardcode secrets in `lib/*.ts` — read from `process.env.EXPO_PUBLIC_*`.
 - ❌ Generate wiring without running `tsc --noEmit` — broken project shipped to user.

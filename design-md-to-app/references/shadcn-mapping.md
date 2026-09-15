@@ -113,7 +113,7 @@ Rules specific to this branch:
 - DESIGN.md tokens (the `@theme inline {}` + `:root`/`.dark` vars) go in **`packages/ui/src/styles/globals.css`**, which `apps/web/app/globals.css` imports. Don't duplicate the palette in the app.
 - Imports become `import { Button } from "@workspace/ui/components/button"` (not `@/components/ui/button`).
 - The web app's `next.config` must `transpilePackages: ["@workspace/ui"]` (or the `@<slug>/ui` name).
-- The "library primitive priority" and folder-convention rules below still apply; just read primitives from `@workspace/ui/components/*` instead of `components/ui/*`.
+- Golden rule 3 (the "library primitive priority" below) and the folder-convention rules still apply; search and import primitives from `@workspace/ui/components/*` instead of `components/ui/*`.
 
 ### Helpers — single source of truth (mandatory)
 

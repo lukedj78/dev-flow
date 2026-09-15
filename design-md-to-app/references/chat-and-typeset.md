@@ -147,7 +147,7 @@ turn**, that visually marks where you are as you scroll, and lets you jump:
 - `useMessageScrollerScrollable()` → `{ start, end }` — whether more content exists in each
   direction (what `MessageScrollerButton` consumes internally).
 
-**The Transcript Outline (verbatim from the demo, field-verified in-browser):** one anchor
+**The Transcript Outline (from the demo, field-verified in-browser; the demo's raw `<button>` trigger and rows are swapped for `Button` here, per golden rule 3):** one anchor
 per **user turn**, rendered as a `HoverCard` whose trigger is a column of tiny dashes (one
 per turn) — the current turn's dash lights up via `data-current={turn.id === currentAnchorId}`.
 Hover opens the list of turns (trimmed text, ~42 chars); clicking one calls
@@ -163,22 +163,23 @@ function TranscriptOutline({ turns }: { turns: { id: string; label: string }[] }
     <div className="absolute top-1/2 right-2 z-10 -translate-y-1/2">
       <HoverCard>
         <HoverCardTrigger render={
-          <button type="button" aria-label="Open transcript outline"
-            className="flex w-4 flex-col items-center gap-1 rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
-            {turns.map((t) => (
-              <span key={t.id} data-current={t.id === currentAnchorId}
-                className="h-0.5 w-4 rounded-full bg-muted-foreground/40 transition-colors data-[current=true]:bg-primary" />
-            ))}
-          </button>
+          <Button variant="ghost" size="icon-xs" aria-label="Open transcript outline">
+            <span className="flex flex-col items-center gap-1">
+              {turns.map((t) => (
+                <span key={t.id} data-current={t.id === currentAnchorId}
+                  className="h-0.5 w-4 rounded-full bg-muted-foreground/40 transition-colors data-[current=true]:bg-primary" />
+              ))}
+            </span>
+          </Button>
         } />
         <HoverCardContent align="center" side="left" sideOffset={8} className="flex w-64 flex-col gap-0.5 p-1">
           {turns.map((t) => (
-            <button key={t.id} type="button"
+            <Button key={t.id} variant={t.id === currentAnchorId ? "secondary" : "ghost"} size="sm"
               aria-current={t.id === currentAnchorId ? "location" : undefined}
               onClick={() => scrollToMessage(t.id, { align: "start", behavior: "smooth" })}
-              className="flex min-h-7 items-center rounded-lg px-2 py-1.5 text-left text-sm outline-none hover:bg-accent aria-[current=location]:bg-primary/15">
+              className="justify-start">
               <span className="line-clamp-1 min-w-0">{t.label}</span>
-            </button>
+            </Button>
           ))}
         </HoverCardContent>
       </HoverCard>

@@ -67,6 +67,7 @@ reason to reach for it sooner.
 3. **Animate only `transform` and `opacity`** (+ `filter` sparingly). Never animate `width`/`height`/`top`/`left`/`box-shadow` — layout thrash. Use `transform: scale/translate` and, for layout, Tier 2/3.
 4. **Don't force `"use client"` for motion that doesn't need it.** Prefer Tiers 0–2 to keep Server Components server-rendered.
 5. **Motion has meaning.** Entrance ≠ decoration: it should clarify hierarchy, direction, or causality. If it doesn't, cut it.
+6. **Primitives keep their own motion (golden rule 3).** `Dialog`, `Sheet`, `Popover`, `Tooltip`, `Accordion`, `Sonner` already animate open/close with their state. Before writing a transition, search `components/ui/` for the primitive that owns the pattern and use it; tune its motion through tokens and `cva`/class variants, never by re-implementing the component or forking its behaviour to hang an animation on it.
 
 ## `lib/motion/tokens.ts` — the token layer
 

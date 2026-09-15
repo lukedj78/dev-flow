@@ -42,7 +42,7 @@ Stage of the user's journey?
 ```
 
 The pre-prompt pattern:
-1. Show a custom modal: "Want a heads-up when a new message arrives?" with Yes/No buttons.
+1. Show a pre-permission prompt: "Want a heads-up when a new message arrives?" with Yes/No buttons — built from the declared components (React Native `Modal` + the app's button), not a hand-rolled overlay (golden rule 3).
 2. If user clicks Yes, THEN call `requestPermissionsAsync()`.
 3. If user clicks No, store "asked, denied" — don't ask again for at least 30 days.
 

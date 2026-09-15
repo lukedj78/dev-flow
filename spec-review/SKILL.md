@@ -74,7 +74,7 @@ A dev-flow project's documented standards are not a `CONTRIBUTING.md` someone ma
 
 | Source | What it binds |
 |---|---|
-| **Golden rules** (`references/contracts.md`) | ① identifiers, constants and comments in **English**; ② **i18n from day one** — no hardcoded user-facing copy, `en` + `it` minimum |
+| **Golden rules** (`references/contracts.md`) | ① identifiers, constants and comments in **English**; ② **i18n from day one** — no hardcoded user-facing copy, `en` + `it` minimum; ③ **UI only from the declared library's primitives** — checked on the diff as below |
 | **`meta.json#stack`** | the declared choices: `forms` (every form through `lib/forms/`), `ui` / `ui_base`, `i18n`, `db`, `deploy` — a diff that reaches for a different library than the one declared is a finding |
 | **The discipline skills** | `state-discipline` (`useState` is the last resort), `data-fetching` (Server Components first; Server Actions never for reads), `transitions` (every transition ships a `prefers-reduced-motion` path), `composition-patterns-guide` (no boolean-prop pile-ups) |
 | **The repo's own docs** | `CONTRIBUTING.md`, `CODING_STANDARDS.md`, `AGENTS.md`/`CLAUDE.md` if present — **these override everything above where they conflict**, including this skill |
@@ -84,6 +84,33 @@ A dev-flow project's documented standards are not a `CONTRIBUTING.md` someone ma
 (`shadscan`, `vercel-doctor`, `compliance-audit`) have their own runs; repeating them here produces a
 long report that says nothing new. If the project has a lint gate, a review finding about formatting is
 noise.
+
+#### Golden rule 3 on the diff — three checks
+
+The design-system lint already refuses the mechanical half (imports of an undeclared component library,
+imports of `radix-ui` / `@base-ui/react` / `cmdk` / `vaul`… outside `components/ui/`) — don't repeat it.
+The Standards sub-agent checks what a lint cannot see:
+
+1. **A file outside `components/ui/` that re-implements a pattern an installed primitive covers.** List
+   `components/ui/` (shadcn monorepo: `packages/ui/src/components/`) first, then read each new or changed
+   component for the pattern it renders: a positioned floating panel is `Popover`/`Tooltip`/`DropdownMenu`,
+   an overlay with a focus trap is `Dialog`/`Sheet`, a filterable list is `Combobox`/`Command`, a
+   pulsing placeholder is `Skeleton`, a "nothing here" block is `Empty`, a tab strip is `Tabs`.
+2. **Imports from a component library `meta.json#stack` does not declare** — including one the lint does
+   not know about yet (the lint list is finite; the rule is not).
+3. **Behaviour changes inside `components/ui/`** beyond `cva` variants and token classes — new props that
+   change markup, handlers, state, focus or ARIA wiring. That is a fork of the primitive.
+
+Each is a finding **unless** `meta.json#stack_config.primitive_exceptions` (or an ADR in `docs/adr/`)
+records that component with a reason — then it is not a finding, and say that you checked.
+
+Example finding, in the report's shape:
+
+> **Standards · golden rule 3 · high** — `app/(app)/bookings/_components/guest-picker.tsx:12-88` renders
+> an absolutely positioned list under an `<input>` with its own open state, outside-click handler and
+> arrow-key navigation. `components/ui/combobox.tsx` is installed and covers this pattern (filtering,
+> keyboard navigation, portal, ARIA). No entry in `stack_config.primitive_exceptions`. → Replace with
+> `Combobox`; the guest-specific row becomes the item renderer.
 
 #### The smell baseline — twelve smells, selected (Fowler, *Refactoring* 2nd ed., ch. 3)
 

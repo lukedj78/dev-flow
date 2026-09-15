@@ -70,7 +70,7 @@ Goal: add ONE thing — a primitive set, a component, or particles — idempoten
    - tokens only: `pnpm dlx shadcn@latest add @coss/colors-neutral`
    - particles: per the particle's docs command.
 3. Keep tokens reconciled — if the add pulled a fresh token block, re-apply the DESIGN.md overrides (`references/design-md-reconciliation.md`).
-4. **Prefer the Coss/Base-UI primitive over hand-rolled components** — the same mandate `design-md-to-app` enforces for shadcn: scan `components/ui/*` before authoring anything custom.
+4. **Golden rule 3 — the Coss/Base-UI primitive, never a hand-rolled one** (`references/contracts.md` §Golden rules): before writing a component, search `components/ui/*` for the primitive that covers the pattern and use it; if it is not installed yet, `add @coss/<name>` — never re-create it. Compose particles for domain pieces, change primitives only through tokens and variants, and record a truly new primitive as an exception (`meta.json#stack_config.primitive_exceptions`).
 5. Append `history` (`{ "skill": "coss-ui", "action": "add-<name>" }`). No phase bump.
 
 ## Definition of Done (per run)

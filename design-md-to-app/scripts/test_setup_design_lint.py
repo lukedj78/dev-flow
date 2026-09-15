@@ -236,6 +236,21 @@ class Policy(unittest.TestCase):
             (u,) = sdl.detect(root)
             return sdl.preset_source(u, "error")
 
+    def test_golden_rule_3_import_bans(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (u,) = sdl.detect(root)
+            src = sdl.preset_source({**u, "ui": "shadcn"}, "error")
+            self.assertIn('"no-restricted-imports": ["error"', src)
+            self.assertIn('ignores: ["components/ui/**"]', src, "the primitives themselves import their bases")
+            for banned in ('"@mui/*"', '"radix-ui"', '"@radix-ui/react-*"', '"@base-ui/react/*"', '"cmdk"'):
+                self.assertIn(banned, src)
+            for allowed in ('"sonner"', '"recharts"', '"react-day-picker"'):
+                self.assertNotIn(allowed, src, "shadcn's own docs import these from app code")
+            base_ui = sdl.preset_source({**u, "ui": "base-ui"}, "error")
+            self.assertIn('"@mui/*"', base_ui)
+            self.assertNotIn('"@base-ui/react"', base_ui, "standalone Base UI: the headless primitives are the library")
+
     def test_shadows_by_exact_name_never_wildcard(self) -> None:
         src = self.preset()
         self.assertIn("allow: declaredShadows()", src)

@@ -172,9 +172,10 @@ export default async function HomePage() {
 // Client Component
 'use client';
 import {useTranslations} from 'next-intl';
+import {Button} from '@/components/ui/button';
 function Cta() {
   const t = useTranslations('HomePage');
-  return <button>{t('cta')}</button>;
+  return <Button>{t('cta')}</Button>;
 }
 ```
 

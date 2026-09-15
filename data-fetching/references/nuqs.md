@@ -141,6 +141,8 @@ Set them per-parser (`parseAsX.withOptions({…})`), per-hook (2nd/3rd arg), per
 'use client';
 import { useTransition } from 'react';
 import { useQueryState, parseAsString, debounce } from 'nuqs';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
 export function SearchBox() {
   const [isLoading, startTransition] = useTransition();
@@ -151,7 +153,7 @@ export function SearchBox() {
 
   return (
     <>
-      <input value={q} onChange={(e) => setQ(e.target.value, {
+      <Input value={q} onChange={(e) => setQ(e.target.value, {
         limitUrlUpdates: e.target.value === '' ? undefined : debounce(500),
       })} />
       {isLoading && <Spinner />}

@@ -81,7 +81,7 @@ Never invent an API. Ground every claim in official documentation or installed s
 _Avoid_: guideline, best practice — it is a rule.
 
 **Golden rule**
-The two project-level non-negotiables: ① code is written in English; ② every frontend ships i18n from day one (minimum `en` + `it`).
+The three project-level non-negotiables: ① code is written in English; ② every frontend ships i18n from day one (minimum `en` + `it`); ③ UI is composed only from the chosen library's primitives — search `components/ui/` before writing a component, a new primitive only as a recorded exception.
 _Avoid_: convention, preference.
 
 **`[VERIFY]`**
@@ -90,7 +90,7 @@ _Avoid_: TODO, FIXME, TBD.
 ⚠️ It does two jobs, and conflating them is what lets a marker rot: **an open question** ("I don't know") versus **a standing disclaimer** ("this will age"). The second multiplies without bound — every version number moves — and if everything is marked, nothing is. Prefer converting a disclaimer into a **stamp**: *verified against `pkg@x.y.z` on `YYYY-MM-DD`; re-check on a major*. Same caution, plus the baseline the next pass starts from.
 
 **Maintenance rule — a skill edit is not done until it is installed**
-_(Not a third golden rule: ① and ② above bind the projects dev-flow builds. This one binds this repo.)_
+_(Not a fourth golden rule: ①–③ above bind the projects dev-flow builds. This one binds this repo.)_
 Editing a skill in this repo changes nothing for the agent: it loads `~/.claude/skills`. So every skill change ends with **`./install.sh`**, and lint **check 12** exists to make the gap visible when it doesn't (it reports, never fails — a divergence is a fact about your machine, not about the commit).
 ⚠️ **Running `skill-doctor` right after an edit tells you nothing**, and it is worth knowing why rather than doing it out of habit: it grades **past conversations**. Re-run immediately after a change and every number is identical, because the sessions it reads are the ones that used the *old* text. The cadence that works is **install on every edit, `skill-doctor` periodically** — once the edited skills have actually been used enough to have a history worth grading.
 _Avoid_: "run the doctor after each change" — it is the linter's job to judge an edit, and the doctor's job to judge a habit.

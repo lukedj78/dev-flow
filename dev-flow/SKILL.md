@@ -23,10 +23,11 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 ## Golden rules (enforced on every project)
 
-Two non-negotiables, defined in full in `references/contracts.md` §Golden rules — every skill honors them:
+Three non-negotiables, defined in full in `references/contracts.md` §Golden rules — every skill honors them:
 
 1. **Code is in English** — functions, variables, constants, types, file names, DB columns, API fields, comments. Independent of the conversation language (the user may speak Italian; the code is still English). Only user-facing copy is localized (rule 2).
 2. **Every frontend ships i18n from day one** — no hardcoded user-facing strings; all copy through i18n keys. Web → **[next-intl](https://next-intl.dev/)** (`stack.i18n = "next-intl"`), mobile → the RN i18n stack. Minimum locales **English + Italian** (`stack.locales = ["en","it"]`, default `en`); more per project. Set at scaffold, not deferred.
+3. **UI is composed only from the chosen library's primitives** — for shadcn, the components the CLI installs into `components/ui/` (all of them, at `scaffolded`), customised only through DESIGN.md tokens and `cva` variants; domain components are compositions of them. Never hand-roll a primitive the library ships, never add a second component library, never fork a primitive's behaviour. **Before writing a component, search `components/ui/` (or the mobile equivalent) for the primitive; if it is there, use it.** A truly new primitive needs a recorded exception with its reason (ADR, or `meta.json#stack_config.primitive_exceptions`). Same rule for MUI, standalone Base UI, Coss/UI and the RN/NativeWind stack. Enforced by the design-system lint, `spec-review` (Standards) and `shadscan`'s routing.
 
 Plus **ecosystem-first recommended defaults** (contract §Recommended default libraries) — e.g. maps → **mapcn** (web) / **mapcn-rn** (mobile). Reach for these when the capability is needed rather than hand-rolling.
 

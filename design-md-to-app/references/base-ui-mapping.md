@@ -26,17 +26,17 @@ Base UI works with any React framework. The recommended pairing in 2025+ is **Ba
 ```bash
 pnpm create next-app@latest <dir> --typescript --tailwind --eslint --app --no-src-dir --import-alias "@/*" --use-pnpm --turbopack --yes
 cd <dir>
-pnpm add @base-ui-components/react
+pnpm add @base-ui/react
 ```
 
-That's the entire install. No CLI step, no `components.json`, no `--all` import — you `import` each component on demand from `@base-ui-components/react`.
+That's the entire install. No CLI step, no `components.json`, no `--all` import — you `import` each component on demand from `@base-ui/react`.
 
 ### Vite + React
 
 ```bash
 pnpm create vite@latest <dir> --template react-ts
 cd <dir>
-pnpm add tailwindcss @tailwindcss/vite @base-ui-components/react
+pnpm add tailwindcss @tailwindcss/vite @base-ui/react
 ```
 
 Then enable the Tailwind v4 Vite plugin in `vite.config.ts` and import the CSS:
@@ -122,7 +122,7 @@ Then `font-sans`, `font-display`, `font-mono` Tailwind classes are available. Lo
 Base UI components are split into "parts". A Dialog looks like this:
 
 ```tsx
-import * as Dialog from "@base-ui-components/react/dialog";
+import * as Dialog from "@base-ui/react/dialog";
 
 export function ConfirmDialog({ open, onClose, children }: Props) {
   return (
@@ -144,7 +144,7 @@ Base UI ships these primitives. Map each DESIGN.md component to one:
 
 | DESIGN.md component | Base UI primitive | Notes |
 |---|---|---|
-| Button | `<button>` element (no Base UI primitive needed) | Compose with `cva` for variants |
+| Button | `Button` (`@base-ui/react/button`) | Style with `cva` for variants; a raw `<button>` skips the primitive (golden rule 3) |
 | Toggle | `Switch.Root` / `Toggle.Root` | |
 | Checkbox | `Checkbox.Root` | |
 | Radio | `RadioGroup.Root` + `RadioGroup.Item` | |
@@ -170,7 +170,7 @@ Same 9 sections as shadcn version. Compose using the table above + Tailwind for 
 ## Anti-patterns to avoid
 
 - ❌ Mixing Base UI and shadcn primitives in the same project. Either-or.
-- ❌ Importing all of `@base-ui-components/react` upfront. Each primitive imports cleanly tree-shakes.
+- ❌ Importing all of `@base-ui/react` upfront. Each primitive imports cleanly tree-shakes.
 - ❌ Using Base UI's `Provider` (deprecated) — it does nothing; remove if you find it.
 - ❌ Skipping the styling — Base UI without styles is a screenreader's dream and a user's nightmare.
 - ❌ Using Base UI for design systems that match Material exactly — go MUI for that.

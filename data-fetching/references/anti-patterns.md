@@ -159,13 +159,14 @@ export async function deleteCaseAction(id: string) {
 "use client";
 import { useTransition } from "react";
 import { deleteCaseAction } from "@/lib/actions/cases.actions";
+import { Button } from "@/components/ui/button";
 
 export function DeleteCaseButton({ id }: { id: string }) {
   const [pending, start] = useTransition();
   return (
-    <button disabled={pending} onClick={() => start(() => deleteCaseAction(id))}>
+    <Button variant="destructive" disabled={pending} onClick={() => start(() => deleteCaseAction(id))}>
       {pending ? "Deleting…" : "Delete"}
-    </button>
+    </Button>
   );
 }
 ```

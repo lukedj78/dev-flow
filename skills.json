@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-15T14:03:45Z",
+  "generated_at": "2026-09-15T14:13:18Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -106,7 +106,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 389,
+      "skill_md_lines": 390,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -194,7 +194,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 174,
+      "skill_md_lines": 201,
       "bundle": "dist/spec-review.skill"
     },
     {
@@ -274,7 +274,7 @@
         "setup_design_lint.py",
         "test_setup_design_lint.py"
       ],
-      "skill_md_lines": 1233,
+      "skill_md_lines": 1235,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -314,7 +314,7 @@
       "scripts": [
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 500,
+      "skill_md_lines": 502,
       "bundle": "dist/forms.skill"
     },
     {
@@ -392,7 +392,7 @@
         "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 168,
+      "skill_md_lines": 169,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -407,7 +407,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 262,
+      "skill_md_lines": 264,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
@@ -420,7 +420,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 305,
+      "skill_md_lines": 319,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -434,7 +434,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 464,
+      "skill_md_lines": 470,
       "bundle": "dist/state-discipline.skill"
     },
     {
@@ -453,7 +453,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 155,
+      "skill_md_lines": 156,
       "bundle": "dist/transitions.skill"
     },
     {
@@ -566,7 +566,7 @@
         "screen-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 144,
+      "skill_md_lines": 145,
       "bundle": "dist/rn-add-screen.skill"
     },
     {
@@ -733,7 +733,7 @@
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 174,
+      "skill_md_lines": 175,
       "bundle": "dist/rn-module-add.skill"
     },
     {
@@ -902,7 +902,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 226,
+      "skill_md_lines": 231,
       "bundle": "dist/composition-patterns-guide.skill"
     },
     {

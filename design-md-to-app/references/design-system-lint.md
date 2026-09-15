@@ -296,6 +296,33 @@ Generate the list from the theme rather than typing it — every `--shadow-<name
 becomes `"shadow-<name>"` in the `allow` array — so adding a shadow to DESIGN.md never produces a
 lint error nobody understands, and a raw colour on a shadow is still caught.
 
+## Golden rule 3 — the import bans
+
+`@shadcn/lint` checks how primitives are *styled*; nothing in it checks whether they are *used*. The
+preset adds ESLint's own `no-restricted-imports` for golden rule 3 (`references/contracts.md`), on every
+`.ts`/`.tsx` file **except the component directory**, where the primitives legitimately import their bases:
+
+- **Undeclared component libraries** — `@mui/*`, `@chakra-ui/*`, `antd`, `@mantine/*`,
+  `@headlessui/react`, `@heroui/*`, `@nextui-org/*`, `react-bootstrap`, `primereact`, `flowbite-react`,
+  `@ark-ui/*`, `@fluentui/*`, `@blueprintjs/*`, `semantic-ui-react`, `@radix-ui/themes`. A second design
+  system in a shadcn project is the violation itself.
+- **The primitives' headless bases** — `radix-ui`, `@radix-ui/react-*`, `@base-ui/react`,
+  `@base-ui-components/react`, `react-aria-components`, `vaul`, `cmdk`, `input-otp`. App code that imports
+  `Dialog` from `radix-ui` instead of `components/ui/dialog` forks the primitive's behaviour. Skipped for
+  `stack.ui = "base-ui"`, where the headless primitives are the library.
+
+Not banned, on purpose: `sonner` (`toast` is called from app code in shadcn's own docs), `recharts`
+(charts compose it with `ChartContainer`), `react-day-picker` (its `DateRange` type is used by callers).
+
+Every package name was checked on npm on 2026-09-15, and the patterns were measured at **zero hits**
+outside the component directory across nine projects before the rule was turned on. On gym-saas a probe
+file importing `radix-ui`, `@base-ui/react/popover` and `@mui/material/Button` produced three findings
+with the golden-rule message; `sonner` produced none, and the 60+ primitives in `packages/ui` stayed clean.
+
+The rule is core ESLint, so a project's own `no-restricted-imports` later in its config **replaces** this
+one (flat config does not merge rule options). If the project needs its own list, extend the preset's
+patterns there instead of redefining the rule.
+
 ## Agents
 
 Put the lint command in `package.json` and this line in the project's `AGENTS.md`:

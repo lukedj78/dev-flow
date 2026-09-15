@@ -7,7 +7,7 @@ The three libraries solve overlapping problems with three different philosophies
 ## One-line mental model
 
 - **shadcn/ui**: you own the source. Every component lives in `components/ui/` and you edit it. Tailwind-based. No runtime theming layer — CSS variables + utility classes. CLI-managed (`shadcn@latest add ...`).
-- **Base UI**: headless React library (installed dep, not copy-pasted source). Same Tailwind philosophy as shadcn for styling, but no CLI — you `import` each primitive from `@base-ui-components/react` on demand. Same accessibility quality as MUI.
+- **Base UI**: headless React library (installed dep, not copy-pasted source). Same Tailwind philosophy as shadcn for styling, but no CLI — you `import` each primitive from `@base-ui/react` on demand. Same accessibility quality as MUI.
 - **MUI** (Material UI): runtime themed library. The source stays in `node_modules`. Emotion-based. A single `theme` object propagates everywhere through `ThemeProvider`.
 
 Practical implication:
@@ -66,7 +66,7 @@ There are two distinct ways "Base UI" appears, and they are NOT the same:
 | Choice | meta.json | What you get |
 |---|---|---|
 | **shadcn on Base UI** | `ui="shadcn"` + `ui_base="base"` | shadcn's component set + blocks + owned source, on Base UI primitives. **Usually the better way** to get "shadcn philosophy on Base UI". |
-| **Standalone Base UI** | `ui="base-ui"` | Headless Base UI library, no shadcn CLI, you import primitives directly (`@base-ui-components/react`). Pick only when the user explicitly wants no shadcn CLI / `components.json`. |
+| **Standalone Base UI** | `ui="base-ui"` | Headless Base UI library, no shadcn CLI, you import primitives directly (`@base-ui/react`). Pick only when the user explicitly wants no shadcn CLI / `components.json`. |
 
 When a user says "I want Base UI", clarify which they mean — most people who like shadcn but want Base UI primitives want the **first** option now.
 
@@ -82,7 +82,7 @@ If the DESIGN.md is moderately custom + moderately broad:
 
 Keep it tight. Two lines, with explicit "if not, try X" fallback to one of the other two:
 
-> **Suggerisco shadcn/ui.** Il DESIGN.md descrive vetro/glassmorphism e usa molti nomi custom (`card-glass-level-2`, `badge-celestial`) — modificare il sorgente è la via più diretta. Se preferisci una libreria senza source-maintenance, Base UI è equivalente con `pnpm add @base-ui-components/react`. Dimmi.
+> **Suggerisco shadcn/ui.** Il DESIGN.md descrive vetro/glassmorphism e usa molti nomi custom (`card-glass-level-2`, `badge-celestial`) — modificare il sorgente è la via più diretta. Se preferisci una libreria senza source-maintenance, Base UI è equivalente con `pnpm add @base-ui/react`. Dimmi.
 
 Or:
 

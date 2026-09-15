@@ -202,6 +202,41 @@ def package_manager(root: Path) -> str:
 # The preset — one template for both topologies
 # ---------------------------------------------------------------------------------------
 
+# Golden rule 3 — UI is composed only from the declared library's primitives. Two import bans,
+# both verified on npm 2026-09-15 and measured at zero hits outside the UI directory across nine
+# of our projects before being turned on:
+# - component libraries a Tailwind/shadcn project never declares (a second design system)
+FOREIGN_UI_LIBRARIES = ["@mui/*", "@chakra-ui/*", "antd", "antd/*", "@mantine/*", "@headlessui/react",
+                        "@heroui/*", "@nextui-org/*", "react-bootstrap", "primereact", "primereact/*",
+                        "flowbite-react", "@ark-ui/*", "@fluentui/*", "@blueprintjs/*", "semantic-ui-react",
+                        "@radix-ui/themes"]
+# - the headless bases the vendored primitives are built on: only components/ui may import them,
+#   so app code cannot fork a primitive's behaviour by going around it. Libraries whose app-level
+#   imports shadcn's own docs show (sonner's toast, recharts, react-day-picker types) are not here.
+PRIMITIVE_BASES = ["radix-ui", "radix-ui/*", "@radix-ui/react-*", "@base-ui/react", "@base-ui/react/*",
+                   "@base-ui-components/react", "@base-ui-components/react/*", "react-aria-components",
+                   "vaul", "cmdk", "input-otp"]
+
+
+def primitives_rule(topo: dict, severity: str) -> str:
+    comp_globs = sorted({f"{component_dir(t)}/**" for t in topo["targets"]})
+    patterns = [{"group": FOREIGN_UI_LIBRARIES,
+                 "message": "Golden rule 3: this project's UI library is the one in meta.json#stack. "
+                            "A second component library is not composed in; record an exception if it must be."}]
+    # standalone Base UI has no components/ui: there the headless primitives ARE the library
+    if topo.get("ui") != "base-ui":
+        patterns.append({"group": PRIMITIVE_BASES,
+                         "message": "Golden rule 3: import the primitive from components/ui, not its headless base "
+                                    "— going around it forks the primitive's behaviour."})
+    return f'''  // Golden rule 3 (contracts.md): compose the declared library's primitives, never go around them
+  {{
+    files: ["**/*.{{ts,tsx}}"],
+    ignores: {json.dumps(comp_globs)},
+    rules: {{ "no-restricted-imports": ["{severity}", {{ patterns: {json.dumps(patterns)} }}] }},
+  }},
+'''
+
+
 def preset_source(topo: dict, severity: str) -> str:
     theme = topo["theme"]
     theme_rel = Path(os_relpath(theme, topo["preset"].parent)).as_posix() if theme else ""
@@ -241,7 +276,7 @@ export const designSystemConfig = [
       "shadcn/no-unknown-classes": "warn",
     }},
   }},
-  // the vendored primitives own their appearance; the registry's own variant strings trip
+{primitives_rule(topo, s)}  // the vendored primitives own their appearance; the registry's own variant strings trip
   // no-unknown-classes. no-raw-colors and no-inline-styles stay on.
   {{
     files: {json.dumps(comp_globs)},
@@ -444,6 +479,7 @@ def setup(root: Path) -> int:
     fresh = meta.get("phase", "empty") in PHASES_BEFORE_SCAFFOLD
     any_warn_only, failed = False, False
     for topo in units:
+        topo["ui"] = ui_of(meta)
         rc, warn_only = setup_unit(root, topo, fresh)
         any_warn_only |= warn_only
         failed |= rc != 0
