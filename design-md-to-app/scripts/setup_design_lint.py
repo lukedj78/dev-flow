@@ -512,9 +512,27 @@ def export_preset(config_pkg: Path, preset: Path) -> str:
     return f"{d['name']}/design-system"
 
 
+def existing_severity(preset: Path) -> str | None:
+    """The severity a previous run wrote. A re-run never downgrades it: a project scaffolded at
+    "error" is past `scaffolded` afterwards, and reading only the phase would turn it to "warn"."""
+    if not preset.exists():
+        return None
+    m = re.search(r'"shadcn/no-inline-styles":\s*"(error|warn)"', preset.read_text())
+    return m.group(1) if m else None
+
+
+def existing_cap(pkg: Path) -> int | None:
+    try:
+        lint = json.loads((pkg / "package.json").read_text()).get("scripts", {}).get("lint", "")
+    except (OSError, json.JSONDecodeError):
+        return None
+    m = re.search(r"--max-warnings[ =](\d+)", lint)
+    return int(m.group(1)) if m else None
+
+
 def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     warn_only = only_warn(root, topo)
-    severity = "error" if fresh else "warn"
+    severity = existing_severity(topo["preset"]) or ("error" if fresh else "warn")
     where = topo["config_pkg"].relative_to(root).as_posix() or "."
     print(f"{topo['kind']} ({where}) · {'fresh scaffold' if fresh else 'existing app'} · "
           f"only-warn={'yes' if warn_only else 'no'} · rules at {severity}")
@@ -559,7 +577,7 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             print(f"  {name}: {len(fatal)} file(s) failed to parse", file=sys.stderr)
             failed = True
             continue
-        if fresh and design:
+        if (fresh or severity == "error") and design:
             print(f"  {name}: {len(design)} design-lint finding(s) on a fresh scaffold — fix them, "
                   "do not cap them:", file=sys.stderr)
             for m in design[:15]:
@@ -569,6 +587,14 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
         # warnings that already exist and are not the design lint's (a fresh scaffold's design
         # findings were refused above), so the cap gates new ones without failing a healthy app
         cap = len([m for m in msgs if m.get("severity") == 1])
+        # the cap only ever goes down: a re-run that measures more warnings than the cap allows
+        # reports them and keeps the cap — raising it here would hide a regression
+        previous = existing_cap(t)
+        if previous is not None and cap > previous:
+            name_ = t.relative_to(root).as_posix() or "."
+            print(f"  {name_}: {cap} warning(s) measured, cap stays at {previous} — the lint fails until "
+                  f"{cap - previous} are fixed (never raise the cap to make it pass)")
+            cap = previous
         errors = [m for m in msgs if m.get("severity") == 2]
         if errors:
             lines = [f"    {m['file']}:{m['line']}  {m.get('ruleId')}  {m['message'].splitlines()[0][:100]}"

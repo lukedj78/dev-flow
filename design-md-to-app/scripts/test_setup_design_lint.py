@@ -12,6 +12,8 @@ recorded in references/design-system-lint.md.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -294,6 +296,49 @@ class Check(unittest.TestCase):
             ok, problems = sdl.check(root)
             self.assertFalse(ok)
             self.assertTrue(any("--max-warnings" in p for p in problems))
+
+
+class Rerun(unittest.TestCase):
+    """Re-running on a project that already has the lint must not loosen it."""
+
+    def run_unit(self, root: Path, warnings: int, fresh: bool = False) -> int:
+        (u,) = sdl.detect(root)
+        u["ui"] = "shadcn"
+        original = sdl.run_eslint
+        sdl.run_eslint = lambda t: [{"ruleId": "no-console", "severity": 1, "message": "x", "file": "a", "line": 1}] * warnings
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                rc, _ = sdl.setup_unit(root, u, fresh)
+        finally:
+            sdl.run_eslint = original
+        return rc
+
+    def app(self, root: Path, cap: int | None) -> None:
+        single_app(root)
+        pkg = json.loads((root / "package.json").read_text())
+        pkg["devDependencies"] = {"@shadcn/lint": "0.1.0"}
+        pkg["scripts"]["lint"] = "eslint" + (f" --max-warnings {cap}" if cap is not None else "")
+        write(root, "package.json", pkg)
+
+    def test_severity_is_kept_after_the_phase_moves_past_scaffolded(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); self.app(root, cap=0)
+            (u,) = sdl.detect(root)
+            u["preset"].write_text(sdl.preset_source(u, "error"))
+            self.assertEqual(self.run_unit(root, warnings=0, fresh=False), 0)
+            self.assertEqual(sdl.existing_severity(u["preset"]), "error")
+
+    def test_cap_never_rises_on_a_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); self.app(root, cap=3)
+            self.run_unit(root, warnings=5)
+            self.assertEqual(sdl.existing_cap(root), 3, "5 measured > cap 3: the cap stays")
+            self.run_unit(root, warnings=2)
+            self.assertEqual(sdl.existing_cap(root), 2, "fewer warnings lower it")
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); self.app(root, cap=None)
+            self.run_unit(root, warnings=4)
+            self.assertEqual(sdl.existing_cap(root), 4, "no previous cap: measured")
 
 
 class PhaseGate(unittest.TestCase):
