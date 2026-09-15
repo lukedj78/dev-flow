@@ -128,15 +128,17 @@ def main() -> int:
     if phase_norm not in {'empty', 'idea_captured', 'prd_drafted', 'tasks_split',
                           'design_extracted', 'monorepo_initialized', ''}:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
-        from design_lint_gate import remedy, verify
+        import design_lint_gate
+        import registry_intake_gate
 
-        passed, why = verify(root, meta)
-        if not passed:
-            print("⚠ Design lint missing on a scaffolded project:")
-            for line in why.splitlines():
-                print(f"  {line}")
-            print(remedy(root))
-            print()
+        for gate, what in ((design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake")):
+            passed, why = gate.verify(root, meta)
+            if not passed:
+                print(f"⚠ {what} missing on a scaffolded project:")
+                for line in why.splitlines():
+                    print(f"  {line}")
+                print(gate.remedy(root))
+                print()
 
     framework = stack.get('framework')
     nxt = next_step(meta.get('phase'), framework)

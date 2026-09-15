@@ -161,13 +161,20 @@ template loads `eslint-plugin-only-warn`) and `web-mobile` (`apps/web` is a full
 wired as a single app). A non-zero exit is a failed verify. `design-md-to-app` skipped its own
 Step 4.10 when invoked from Step 4 for exactly this reason.
 
+Right after it, set up registry intake at the repo root — the lock covers `apps/*/components.json` and
+`packages/*/components.json`, and takes the caps just set as its baseline:
+
+```bash
+python3 registry-intake/scripts/registry_intake.py setup <project-root>
+```
+
 If any verify fails, do NOT bump phase. Report and stop.
 
 ### Step 9 — Update meta.json + commit
 
 Move the phase with `python3 dev-flow/scripts/update_meta.py <project-root> set-phase scaffolded`,
-never by writing `phase` into the JSON: the design-lint gate lives in `set-phase` and refuses the
-transition until the lint from Step 8 is wired. The rest of the block below is written as before.
+never by writing `phase` into the JSON: the design-lint and registry-intake gates live in `set-phase`
+and refuse the transition until both from Step 8 are in place. The rest of the block below is written as before.
 
 ```json
 {

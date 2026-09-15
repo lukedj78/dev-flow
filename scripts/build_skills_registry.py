@@ -49,7 +49,7 @@ except ImportError:
 # role:   orchestrator | discovery | operative | knowledge
 # ---------------------------------------------------------------------------
 TAXONOMY: dict[str, tuple[str, str]] = {
-    # --- core (7): stack-agnostic, used by every stack -----------------------
+    # --- core (8): stack-agnostic, used by every stack -----------------------
     "dev-flow":                     ("core", "orchestrator"),
     "prd-from-idea":                ("core", "discovery"),
     "prd-to-tasks":                 ("core", "discovery"),
@@ -57,6 +57,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "compliance-audit":             ("core", "operative"),
     "spec-review":                  ("core", "operative"),
     "product-to-agent-skill":       ("core", "operative"),
+    "registry-intake":              ("core", "operative"),
     # --- web (18): Next.js 16 App Router ------------------------------------
     "figma-to-design-md":           ("web", "discovery"),
     "image-to-design-md":           ("web", "discovery"),

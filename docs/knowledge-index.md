@@ -52,6 +52,17 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 
 `design-md-to-app/references/` — `shadcn-mapping.md`, `base-ui-mapping.md`, `mui-mapping.md`, `library-choice.md`, `chat-and-typeset.md`, `anti-slop-fallbacks.md`; plus `coss-ui/references/` for the Coss/UI registry.
 
+## Third-party registries (supply chain)
+
+`registry-intake/SKILL.md` + `scripts/registry_intake.py`. Three moving surfaces it is pinned against — re-verify
+when any of them moves:
+
+| Surface | Upstream (source of truth) | What the script depends on |
+|---|---|---|
+| **shadcn registry item** | <https://ui.shadcn.com/schema/registry-item.json> · `components.json` schema <https://ui.shadcn.com/schema.json> | `files[].target`, `registryDependencies`, `envVars`, `cssVars`/`css`/`tailwind`, `registries` as `@ns → url with {name}`; `shadcn add` accepting a local item and root-relative `registryDependencies` (verified on **4.21.0**, pinned in the lock) |
+| **eve tool definition** | `node_modules/eve/dist/src/internal/authored-definition/schema-backed.js` | the key list passed to `expectOnlyKnownKeys` — read from the installed eve; fallback list from **0.55.0** |
+| **Claude Code hooks** | <https://code.claude.com/docs/en/hooks-guide> | PreToolUse stdin `tool_input.command` + `cwd`; stdout `hookSpecificOutput.permissionDecision: "deny"` |
+
 ## Pre-deploy gates (third-party CLIs)
 
 Three gates run at `feature_complete` — legal, cost, UI. Two of them wrap an **external CLI whose flags and

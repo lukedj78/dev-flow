@@ -30,6 +30,7 @@
     "./prd-from-idea",
     "./prd-to-tasks",
     "./product-to-agent-skill",
+    "./registry-intake",
     "./spec-review",
     "./animated-icons",
     "./coss-ui",

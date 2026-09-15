@@ -305,8 +305,9 @@ class PhaseGate(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d); single_app(root)
             write(root, ".workflow/meta.json", {"phase": "design_extracted", "stack": {
-                "framework": "next", "ui": "shadcn", "design_lint": "none"},
-                "stack_config": {"design_lint_reason": "prototype, thrown away"}})
+                "framework": "next", "ui": "shadcn", "design_lint": "none", "registry_intake": "none"},
+                "stack_config": {"design_lint_reason": "prototype, thrown away",
+                                 "registry_intake_reason": "the same crossing gates registry intake; not under test here"}})
             self.assertEqual(self.set_phase(root, "scaffolded").returncode, 0)
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

@@ -10,7 +10,7 @@
 # this is just a summary, so it won't drift when skills are added):
 #   * Core (stack-agnostic flow):        5 skills  — dev-flow, prd-from-idea,
 #                                        prd-to-tasks, linear-scrum,
-#                                        compliance-audit
+#                                        compliance-audit, registry-intake
 #   * Web (Next.js 16 + shadcn/Base UI/MUI): 16 skills — figma-to-design-md,
 #                                        image-to-design-md, design-md-to-app,
 #                                        coss-ui, screenshot-to-page, module-add,
@@ -152,6 +152,7 @@ SKILLS=(
   compliance-audit
   spec-review
   product-to-agent-skill
+  registry-intake
 
   # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md

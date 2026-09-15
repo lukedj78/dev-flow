@@ -772,6 +772,18 @@ On a **fresh scaffold** the rules are `error` and the script **fails** — listi
 scaffold itself produced design-lint findings or other lint errors. Fix those; never cap them. On an
 existing app it uses `warn` and caps at today's count.
 
+**Then set up registry intake**, in the same step, because it records the lint cap this step just set
+as the baseline that imported components may not raise:
+
+```bash
+python3 <skills>/registry-intake/scripts/registry_intake.py setup <project-root>
+```
+
+It writes `registry-lock.json`, the PreToolUse hook in `.claude/settings.json` and an `AGENTS.md`
+block, and records `stack.registry_intake = "enforced"`. From here on a component from any registry
+other than shadcn's own (pdfcn, emailcn, ogimagecn, mcpcn…) goes through `review → approve → install`
+— see `registry-intake`. With `stack.ui = "coss"`, `@coss` is recorded as the live UI registry.
+
 **In a monorepo, `monorepo-bootstrap` runs this at its Step 8**, after `pnpm install --recursive` —
 here in Step 4 the workspace is not installed yet. Skip it when invoked from `monorepo-bootstrap`.
 
@@ -1030,7 +1042,9 @@ not that the primitives are wrong.
 - move the phase **through the script, never by editing the field**:
   `python3 <dev-flow>/scripts/update_meta.py <root> set-phase scaffolded`. That is where the
   design-lint gate runs — it refuses `scaffolded` until `setup_design_lint.py --check` passes or an
-  opt-out is recorded (`stack.design_lint = "none"` plus `stack_config.design_lint_reason`). Writing
+  opt-out is recorded (`stack.design_lint = "none"` plus `stack_config.design_lint_reason`) — and the
+  registry-intake gate, which wants `registry_intake.py check` to pass (or `stack.registry_intake =
+  "none"` with `stack_config.registry_intake_reason`). Writing
   `phase` by hand skips the gate, and `show_state.py` will flag the project on every read after.
 - bump `updated_at` to ISO-8601 UTC now
 - append a `history` entry:

@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **49 skills (7 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **50 skills (8 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -145,7 +145,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 49. Restart Claude Code if you don't see them in /skills.
+# Should print 50. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -167,7 +167,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `write-tests` | One source file (server action / page / component / query) → its Vitest or Playwright test, following the project's existing patterns |
 | `vercel-deploy` | Ship the web app: preview → smoke → staged production → promote → domains + DNS, with a rollback runbook. The only skill that sets `phase = "deployed"` for web |
 
-`install.sh` installs **every skill**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 4 monorepo skills. Full breakdown in [the catalogue](#the-skills-in-detail).
+`install.sh` installs **every skill**, not just these. Beyond the core flow above: the `compliance-audit` capability, the web discipline skills (`forms`, `data-fetching`, `state-discipline`, `transitions`), the web add-ons (`animated-icons` animated icons, `vercel-doctor` cost/perf and `shadscan` UI-quality pre-deploy gates, `vercel-deploy` the ship step), the agent engine (`eve-agent`, `eve-registry-porting`), `registry-intake` (governance for third-party registry components), the 2 refactor skills (`promote-component`, `composition-patterns-guide`), the 16 mobile `rn-*` skills, and the 4 monorepo skills. Full breakdown in [the catalogue](#the-skills-in-detail).
 
 ### 2. Create a project
 
@@ -835,7 +835,7 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ## The skills, in detail
 
-> 7 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, and `product-to-agent-skill` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 8 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, `product-to-agent-skill`, and `registry-intake` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -875,7 +875,7 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 **Bundled scripts:**
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`.
 - `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step. On a project already past `scaffolded` without the design lint, it prints what is missing and the command that fixes it.
-- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and is **the design-lint gate**: entering `scaffolded` is refused until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason`. Skills move phase through it so the gate runs; mobile, agent-only and MUI projects are not affected.
+- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds **two gates at `scaffolded`**. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. Skills move phase through it so the gates run.
 
 ### `prd-from-idea` — paragraph → PRD
 
@@ -908,6 +908,15 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 **Output**: a Linear Project with issues (estimates, `area:web`/`area:agent` labels, milestones) and cycles, plus the `linear`/`scrum` blocks in `meta.json`. Linear is treated as the source of truth: sync only pushes new tasks, pulls status/velocity, plans the active sprint up to the velocity target, and reports — it never bumps `phase`.
 
 **Modes**: Setup (new project), Adopt (existing Linear project), Sync (ongoing — push new tasks, pull status/velocity, plan sprint, report).
+
+### `registry-intake` — third-party registry components: allowlisted, reviewed, pinned, enforced
+
+**Input**: a project with a `components.json` (or an eve agent) and an item from a shadcn-format registry — `@ns/item`, a registry-item URL, `eve add @ns/…`.
+**Output**: `registry-lock.json` (allowlisted registries with their reason; approved items with snapshot hash, reviewer, findings and accepted exceptions), `vendor/registry/` snapshots, a PreToolUse hook in `.claude/settings.json`, an `AGENTS.md` block, and `meta.json#stack.registry_intake = "enforced"`. Wired at scaffold by `design-md-to-app`, `monorepo-bootstrap` and `eve-agent`; checked by `set-phase scaffolded`.
+
+**Why**: `shadcn add @ns/item` copies someone else's source, installs their npm packages, can write env vars and theme tokens, and fetches whatever the URL serves *today* — then the code is ours and nothing updates it. The community registries are worth mining (shadcn-labs alone ships pdfcn, emailcn, ogimagecn, mcpcn, agentcn), and they are young, mostly one-maintainer, sponsor-funded projects. The review in `scripts/registry_intake.py` exists because of what was found by hand on 2026-09-15: **every eve tool in agentcn declares `needsApproval`, a key eve's loader rejects** (verified in eve 0.34, 0.51 and 0.55) — so the five tools meant to ask before acting have no gate, and `claw/run_shell` runs `node:child_process` on the host. Run against the live registries, the review blocks exactly those (V1, V2, S1), passes an ogimagecn template clean, and resolves a pdfcn card's `registryDependencies` into a two-item snapshot whose dependency paths point at the vendored copy.
+
+Four barriers, each mechanical: an **allowlist** (a new registry is the user's decision, with a reason); a **review** of the item's whole closure — config/tooling targets, host process execution, obfuscation, env vars, theme tokens (DESIGN.md owns them), npm existence, licence, install scripts and age, and for eve code the tool keys the *installed* eve accepts, ungated side effects, global credentials, a shared store, US-shaped PII regexes; a **snapshot** installed with `shadcn@4.21.0` instead of the URL (local items and root-relative `registryDependencies` verified on that version); and **nothing around it** — the hook denies every other `shadcn add @…`, URL install, `eve add @…` and `eve registry add` using the documented `permissionDecision: "deny"` contract, while `check` catches edited snapshots, stray vendor files, unlisted registries in any `components.json`, and a design-lint `--max-warnings` raised to make room for imported code. Blocking findings are fixed, ported by hand (`eve-registry-porting`), or accepted one by one with a written reason — never waved through. `@coss` is the one registry trusted live, and only when `stack.ui = "coss"`. The rules are heuristics over source text, stated as such: typecheck, the capped lint, `eve build` and tests still run after install. 21 tests, no network, in CI.
 
 ### `compliance-audit` — GDPR + EU AI Act audit & remediation
 

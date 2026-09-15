@@ -100,6 +100,27 @@ Component in the registry
 └─ instructions / persona             → adapt into profile config (DB seed)
 ```
 
+## Run the automatic review first
+
+Before reading a registry component by hand, run **`registry-intake`** on it — it is read-only:
+
+```bash
+python3 registry-intake/scripts/registry_intake.py review <root> https://agentcn.vercel.app/r/eve/<slug>.json
+```
+
+It mechanically finds what this checklist otherwise relies on eyes for: tool keys the **installed** eve
+loader rejects (V1), side-effect tools with no working `approval` (V2), global credentials (V3), a
+single shared store (V4), US-shaped PII regexes (V5), a whole standalone agent (V6), host process
+execution, npm licences and install scripts. A blocked report is usually the signal to **port** rather
+than install: rewrite the bricks here, tenant-safe, instead of accepting findings one by one. What it
+cannot judge — tenant derivation from the session, per-tenant secrets, the tests — stays below.
+
+⚠️ **Verified 2026-09-15: agentcn's eve tools do not load on eve.** All 30 declare
+`needsApproval: always()/never()`; eve's key is `approval`, and its loader throws on unknown keys
+(eve 0.34, 0.51, 0.55). Porting one means renaming the key **and** re-deciding the gate: the five with
+`always()` (`post_message`, `update_range`, `write_file`, `run_shell`, `generate_image`) are exactly
+the ones that must ask, and `claw/run_shell` runs `node:child_process` on the host, not in eve's sandbox.
+
 ## Conformance checklist (the whole point)
 
 Every ported component MUST pass these before merge. In a multi-tenant eve app
@@ -126,7 +147,9 @@ this is non-negotiable — registry code assumes single-tenant/global env.
       eve's durable-workflow re-run semantics — see
       `eve-agent/references/eve-conventions.md` → "Durability & idempotency (the
       rule scaffolds get wrong)". Apply that pattern directly; don't reopen
-      `eve-agent` to rediscover it.
+      `eve-agent` to rediscover it. **The key is `approval`** — a registry tool
+      written with `needsApproval` (the AI SDK's name) is rejected by eve's loader,
+      so its gate never existed.
 - [ ] **Framework hygiene.** Correct import paths (in a monorepo: `drizzle-orm`
       directly only in the agent, never in the web app); valid eve file names
       (tool files start with a letter).

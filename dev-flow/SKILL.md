@@ -337,15 +337,18 @@ The report of an autonomous run opens with the assumptions made — count, then 
 ## Bundled scripts
 
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`. Use when the user opts into the orchestrator on an empty directory.
-- `scripts/show_state.py <project-root>` — prints the current `phase`, the files present, and the proposed next step. Use early in every conversation when the user asks "what's next". On a project already at or past `scaffolded` without the design lint — it predates the gate, or its phase was edited by hand — it prints what is missing and the command that fixes it. When you see that warning, run the fix before proposing the next step.
+- `scripts/show_state.py <project-root>` — prints the current `phase`, the files present, and the proposed next step. Use early in every conversation when the user asks "what's next". On a project already at or past `scaffolded` without the design lint or registry intake — it predates the gates, or its phase was edited by hand — it prints what is missing and the command that fixes it. When you see that warning, run the fix before proposing the next step.
 - `scripts/update_meta.py <project-root> <op>` — mutate `meta.json` from a skill. Three operations:
   - `record-artifact --path <p> --produced-by <skill> [--derived-from <p1> <p2> …]` — hash a file and record it under `meta.json#artifacts`. Skills call this after writing/updating contract files (DESIGN.md, registry.json, generated pages, schema, etc).
   - `set-phase <phase>` — bump phase forward (refuses regression unless `--allow-regress`). **Also the
     design-lint gate**: moving a Next web app on a Tailwind UI (shadcn, base-ui, coss) into
     `scaffolded` is refused until `design-md-to-app/scripts/setup_design_lint.py --check` passes, or an
     opt-out is recorded — `stack.design_lint = "none"` with `stack_config.design_lint_reason`. Mobile,
-    agent-only and MUI projects are not affected. Skills move phase through this command so the gate
-    runs; a phase written by hand skips it.
+    agent-only and MUI projects are not affected. **And the registry-intake gate** at the same
+    crossing: a Next app on a Tailwind UI or an eve agent needs `registry-intake/scripts/registry_intake.py
+    check` to pass (lock, hook, nothing installed around them), or `stack.registry_intake = "none"` with
+    `stack_config.registry_intake_reason`. Skills move phase through this command so the gates
+    run; a phase written by hand skips them.
   - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
 - `scripts/check_drift.py <project-root>` — diagnostic command. Compares `meta.json#artifacts` against the on-disk files and reports:
   - **fresh**: file matches its recorded hash, all upstreams match too.

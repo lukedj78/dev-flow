@@ -229,13 +229,13 @@
 <header class="hero">
   <div class="wrap">
     <div class="eyebrow">system map · v1.0.0 · september 2026</div>
-    <h1><span class="g">49 skills</span> that take an idea all the way to production.</h1>
+    <h1><span class="g">50 skills</span> that take an idea all the way to production.</h1>
     <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract. Installable as a Claude Code plugin.</p>
 
     <div class="console">
-      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 49 skills · v1.0.0 · 19 checks clean</span></div>
+      <div class="hd"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="t mono">~/my-skills — 50 skills · v1.0.0 · 19 checks clean</span></div>
       <div class="metrics">
-        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">49</div></div>
+        <div class="metric"><div class="k"><i style="background:var(--c-core)"></i>skills</div><div class="v" style="color:var(--ac)">50</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-web)"></i>web · next 16</div><div class="v">18</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-mobile)"></i>mobile · expo</div><div class="v">16</div></div>
         <div class="metric"><div class="k"><i style="background:var(--c-agent)"></i>engine · eve</div><div class="v">2</div></div>
@@ -253,7 +253,7 @@
   <div class="wrap">
     <div class="kick"><span class="no">01</span> backbone</div>
     <h2 class="sec-t">The phase pipeline</h2>
-    <p class="sec-p">A monotonic sequence: no skill skips a step. The orchestrator suggests the next one by reading the state — it doesn't impose it. <b>One transition it does impose:</b> a web app enters <code>scaffolded</code> only with its design-system lint wired, or an opt-out recorded with its reason.</p>
+    <p class="sec-p">A monotonic sequence: no skill skips a step. The orchestrator suggests the next one by reading the state — it doesn't impose it. <b>One transition it does impose:</b> a web app enters <code>scaffolded</code> only with its design-system lint wired and registry intake enforced — each with an opt-out recorded with its reason. An eve agent needs the intake too.</p>
 
     <div class="pipe-wrap">
       <div class="pipe-scroll">
@@ -454,6 +454,11 @@
         <div class="ss"><span class="s">design-md-to-app</span><span class="s">monorepo-bootstrap</span><span class="s">dev-flow</span></div>
       </div>
       <div class="card lyr">
+        <div class="h"><i style="background:var(--c-core)"></i> Registry intake</div>
+        <p>Community registries are a code mine, not a dependency. A component from anyone but shadcn is <b>reviewed</b> with its whole dependency closure, <b>pinned</b> as a hashed snapshot, and installed from the snapshot, never the live URL. A hook refuses <code>shadcn add @…</code> around it. The review exists because of a real find: every eve tool in agentcn declares <code>needsApproval</code>, a key eve's loader rejects — so the tools meant to ask first had no gate at all.</p>
+        <div class="ss"><span class="s">registry-intake</span><span class="s">eve-registry-porting</span><span class="s">dev-flow</span></div>
+      </div>
+      <div class="card lyr">
         <div class="h"><i style="background:var(--c-pm)"></i> Pre-deploy gates</div>
         <p>At <code>feature_complete</code>: legal risk, cost risk, UI risk, launch readiness. They report, they never block.</p>
         <div class="ss"><span class="s">compliance-audit</span><span class="s">vercel-doctor</span><span class="s">shadscan</span><span class="s">launch-audit</span></div>
@@ -500,6 +505,7 @@
         <div class="step"><div class="cmd"><span class="sk">maps</span> mapcn <span class="cm">· web</span> · mapcn-rn <span class="cm">· mobile — mind the tile licence</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">motion</span> tw-animate-css <span class="pr">→</span> CSS <span class="pr">→</span> view transitions <span class="pr">→</span> Motion <span class="cm"># cheapest tier that works</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">design lint</span> @shadcn/lint <span class="cm"># wired by a script, gated at scaffolded — errors name the token to use</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">registries</span> registry-intake <span class="cm"># allowlist → review → snapshot → install; a hook refuses the shortcut</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">illustration</span> Koboyo <span class="cm"># sparingly — only if DESIGN.md admits hand-drawn art</span></div></div>
       </div>
     </div>
@@ -510,7 +516,7 @@
 <section class="reveal">
   <div class="wrap">
     <div class="kick"><span class="no">07</span> full index</div>
-    <h2 class="sec-t">All 49, by function</h2>
+    <h2 class="sec-t">All 50, by function</h2>
     <p class="sec-p">Meta alongside: <code>SKILL.md</code> lines · references · scripts. The glowing dot marks the newest additions.<br>Each one has its own page — what it does, when it applies, what it deliberately does not: <a href="https://lukedj78.github.io/dev-flow/"><b>lukedj78.github.io/dev-flow</b></a></p>
 
     <div class="legend">
@@ -526,7 +532,7 @@
     <div class="index">
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-core)"></i><span class="gt">Core · orchestration</span><span class="gn">4</span></div>
-        <div class="row"><span class="sk">dev-flow</span><span class="m">371·4r·5s</span></div>
+        <div class="row"><span class="sk">dev-flow</span><span class="m">374·4r·6s</span></div>
         <div class="row"><span class="sk">prd-from-idea</span><span class="m">244·1r</span></div>
         <div class="row"><span class="sk">prd-to-tasks</span><span class="m">135·1r</span></div>
         <div class="row"><span class="sk">product-to-agent-skill</span><span class="m">207·2r</span></div>
@@ -538,7 +544,7 @@
       </div>
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-web)"></i><span class="gt">Web · scaffold, pages & ship</span><span class="gn">6</span></div>
-        <div class="row"><span class="sk">design-md-to-app</span><span class="m">1218·13r·4s</span></div>
+        <div class="row"><span class="sk">design-md-to-app</span><span class="m">1232·13r·4s</span></div>
         <div class="row new"><span class="sk">coss-ui</span><span class="m">95·4r·2s</span></div>
         <div class="row"><span class="sk">screenshot-to-page</span><span class="m">262·1r·1s</span></div>
         <div class="row"><span class="sk">module-add</span><span class="m">157·11r</span></div>
@@ -562,7 +568,7 @@
       </div>
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-mono)"></i><span class="gt">Monorepo</span><span class="gn">4</span></div>
-        <div class="row"><span class="sk">monorepo-bootstrap</span><span class="m">221·5r·4s</span></div>
+        <div class="row"><span class="sk">monorepo-bootstrap</span><span class="m">228·5r·4s</span></div>
         <div class="row"><span class="sk">monorepo-add-shared-package</span><span class="m">130·2r</span></div>
         <div class="row"><span class="sk">monorepo-sync-types</span><span class="m">181·2r·1s</span></div>
         <div class="row new"><span class="sk">monorepo-add-python-service</span><span class="m">198·6r·3s</span></div>
@@ -573,13 +579,14 @@
         <div class="row new"><span class="sk">eve-registry-porting</span><span class="m">128</span></div>
       </div>
       <div class="card grp">
-        <div class="gh"><i style="background:var(--c-pm)"></i><span class="gt">Governance · PM, review, compliance, cost &amp; UI</span><span class="gn">6</span></div>
+        <div class="gh"><i style="background:var(--c-pm)"></i><span class="gt">Governance · PM, review, compliance, cost, UI &amp; supply chain</span><span class="gn">7</span></div>
         <div class="row new"><span class="sk">linear-scrum</span><span class="m">77·3r·3s</span></div>
         <div class="row new"><span class="sk">compliance-audit</span><span class="m">123·2r·2s</span></div>
         <div class="row new"><span class="sk">spec-review</span><span class="m">167·1r</span></div>
         <div class="row new"><span class="sk">vercel-doctor</span><span class="m">136·1r</span></div>
         <div class="row new"><span class="sk">shadscan</span><span class="m">277·1r</span></div>
         <div class="row new"><span class="sk">launch-audit</span><span class="m">122·3r·2s</span></div>
+        <div class="row new"><span class="sk">registry-intake</span><span class="m">127·1r·2s</span></div>
       </div>
       <div class="card grp">
         <div class="gh"><i style="background:var(--c-mobile)"></i><span class="gt">Mobile · operations</span><span class="gn">7</span></div>

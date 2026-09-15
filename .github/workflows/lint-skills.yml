@@ -30,6 +30,7 @@ on:
       # into `scaffolded` depends on them, so a change to either must run their tests.
       - "design-md-to-app/scripts/**"
       - "dev-flow/scripts/**"
+      - "registry-intake/scripts/**"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -59,6 +60,7 @@ on:
       # into `scaffolded` depends on them, so a change to either must run their tests.
       - "design-md-to-app/scripts/**"
       - "dev-flow/scripts/**"
+      - "registry-intake/scripts/**"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
@@ -80,6 +82,9 @@ jobs:
 
       - name: Test the design-lint setup and the phase gate
         run: cd design-md-to-app/scripts && python3 -m unittest test_setup_design_lint -v
+
+      - name: Test registry intake (allowlist, review, snapshot, hook, phase gate)
+        run: cd registry-intake/scripts && python3 -m unittest test_registry_intake -v
 
       - name: Regenerate skills.json and check it's committed
         run: |

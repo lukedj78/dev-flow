@@ -40,6 +40,7 @@ SKILLS=(
   compliance-audit
   spec-review
   product-to-agent-skill
+  registry-intake
 
   # Web stack
   figma-to-design-md
