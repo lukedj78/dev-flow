@@ -121,6 +121,38 @@ class Detection(unittest.TestCase):
             self.assertEqual(u["kind"], "monorepo")
             self.assertEqual(sorted(t.relative_to(root).as_posix() for t in u["targets"]), ["apps/web", "packages/ui"])
             self.assertTrue(sdl.only_warn(root, u))
+            self.assertEqual(u["preset"].name, "design-system.mjs", "no \"type\": \"module\" → .mjs")
+            cfg = root / "packages/eslint-config/package.json"
+            write(root, "packages/eslint-config/package.json", {**json.loads(cfg.read_text()), "type": "module"})
+            self.assertEqual(sdl.detect(root)[0]["preset"].name, "design-system.js")
+
+    def test_app_that_consumes_the_ui_package_without_its_own_components_json(self) -> None:
+        # bidmaster: apps/web has an eslint config and depends on @x/ui but no components.json;
+        # packages/ui has components.json but no eslint config
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); shadcn_monorepo(root)
+            (root / "packages/ui/eslint.config.js").unlink()
+            (root / "apps/web/components.json").unlink()
+            web = json.loads((root / "apps/web/package.json").read_text())
+            web["dependencies"] = {"@workspace/ui": "workspace:*"}
+            write(root, "apps/web/package.json", web)
+            (u,) = sdl.detect(root)
+            self.assertEqual([t.relative_to(root).as_posix() for t in u["targets"]], ["apps/web"])
+
+    def test_no_target_means_no_unit_and_check_fails(self) -> None:
+        # the defect: a unit with zero targets installed, recorded and passed --check
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); shadcn_monorepo(root, only_warn=False)
+            (root / "packages/ui/eslint.config.js").unlink()
+            (root / "apps/web/components.json").unlink()   # and no dependency on the UI package
+            self.assertEqual(sdl.detect(root), [])
+            self.assertIn("nothing to spread the preset into", sdl.why_undetected(root))
+            meta(root, "scaffolded", framework="monorepo", design_lint="shadcn-lint")
+            self.assertFalse(sdl.check(root)[0], "a recorded decision with nothing wired must not pass")
+            r = subprocess.run([sys.executable, str(HERE / "setup_design_lint.py"), str(root)],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(r.returncode, 2, "must refuse before installing anything")
+            self.assertNotIn("install:", r.stdout)
 
     def test_web_mobile_app_in_a_subfolder(self) -> None:
         with tempfile.TemporaryDirectory() as d:

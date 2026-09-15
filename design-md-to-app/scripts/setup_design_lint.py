@@ -90,12 +90,24 @@ def detect(root: Path) -> list[dict]:
       create-next-app with its own components.json and eslint config — each such app
     """
     cfg = root / "packages" / "eslint-config"
-    if (cfg / "package.json").exists() and (root / "packages" / "ui" / "components.json").exists():
-        targets = [p for p in sorted((root / "apps").glob("*")) if (p / "components.json").exists()]
-        targets.append(root / "packages" / "ui")
-        targets = [t for t in targets if eslint_config_of(t)]
+    ui = root / "packages" / "ui"
+    if (cfg / "package.json").exists() and (ui / "components.json").exists():
+        # An app renders the design system if it has its own components.json OR depends on the
+        # UI package — bidmaster's apps/web has no components.json and consumes @<slug>/ui.
+        # A package is only a target if it has an eslint config to spread into.
+        ui_name = _pkg_name(ui)
+        targets = [p for p in sorted((root / "apps").glob("*"))
+                   if eslint_config_of(p) and ((p / "components.json").exists() or _depends_on(p, ui_name))]
+        if eslint_config_of(ui):
+            targets.append(ui)
+        if not targets:
+            # A unit with nothing to wire into is not a unit. Returning it made an earlier version
+            # install, record "shadcn-lint" and pass --check on a project where nothing was wired.
+            return []
+        # ESM either way; .js only where the package says so, or Node warns and re-parses it
+        esm = json.loads((cfg / "package.json").read_text()).get("type") == "module"
         return [{"kind": "monorepo", "config_pkg": cfg, "targets": targets,
-                 "preset": cfg / "design-system.js", "theme": theme_css(root / "packages" / "ui")}]
+                 "preset": cfg / ("design-system.js" if esm else "design-system.mjs"), "theme": theme_css(ui)}]
     units = []
     for d in [root, *sorted((root / "apps").glob("*"))]:
         if (d / "components.json").exists() and eslint_config_of(d):
@@ -104,8 +116,29 @@ def detect(root: Path) -> list[dict]:
     return units
 
 
+def _pkg_name(pkg: Path) -> str | None:
+    try:
+        return json.loads((pkg / "package.json").read_text()).get("name")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _depends_on(pkg: Path, name: str | None) -> bool:
+    if not name:
+        return False
+    try:
+        d = json.loads((pkg / "package.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return any(name in (d.get(k) or {}) for k in ("dependencies", "devDependencies", "peerDependencies"))
+
+
 def why_undetected(root: Path) -> str:
     """Say exactly what is missing, instead of 'nothing found'."""
+    if (root / "packages" / "eslint-config" / "package.json").exists() and (root / "packages" / "ui" / "components.json").exists():
+        return ("shadcn monorepo layout found, but nothing to spread the preset into: packages/ui has "
+                f"{'an' if eslint_config_of(root / 'packages' / 'ui') else 'no'} eslint config, and no app in "
+                "apps/* has an eslint config together with a components.json or a dependency on the UI package")
     cands = [d for d in [root, *sorted((root / "apps").glob("*")), root / "packages" / "ui"]
              if (d / "components.json").exists()]
     if not cands:
@@ -377,6 +410,8 @@ def check(root: Path) -> tuple[bool, list[str]]:
     for topo in units:
         pkg = json.loads((topo["config_pkg"] / "package.json").read_text())
         where = topo["config_pkg"].relative_to(root).as_posix() or "."
+        if not topo["targets"]:
+            problems.append(f"{where}: no package to wire the preset into")
         if PLUGIN not in {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}:
             problems.append(f"{PLUGIN} is not installed in {where}")
         if not topo["preset"].exists():
@@ -456,8 +491,8 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     if topo["kind"] == "monorepo":
         p = topo["config_pkg"] / "package.json"
         d = json.loads(p.read_text())
-        if d.setdefault("exports", {}).get("./design-system") != "./design-system.js":
-            d["exports"]["./design-system"] = "./design-system.js"
+        if d.setdefault("exports", {}).get("./design-system") != f"./{topo['preset'].name}":
+            d["exports"]["./design-system"] = f"./{topo['preset'].name}"
             p.write_text(json.dumps(d, indent=2) + "\n")
         import_from = f"{pkg_json['name']}/design-system"
     else:
