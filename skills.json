@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-15T12:43:25Z",
+  "generated_at": "2026-09-15T12:52:33Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -94,6 +94,7 @@
       "references": [
         "contracts.md",
         "external-skills.md",
+        "merge-conflicts.md",
         "stack-expo-rn.md",
         "stack-monorepo.md"
       ],
@@ -105,7 +106,7 @@
         "show_state.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 374,
+      "skill_md_lines": 389,
       "bundle": "dist/dev-flow.skill"
     },
     {

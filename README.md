@@ -479,6 +479,18 @@ a mobile-design service worth mentioning to somebody on the Expo stack who has n
 design and does not want to write a DESIGN.md, alongside the note that our own
 DESIGN.md path costs nothing.
 
+One entry is free and used as-is: Matt Pocock's
+[`resolving-merge-conflicts`](https://github.com/mattpocock/skills) (MIT) — read both sides'
+primary sources before a hunk, keep both intents, invent nothing, run the checks. What it cannot
+know about a dev-flow project lives in
+[`dev-flow/references/merge-conflicts.md`](./dev-flow/references/merge-conflicts.md): which files
+are **derived and must be regenerated, not merged** (`pnpm-lock.yaml`, `registry.json`,
+`registry-lock.json` and its snapshots, `AGENTS.md` managed blocks, generated migrations, the 38
+vendored `contracts.md` copies), `meta.json` resolved field by field with the further phase applied
+through `set-phase` so the gates rerun, a lint cap conflict taking the **lower** number — and two
+overrides to its last step: stage by name, never `git add -A`, because other agents share these
+trees; commit only a merge the user asked for.
+
 ### The other thing this repo ships as code: `agent-guards`
 
 `contract-package` is a package you install. [`agent-guards/`](./agent-guards/README.md) is the

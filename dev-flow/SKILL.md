@@ -306,6 +306,21 @@ Four rules keep this from turning dev-flow into a paid product:
 Nothing in that file is a dependency: delete every row and dev-flow does exactly
 what it did before.
 
+## Merge conflicts — intent first, derived files rebuilt
+
+When a merge or rebase stops on conflicts, follow **`references/merge-conflicts.md`**. The method is
+Matt Pocock's `resolving-merge-conflicts` (read both sides' primary sources, keep both intents, invent
+nothing, run the checks); the reference adds what a dev-flow project needs on top:
+
+- **Stage by name, never `git add -A`** — other agents share these trees — and commit only a merge the
+  user started or asked for. A conflict that is a product decision stops and asks; it is not aborted.
+- **Intent lives in** commit messages, the Linear issue, `.workflow/tasks.md`, `PRD.md`/`DESIGN.md`, `meta.json#history`.
+- **Derived files are regenerated, not merged**: `pnpm-lock.yaml`, `registry.json`, `registry-lock.json`
+  and its snapshots (re-approve), `AGENTS.md` managed blocks, generated migrations, and in `~/my-skills`
+  the vendored `contracts.md` copies and everything the repo's `regenerate.sh` builds.
+- **`meta.json` by field**: the further `phase` applied through `set-phase` so the gates run, `history`
+  unioned, `artifacts` re-checked with `check_drift.py`. A lint `--max-warnings` conflict takes the lower cap.
+
 ## Autonomous runs — when nobody can answer
 
 Every question in this skill and its specialists — "OK to proceed?", "which stack?", the seven PRD questions — assumes a person at the keyboard. In an **autonomous run** there is none: a background agent, a scheduled task, `claude -p`, a batch that rebuilds a project from a brief. There a blocking question is not answered; it stalls the pipeline with nothing delivered.
