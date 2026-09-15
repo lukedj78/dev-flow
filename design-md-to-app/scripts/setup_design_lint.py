@@ -462,6 +462,20 @@ def setup(root: Path) -> int:
     return 0
 
 
+def export_preset(config_pkg: Path, preset: Path) -> str:
+    """Make the preset importable from the config package; return the specifier."""
+    p = config_pkg / "package.json"
+    d = json.loads(p.read_text())
+    if "exports" not in d:
+        # no exports map means every file is importable by path; adding one would
+        # close every subpath the apps already import (e.g. "…/nextjs.js")
+        return f"{d['name']}/{preset.name}"
+    if d["exports"].get("./design-system") != f"./{preset.name}":
+        d["exports"]["./design-system"] = f"./{preset.name}"
+        p.write_text(json.dumps(d, indent=2) + "\n")
+    return f"{d['name']}/design-system"
+
+
 def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     warn_only = only_warn(root, topo)
     severity = "error" if fresh else "warn"
@@ -489,12 +503,7 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     # 2. the preset, and the export in a monorepo
     topo["preset"].write_text(preset_source(topo, severity))
     if topo["kind"] == "monorepo":
-        p = topo["config_pkg"] / "package.json"
-        d = json.loads(p.read_text())
-        if d.setdefault("exports", {}).get("./design-system") != f"./{topo['preset'].name}":
-            d["exports"]["./design-system"] = f"./{topo['preset'].name}"
-            p.write_text(json.dumps(d, indent=2) + "\n")
-        import_from = f"{pkg_json['name']}/design-system"
+        import_from = export_preset(topo["config_pkg"], topo["preset"])
     else:
         import_from = f"./{topo['preset'].name}"
 

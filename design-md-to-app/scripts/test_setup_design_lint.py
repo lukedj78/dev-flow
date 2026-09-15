@@ -191,6 +191,20 @@ class Wiring(unittest.TestCase):
             sdl.wire_config(cfg, "@workspace/eslint-config/design-system")
             self.assertIn("export default [...config, ...designSystemConfig]", cfg.read_text())
 
+    def test_preset_export_never_closes_existing_subpaths(self) -> None:
+        # predictionleagues: no exports map, the app imports "@x/eslint-config/nextjs.js"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            pkg = write(root, "cfg/package.json", {"name": "@x/eslint-config", "main": "base.js"})
+            spec = sdl.export_preset(root / "cfg", root / "cfg/design-system.mjs")
+            self.assertEqual(spec, "@x/eslint-config/design-system.mjs")
+            self.assertNotIn("exports", json.loads(pkg.read_text()))
+            write(root, "cfg/package.json", {"name": "@x/eslint-config", "exports": {"./base": "./base.js"}})
+            self.assertEqual(sdl.export_preset(root / "cfg", root / "cfg/design-system.mjs"),
+                             "@x/eslint-config/design-system")
+            self.assertEqual(json.loads(pkg.read_text())["exports"],
+                             {"./base": "./base.js", "./design-system": "./design-system.mjs"})
+
     def test_lint_cap_replaced_not_appended(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             pkg = Path(d)
