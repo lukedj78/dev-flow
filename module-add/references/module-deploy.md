@@ -73,11 +73,29 @@ That's it for a single-app project. `$schema` gives editor autocomplete and vali
 | `functions` | one route needs a different region, memory or `maxDuration` than the rest |
 | `functionFailoverRegions` | Enterprise, and you need multi-region redundancy. Must differ from `regions` |
 | `headers` | security headers (CSP, HSTS) that Next's `next.config` isn't already emitting |
-| `crons` | the app has scheduled jobs |
+| `crons` | the app has scheduled jobs — **check the plan limit first**, see below |
 | `redirects` / `rewrites` | prefer Next's `next.config.ts` for app-level routing; use `vercel.json` only for platform-level cases |
 | `installCommand` | monorepo filtered installs (see Step 5) |
 | `relatedProjects` | a frontend project that must reference a sibling backend project's preview URL |
 | `ignoreCommand` | the built-in "skip unaffected projects" doesn't cover your repo |
+
+**⚠️ Cron frequency is plan-gated, and it fails at deploy time, not at run time.** On the Hobby plan
+Vercel accepts **one run per day per entry** and *rejects a more frequent expression when the deployment
+is created* — the build never starts and the PR check fails with a link to the pricing doc, which reads
+like a broken build. Verified 2026-09-16 (Hostitaly, a 15-minute compliance sweeper). Decide before
+writing the entry:
+
+- the schedule is genuinely daily → write it and move on;
+- the product needs a tighter cadence and the budget allows it → Pro (~24 €/mo at the time of writing);
+- the budget does not allow it → keep a **daily Vercel entry as the fallback** and drive the real cadence
+  from an external scheduler that calls the route with a shared secret. Make the handler accept **both**
+  callers (Vercel's own cron header *and* a bearer `CRON_SECRET`), compare the secret in constant time,
+  fail closed, and record the external service as a sub-processor receiving technical data only. Do not
+  use GitHub Actions as the scheduler on a private repo: a 15-minute schedule is ~2 900 billed minutes a
+  month against a 2 000-minute free quota.
+
+Never slow a legally-binding job to make a check go green — a daily sweep cannot carry a 24-hour
+deadline.
 
 Per-function overrides look like this — the shape is worth knowing even if you don't write it now:
 

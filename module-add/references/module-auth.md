@@ -117,6 +117,40 @@ export * from "./auth-schema";
 
 and apply it (`pnpm db:push` in dev, `db:generate` + `db:migrate` for anything real).
 
+### Two things the generator gets wrong on Postgres, and the only fix that survives regeneration
+
+Field-verified against `auth@1.7.5` (Hostitaly, 2026-09-16). Both are in the generator, so **editing
+the generated file by hand is not a fix** — the next `generate` silently reverts it.
+
+1. **Every instant is `timestamp without time zone`.** The generator hard-codes
+   `` `timestamp('${name}')` `` for the `pg` provider (`auth/dist/index.mjs`, the `date` field map);
+   there is no adapter option. A naive column stores the *writing process's* wall clock while Postgres
+   compares in the *server's* zone, so `session.expires_at`, `verification.expires_at` and any invitation
+   expiry drift by the client/server offset, and at the DST fold two instants an hour apart collapse into
+   one. Seventeen columns across `user`, `session`, `account`, `verification`, `two_factor`,
+   `organization`, `member`, `invitation`.
+2. **Anything you add to a table's extras array is dropped**, including the
+   `UNIQUE (organization_id, id)` a multi-tenant schema needs so child tables can carry a composite
+   foreign key `(organization_id, <parent>_id) → parent(organization_id, id)`.
+
+The fix is a **post-generation patch script chained into the generate command**, so the file stays
+generated and the correction cannot be forgotten:
+
+```jsonc
+// package.json
+"auth:generate": "dotenv -e .env.local -- auth generate --config lib/auth/cli.ts --output lib/db/schema/auth.ts --yes && node scripts/patch-auth-schema.mjs lib/db/schema/auth.ts"
+```
+
+The script rewrites `timestamp("x")` → `timestamp("x", { withTimezone: true })`, injects the `unique(...)`
+entries, and **exits non-zero** if a column or a table's extras array is not where it expects — so a
+future better-auth version cannot drop either quietly. Then generate the migration and **add an explicit
+`USING "<col>" AT TIME ZONE 'UTC'`** to each `SET DATA TYPE timestamptz`: without it Postgres converts
+using the session's TimeZone, so the result depends on who runs the migration. State in the migration
+header how existing rows are interpreted — the zone of the process that wrote them is not recorded.
+
+Pair it with a test that reads `information_schema.columns` and fails when a naive instant or a missing
+composite unique reappears; an exact-set assertion catches both a new offender and a fixed one.
+
 ## Environment variables
 
 Append to `.env.local.example`:
