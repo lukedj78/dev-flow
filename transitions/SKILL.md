@@ -48,6 +48,14 @@ Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle
 
 | **4** | **WebGPU shaders** (`vgpu`) | raymarching, fluid, volumetric light, real-time generative texture — when the effect **is** the artefact | a GPU device, a compile step, a render loop and a battery — see `vgpu-shaders` |
 
+**On the Tier-2/Tier-3 seam sit Motion's two view-transition APIs** — imperative `animateView(update)` and,
+since `motion@13.4.0`, the `<AnimateView>` component (`motion/react-animate-view`). Both choreograph the
+browser's View Transitions instead of replacing them, so they stay cheaper than Tier 3 layout animation.
+⚠️ `<AnimateView>` renders React's `ViewTransition` and **throws at runtime** — *"AnimateView requires
+React 19.3 or later."* — while `motion`'s peer range still accepts React 18/19, so npm installs it on a
+19.2 project and it breaks in the browser. Check `react`'s version first; ours are on 19.2.4. Details,
+props and the reduced-motion duty (the docs never mention it): `references/motion-library.md`.
+
 **Never jump to Tier 3 for a fade.** A `<Suspense>` fallback, a hover lift, a dropdown open — all Tier 0/1. Reserve Motion for interactions that genuinely need physics or layout animation.
 
 **And Tier 4 is not the next step up from Tier 3 — it is a different order of cost.** A shader is right
