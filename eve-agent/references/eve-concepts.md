@@ -6,6 +6,24 @@ The cross-cutting concepts behind every capability. This complements `eve-conven
 
 Root-only. Fields:
 - `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; **eve's own scaffold default is now `openai/gpt-5.6-luna-fast`** — `DEFAULT_AGENT_MODEL_ID`, changed in 0.47.2 from the `zai/glm-5.2` of 0.36.0, and used for all three of `eve init`, a config-less agent, and the setup picker's pre-selection. It has moved twice in eleven minor versions, so pin explicitly and **check image support before inheriting whatever it is today** — an agent that will ever see a screenshot needs a vision-capable model or an image route to one) or a `LanguageModel`; may be a `defineDynamic({ events })` for per-session/turn/step model choice — since 0.33.0 there is no `fallback`, every matching handler must return a concrete model.
+  - **Or `autoModel()` — a model picked per turn by an evaluation model** (`import { autoModel } from "eve/experimental/evaluate"`; export present at **eve@0.58.1**, which depends on `ai@^7.0.105`; the bundled `docs/guides/evaluate.md` is the source). *Experimental: its API can change between eve releases, and the AI SDK evaluation-model spec can change in patch releases* — pin eve and re-read the page on upgrade.
+    ```ts
+    import { defineAgent } from "eve";
+    import { autoModel } from "eve/experimental/evaluate";
+
+    export default defineAgent({
+      reasoning: "medium",
+      model: autoModel({
+        // model: typeSafeAi.evaluationModel("jev-latest"),   // optional; default evaluator is "typesafe-ai/jev" via AI Gateway
+        options: {
+          "openai/gpt-5.6-sol": "Difficult reasoning and engineering tasks",   // key = Gateway id, value = description
+          routine: { model: anthropic("sonnet-5"), description: "Routine work", reasoning: "low" },  // object form: provider instance / alias / reasoning override
+        },
+      }),
+    });
+    ```
+    **Runtime, as documented:** it evaluates at the first `step.started` of a turn and reuses the choice for the tool-loop steps of that turn; a new turn chooses again and child sessions route from their own prompts. The evaluator sees **option keys, descriptions and up to eight recent user/assistant text messages capped at 16,000 characters** — never credentials or model instances. A request with no user text, or whose latest messages exceed the cap, **fails before provider I/O**. `reasoning` per option: `"provider-default"` · `"none"` · `"minimal"` · `"low"` · `"medium"` · `"high"` · `"xhigh"`; omitted inherits the agent's. Gateway auth is the ordinary AI SDK one (in `eve dev` the `/login` connection); the TUI footer shows `dynamic model`.
+    **What this skill adds before you reach for it:** (1) it costs **one extra evaluation call per turn** and adds a model we never pinned — this skill's default stays a single pinned model; use `autoModel` when the agent genuinely spans cheap routine turns and hard ones. (2) **The evaluator is a processor**: recent conversation text goes to TypeSafe AI through the Gateway (or to whichever `Experimental_EvaluationModel` provider you pass) — under `stack.data_residency = "eu"`/`"eu-sovereign"` record it with `data_residency.py add` and check `dev-flow/references/eu-data-sovereignty.md` §4.10 before enabling; the Gateway's `zeroDataRetention` option applies to evaluation requests (Vercel changelog, 2026-09-16). (3) Every option must be a model the tools and instructions already work with — image support and tool-calling are not negotiated by the evaluator.
 - `reasoning` — `"provider-default" | "none" | "minimal" | "low" | "medium" | "high" | "xhigh"` (availability is model/provider-dependent).
 - `compaction` — summarizes older turns near the window; **on by default**, `thresholdPercent` default `0.9` (lower = compact sooner).
 - `limits` — `{ maxInputTokensPerSession (default 40_000_000 for root), maxOutputTokensPerSession (unset) }`; set either to `false` to remove a cap. Size tight for public demos (+ Vercel Firewall rate-limit), looser for internal tools.

@@ -1056,6 +1056,8 @@ The skill is **idempotent**: re-running `module-add db` on a project that alread
 **Input**: a project with `stack.agent = "eve"` (opted into at stack-decision time, or added on demand).
 **Output**: an [eve](https://eve.dev) agent (Vercel's filesystem-first agent framework) that the product runs on — or one new capability added to an existing agent.
 
+**Model choice** stays a single pinned model by default. Since eve@0.58.1 an agent can instead take **`autoModel`** (experimental): an AI Gateway evaluation model (TypeSafe AI's Jev) picks per turn from a described allowlist — at the cost of one evaluation call per turn, and with the evaluator becoming a processor that sees recent conversation text, which the data-residency register has to record.
+
 **Three topologies, and the project picks — `dev-flow` §Topology policy proposes them in this order:**
 
 | | Shape | Choose it when |
