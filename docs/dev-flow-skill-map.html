@@ -189,7 +189,8 @@
 
   /* how-to */
   .modes{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:1.7rem}
-  @media (max-width:760px){ .modes{grid-template-columns:1fr} }
+  .modes.four{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:760px){ .modes, .modes.four{grid-template-columns:1fr} }
   .mode{padding:18px}
   .mode .mh{display:flex; align-items:center; gap:.6em; font-weight:650; font-size:.98rem}
   .mode .mh .num{font-family:var(--fM); font-size:.68rem; color:var(--ac); border:1px solid var(--bd-2); border-radius:6px; padding:.12em .5em; font-variant-numeric:tabular-nums}
@@ -481,9 +482,9 @@
   <div class="wrap">
     <div class="kick"><span class="no">06</span> the rules</div>
     <h2 class="sec-t">What every skill is held to</h2>
-    <p class="sec-p">Three rules that apply before any skill does its job — one about how the skills are <i>written</i>, two about how the code they produce <i>looks</i>.<br><b>The lint checks</b> hold the suite to them, and most of them exist because the same thing kept happening: <b>the content held and the metadata rotted</b>. A capability documented in a body but missing from its <code>description</code> never loads. A skill absent from the README index is invisible. A count written in prose drifts the moment a skill is added.</p>
+    <p class="sec-p">Four rules that apply before any skill does its job — one about how the skills are <i>written</i>, three about how the code they produce <i>looks</i>.<br><b>The lint checks</b> hold the suite to them, and most of them exist because the same thing kept happening: <b>the content held and the metadata rotted</b>. A capability documented in a body but missing from its <code>description</code> never loads. A skill absent from the README index is invisible. A count written in prose drifts the moment a skill is added.</p>
 
-    <div class="modes">
+    <div class="modes four">
       <div class="card mode">
         <div class="mh"><span class="num">0</span> Never invent</div>
         <p>The skills are a doc-grounded second brain. No guessed API, flag or command: a “use library X” without the <b>how</b> from X's official docs is an incomplete skill. Prefer the <b>version-matched</b> source the tool itself ships — <code>next dev</code> maintains an <code>AGENTS.md</code> block pointing at the bundled docs; eve ships <code>node_modules/eve/docs</code>. Moving surfaces carry <code>[VERIFY]</code>; upstreams get re-checked on a cadence.</p>
@@ -499,6 +500,11 @@
         <p>Every frontend ships i18n from the scaffold — no hardcoded copy. Web <code>next-intl</code>, mobile the RN stack. Minimum <code>en</code> + <code>it</code>; adding it later touches every screen.</p>
         <code class="ex">stack.locales = ["en", "it"]</code>
       </div>
+      <div class="card mode">
+        <div class="mh"><span class="num">3</span> Library primitives</div>
+        <p>UI is composed only from the chosen library's primitives — for shadcn, what the CLI installs into <code>components/ui/</code>, all of it at <code>scaffolded</code>, changed only through tokens and <code>cva</code> variants. Never a hand-rolled sidebar, dialog or combobox, never a second component library, never a forked primitive; a truly new one is a recorded exception. The design lint refuses the imports that go around it.</p>
+        <code class="ex">search components/ui/ <span class="pr">→</span> then write</code>
+      </div>
     </div>
 
     <p class="sec-p" style="margin-top:1rem">That principle is why verification keeps paying. Real catches, before any of it reached a project: a CLI command we asserted in five places that had been <b>removed</b> upstream · an i18n API <b>deprecated the same day</b> we swept · a test library that turned its whole API <b>async</b>, silently breaking every test we generate on a fresh install · a default runtime that stopped working on iOS · a utility class that doesn't exist in the package we recommended.</p>
@@ -513,7 +519,7 @@
         <div class="step"><div class="cmd"><span class="sk">url state</span> nuqs <span class="cm"># the write side of the searchParams rung</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">storage</span> Vercel Blob <span class="cm"># same platform as the deploy, one less sub-processor</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">maps</span> mapcn <span class="cm">· web</span> · mapcn-rn <span class="cm">· mobile — mind the tile licence</span></div></div>
-        <div class="step"><div class="cmd"><span class="sk">motion</span> tw-animate-css <span class="pr">→</span> CSS <span class="pr">→</span> view transitions <span class="pr">→</span> Motion <span class="cm"># cheapest tier that works — &lt;AnimateView&gt; on the seam needs React 19.3, or it throws at runtime</span></div></div>
+        <div class="step"><div class="cmd"><span class="sk">motion</span> tw-animate-css <span class="pr">→</span> CSS <span class="pr">→</span> view transitions <span class="pr">→</span> Motion <span class="cm"># cheapest tier first · &lt;AnimateView&gt; needs React 19.3</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">design lint</span> @shadcn/lint <span class="cm"># wired by a script, gated at scaffolded — errors name the token to use</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">registries</span> registry-intake <span class="cm"># allowlist → review → snapshot → install; a hook refuses the shortcut</span></div></div>
         <div class="step"><div class="cmd"><span class="sk">graphs</span> React Flow <span class="cm"># only a graph the user acts on — tokens via --xy-*, a list on mobile</span></div></div>
