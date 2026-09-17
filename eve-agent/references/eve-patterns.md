@@ -674,16 +674,38 @@ and keep specialist selection on descriptions that do not overlap (§7).
 
 - **It is a processor.** The `state` leaves your system through AI Gateway to TypeSafe AI. Send the fields the
   question needs — ids and extracted values, not whole transcripts — set `zeroDataRetention: true` where the
-  plan allows, and record it with `data_residency.py add`; its EU processing is **not verified**
+  plan allows, and record it with `data_residency.py add`. **It is a US transfer**: TypeSafe AI's privacy policy
+  says *"The Services are hosted in the United States"* and names no DPA, SCCs or DPF (read 2026-09-17); the
+  Gateway catalog marks the model `zdr: all` and `no_training: all`. Under `data_residency = "eu-sovereign"` it is a
+  flagged row, and identity documents or special-category data never go into its `state`
   (`dev-flow/references/eu-data-sovereignty.md` §4.10).
+- **Italian is not documented.** Neither the launch post nor the Gateway page lists supported languages; on a product
+  whose users write in Italian, the eval in (d) is what tells you whether the thresholds hold.
+- **Limits stated by TypeSafe:** text input only, no string output, a `choice` of at most 255 options, 70–500 ms
+  end-to-end; no calibration figures are published, so "calibrated" is a claim to test, not a property to rely on.
 - **Calibrate thresholds with evals, not intuition.** A probability is only meaningful against labelled cases from
   your domain; write the eval (d) before trusting the gate (b, c).
 - **Design the questions like a form.** One decision per question, `instructions` phrased as a yes/no or a pick,
   and `criteria` that define the ends of the scale — the Gateway docs' own examples all do this.
 - **It is experimental on both sides** (`experimental_evaluate`, `eve/experimental/evaluate`): pin `ai` and `eve`,
   and re-read both pages on upgrade.
-- **Measure the cost on your traffic.** Billing is per token (`result.usage`); the *"up to 193.6x faster and 444.6x
-  cheaper"* figure is TypeSafe's, on its own workflows.
+- **Know what the price actually buys.** Jev is **$0.042 per million input tokens, output free** (AI Gateway catalog,
+  2026-09-17). The *"193.6x faster, 444.6x cheaper"* headline compares it with *"the smartest models (Astra and
+  Fable)"* in non-reasoning mode, and TypeSafe itself calls it *"the higher end of real world gains"*. Against the
+  small models the gap is narrow — for one decision of ~400 input tokens (an LLM would also emit ~30 tokens of JSON),
+  per 100,000 decisions at the same catalog's prices:
+
+  | Model | $/M input · output | ≈ per 100k decisions |
+  |---|---|---|
+  | `typesafe-ai/jev` | 0.042 · 0 | **$1.70** |
+  | `openai/gpt-5-nano` | 0.05 · 0.40 | $3.20 (more if it reasons) |
+  | `google/gemini-2.5-flash-lite` | 0.10 · 0.40 | $5.20 |
+  | `anthropic/claude-haiku-4.5` | 1 · 5 | $55 |
+  | `anthropic/claude-sonnet-5` | 2 · 10 | $110 |
+
+  So choose it for the **typed answer with a probability and the latency**, not for price against a nano model; the
+  price case is real only against the model you would otherwise have called. Prices move — re-read the catalog
+  (`GET https://ai-gateway.vercel.sh/v1/models`) and measure `result.usage` on your own traffic.
 
 ## When to reach for these
 
