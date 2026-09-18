@@ -1555,7 +1555,7 @@ scripts/skill-doctor.sh ~/src/common-skills
 The omitted flag is the second trap. Global roots are added *only* under `--include-global-skills`
 (`collect_sessions.py:124`), and the collector skips names it has already seen — so with the flag on,
 it reads the **installed** copy of every skill and drafts its edits against that. With it off,
-`--skills-dir` wins: verified by running it, **45 of 47 skills resolve inside `~/my-skills`** and none
+`--skills-dir` wins: verified by running it, **45 of the 47 skills the suite had then (2026-08-28) resolved inside `~/my-skills`** and none
 in `~/.claude/skills`. Before, 3 of 368. The price is deliberate — without the global roots the report
 cannot see plugin or third-party skills, which is exactly right when auditing our own.
 
