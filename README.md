@@ -1166,6 +1166,8 @@ Derived from `lusentis/next-skills/nextjs-usestate` (MIT) — renamed `state-dis
 
 Inspired by the **[transitions.dev](https://transitions.dev/)** motion library (Jakub Antalík) — this is our token-driven, stack-native take on the idea, not a fork or an install of their package.
 
+**And a cookbook to borrow from, with the rule that keeps it honest**: [React Bits](https://reactbits.dev) ships 202 animated components as a shadcn registry (MIT + Commons Clause — usable in a product, never republished as components). Its 30 micro-interactions are Motion-based and already call `useReducedMotion()`, but more than half of them animate a pattern shadcn already ships — a checkbox, a switch, a toast, four buttons. So `references/react-bits.md` maps each one to the primitive that owns it and makes the default action **port the timings onto our primitive**, not install a second one; only the handful with no primitive behind them go in, through `registry-intake`, in the `TS-TW` variant. Running that review against the registry also earned two new intake checks: a dependency range that excludes the project's installed major (they ask `motion@^12`, we run 13) and a 1000-character class list of arbitrary values, which the old check called minified code and blocked.
+
 ### `animated-icons` — Motion-animated icons via the shadcn registries
 
 **Input**: "animated icon" / "animate this icon" / "make the bell shake on a new notification".

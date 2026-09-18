@@ -106,6 +106,7 @@ CODES = {
     "S3": "reads environment variables",
     "S4": "talks to hard-coded remote hosts",
     "S5": "injects raw HTML",
+    "S6": "very wide source lines — a class list of arbitrary values the design lint will count",
     "E1": "declares env vars that shadcn writes into .env",
     "E2": "ships a value for a secret-looking env var",
     "C1": "rewrites theme tokens or global CSS — DESIGN.md is the source of truth",
@@ -115,6 +116,7 @@ CODES = {
     "D4": "npm dependency runs install scripts",
     "D5": "npm dependency published less than 30 days ago",
     "D6": "npm dependency could not be verified (npm view failed)",
+    "D7": "npm dependency range excludes the version the project has installed",
     "R1": "registry dependency outside the allowlist",
     "R2": "item does not declare the shadcn registry-item $schema",
     "R3": "item type is not a shadcn registry type",
@@ -356,9 +358,15 @@ def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[
             server_files.append(tgt)
         if re.search(r"child_process|\bexecSync\b|\beval\(|new Function\(", content):
             add("S1", "block", "executes code or processes", tgt)
-        long_lines = [ln for ln in content.splitlines() if len(ln) > 1000]
-        if (long_lines and not tgt.endswith((".json", ".css", ".svg", ".md"))) or re.search(r"[A-Za-z0-9+/=]{800,}", content):
+        # A >1000-char line is normal in a component: one Tailwind class list with arbitrary values
+        # reaches 1070 in React Bits' SwipeToast. Minified code packs statements, so require them.
+        minified = [ln for ln in content.splitlines() if len(ln) > 1000 and ln.count(";") >= 3]
+        if (minified and not tgt.endswith((".json", ".css", ".svg", ".md"))) or re.search(r"[A-Za-z0-9+/=]{800,}", content):
             add("S2", "block", "obfuscated, minified or large encoded blob", tgt)
+        wide = [ln for ln in content.splitlines() if len(ln) > 1000 and ln not in minified]
+        if wide and tgt.endswith((".tsx", ".jsx")):
+            add("S6", "review", f"{len(wide)} line(s) over 1000 characters — usually a class list of arbitrary "
+                                "values, which the design lint counts one by one", tgt)
         envs = sorted(set(re.findall(r"process\.env\.([A-Z0-9_]+)", content)))
         if envs:
             add("S3", "review", "reads " + ", ".join(envs), tgt)
@@ -430,13 +438,47 @@ def npm_facts(spec: str) -> dict | None:
             "scripts": d.get("scripts") or {}, "version": d.get("version")}
 
 
-def check_deps(items: list[Item], npm=None) -> tuple[list[Finding], dict]:
+def installed_version(root: Path, name: str) -> str | None:
+    for pkg in [root / "node_modules" / name / "package.json",
+                *root.glob(f"apps/*/node_modules/{name}/package.json"),
+                *root.glob(f"packages/*/node_modules/{name}/package.json")]:
+        try:
+            return json.loads(pkg.read_text()).get("version")
+        except (OSError, json.JSONDecodeError):
+            continue
+    for pj in [root / "package.json", *root.glob("apps/*/package.json"), *root.glob("packages/*/package.json")]:
+        try:
+            d = json.loads(pj.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        spec = {**(d.get("dependencies") or {}), **(d.get("devDependencies") or {})}.get(name)
+        if spec:
+            m = re.search(r"(\d+)\.(\d+)\.(\d+)", spec)
+            if m:
+                return m.group(0)
+    return None
+
+
+def major_conflict(declared: str, present: str) -> bool:
+    """True when a caret/tilde range cannot accept the version already in the project."""
+    m = re.match(r"^[\^~]?(\d+)\.", declared.strip())
+    p = re.match(r"^(\d+)\.", present.strip())
+    return bool(m and p and m.group(1) != p.group(1))
+
+
+def check_deps(items: list[Item], npm=None, root: Path | None = None) -> tuple[list[Finding], dict]:
     out, facts = [], {}
     npm = npm or npm_facts
     for it in items:
         for dep in (it.data.get("dependencies") or []) + (it.data.get("devDependencies") or []):
             f = npm(dep)
             name = re.sub(r"(?<=.)@[^/]*$", "", dep)
+            declared = dep[len(name) + 1:] if len(dep) > len(name) else ""
+            present = installed_version(root, name) if root and declared else None
+            if present and major_conflict(declared, present):
+                out.append(Finding("D7", "review", it.key,
+                                   f"{name}: the item asks for {declared}, the project has {present} — "
+                                   "installing it adds a second major or breaks the range"))
             if f is None or ("missing" in f and not f["missing"]):
                 out.append(Finding("D6", "review", it.key, f"{name}: npm view failed"))
                 continue
@@ -497,7 +539,7 @@ def review(spec: str, root: Path, npm=None, allowlist_only: bool = False,
         if it is not items[0]:
             if ns_of(it.key) not in allowed:
                 findings.append(Finding("R1", "block", it.key, f"pulled in by the closure, but {ns_of(it.key)} is not allowlisted"))
-    dep_findings, deps = check_deps(items, npm or npm_facts)
+    dep_findings, deps = check_deps(items, npm or npm_facts, root)
     findings += dep_findings
     if any(f.code == "T1" for f in findings):
         high = True

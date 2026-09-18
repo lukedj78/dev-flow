@@ -69,10 +69,12 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 | S1 | block | `child_process`, `eval(`, `new Function(` |
 | S2 | block | minified/obfuscated lines or a large encoded blob |
 | S3 · S4 · S5 | review | reads `process.env` · hard-coded hosts · `dangerouslySetInnerHTML` |
+| S6 | review | lines over 1000 characters in a `.tsx` — usually a class list of arbitrary values the design lint counts one by one (React Bits' `SwipeToast`: 1070) |
 | E1 · E2 | review · block | declares env vars · ships a value for a secret-looking one |
 | C1 | block | `cssVars` / `css` / `tailwind` / `theme` — DESIGN.md owns the tokens |
 | D1 · D2 · D4 | block | npm package does not exist · (A)GPL/SSPL/BUSL/no licence · install scripts |
 | D3 · D5 · D6 | review | weak copyleft or NC · published < 30 days ago · `npm view` failed |
+| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13) |
 | R1 | block | the closure reaches a registry that is not allowlisted |
 | R2 · R3 | info · block | no registry-item `$schema` · unknown item type |
 | V1 | block | eve tool key the **installed** eve's loader rejects (read from `node_modules/eve`; fallback: eve 0.55.0) |
@@ -121,7 +123,7 @@ lets `shadcn add @coss/…` through — that registry is the project's component
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 21 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 23 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

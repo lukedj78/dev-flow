@@ -5,7 +5,7 @@ description: 'Add a Motion-animated icon to a Next.js app from a shadcn registry
 
 # animated-icons — Motion-animated icons via the shadcn registries
 
-Adds one **pre-built, Motion-animated icon** to a Next.js app instead of hand-rolling an SVG animation. Two registries ship them as shadcn components, both MIT, both on `motion`, both copied into your repo as source you then own:
+Adds one **pre-built, Motion-animated icon** to a Next.js app instead of hand-rolling an SVG animation. (React Bits' `Bell Toggle` and friends are the same idea from a different registry — this skill's two registries stay the answer for icons; see `transitions/references/react-bits.md`.) Two registries ship them as shadcn components, both MIT, both on `motion`, both copied into your repo as source you then own:
 
 | Registry | Icons | Namespace | Extra file |
 |---|---:|---|---|

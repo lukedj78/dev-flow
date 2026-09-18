@@ -156,6 +156,27 @@ class Checks(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertIn(expected, self.run_checks(data)[0])
 
+    def test_a_wide_class_list_is_reviewed_not_blocked(self) -> None:
+        # React Bits' SwipeToast has one 1070-char Tailwind class list; minified code packs statements
+        wide = "      className={`" + "data-[inline=false]:right-8 " * 60 + "`}\n"
+        codes, _ = self.run_checks(item("a", [ui_file("components/x.tsx", wide)]))
+        self.assertIn(("S6", "review"), codes)
+        self.assertNotIn(("S2", "block"), codes)
+        packed = "const a=1;" * 200 + "\n"
+        self.assertIn(("S2", "block"), self.run_checks(item("a", [ui_file("components/y.tsx", packed)]))[0])
+
+    def test_dependency_range_against_the_installed_major(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            write(root, "package.json", {"name": "app", "dependencies": {"motion": "^13.4.0"}})
+            it = ri.Item("@x/a", "s", item("a", [], dependencies=["motion@^12.23.12", "clsx@^2.1.0"]))
+            codes = {(f.code, f.item, f.message) for f in ri.check_deps([it], fake_npm({}), root)[0]}
+            self.assertTrue(any(c == "D7" and "motion" in m for c, _, m in codes), codes)
+            self.assertFalse(any(c == "D7" and "clsx" in m for c, _, m in codes), "no conflict, no finding")
+            self.assertEqual(ri.installed_version(root, "motion"), "13.4.0")
+            self.assertFalse(ri.major_conflict("^13.0.0", "13.4.0"))
+            self.assertTrue(ri.major_conflict("~12.23.12", "13.4.0"))
+
     def test_plain_ui_component_is_clean_and_low(self) -> None:
         codes, high = self.run_checks(item("a", [ui_file("components/pdf/card.tsx")]))
         self.assertEqual(codes, set())
