@@ -1,0 +1,9 @@
+{
+  "search_primitives": false,
+  "write_page": true,
+  "no_foreign_install": false,
+  "primitives_untouched": false,
+  "uses_primitives": false,
+  "no_raw_controls": false,
+  "no_foreign_imports": false
+}

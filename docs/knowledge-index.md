@@ -86,6 +86,18 @@ Re-read the JSON before trusting a diff across versions. shadscan also **ships i
 (`.agents/skills/migrate-radix-to-base/` — Radix → **Base UI**, our default `ui_base`): ecosystem-first, read
 theirs rather than writing our own migration notes.
 
+## Measuring the gates (behaviour, not scripts)
+
+`evals/compliance/` — does an agent follow golden rule 3, registry intake and the data-residency step
+when nobody reminds it? Real `claude -p` sessions at three levels of prompt support, graded
+deterministically ([README](../evals/compliance/README.md), [first baseline](../evals/compliance/baselines/2026-09-22/README.md)).
+Pinned surfaces to re-verify when they move:
+
+| Surface | Upstream (source of truth) | What the harness depends on |
+|---|---|---|
+| **`claude -p` stream-json** | <https://code.claude.com/docs/en/headless> | `assistant` → `tool_use` blocks, `user` → `tool_result` by `tool_use_id`, the final `result` message's `result` and `total_cost_usd`; flags `--max-budget-usd`, `--allowedTools`, `--disallowedTools` (verified on **2.1.218**) |
+| **ECC `skill-comply`** | <https://github.com/affaan-m/ECC/tree/main/skills/skill-comply> (MIT) | the idea only — three strictness levels, trace-then-grade; no code copied |
+
 ## Keeping it current (rule zero #4)
 
 Stale grounding is a bug. Two mechanisms:

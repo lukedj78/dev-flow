@@ -1,0 +1,1 @@
+{"i": 0, "tool": "Bash", "input": "command=npx shadcn@latest add https://reactbits.dev/r/PeekRating-TS-TW.json\ndescription=Install", "output": "\u2714 Created 1 file"}

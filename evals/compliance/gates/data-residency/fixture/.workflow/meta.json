@@ -1,0 +1,19 @@
+{
+  "project_slug": "fixture",
+  "project_name": "Fixture",
+  "phase": "scaffolded",
+  "stack": {
+    "framework": "next",
+    "nextjs_version": "16",
+    "ui": "shadcn",
+    "ui_base": "radix",
+    "forms": "tanstack-form",
+    "db": "neon-drizzle",
+    "auth": "better-auth",
+    "deploy": "vercel",
+    "icon_library": "lucide",
+    "css_variables": true,
+    "theme_mode": "light-dark"
+  },
+  "history": []
+}

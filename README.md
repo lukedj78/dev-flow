@@ -1674,9 +1674,13 @@ claude plugin validate . --strict                  # the marketplace entry
 # 16 checks, self-tested against their own fixtures
 python3 evals/generated-page/check.py ~/projects/my-app
 python3 evals/generated-page/check.py --selftest      # CI: every check must fire on bad, stay silent on good
+
+# Measure whether an agent follows the gates unprompted — real `claude -p` sessions, paid, local
+python3 evals/compliance/comply.py run golden-rule-3 --keep
+python3 evals/compliance/comply.py selftest           # CI: the grader against hand-written traces
 ```
 
-**Three questions, three tools.** `lint_skills.py` asks whether a skill is still
+**Four questions, four tools.** `lint_skills.py` asks whether a skill is still
 well-formed — that is the *source*. `run_evals.py` asks whether the deterministic
 scripts still hold — the *tools*. [`evals/generated-page/check.py`](./evals/generated-page/README.md)
 asks the one that was missing: **did the generation follow its own rules?** — the
@@ -1691,6 +1695,17 @@ run tells you nothing, because the absolute count is a property of the app as mu
 of the skill. And the half it cannot do stays human: whether the page is *good* needs a
 blind A/B, and letting a number stand in for that judgement is how the number starts
 lying.
+
+The fourth, [`evals/compliance/comply.py`](./evals/compliance/README.md), asks about
+*behaviour*: **does an agent do what a gate asks when nobody reminds it?** Every gate has a
+mechanical half with unit tests and a half that is a sentence in a skill (*search
+`components/ui/` first*, *review before approve*, *register the provider*). The sentence was the
+half nobody counted, and the scripts cannot see it: `registry_intake.py check` passes after a
+`shadcn add <url>` that bypassed it. The harness runs a real session in a throwaway dev-flow
+project at three levels of prompt support (asked for, not mentioned, argued against) and
+grades the trace and the final tree deterministically. It reads level 2, where the task comes
+with no reminder. The idea is ECC's `skill-comply`; the LLM judge is dropped, because our gates
+are named scripts and named paths.
 
 CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --check` and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
 

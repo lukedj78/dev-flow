@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "shadcn": "4.21.0",
+  "registries": {
+    "@react-bits": {
+      "url": "https://reactbits.dev/r/{name}.json",
+      "trust": "snapshot",
+      "reason": "Motion micro-components for the dashboard",
+      "allowed_by": "selftest",
+      "allowed_at": "2026-09-22T08:47:29+00:00"
+    }
+  },
+  "items": {
+    "@react-bits/PeekRating-TS-TW": {
+      "source": "https://reactbits.dev/r/PeekRating-TS-TW.json",
+      "snapshot": "vendor/registry/react-bits/PeekRating-TS-TW.json",
+      "sha256": "0910ba78cca49847038b90658151aff8705bafcb1c047e6b7b5787878b27b72e",
+      "tier": "low",
+      "reviewed_at": "2026-09-22T08:48:56+00:00",
+      "findings": [],
+      "accepted": {},
+      "approved_by": "selftest",
+      "approved_at": "2026-09-22T08:48:56+00:00",
+      "note": "",
+      "via": null,
+      "requires": [],
+      "dependencies": {
+        "@hugeicons/react": {
+          "license": "MIT",
+          "version": "1.1.10",
+          "created": "2024-05-09T15:37:05.245Z"
+        },
+        "@hugeicons/core-free-icons": {
+          "license": "MIT",
+          "version": "4.3.5",
+          "created": "2025-01-25T12:31:15.138Z"
+        }
+      },
+      "installed_at": null
+    }
+  },
+  "design_lint_caps": {}
+}
