@@ -30,6 +30,28 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-09-22 against eve@0.63.0** (eve shipped 0.58.1 → 0.63.0 — five minor
+> releases — in the five days since the 09-17 pass; `npm pack eve@0.63.0`, then `CHANGELOG.md` +
+> `docs/`, same technique). **Three breaking renames land on identifiers this skill had just
+> documented from the 09-17 pass, all confirmed against the shipped `docs/`, not the changelog
+> bullets alone**: ① **`autoModel` → `auto`, and its module moved**: `eve/experimental/evaluate`
+> is gone; the per-turn model picker is `auto` from `eve/models`, the standalone question-asker is
+> `evaluate` from `eve/ai` (0.60.0, `docs/guides/evaluate.md` rewritten around the new names — note
+> a second, unrelated `auto` now lives at `eve/tools/approval` for tool approvals). ② **`t.judge.autoevals.*`
+> is gone**; `t.judge(...)` is called directly (criteria string / typed question / batch), itself
+> calling `evaluate` under the hood and defaulting to `typesafe-ai/jev` (0.62.0, `docs/evals/judge.mdx`).
+> ③ **`agent/instrumentation.ts` no longer builds**; `agent/instrumentation/` (one file per slot) is
+> the only supported layout, `experimental.instrumentationProviders` no longer exists, and the OTel
+> destination's `exportPolicy` shape changed (`redactSpanInputs`/`redactSpanOutputs`/destination
+> `recordInputs`/`recordOutputs`/`content`/`composeSpanExportPolicies` all removed and now throw)
+> (0.62.0 removing the flat file, 0.60.0 for the export-policy shape; `docs/observability/instrumentation-migration.md`
+> is new and gives the field-by-field mapping). Also noted, not yet acted on: `t.newSession()` →
+> `await t.session()` (0.59.0); durable background execution is now `defineWorkflowTool`-only, removed
+> from `defineTool`/dynamic tools (0.63.0) — this skill never documented background execution outside
+> `defineWorkflowTool`, so nothing here needed correcting for that one. Corrected across `eve-concepts.md`,
+> `eve-scaffold.md`, `eve-patterns.md` §13, `eve-evals.md`, `eve-capabilities.md`, `eve-conventions.md`
+> §Observability, `SKILL.md`, `README.md`, `eu-data-sovereignty.md` §4.10.
+>
 > **Verification pass 2026-09-17 against eve@0.58.1** (`npm pack eve@0.58.1`, scoped to one new page).
 > **New**: `docs/guides/evaluate.md` — `autoModel` from `eve/experimental/evaluate` (the package's
 > `exports` has `./experimental/evaluate`; `agent-config.md` §Choose the model dynamically and
@@ -279,8 +301,9 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/session-context` | `eve-conventions.md` + `eve-concepts.md` + `eve-patterns.md` (`ctx.session.auth`) | ✅ |
 | `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |
-| `/docs/guides/instrumentation` | `eve-conventions.md` §Observability — including `tracePolicy`, which the docs page does **not** mention; read from `eve/instrumentation`'s `.d.ts` — + `eve-scaffold.md` (`instrumentation.ts`) | ✅ |
-| `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `autoModel` (experimental, eve@0.58.1) | ✅ |
+| `/docs/observability/instrumentation` (moved under a new `/docs/guides/instrumentation/` directory in eve 0.62.0) | `eve-conventions.md` §Observability — `agent/instrumentation/` is now the only supported layout (a flat `instrumentation.ts` fails the build); per-file `tracePolicy` unchanged in shape | ✅ |
+| `/docs/observability/instrumentation-migration` — **new page, eve 0.62.0** | `eve-conventions.md` §Observability (migration warning + before/after field mapping) | ✅ |
+| `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `auto` (renamed from `autoModel`/`eve/experimental/evaluate` in eve 0.60.0; now `eve/models`, experimental, eve@0.63.0) | ✅ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
 
 ## Client, frontend, deployment

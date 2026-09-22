@@ -32,8 +32,9 @@ eve registry add @acme=https://registry.acme.com/r/{name}.json
 
 Where files land: **extensions** → a mount under `agent/extensions/`; **connections** →
 `agent/connections/` (+ installs `@vercel/connect` when required); **instrumentation** →
-`agent/instrumentation.ts` (agents have **one** instrumentation file — compose multiple
-exporters by hand). After any install: **review the generated files and add required config
+one file per slot under `agent/instrumentation/` (eve ≥ 0.62.0 — a flat `agent/instrumentation.ts`
+is no longer discovered and fails the build; see `eve-conventions.md` §Observability). After any
+install: **review the generated files and add required config
 (env vars, Connect provisioning) before running the agent.** The full catalog is the
 integrations directory (<https://eve.dev/integrations>). Only fall through to hand-authoring the
 sections below when nothing in the registry fits (or you must own/modify the source — then see
@@ -548,8 +549,8 @@ export default defineEval({
 Files live in `evals/` at the **app root, a sibling of `agent/`**, named `*.eval.ts`; the
 path is the id; `evals.config.ts` holds project config (default judge model, reporters).
 Add a negative case (`t.notCalledTool` / `t.usedNoTools` / `t.maxToolCalls`). Deterministic
-assertions are hard gates; LLM-judge graders (`t.judge.autoevals.{factuality,summarizes,
-closedQA,sql}`) are soft by default — enforce with `.atLeast()` or `.gate()`. The eval suite
+assertions are hard gates; the LLM judge (`t.judge(...)` — the `t.judge.autoevals.*` graders
+it replaced in eve 0.62.0 are gone) is soft by default — enforce with `.atLeast()` or `.gate()`. The eval suite
 is the deploy gate; new capabilities without evals erode it. **Full API** — the complete
 assertion set (`toolOrder` / `eventOrder` / `calledSubagent` / `loadedSkill` / `noFailedActions`
 / structured-output / preconditions), the matchers, judge model resolution, targets

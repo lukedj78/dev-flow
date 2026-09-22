@@ -46,7 +46,7 @@ export default defineEval({
 - `t.start(input)` — start a turn, return immediately (observe in-flight); `t.cancel()` cancels the active turn.
 - `t.reply` — last assistant message (or `null`); `t.sessionId`; `t.events` — full typed event stream so far.
 - `t.log(msg)` — debug line; `t.skip(reason)` — omit for this target (reported skipped, never changes exit code).
-- `t.transcript` *(0.47.0)* — the primary session's observed **user and assistant** messages, formatted in turn order with `User:` / `Assistant:` labels and blank lines between them. It **excludes reasoning, tool calls, tool results and other sessions' messages**, and it updates only after a turn settles — read it after `await t.send(…)` / `t.respond(…)` / `await live.result()`, never mid-turn. An independent session from `t.newSession()` carries its own `session.transcript`.
+- `t.transcript` *(0.47.0)* — the primary session's observed **user and assistant** messages, formatted in turn order with `User:` / `Assistant:` labels and blank lines between them. It **excludes reasoning, tool calls, tool results and other sessions' messages**, and it updates only after a turn settles — read it after `await t.send(…)` / `t.respond(…)` / `await live.result()`, never mid-turn. An independent session from `await t.session()` (renamed from `t.newSession()` in eve 0.59.0) carries its own `session.transcript`.
 
 **Multi-turn:** intermediate turns become locals; later turns don't overwrite them.
 
@@ -102,20 +102,45 @@ content this defends against is `eve-patterns.md` §11.)
 
 ## LLM judge
 
-Soft by default (tracked, never fails unless gated). Graders under `t.judge.autoevals`:
+⚠️ **`t.judge.autoevals.*` was removed in eve 0.62.0.** The `factuality`/`summarizes`/`closedQA`/`sql` graders and
+the `autoevals` namespace are gone; `t.judge(...)` is now called directly, calls `evaluate` from `eve/ai` under
+the hood, and defaults to `typesafe-ai/jev` (`docs/evals/judge.mdx`).
 
-| Grader | What it scores |
-|---|---|
-| `factuality(expected)` | factual consistency vs an expected answer (A–E buckets) |
-| `summarizes(expected)` | how well the reply summarizes the expected text |
-| `closedQA(criteria)` | reply satisfies a free-form yes/no criterion |
-| `sql(expected)` | semantic equivalence of two SQL statements |
-
-Each scores `t.reply` by default; pass `{ on: value }` to grade another output. **To grade a whole conversation rather than the last reply, pass `{ on: t.transcript }`** — that is what it exists for; grading `t.reply` on a multi-turn case scores the last message and silently ignores everything that led to it. Gate/soften with `.gate(t)` / `.atLeast(t)`:
+Soft by default (tracked, never fails unless gated). `t.judge` accepts a criteria string (becomes a `boolean`
+question), one typed question (`boolean` / `score` / `choice`), or a batch of named questions:
 
 ```ts
-t.judge.autoevals.closedQA("cites a source").atLeast(0.6);
+t.judge("The response uses no math beyond arithmetic.").atLeast(0.8);
+
+t.judge({
+  type: "score",
+  instructions: "Grade the response's clarity.",
+  criteria: ["Unclear", "Mostly clear", "Clear and concise"],
+}).label("clarity").atLeast(0.75);
 ```
+
+| Question | Assertion score |
+|---|---|
+| Criteria string or `boolean` | the returned probability of true, 0–1 |
+| `score` | the returned rubric position divided by the highest level index |
+| `choice` | 1 when the selected option equals `expected`; otherwise 0 |
+
+By default the judge grades `{ input, output }` — the latest prompt and reply of the session whose turn most
+recently settled. Pass `{ on: value }` to grade another output (e.g. `session.transcript` for a multi-turn case —
+grading the default output on a multi-turn case scores only the last message). A **batch** call takes `state`
+instead of `on`, replacing the default entirely:
+
+```ts
+const judgments = t.judge({
+  state: { response: turn.message ?? "", reference },
+  questions: {
+    accurate: { type: "boolean", instructions: "Is the response consistent with the reference?" },
+    outcome: { type: "choice", instructions: "Classify the response.", criteria: { answered: "…", declined: "…" }, expected: "answered" },
+  },
+});
+```
+
+Choice questions require an `expected` option key, used locally for scoring and never sent to the evaluator. Gate/soften with `.gate(t)` / `.atLeast(t)`; a boolean probability rarely reaches exactly 1 even for a good response, so give it an explicit gate rather than relying on the default.
 
 **Judge model** resolves innermost-wins: per-call `{ model, modelOptions }` → per-eval `defineEval({ judge: {…} })` → project `defineEvalConfig({ judge: {…} })`. It is resolved once when `t` is built and is **never** the model under test.
 
