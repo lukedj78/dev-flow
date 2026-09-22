@@ -424,10 +424,24 @@ Also on the destination side: `otelIntegration()` exposes **`metricReaders`** (0
 destination can declare OTLP metric readers next to its span processors; readers from every
 destination are collected in declaration order.
 
-⚠️ **The `agent/instrumentation/` *directory* is behind a flag.** The provider layer is
-"reachable only with `experimental.instrumentationProviders` on — with the flag off nothing discovers
-that directory", so those files compile and never run. The single root-only
-`agent/instrumentation.ts` is the non-experimental path.
+⚠️ **Reversed as of eve 0.62.0 — re-read before touching instrumentation.** The above (`capture`,
+`legacyCaptureTracePolicy()`, provider `recordInputs`/`recordOutputs`, a flag-gated
+`agent/instrumentation/` directory) described `eve < 0.60.0`. As shipped in eve@0.63.0:
+- **The flag is gone and the direction is reversed.** `experimental.instrumentationProviders` no longer
+  exists; instrumentation discovery is always on. The path-named **`agent/instrumentation/` directory is
+  now the only supported API**, and a remaining root `agent/instrumentation.ts` **fails the build**
+  (`docs/observability/instrumentation-migration.md`).
+- **Two separate `tracePolicy`-shaped things, don't conflate them.** A lifecycle file's own
+  `defineInstrumentation({ tracePolicy })` still returns `{ emit, recordInputs, recordOutputs }` (or a
+  bare boolean) and decides whether *that file* sees content — this part is unchanged. A **destination**'s
+  `otelIntegration({ exportPolicy })` was overhauled in 0.60.0: `redactSpanInputs()`, `redactSpanOutputs()`,
+  destination-level `recordInputs`/`recordOutputs`/`content`, and `composeSpanExportPolicies()` are
+  **removed** (passing them now throws), replaced by `exportPolicy: { span: (span) => ({ emit, redact,
+  inputs, outputs }) }` — an array of policies composes the way `composeSpanExportPolicies` used to.
+  `otel({ functionId, tracePolicy, traceChannelRequests })` is the process-wide equivalent for the
+  lifecycle side. `[VERIFY]` the exact mapping against `node_modules/eve/docs/observability/otel.mdx` and
+  `instrumentation-migration.md` before writing a destination file — this skill has not re-verified every
+  field, only that the old shapes throw.
 
 ## Workspace seeding
 

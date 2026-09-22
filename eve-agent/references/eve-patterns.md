@@ -559,9 +559,14 @@ headers, providerOptions }` → `{ answers, usage, warnings, rounding, providerM
 
 It is not a smaller chat model. Reach for it wherever the agent's code needs **a decision about text**, not text:
 a classification, a threshold, a routing key, a rubric. Four places it fits eve, each checked against eve@0.58.1's
-docs — and one it does not.
+docs and re-checked against **eve@0.63.0** (2026-09-22) — and one it does not.
 
-**a. The model itself, per turn — `autoModel`.** Already documented in `eve-concepts.md` §Agent config. It is the only
+⚠️ **Naming moved twice since the first pass.** eve 0.60.0 renamed `autoModel` (from `eve/experimental/evaluate`)
+to **`auto`** (from `eve/models`), and moved the standalone `evaluate` to `eve/ai`; the old subpath no longer
+resolves. eve 0.62.0 replaced `t.judge.autoevals.*` with **`t.judge(...)`**. Both are corrected below and in
+`eve-concepts.md` / `eve-evals.md`.
+
+**a. The model itself, per turn — `auto`.** Already documented in `eve-concepts.md` §Agent config. It is the only
 place eve calls an evaluation model for you.
 
 **b. A risk-scored approval policy.** eve's `approval` accepts a policy that *"returns an AI SDK 7 approval status
@@ -627,9 +632,11 @@ the failure a structural defence exists for. The `specialCategory` question is t
 `compliance-audit` R9 and the memory screening in §3 — a memory write whose state trips it goes to a person or is
 not stored.
 
-**d. Evals: inside `test(t)`, graded with `t.check` — not as the judge.** eve's judge takes a **language model**
-(`t.judge.autoevals.*`, a Gateway string or an AI SDK `LanguageModel`, `docs/evals/judge.md`); nothing in the docs
-lets an evaluation model be one. What the docs do allow is grading *"any local you computed"* with `t.check`
+**d. Evals: inside `test(t)`, graded with `t.check` — not as the judge.** As of eve 0.62.0, `t.judge(...)` itself
+calls `evaluate` from `eve/ai` and defaults to `typesafe-ai/jev` (`docs/evals/judge.mdx`), replacing the old
+`t.judge.autoevals.*` graders — so an evaluation-model judgment can now go through `t.judge` directly. This
+section's original point still holds for a **hand-rolled** classification you want graded as a local rather than
+routed through the judge's default state (`{ input, output }`): grade it with `t.check`
 (`docs/evals/assertions.md`), so a classification-shaped criterion costs one evaluation call instead of a judge
 turn:
 
@@ -695,7 +702,7 @@ fail-closed rule from (b), applied to the metadata.
 **Not a fit — choosing the subagent.** A declared subagent is picked by the **parent model** from its required
 `description`, and conditional exposure through `defineDynamic` runs at `session.started` or `turn.started` only
 (*"step.started is not supported for subagents"*, `docs/subagents/index.mdx`). There is no documented hook where an
-evaluator selects the specialist, so do not build one around the framework: route the **model** with `autoModel`,
+evaluator selects the specialist, so do not build one around the framework: route the **model** with `auto`,
 and keep specialist selection on descriptions that do not overlap (§7).
 
 **Rules for every use:**
@@ -733,7 +740,7 @@ and keep specialist selection on descriptions that do not overlap (§7).
   - **High confidence does not mean it is right.** The README reports that the English checkpoint on non-Latin
     script scored *"0.000 accuracy at 0.952 confidence"*. The confidence gate above does not protect there; the
     `Router` choosing the multilingual checkpoint does.
-  - **Python only** (`pip install laya`): no AI SDK provider, no `experimental_evaluate`. From an eve agent (TypeScript)
+  - **Python only** (`pip install laya`): no AI SDK provider, no `evaluate`. From an eve agent (TypeScript)
     it is a separate service in an EU region, called from inside the tool like any HTTP dependency, with (f)'s tests
     around the caller.
 
@@ -762,8 +769,9 @@ and keep specialist selection on descriptions that do not overlap (§7).
   your domain; write the eval (d) before trusting the gate (b, c).
 - **Design the questions like a form.** One decision per question, `instructions` phrased as a yes/no or a pick,
   and `criteria` that define the ends of the scale — the Gateway docs' own examples all do this.
-- **It is experimental on both sides** (`experimental_evaluate`, `eve/experimental/evaluate`): pin `ai` and `eve`,
-  and re-read both pages on upgrade.
+- **It is experimental on both sides** (`experimental_evaluate` in `ai`; `auto`/`evaluate` from eve's `eve/models`
+  and `eve/ai`, renamed from `eve/experimental/evaluate` in eve 0.60.0): pin `ai` and `eve`, and re-read both pages
+  on upgrade — this rename is exactly why.
 - **Know what the price actually buys.** Jev is **$0.042 per million input tokens, output free** (AI Gateway catalog,
   2026-09-17). The *"193.6x faster, 444.6x cheaper"* headline compares it with *"the smartest models (Astra and
   Fable)"* in non-reasoning mode, and TypeSafe itself calls it *"the higher end of real world gains"*. Against the
