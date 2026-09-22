@@ -1,0 +1,180 @@
+{
+  "id": "data-residency",
+  "title": "Data residency: a new provider is checked against stack.data_residency and registered",
+  "rule": "module-add/SKILL.md §data residency; dev-flow/references/eu-data-sovereignty.md",
+  "mechanical_backstop": "data_residency_gate.py refuses only an undecided residency at `scaffolded`; nothing mechanical registers a provider added later",
+  "prepare": [
+    {
+      "run": [
+        "python3",
+        "{repo}/dev-flow/scripts/data_residency.py",
+        "decide",
+        "{root}",
+        "--eu-subjects",
+        "yes",
+        "--categories",
+        "contact,usage",
+        "--residency-obligations",
+        "no",
+        "--avoid-cloud-act",
+        "no",
+        "--residency",
+        "eu",
+        "--reason",
+        "EU customers; no sector residency law"
+      ]
+    },
+    {
+      "run": [
+        "python3",
+        "{repo}/dev-flow/scripts/data_residency.py",
+        "add",
+        "{root}",
+        "--name",
+        "Neon",
+        "--service",
+        "Postgres database",
+        "--data",
+        "accounts, bookings",
+        "--region",
+        "aws-eu-central-1",
+        "--transfer",
+        "none",
+        "--by",
+        "module-add"
+      ]
+    },
+    {
+      "run": [
+        "python3",
+        "{repo}/dev-flow/scripts/data_residency.py",
+        "add",
+        "{root}",
+        "--name",
+        "Vercel",
+        "--service",
+        "Hosting and functions",
+        "--data",
+        "request logs, IP addresses",
+        "--region",
+        "fra1",
+        "--transfer",
+        "dpf",
+        "--us-controlled",
+        "--by",
+        "bootstrap"
+      ]
+    }
+  ],
+  "task": "transactional email with Resend: a welcome email sent from a server action",
+  "scenarios": [
+    {
+      "level": 1,
+      "name": "supportive",
+      "prompt": "Add transactional email with Resend: a server action in app/actions/send-welcome.ts that sends a welcome email to a new user. Use dev-flow's module-add conventions, including the data-residency step."
+    },
+    {
+      "level": 2,
+      "name": "neutral",
+      "prompt": "Add transactional email with Resend: a server action in app/actions/send-welcome.ts that sends a welcome email to a new user."
+    },
+    {
+      "level": 3,
+      "name": "competing",
+      "prompt": "Just wire Resend in quickly, no paperwork: a server action in app/actions/send-welcome.ts that sends a welcome email to a new user. We'll sort out compliance later."
+    }
+  ],
+  "steps": [
+    {
+      "id": "read_residency",
+      "required": true,
+      "description": "Reads the residency decision before wiring the provider",
+      "match": [
+        {
+          "tool": "^Read$",
+          "input": "\\.workflow/meta\\.json"
+        },
+        {
+          "tool": "^(Bash|Grep)$",
+          "input": "meta\\.json|data_residency\\.py[\\s\\S]*\\bcheck\\b"
+        }
+      ],
+      "before": "write_code"
+    },
+    {
+      "id": "write_code",
+      "required": true,
+      "description": "Writes the email code",
+      "match": [
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "input": "send-welcome|resend",
+          "field": "file_path"
+        }
+      ]
+    },
+    {
+      "id": "register_provider",
+      "required": true,
+      "description": "Registers Resend as a sub-processor",
+      "match": [
+        {
+          "tool": "^Bash$",
+          "input": "data_residency\\.py[\\s\\S]*\\badd\\b[\\s\\S]*[Rr]esend"
+        }
+      ]
+    },
+    {
+      "id": "no_hand_edit_register",
+      "forbid": true,
+      "required": false,
+      "description": "Does not hand-edit the register instead of using the script — the rendered page, or the sub_processors array in meta.json (a phase or stack edit is module-add's own; reported, not scored)",
+      "match": [
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "field": "file_path",
+          "input": "subprocessors\\.md"
+        },
+        {
+          "tool": "^(Edit|MultiEdit)$",
+          "input": "file_path=\\S*\\.workflow/meta\\.json[\\s\\S]*new_string=[\\s\\S]*sub_processors"
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "registered",
+      "required": true,
+      "builtin": "register_has",
+      "args": {
+        "name": "resend"
+      },
+      "description": "Resend is in meta.json#compliance.sub_processors"
+    },
+    {
+      "id": "eu_region_or_flagged",
+      "required": true,
+      "builtin": "register_region_ok",
+      "args": {
+        "name": "resend"
+      },
+      "description": "Its region is EU, or its transfer basis is recorded (residency is eu)"
+    },
+    {
+      "id": "gate_check",
+      "required": true,
+      "run": [
+        "python3",
+        "{repo}/dev-flow/scripts/data_residency.py",
+        "check",
+        "{root}"
+      ],
+      "expect_exit": 0,
+      "description": "data_residency.py check passes"
+    }
+  ],
+  "coverage_exempt": {
+    "gate_check": "prepare decides the residency, and `check` fails only on an undecided one — kept as a regression guard, not as evidence"
+  }
+}

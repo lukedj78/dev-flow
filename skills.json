@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-22T09:47:47Z",
+  "generated_at": "2026-09-22T09:49:36Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -185,7 +185,7 @@
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 127,
+      "skill_md_lines": 151,
       "bundle": "dist/registry-intake.skill"
     },
     {
@@ -451,13 +451,14 @@
         "audit-recipe.md",
         "contracts.md",
         "motion-library.md",
+        "react-bits.md",
         "tw-animate-css.md"
       ],
       "scripts": [
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 156,
+      "skill_md_lines": 176,
       "bundle": "dist/transitions.skill"
     },
     {

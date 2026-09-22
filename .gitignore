@@ -55,3 +55,6 @@ android/.gradle/
 
 # skill-doctor output (local measurement, never committed)
 .skill-doctor-report/
+
+# Compliance runs (a run's report worth keeping goes to evals/compliance/baselines/)
+evals/compliance/results/

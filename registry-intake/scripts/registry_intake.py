@@ -106,6 +106,7 @@ CODES = {
     "S3": "reads environment variables",
     "S4": "talks to hard-coded remote hosts",
     "S5": "injects raw HTML",
+    "S6": "very wide source lines — a class list of arbitrary values the design lint will count",
     "E1": "declares env vars that shadcn writes into .env",
     "E2": "ships a value for a secret-looking env var",
     "C1": "rewrites theme tokens or global CSS — DESIGN.md is the source of truth",
@@ -115,6 +116,7 @@ CODES = {
     "D4": "npm dependency runs install scripts",
     "D5": "npm dependency published less than 30 days ago",
     "D6": "npm dependency could not be verified (npm view failed)",
+    "D7": "npm dependency range excludes the version the project has installed",
     "R1": "registry dependency outside the allowlist",
     "R2": "item does not declare the shadcn registry-item $schema",
     "R3": "item type is not a shadcn registry type",
@@ -356,9 +358,15 @@ def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[
             server_files.append(tgt)
         if re.search(r"child_process|\bexecSync\b|\beval\(|new Function\(", content):
             add("S1", "block", "executes code or processes", tgt)
-        long_lines = [ln for ln in content.splitlines() if len(ln) > 1000]
-        if (long_lines and not tgt.endswith((".json", ".css", ".svg", ".md"))) or re.search(r"[A-Za-z0-9+/=]{800,}", content):
+        # A >1000-char line is normal in a component: one Tailwind class list with arbitrary values
+        # reaches 1070 in React Bits' SwipeToast. Minified code packs statements, so require them.
+        minified = [ln for ln in content.splitlines() if len(ln) > 1000 and ln.count(";") >= 3]
+        if (minified and not tgt.endswith((".json", ".css", ".svg", ".md"))) or re.search(r"[A-Za-z0-9+/=]{800,}", content):
             add("S2", "block", "obfuscated, minified or large encoded blob", tgt)
+        wide = [ln for ln in content.splitlines() if len(ln) > 1000 and ln not in minified]
+        if wide and tgt.endswith((".tsx", ".jsx")):
+            add("S6", "review", f"{len(wide)} line(s) over 1000 characters — usually a class list of arbitrary "
+                                "values, which the design lint counts one by one", tgt)
         envs = sorted(set(re.findall(r"process\.env\.([A-Z0-9_]+)", content)))
         if envs:
             add("S3", "review", "reads " + ", ".join(envs), tgt)
@@ -430,13 +438,47 @@ def npm_facts(spec: str) -> dict | None:
             "scripts": d.get("scripts") or {}, "version": d.get("version")}
 
 
-def check_deps(items: list[Item], npm=None) -> tuple[list[Finding], dict]:
+def installed_version(root: Path, name: str) -> str | None:
+    for pkg in [root / "node_modules" / name / "package.json",
+                *root.glob(f"apps/*/node_modules/{name}/package.json"),
+                *root.glob(f"packages/*/node_modules/{name}/package.json")]:
+        try:
+            return json.loads(pkg.read_text()).get("version")
+        except (OSError, json.JSONDecodeError):
+            continue
+    for pj in [root / "package.json", *root.glob("apps/*/package.json"), *root.glob("packages/*/package.json")]:
+        try:
+            d = json.loads(pj.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        spec = {**(d.get("dependencies") or {}), **(d.get("devDependencies") or {})}.get(name)
+        if spec:
+            m = re.search(r"(\d+)\.(\d+)\.(\d+)", spec)
+            if m:
+                return m.group(0)
+    return None
+
+
+def major_conflict(declared: str, present: str) -> bool:
+    """True when a caret/tilde range cannot accept the version already in the project."""
+    m = re.match(r"^[\^~]?(\d+)\.", declared.strip())
+    p = re.match(r"^(\d+)\.", present.strip())
+    return bool(m and p and m.group(1) != p.group(1))
+
+
+def check_deps(items: list[Item], npm=None, root: Path | None = None) -> tuple[list[Finding], dict]:
     out, facts = [], {}
     npm = npm or npm_facts
     for it in items:
         for dep in (it.data.get("dependencies") or []) + (it.data.get("devDependencies") or []):
             f = npm(dep)
             name = re.sub(r"(?<=.)@[^/]*$", "", dep)
+            declared = dep[len(name) + 1:] if len(dep) > len(name) else ""
+            present = installed_version(root, name) if root and declared else None
+            if present and major_conflict(declared, present):
+                out.append(Finding("D7", "review", it.key,
+                                   f"{name}: the item asks for {declared}, the project has {present} — "
+                                   "installing it adds a second major or breaks the range"))
             if f is None or ("missing" in f and not f["missing"]):
                 out.append(Finding("D6", "review", it.key, f"{name}: npm view failed"))
                 continue
@@ -497,7 +539,7 @@ def review(spec: str, root: Path, npm=None, allowlist_only: bool = False,
         if it is not items[0]:
             if ns_of(it.key) not in allowed:
                 findings.append(Finding("R1", "block", it.key, f"pulled in by the closure, but {ns_of(it.key)} is not allowlisted"))
-    dep_findings, deps = check_deps(items, npm or npm_facts)
+    dep_findings, deps = check_deps(items, npm or npm_facts, root)
     findings += dep_findings
     if any(f.code == "T1" for f in findings):
         high = True
@@ -791,10 +833,13 @@ Items from a shadcn-format registry other than shadcn's own (`@ns/item`, a regis
 installed with `shadcn add` directly — a hook refuses it. They go through registry intake:
 
 1. `registry_intake.py review . @ns/item` — read-only report of files, npm deps, env vars and findings
-2. `registry_intake.py approve . @ns/item --by <name>` — snapshots the item into `{VENDOR}/` and records it in `{LOCK}`
+2. **Stop and ask the user**, always, even for a clean review or when in a hurry: a new registry needs
+   their yes before `registry_intake.py allow . @ns <url> --reason "..." --by <them>`, and the item needs
+   their yes before `registry_intake.py approve . @ns/item --by <them>`. `--by` is the person who said
+   yes, never the agent or the OS login. The hook asks them to confirm both commands.
 3. `registry_intake.py install . @ns/item` — installs the snapshot, never the live URL
 
-A new registry needs `registry_intake.py allow . @ns <url> --reason "..."` first. Blocking findings are
+Blocking findings are
 fixed, ported by hand, or accepted one by one with a written reason. Imported code has to pass the
 capped design lint; raising `--max-warnings` fails `registry_intake.py check`.
 {SETUP_MARK[1]}
@@ -985,6 +1030,30 @@ def hook_decision(payload: dict) -> str | None:
     return None
 
 
+# `registry_intake.py allow|approve`, called by path or through a variable holding it (`python3 $S approve`)
+DECISION_CALL = re.compile(r"""(?:\S*registry_intake\.py["']?|["']?\$\{?\w+\}?["']?)\s+(allow|approve)\s+(?:\S+\s+)?(\S+)""")
+
+
+def hook_ask(payload: dict) -> str | None:
+    """None, or what the user is asked to confirm: allowlisting a registry and approving an item are
+    their decisions, and an agent that skipped the question still meets the prompt."""
+    if payload.get("tool_name") != "Bash":
+        return None
+    command = (payload.get("tool_input") or {}).get("command") or ""
+    if "registry_intake" not in command:
+        return None
+    asks = []
+    for verb, target in DECISION_CALL.findall(command):
+        by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
+        who = by.group(1).strip("\"'") if by else "nobody named"
+        what = f"allowlist the registry {target}" if verb == "allow" else f"approve {target} into a snapshot"
+        asks.append(f"{what}, recorded as decided by {who}")
+    if not asks:
+        return None
+    return ("registry intake: the agent wants to " + "; and to ".join(asks) +
+            ". Confirm only if you said yes to this — the lock will say you did.")
+
+
 def cmd_hook(_args) -> int:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
@@ -994,6 +1063,12 @@ def cmd_hook(_args) -> int:
     if reason:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                                  "permissionDecisionReason": reason}}))
+        return 0
+    ask = hook_ask(payload)
+    if ask:
+        # "ask": the reason is shown to the user, not to Claude (hooks docs, PreToolUse decision control)
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                                 "permissionDecisionReason": ask}}))
     return 0
 
 

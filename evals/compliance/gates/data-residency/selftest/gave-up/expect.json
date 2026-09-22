@@ -1,0 +1,9 @@
+{
+  "read_residency": true,
+  "write_code": false,
+  "register_provider": false,
+  "no_hand_edit_register": true,
+  "registered": false,
+  "eu_region_or_flagged": false,
+  "gate_check": true
+}

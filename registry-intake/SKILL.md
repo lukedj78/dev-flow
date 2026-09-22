@@ -45,13 +45,30 @@ and are not governed.** `review` is read-only; `--json` gives the report to an a
 
 ### The workflow an agent follows
 
+**The agent always stops and asks before `allow` and before `approve`**, whatever the tier, even when the
+review is clean, the prompt says to hurry, or the user asked for the component by name. Asking for a
+component is not agreeing to a registry or to its code. `review` is read-only, so the agent runs it
+without asking; `allow`, `approve` and every `--accept` are the user's decisions, taken after they have
+seen the report. `--by` is the name of the person who said yes, in this conversation, to *this*
+registry or item. It is never the OS login or the agent, and never someone who was not asked. In
+an autonomous run (dev-flow §Autonomous runs), the run stops at the review with *"needs a human:
+allowlist @ns / approve @ns/item"* and delivers the report.
+
+Measured on 2026-09-22 (`evals/compliance`, gate `registry-intake`): with the text as it stood, the
+agent stopped and asked in one session out of three. In the other two it allowlisted and approved
+itself, putting the operator's login in `--by`, so the lock recorded a human approval that never
+happened. The hook now backs this rule (below).
+
 1. The user wants a component from a registry → `review` it (with `--registry` if the namespace is not
    allowlisted yet). Show the report: files and targets, npm packages with licences, findings.
-2. **A new registry is the user's decision**, not the agent's: ask, then `allow` with their reason.
-3. Exit `1` → do not approve by reflex. Each blocking code is one of: fixed upstream, **ported by hand**
-   (eve code → `eve-registry-porting`), or accepted by the user with a written reason
+2. **Stop and ask.** A new registry: *"allowlist @ns → url, reason …?"*, then `allow` with the reason and
+   `--by` from their answer. Then the item: *"approve @ns/item as reviewed?"*, then `approve --by <them>`.
+   Both questions can go in one message, but they are two decisions and need a yes to each.
+3. Exit `1` → do not propose approving it. Each blocking code is one of: fixed upstream, **ported by
+   hand** (eve code → `eve-registry-porting`), or accepted by the user with a written reason
    (`--accept CODE="reason"`, recorded in the lock). An `--accept` without a reason is refused.
-4. Exit `3` (high tier, or review-level findings) → the user approves; `--by` names them.
+4. Exit `3` (high tier, or review-level findings) → say so when asking. The findings are what the
+   user is deciding on.
 5. `install`, then the gates the imported code must pass: typecheck, the **capped** design lint,
    `eve build` when `agent/` changed, tests. Raising `--max-warnings` to make room fails `check` — fix
    the warnings, or record why with `caps --reason`.
@@ -69,10 +86,12 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 | S1 | block | `child_process`, `eval(`, `new Function(` |
 | S2 | block | minified/obfuscated lines or a large encoded blob |
 | S3 · S4 · S5 | review | reads `process.env` · hard-coded hosts · `dangerouslySetInnerHTML` |
+| S6 | review | lines over 1000 characters in a `.tsx` — usually a class list of arbitrary values the design lint counts one by one (React Bits' `SwipeToast`: 1070) |
 | E1 · E2 | review · block | declares env vars · ships a value for a secret-looking one |
 | C1 | block | `cssVars` / `css` / `tailwind` / `theme` — DESIGN.md owns the tokens |
 | D1 · D2 · D4 | block | npm package does not exist · (A)GPL/SSPL/BUSL/no licence · install scripts |
 | D3 · D5 · D6 | review | weak copyleft or NC · published < 30 days ago · `npm view` failed |
+| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13) |
 | R1 | block | the closure reaches a registry that is not allowlisted |
 | R2 · R3 | info · block | no registry-item `$schema` · unknown item type |
 | V1 | block | eve tool key the **installed** eve's loader rejects (read from `node_modules/eve`; fallback: eve 0.55.0) |
@@ -106,6 +125,11 @@ lets `shadcn add @coss/…` through — that registry is the project's component
   with a reason (<https://code.claude.com/docs/en/hooks-guide>). It allows bare shadcn names,
   `--dry-run/--view/--diff`, eve's official `eve add <kind>/<name>`, approved snapshots with a matching
   hash, and `live` registries; it denies every other `shadcn add`, `eve add @…` and `eve registry add`.
+  For `registry_intake.py allow` and `approve` it answers **`"ask"`**: Claude Code shows the user a
+  permission prompt naming the registry or the item and the `--by`, so an agent that skipped the
+  question still cannot record a decision nobody made (<https://code.claude.com/docs/en/hooks>, PreToolUse
+  decision control: `allow` / `deny` / `ask` / `defer`). Where no permission prompt can be shown, the
+  call does not go through.
 
 ## Limits, stated
 
@@ -121,7 +145,7 @@ lets `shadcn add @coss/…` through — that registry is the project's component
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 21 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 27 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

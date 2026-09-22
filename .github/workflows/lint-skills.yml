@@ -31,6 +31,8 @@ on:
       - "design-md-to-app/scripts/**"
       - "dev-flow/scripts/**"
       - "registry-intake/scripts/**"
+      # the compliance grader reads the gates' scripts above; its selftest runs on either change
+      - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
   pull_request:
     paths:
@@ -61,6 +63,8 @@ on:
       - "design-md-to-app/scripts/**"
       - "dev-flow/scripts/**"
       - "registry-intake/scripts/**"
+      # the compliance grader reads the gates' scripts above; its selftest runs on either change
+      - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
 
 jobs:
@@ -88,6 +92,9 @@ jobs:
 
       - name: Test data residency (decision, sub-processor register, check, phase gate)
         run: cd dev-flow/scripts && python3 -m unittest test_data_residency -v
+
+      - name: Self-test the compliance grader (offline — the agent runs are local and paid)
+        run: python3 evals/compliance/comply.py selftest
 
       - name: Regenerate skills.json and check it's committed
         run: |

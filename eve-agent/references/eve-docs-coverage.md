@@ -30,6 +30,14 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-09-17 against eve@0.58.1** (`npm pack eve@0.58.1`, scoped to one new page).
+> **New**: `docs/guides/evaluate.md` — `autoModel` from `eve/experimental/evaluate` (the package's
+> `exports` has `./experimental/evaluate`; `agent-config.md` §Choose the model dynamically and
+> `reference/typescript-api.md` both point at it). It rides the AI SDK evaluation API that shipped on
+> AI Gateway the day before (`experimental_evaluate`, `typesafe-ai/jev`, `ai@7.0.105`). Written up in
+> `eve-concepts.md` §Agent config next to `defineDynamic`, with the two things the page leaves to us:
+> the evaluator is a processor that sees recent conversation text, and it adds a call per turn.
+>
 > **Verification pass 2026-09-08 against eve@0.52.2** (eve shipped 0.47.7 → 0.52.2 in the week since
 > the 09-01 pass; `npm pack eve@0.52.2`, then `CHANGELOG.md` + `docs/` + the `.d.ts`, same technique —
 > scoped to the one real new capability in range, not a full re-walk of every prior claim). **One page
@@ -272,6 +280,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |
 | `/docs/guides/instrumentation` | `eve-conventions.md` §Observability — including `tracePolicy`, which the docs page does **not** mention; read from `eve/instrumentation`'s `.d.ts` — + `eve-scaffold.md` (`instrumentation.ts`) | ✅ |
+| `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `autoModel` (experimental, eve@0.58.1) | ✅ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
 
 ## Client, frontend, deployment

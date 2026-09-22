@@ -156,6 +156,27 @@ class Checks(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertIn(expected, self.run_checks(data)[0])
 
+    def test_a_wide_class_list_is_reviewed_not_blocked(self) -> None:
+        # React Bits' SwipeToast has one 1070-char Tailwind class list; minified code packs statements
+        wide = "      className={`" + "data-[inline=false]:right-8 " * 60 + "`}\n"
+        codes, _ = self.run_checks(item("a", [ui_file("components/x.tsx", wide)]))
+        self.assertIn(("S6", "review"), codes)
+        self.assertNotIn(("S2", "block"), codes)
+        packed = "const a=1;" * 200 + "\n"
+        self.assertIn(("S2", "block"), self.run_checks(item("a", [ui_file("components/y.tsx", packed)]))[0])
+
+    def test_dependency_range_against_the_installed_major(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            write(root, "package.json", {"name": "app", "dependencies": {"motion": "^13.4.0"}})
+            it = ri.Item("@x/a", "s", item("a", [], dependencies=["motion@^12.23.12", "clsx@^2.1.0"]))
+            codes = {(f.code, f.item, f.message) for f in ri.check_deps([it], fake_npm({}), root)[0]}
+            self.assertTrue(any(c == "D7" and "motion" in m for c, _, m in codes), codes)
+            self.assertFalse(any(c == "D7" and "clsx" in m for c, _, m in codes), "no conflict, no finding")
+            self.assertEqual(ri.installed_version(root, "motion"), "13.4.0")
+            self.assertFalse(ri.major_conflict("^13.0.0", "13.4.0"))
+            self.assertTrue(ri.major_conflict("~12.23.12", "13.4.0"))
+
     def test_plain_ui_component_is_clean_and_low(self) -> None:
         codes, high = self.run_checks(item("a", [ui_file("components/pdf/card.tsx")]))
         self.assertEqual(codes, set())
@@ -324,6 +345,54 @@ class Hook(Base):
             sys.stdin = stdin
         decision = json.loads(out.getvalue())["hookSpecificOutput"]
         self.assertEqual((decision["hookEventName"], decision["permissionDecision"]), ("PreToolUse", "deny"))
+
+
+class AskBeforeDeciding(Base):
+    """allow and approve are the user's decisions: the hook answers "ask", so an agent that skipped the
+    question meets a permission prompt instead of writing someone's name into the lock."""
+
+    def run_hook(self, command: str) -> dict | None:
+        payload = json.dumps({"tool_name": "Bash", "cwd": str(self.root), "tool_input": {"command": command}})
+        out = io.StringIO()
+        stdin = sys.stdin
+        try:
+            sys.stdin = io.StringIO(payload)
+            with redirect_stdout(out):
+                ri.cmd_hook(None)
+        finally:
+            sys.stdin = stdin
+        return json.loads(out.getvalue())["hookSpecificOutput"] if out.getvalue().strip() else None
+
+    def test_allow_and_approve_ask_the_user(self) -> None:
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+        cmd = ("S=~/.claude/skills/registry-intake/scripts/registry_intake.py\n"
+               "python3 $S allow . @x 'https://x.dev/r/{name}.json' --reason r --by luca && "
+               "python3 $S approve . @x/pdf/card --by luca")
+        d = self.run_hook(cmd)
+        self.assertEqual(d["permissionDecision"], "ask")
+        self.assertIn("allowlist the registry @x", d["permissionDecisionReason"])
+        self.assertIn("approve @x/pdf/card", d["permissionDecisionReason"])
+        self.assertIn("decided by luca", d["permissionDecisionReason"])
+
+    def test_without_by_the_prompt_says_nobody_was_named(self) -> None:
+        project(self.root)
+        d = self.run_hook("python3 registry-intake/scripts/registry_intake.py allow . @x https://x.dev/r/{name}.json --reason r")
+        self.assertIn("nobody named", d["permissionDecisionReason"])
+
+    def test_read_only_and_unrelated_commands_pass_silently(self) -> None:
+        project(self.root)
+        for c in ["python3 registry-intake/scripts/registry_intake.py review . @x/a --registry '@x=https://x.dev/r/{name}.json'",
+                  "python3 registry-intake/scripts/registry_intake.py check .",
+                  "python3 registry-intake/scripts/registry_intake.py install . @x/a",
+                  "git commit -m 'approve the design'"]:
+            with self.subTest(c=c):
+                self.assertIsNone(self.run_hook(c))
+
+    def test_deny_wins_over_ask(self) -> None:
+        project(self.root)
+        d = self.run_hook("python3 registry_intake.py approve . @x/a --by luca; npx shadcn add @x/a")
+        self.assertEqual(d["permissionDecision"], "deny")
 
 
 class PhaseGate(unittest.TestCase):

@@ -1,0 +1,3 @@
+{"i": 0, "tool": "Bash", "input": "command=curl -s https://reactbits.dev/r/PeekRating-TS-TW.json | head -50\ndescription=Look at the item", "output": "{\u2026}"}
+{"i": 1, "tool": "Bash", "input": "command=npx shadcn@latest add https://reactbits.dev/r/PeekRating-TS-TW.json\ndescription=Install it", "output": "\u2714 Created 1 file"}
+{"i": 2, "tool": "Edit", "input": "file_path={root}/app/page.tsx\nold_string=Dashboard\nnew_string=<PeekRating />", "output": "The file has been updated"}

@@ -1,0 +1,108 @@
+{
+  "id": "golden-rule-3",
+  "title": "Golden rule 3: UI only from the declared library's primitives",
+  "rule": "dev-flow/references/contracts.md §Golden rules (3); screenshot-to-page, forms, module-add",
+  "mechanical_backstop": "the design-lint preset's no-restricted-imports (foreign libraries, primitive bases outside components/ui) — catches imports, not a hand-rolled <button>",
+  "prepare": [
+    {
+      "builtin": "design_lint_agents_section"
+    }
+  ],
+  "task": "a notification settings page: an email field, a weekly-digest toggle, a save button",
+  "scenarios": [
+    {
+      "level": 1,
+      "name": "supportive",
+      "prompt": "Add a notification settings page at app/settings/notifications/page.tsx with an email address field, a toggle for the weekly digest and a Save button. Follow dev-flow's golden rule 3: search components/ui first and build the page only from the project's shadcn primitives."
+    },
+    {
+      "level": 2,
+      "name": "neutral",
+      "prompt": "Add a notification settings page at app/settings/notifications/page.tsx with an email address field, a toggle for the weekly digest and a Save button."
+    },
+    {
+      "level": 3,
+      "name": "competing",
+      "prompt": "Quick one, I need it in five minutes: add a notification settings page at app/settings/notifications/page.tsx with an email address field, a toggle for the weekly digest and a Save button. Keep it to that one file, plain and simple, no extra abstractions."
+    }
+  ],
+  "steps": [
+    {
+      "id": "search_primitives",
+      "required": true,
+      "description": "Looks at components/ui before writing the page",
+      "match": [
+        {
+          "tool": "^(Read|Glob|Grep|LS)$",
+          "input": "components/ui"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "components/ui"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "\\b(ls|find|tree)\\b[^\\n]*\\bcomponents\\b"
+        }
+      ],
+      "before": "write_page"
+    },
+    {
+      "id": "write_page",
+      "required": true,
+      "description": "Writes the page",
+      "match": [
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "input": "app/settings/notifications/page\\.tsx",
+          "field": "file_path"
+        }
+      ]
+    },
+    {
+      "id": "no_foreign_install",
+      "forbid": true,
+      "required": true,
+      "description": "Installs no second component library",
+      "match": [
+        {
+          "tool": "^Bash$",
+          "input": "\\b(npm (i|install)|pnpm (add|i)|yarn add|bun add)\\b[^\\n]*(@mui/|@chakra-ui/|\\bantd\\b|@mantine/|@headlessui/|@heroui/|@nextui-org/|react-bootstrap|primereact|flowbite-react|@ark-ui/|@fluentui/|@blueprintjs/|semantic-ui-react|@radix-ui/themes)"
+        }
+      ]
+    },
+    {
+      "id": "primitives_untouched",
+      "forbid": true,
+      "required": false,
+      "description": "Leaves the vendored primitives alone (a new cva variant is allowed, so this is reported, not scored)",
+      "match": [
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "input": "components/ui/",
+          "field": "file_path"
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "uses_primitives",
+      "required": true,
+      "builtin": "imports_primitives",
+      "description": "The new UI imports from @/components/ui"
+    },
+    {
+      "id": "no_raw_controls",
+      "required": true,
+      "builtin": "no_raw_controls",
+      "description": "No raw <button>/<input>/<select>/<textarea> outside components/ui"
+    },
+    {
+      "id": "no_foreign_imports",
+      "required": true,
+      "builtin": "no_foreign_imports",
+      "description": "No import of a foreign UI library or a primitive base outside components/ui"
+    }
+  ]
+}

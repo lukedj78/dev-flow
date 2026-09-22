@@ -137,13 +137,67 @@ slide-through wants the `.new()`/`.old()` pair; reaching for `.enter()`/`.exit()
 animation that silently skips every element that survives the transition, which is usually most of them. Reach for it when a plain `document.startViewTransition` can't express the pairing you need, **before** escalating to Motion `layout`/`layoutId` (which re-renders through React). Requires the `motion` runtime (`module-add motion`). Signature and builder surface verified against **`motion@13.1.1`** (2026-08-26). `[VERIFY]` again on a minor — it's young, and **the declarations live in `motion-dom`**, so check there rather than concluding from the `motion` package that it's gone.
 
 
+### The same seam as a component: `<AnimateView>` (motion 13.4.0, React 19.3)
+
+`animateView` above is imperative — you call it around a DOM update. **`<AnimateView>`** is the same
+idea declared in JSX, and it is what to reach for when the pairing is structural rather than
+event-driven (a page shell, a list item that must match its detail view).
+
+```tsx
+"use client"
+import { AnimateView } from "motion/react-animate-view"
+import { startTransition, useState } from "react"
+
+const [show, setShow] = useState(true)
+<button onClick={() => startTransition(() => setShow(!show))}>Toggle</button>
+{show && (
+  <AnimateView name="card" enter={{ opacity: [0, 1] }} exit={{ opacity: 0 }} transition={{ duration: DURATION.base / 1000 }}>
+    <div className="card" />
+  </AnimateView>
+)}
+```
+
+Props, read off `framer-motion@13.4.0`'s `animate-view.d.ts`: `name`, `transition`, and four animation
+slots — `enter`, `exit`, `share`, `update` — each a target object **or** a function of the transition
+types, plus `onAnimationStart(animation, type)` / `onAnimationComplete(type)`. `update` covers content,
+size or position changes; `share` pairs elements carrying the same `name` across the update.
+
+**What it actually renders, and the version gate.** The component returns React's `<ViewTransition>`
+with `onEnter`/`onExit`/`onShare`/`onUpdate` wired to Motion's animation layers — so the browser still
+runs the transition and Motion only choreographs it. Its source starts with
+`const ViewTransition = React.ViewTransition` and then:
+
+```js
+if (!ViewTransition) {
+  throw new Error("AnimateView requires React 19.3 or later.")
+}
+```
+
+That throw is the whole compatibility story: `motion`'s `peerDependencies` still say `^18 || ^19`, so
+npm installs it happily on React 19.2 and the component **fails at runtime, not at install**.
+`React.ViewTransition` became a plain export in **react@19.3.0** (verified in the package's
+`cjs/react.production.js`: `exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE`) — before that it was
+`unstable_ViewTransition`. **Our projects are on React 19.2.4 today**, so this is a future rung: check
+`react`'s version before proposing it, and `[VERIFY]` that the installed Next supports 19.3.
+
+**Three constraints the docs state, and one they don't.** It is **not interruptible** — no changing
+direction mid-animation; **a duplicate `name`** on either side of the transition makes the animation
+fail; it is for page-level transitions, not micro-interactions. And the docs never mention
+`prefers-reduced-motion`: as with vgpu, non-negotiable 2 is entirely ours here — gate the state change,
+or pass `enter`/`exit` targets that are opacity-only, when the user asks for reduced motion.
+
 ## Route / page transitions (Tier 2)
 
 Next.js 16 App Router route transitions via the View Transitions API — Tier 2, no Motion needed.
 
 **For production, drive it from the stable browser API** — wrap the navigation in `document.startViewTransition(...)` (the same primitive shown above for same-doc swaps) and name shared regions with `view-transition-name`. This is the path the Next.js docs recommend for route transitions today.
 
-The React `<ViewTransition>` component below is React's **experimental** `unstable_ViewTransition` — treat it as opt-in, not production-ready. It requires enabling the flag in `next.config.js`, and the Next.js docs explicitly flag it as experimental / not recommended for production:
+The React `<ViewTransition>` component below was React's **experimental** `unstable_ViewTransition`. It
+**graduated in react@19.3.0**, which exports it as plain `ViewTransition` (verified in that package's
+`cjs/react.production.js`). Our projects are on **19.2.4**, so the experimental import and the Next.js
+flag below are still what applies to them; on a project already on 19.3, drop the `unstable_` prefix and
+`[VERIFY]` whether the Next.js flag is still required. Either way `document.startViewTransition` stays
+the safe production path:
 ```js
 // next.config.js
 const nextConfig = { experimental: { viewTransition: true } };

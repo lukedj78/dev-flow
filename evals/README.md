@@ -1,6 +1,6 @@
 # dev-flow eval harness
 
-Two things live here now, answering different questions.
+Three things live here now, answering different questions.
 
 - **`run_evals.py`** — property-based golden tests for the deterministic *scripts*
   that back several skills (this file).
@@ -8,6 +8,10 @@ Two things live here now, answering different questions.
   checks over a *generated app*, asking whether the generation followed the rules the
   skill that produced it states. Different target, different failure mode, its own
   self-test; start from its README.
+- **[`compliance/comply.py`](./compliance/README.md)** — real `claude -p` sessions in a
+  throwaway dev-flow project at three levels of prompt support, graded on what the agent *did*:
+  does it follow golden rule 3, registry intake and the data-residency step when nobody
+  reminds it? Paid and local; its grader's self-test runs in CI.
 
 Property-based golden tests for the deterministic scripts that back several
 dev-flow skills. Not a replacement for end-to-end review of LLM output —

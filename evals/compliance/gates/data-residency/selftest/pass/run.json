@@ -1,0 +1,20 @@
+[
+ [
+  "python3",
+  "{repo}/dev-flow/scripts/data_residency.py",
+  "add",
+  "{root}",
+  "--name",
+  "Resend",
+  "--service",
+  "Transactional email",
+  "--data",
+  "email address, name",
+  "--region",
+  "eu-west-1",
+  "--transfer",
+  "none",
+  "--by",
+  "module-add"
+ ]
+]
