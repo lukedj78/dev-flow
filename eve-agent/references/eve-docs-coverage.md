@@ -30,23 +30,60 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
-> **Verification pass 2026-09-22 (second, against eve@0.64.0) — the workflow surface only.** 0.64
-> shipped the same day as the 0.63.0 pass below, and it lands on the one area that pass did not touch.
-> `npm pack eve@0.64.0`, `CHANGELOG.md` + `docs/tools/workflows.mdx`. **Four corrections, all of which
-> this skill had wrong**: ① **`experimental_workflow` is removed** (0.64, `8bc931f`) — *"Remove the
-> experimental uppercase `Workflow` tool and `experimental_workflow`; migrate its tool file to the new
-> lowercase factory"* — replaced by `workflow({ maxSubagents })` from the same `eve/tools/workflow`
-> subpath, with `maxSubagents` defaulting to 100 (integer 1–128), no injected agent catalog, and one
-> scheduling rule worth knowing: the sandbox resumes only after every pending call in a batch settles,
-> so `Promise.all` works and `Promise.race` does not. ② **`ctx.agent(name, input)`** takes the
-> model-visible subagent name, not a `key` — eve assigns the replay-stable invocation identity itself;
-> `agentId` continues a child and an inline `outputSchema` types the result. ③ **`ctx.agents`** is new,
-> and `"use step"` helpers get a restricted **`WorkflowStepToolContext`** where `getToken`/`requireAuth`
-> live. ④ **`yield task.postMessage(...)` no longer exists** (0.63, `d2c92df`) and background yields are
-> *consumed without publishing progress* — the previous text described the 0.55 behaviour. Corrected in
-> `eve-concepts.md` §Workflow tools and §Dynamic workflows, `eve-conventions.md`. **The rest of this map
-> still reflects the 0.63.0 pass.**
+> **Verification pass 2026-09-23 against eve@0.64.0 — full sweep.** `npm pack` of **both** 0.63.0 and
+> 0.64.0, a file-by-file diff of the two `docs/` trees (26 pages changed, one directory added, one page
+> split into a directory) and the CHANGELOG between them. **It also corrects the partial 0.64 note this
+> file carried from 2026-09-22, which attributed to 0.64 three changes that are older** — the versions
+> below are now read from the CHANGELOG entry for each commit, not inferred from the version that
+> happened to be current.
 >
+> **① The sandbox API is rewritten, and the object form is gone** (0.64.0, `49971b7`): a module exports a
+> **provider environment** and returns a sandbox from a `defineSandbox()` **selector** —
+> `export const environment = VercelSandbox.environment({ prepare }); export default defineSandbox(() => environment.open())`.
+> `defaultBackend()` → `DefaultSandbox.environment()`; `vercel()`/`docker()`/`justbash()`/`microsandbox()` →
+> `VercelSandbox` / `DockerSandbox` / `JustBashSandbox` / `MicrosandboxSandbox` classes on the same subpaths;
+> `bootstrap` → the environment's `prepare`; `onSession` → code after `open()`; **`revalidationKey` is gone**
+> (the generation is derived from sandbox source, preparation code, Dockerfile, environment options, workspace
+> resources and skills); custom providers use `defineSandboxProvider()` from `eve/sandbox/provider`. The
+> selector runs **until initialization succeeds and then never again** — later steps and restarts call the
+> provider's `resume()`. Runtime never rebuilds a missing artifact, which is what makes
+> `eve build --skip-sandbox-prewarm` output undeployable. `docs/sandbox.mdx` became `docs/sandbox/` with a
+> page per provider. Corrected in `eve-concepts.md` §Sandbox (rewritten), `eve-conventions.md` (exports table,
+> the just-bash snippet, the security and cost passages, the Vercel-region answer).
+>
+> **② `taskDeliveryPolicy: "auto" | "cohort"` on every `send(...)`** (0.64.0, `3be0b74`): new channel
+> sessions default to `"auto"` (a ready result can invoke the parent while siblings run; a turn may finish
+> with no user-visible message), schedules default to `"cohort"` (hold until the whole cohort is terminal,
+> then one turn). It rewrote the completion-batching rules in `subagents/index.mdx`, `tools/overview.mdx`,
+> `channels/overview.mdx` and `schedules.mdx`. This skill documented none of it — added to
+> `eve-capabilities.md` §Subagent.
+>
+> **③ eve's scaffold default model moved a third time**: `openai/gpt-5.6-luna-fast` → **`spacexai/grok-4.7`**
+> (0.63.0, `3d96b69`; `DEFAULT_AGENT_MODEL_ID` read off 0.64.0's `dist`, with `agent-config.md` and the dev-TUI
+> page updated in 0.64). In the TUI the default is now per connection: Gateway `grok-4.7`, OpenAI/ChatGPT
+> `gpt-5.6-luna-fast`, Anthropic `claude-sonnet-5`. Corrected in `eve-concepts.md`, `eve-scaffold.md`,
+> `eve-conventions.md`. This skill's own pin (`anthropic/claude-sonnet-5`) is unchanged and is the reason the
+> drift never reached a project.
+>
+> **④ Evals gain `setup`/`teardown` with a typed `t.context`** (0.64, `evals/overview.mdx`): setup runs once
+> per `eve eval` before the target starts, its return value becomes `t.context` when the eval is declared
+> `defineEval<typeof config>`, the object is shared in the runner process and never serialized, concurrent
+> evals share it, and `timeoutMs` applies to neither. Added to `eve-evals.md`.
+>
+> **⑤ Smaller, all verified:** `eve init -n/--non-interactive` (0.64.0, `d98edb2`) and the tightened
+> `eve build --skip-sandbox-prewarm` wording (`9f17453`) → `eve-scaffold.md`; **agent-info version 4 → 6** on
+> `GET /eve/v1/info` → `eve-web-integration.md`; `subagent.called`/`subagent.completed` hooks now carry the
+> **parent** `ctx.session.id` → `eve-capabilities.md` §Hook; `getLocalDevCapability()` / `eve/local-dev` was
+> **removed from the docs** (0.64.0, `aceb298` — local self-modification now depends on `eve dev` host
+> facilities), and this skill never documented it, so nothing to undo. Nav-only: a `dynamic-configuration/`
+> group over the existing dynamic-capabilities and evaluate pages, and three page titles renamed.
+>
+> **Corrected attributions from the 09-22 partial note**: the lowercase **`workflow()` factory replaced
+> `experimental_workflow` in 0.60.0** (`8bc931f`), not 0.64; **`ctx.agents` landed in 0.60.1** (`76d4dd8`,
+> extended in 0.61.0 and made step-hostile in 0.61.1); `task.postMessage` was removed with background
+> execution on ordinary tools in **0.63.0** (`d2c92df`), which the earlier note had right. The corrections
+> those notes produced in `eve-concepts.md` stand; only the version labels were wrong.
+
 > **Verification pass 2026-09-22 against eve@0.63.0** (eve shipped 0.58.1 → 0.63.0 — five minor
 > releases — in the five days since the 09-17 pass; `npm pack eve@0.63.0`, then `CHANGELOG.md` +
 > `docs/`, same technique). **Three breaking renames land on identifiers this skill had just
@@ -285,7 +322,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/tools/overview` | `eve-capabilities.md` §Tool + `eve-conventions.md` (idempotency/approval) | ✅ |
 | `/docs/skills` | `eve-capabilities.md` §Skill + `eve-concepts.md` (context) | ✅ |
 | `/docs/subagents` | `eve-capabilities.md` §Subagent | ✅ |
-| `/docs/sandbox` | `eve-concepts.md` §Sandbox (backends, seeding, network policy, credential brokering) | ✅ |
+| `/docs/sandbox` — **split into a directory in 0.64** (`index` + `default`/`vercel`/`docker`/`microsandbox`/`just-bash`) | `eve-concepts.md` §Sandbox — rewritten 2026-09-23 for the environment API (`DefaultSandbox`/`VercelSandbox`/… `.environment()` + `defineSandbox(selector)`, `prepare`, post-open init, lifecycle, seeding, network policy, credential brokering, `defineParentSandbox`) | ✅ |
 | `/docs/tools/human-in-the-loop` | `eve-concepts.md` §HITL + `eve-conventions.md` (approval) + `eve-capabilities.md` (`respond()` / `parseInputResponses`) | ✅ |
 | *(no eve page)* | `staged-writes.md` — an agent that changes a business's data has no write verb: propose, apply, discard. eve documents approvals, not this shape | ➕ |
 

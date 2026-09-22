@@ -482,6 +482,25 @@ listing to the parent by itself. Two consequences for how you write the child: i
 a second question about the same work, and the parent's prompt shouldn't re-explain context the child already
 has — the point of persistence is that the second turn is cheaper than the first.
 
+**When background results reach the parent: `taskDeliveryPolicy` (0.64).** Background work — background
+workflow tools and built-in, declared or remote subagents owned by the session — no longer always waits for
+its cohort. `send(...)` takes `taskDeliveryPolicy`:
+
+- **`"auto"`** — the default for **new channel sessions**: a terminal outcome can start a parent turn while
+  siblings are still running. The parent reports what is independently useful and stays silent when a useful
+  answer needs unfinished work, so *a model call may finish without a user-visible message*.
+- **`"cohort"`** — the default for **schedules** (and for internal subagent sessions' own background work):
+  completion, failure and cancellation notifications are held until every task in the cohort is terminal,
+  then delivered in one parent turn.
+
+The option is available on `from(...).send(...)`, cross-channel `to(...).send(...)`, fixed-session `send(...)`,
+Chat SDK `bridge.send(...)` and client sends; an explicit value **updates the session's policy**, including its
+pending tasks, and later sends that omit it keep that policy. Either way, user messages, input requests and
+explicit task messages are never held, and failure/cancellation update lifecycle state immediately even when
+their *report* waits. Each reporting turn sees the whole cohort, so a result withheld once stays available for
+a later combined report. Pick `"cohort"` when a half-answer is worse than a slow one (a digest, a report), and
+`"auto"` when the first useful result should reach the person straight away.
+
 Prefer a **skill** when a subagent would be overkill (a skill is lighter).
 
 **Building a whole team of them?** The mechanics above are one subagent; the *architecture* — a lead that routes depth-1 to non-overlapping specialists, boundaries drawn by job rather than artifact, shared state with exactly one writer, handoff artifacts passed **by id** so documents never enter the lead's context, and the subagent `description` written as a routing contract — is **`eve-patterns.md` §7**. Read it before adding the second subagent, not the fifth.
@@ -501,6 +520,9 @@ export default defineHook({
 Events include `session.started`, `turn.completed`, `message.completed`, `action.result`,
 and `*`. Handlers run after each event is durably recorded — use for audit logging, metrics,
 persisting sessions to your own DB. Not a place for behavior the model should invoke (use a tool).
+For **`subagent.called` / `subagent.completed`, `ctx.session.id` is the *parent* session** (0.64), and both
+typed and `*` handlers get that context even when the event arrives between parent turns — so an audit sink
+files child activity under the session a person can actually find.
 
 **Observability sink (external), the way worldcup-eve does it** — `turn.completed` + `session.failed`
 posting to an external store. Two rules learned the hard way:

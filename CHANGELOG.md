@@ -20,6 +20,31 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`eve-agent`: full sweep against eve@0.64.0, and three version labels from yesterday's partial pass corrected.**
+  `npm pack` of both 0.63.0 and 0.64.0, a file-by-file diff of the two bundled `docs/` trees (26 pages changed) and
+  the CHANGELOG between them.
+  - **The sandbox API is rewritten and the object form is gone** (0.64.0, `49971b7`). A module exports a provider
+    **environment** and returns a sandbox from a `defineSandbox()` **selector**:
+    `VercelSandbox.environment({ prepare })` + `defineSandbox(() => environment.open())`. `defaultBackend()` →
+    `DefaultSandbox.environment()`, the `vercel()`/`docker()`/`justbash()`/`microsandbox()` factories → classes on
+    the same subpaths, `bootstrap` → `prepare`, `onSession` → code after `open()`, and **`revalidationKey` no longer
+    exists** — the generation is derived. The selector runs until initialization succeeds and then never again;
+    runtime never rebuilds a missing artifact, which is why `--skip-sandbox-prewarm` output is undeployable.
+    `eve-concepts.md` §Sandbox rewritten, with `eve-conventions.md`'s exports table, just-bash snippet, cost and
+    security passages and the Vercel-region answer brought along.
+  - **`taskDeliveryPolicy: "auto" | "cohort"`** on every `send(...)` (0.64.0, `3be0b74`): channel sessions default to
+    `"auto"`, schedules to `"cohort"`. Under `"auto"` a turn can finish with no user-visible message. The skill
+    documented none of this; it is now in `eve-capabilities.md` §Subagent with the rule for choosing.
+  - **eve's scaffold default model moved a third time** — `spacexai/grok-4.7` (0.63.0, `3d96b69`), read off
+    0.64.0's `DEFAULT_AGENT_MODEL_ID`. Our own pin is unchanged, which is why the drift never reached a project.
+  - **Evals gain `setup`/`teardown` and a typed `t.context`** via `defineEval<typeof config>` — shared in the runner
+    process, never serialized, shared by concurrent evals, and outside `timeoutMs`.
+  - Smaller: `eve init -n/--non-interactive`, the tightened `eve build --skip-sandbox-prewarm` wording, **agent-info
+    version 4 → 6**, `subagent.called`/`subagent.completed` hooks carrying the **parent** session id, and
+    `getLocalDevCapability()` removed from the docs (never documented here).
+  - **Corrected**: the lowercase `workflow()` factory replaced `experimental_workflow` in **0.60.0**, not 0.64;
+    `ctx.agents` landed in **0.60.1** and throws in a step since 0.61.1. Yesterday's corrections were right about
+    the API and wrong about the versions.
 - **`eve-agent`: the workflow surface, re-verified against eve@0.64.0 — four things were wrong.** 0.64 shipped
   the same day as the 0.63.0 pass and lands exactly where that pass did not look.
   - **`experimental_workflow` is removed** (0.64, `8bc931f`), together with the uppercase `Workflow` framework

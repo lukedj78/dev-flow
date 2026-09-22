@@ -27,8 +27,8 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineMemory` | `eve/memory` — providers on `eve/memory/file` (`fileMemory`, `inMemory`, `vercelBlob` via `eve/memory/file/vercel`), scope helpers on `eve/memory/scope` (`byPrincipal`) |
 | `defineSchedule` | `eve/schedules` |
 | `defineState` | `eve/context` |
-| `defineSandbox`, `defaultBackend()` | `eve/sandbox` |
-| the other backends — `vercel`, `docker`, `justbash`, `microsandbox` | `eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox` — **one subpath each**, not `eve/sandbox` |
+| `defineSandbox`, `defineParentSandbox`, `DefaultSandbox` | `eve/sandbox` |
+| the provider environments — `VercelSandbox`, `DockerSandbox`, `JustBashSandbox`, `MicrosandboxSandbox` (**0.64: classes with `.environment()`, replacing the `vercel()`/`docker()` factories**), plus `defineSandboxProvider` on `eve/sandbox/provider` | `eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox` — **one subpath each**, not `eve/sandbox` |
 | channel authenticators `localDev`/`vercelOidc`/`placeholderAuth` | `eve/channels/auth` |
 | `slackChannel` (+ per-platform channels) | `eve/channels/slack` (etc.) |
 | `mcpChannel` — publishes the agent **as** an MCP server | `eve/channels/mcp` (not to be confused with `defineMcpClientConnection`, which calls one) |
@@ -133,8 +133,9 @@ Two trust zones: the **app runtime** (trusted — has `process.env`/secrets, run
 
 * Secrets live in `process.env` only — never in `agent.ts`, the compiled manifest, or the
   sandbox. The model sees only a tool's returned value, never the key.
-* Sandbox network policy defaults to `allow-all`; set `deny-all` or an allow-list (on the
-  backend factory or `onSession`) for sensitive/regulated/production workloads.
+* Sandbox network policy defaults to `allow-all`; set `deny-all` or an allow-list — since 0.64 as an
+  option of `environment.open()`, or `sandbox.setNetworkPolicy(...)` afterwards — for
+  sensitive/regulated/production workloads.
 * Connection tokens come from `auth.getToken()` → `{ token, expiresAt? }`, are cached per
   step, never serialized to durable state, and never reach the model.
 
@@ -173,14 +174,17 @@ export name. Don't re-implement what the harness gives you.
 
 The sandbox only matters for tools that run **shell / file / code** work. An agent that answers
 purely from its own `defineTool` `execute` (app-runtime data, API calls) never touches the sandbox
-— so a real backend (`vercel()` / `docker()` / microsandbox VM) is pure startup cost and infra for
-nothing. In that case pin `just-bash`, which satisfies the interface without a VM or Docker:
+— so a real provider (`VercelSandbox` / `DockerSandbox` / microsandbox VM) is pure startup cost and
+infra for nothing. In that case pin `JustBashSandbox`, which satisfies the interface without a VM or
+Docker:
 
 ```ts
 // agent/sandbox.ts
 import { defineSandbox } from "eve/sandbox";
-import { justbash } from "eve/sandbox/just-bash";
-export default defineSandbox({ backend: justbash() });   // no VM: this agent runs no shell/code tools
+import { defineSandbox } from "eve/sandbox";
+import { JustBashSandbox } from "eve/sandbox/just-bash";
+export const environment = JustBashSandbox.environment();          // 0.64 form: export the environment…
+export default defineSandbox(() => environment.open());            // …and open it in the selector. No VM.
 ```
 
 **A child can share the parent's live sandbox** (0.39.0): return `parent.sandbox` from the child's
@@ -189,8 +193,8 @@ right shape when a specialist continues work the lead started, and the wrong one
 be isolated. eve rejects the combination of `parent.sandbox` with the child's own managed workspace or skill
 resources **before execution**, so this fails at deploy rather than mid-turn.
 
-Reach for a real backend only once a tool actually shells out or executes untrusted code; then
-apply the network policy from the Security model below. When you do pick `vercel()`, Vercel Sandbox went **globally available on 2026-08-24** and the region is now a
+Reach for a real provider only once a tool actually shells out or executes untrusted code; then
+apply the network policy from the Security model below. When you do pick `VercelSandbox`, Vercel Sandbox went **globally available on 2026-08-24** and the region is now a
 decision, not a given:
 
 | | |
@@ -213,7 +217,7 @@ Two consequences worth planning for rather than discovering:
 - **Snapshots are region-locked** — *"snapshots stay in the region where they were created and can't be moved."* So
   the region is effectively chosen once, at the point you start seeding; moving later means rebuilding them.
 
-**Can you set the region from `vercel()`? Not today** — checked against `eve@0.47.6` (`npm pack`, `.d.ts`) — `failoverRegions` still present, still not reachable from `vercel()`:
+**Can you set the region from the Vercel environment? Not today** — checked against `eve@0.47.6` (`npm pack`, `.d.ts`) and unchanged by 0.64's rewrite, where the same options moved onto `VercelSandbox.environment()` / `open()` — `failoverRegions` still present, still not reachable:
 
 - **eve's side is already open.** `VercelSandboxCreateOptions` is a structural passthrough of the SDK's
   `Sandbox.create` params minus a fixed exclusion list — `mounts`, `name`, `onResume`, `persistent`,
@@ -260,12 +264,13 @@ bundler does not capture `execute: someFn` and it fails on replay.
   (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. ⚠️ **eve's scaffold default has now moved twice** — `zai/glm-5.2`
-  in 0.36.0, then **`openai/gpt-5.6-luna-fast` in 0.47.2**, which is the single
-  `DEFAULT_AGENT_MODEL_ID` used in three places at once: baked in by `eve init`, resolved for a
-  config-less agent, and pre-selected in the setup model picker (`--model` overrides it). `glm-5.2`
-  survives at 0.47.6 only in the CHANGELOG and one guide example. That it moved twice in eleven
-  minor versions is the point: **this skill pins `anthropic/claude-sonnet-5` explicitly and never
+* Prereqs: **Node ≥ 24** and npm. ⚠️ **eve's scaffold default has now moved three times** — `zai/glm-5.2`
+  in 0.36.0, then `openai/gpt-5.6-luna-fast` in 0.47.2, then **`spacexai/grok-4.7` in 0.63.0** (read off
+  `eve@0.64.0`'s `DEFAULT_AGENT_MODEL_ID`), the single constant used in three places at once: baked in by
+  `eve init`, resolved for a config-less agent, and pre-selected in the setup model picker (`--model`
+  overrides it). In the dev TUI the default now depends on the connection: Gateway takes `grok-4.7`,
+  OpenAI and ChatGPT `gpt-5.6-luna-fast`, Anthropic `claude-sonnet-5`. That it moved three times in
+  twenty-seven minor versions is the point: **this skill pins `anthropic/claude-sonnet-5` explicitly and never
   relies on the scaffold default** — and whatever that default is, check whether it accepts image
   input before inheriting it into an agent that will be handed a screenshot.
   The `model` field also accepts `defineDynamic({ events })` for per-session model choice — since
@@ -324,9 +329,9 @@ The two configuration-level exceptions, both real and both narrow:
   way rather than as a flat `model:` — the difference is whether the rest of the agent keeps the
   Gateway. Note that a dynamic or direct-provider model makes the config a runtime entry rather than
   compile-only.
-- **The Sandbox is not one of them.** The backends are
-  `eve/sandbox/{vercel,docker,just-bash,microsandbox}` (0.54.3) — another cloud can host the
-  `docker()` backend, but that is a self-hosting project, not a setting.
+- **The Sandbox is not one of them.** The providers are
+  `eve/sandbox/{vercel,docker,just-bash,microsandbox}` (0.54.3; classes with `.environment()` since
+  0.64) — another cloud can host the Docker provider, but that is a self-hosting project, not a setting.
 
 The worked example — a runtime diagram of who calls whom, where the question arises in the flow,
 and a twelve-line tool that gives an agent a GPU without touching its model, sandbox or bill:

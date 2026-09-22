@@ -6,10 +6,10 @@ Goal: a runnable eve agent at `apps/agent`, wired into the Turborepo/pnpm monore
 
 ## eve CLI quick reference (verify against your version)
 
-* `eve init [target]` — scaffold a new agent, or add one to an existing directory.
+* `eve init [target]` — scaffold a new agent, or add one to an existing directory. **`-n`/`--non-interactive`** (0.64) scaffolds and installs without opening the TUI — the flag to use from a script or another agent.
 * `eve dev` — local dev server + terminal UI. `eve dev --no-ui` = headless/controllable background mode (use for verification). `eve dev <url>` — attach the UI to a remote deployment.
 * `eve info` — print the resolved app: discovered tools, skills, subagents, schedules, channels, routes, artifact paths, discovery diagnostics.
-* `eve build` — compile `.eve/` artifacts and the host output.
+* `eve build` — compile `.eve/` artifacts, **prepare the sandbox artifacts**, and publish the host output. `--skip-sandbox-prewarm` skips that preparation for a faster compile (a typecheck, say) and its output **cannot start its sandbox**, so never deploy it (wording tightened in 0.64).
 * `eve start` — serve the built output; prints the listening URL.
 * `eve eval` — run evals against the local app or a remote target.
 * `eve add channel/<kind>` — install a channel (`eve channels add` was **removed in 0.29.0**); `eve channels list` — list user-authored channels.
@@ -77,7 +77,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
   ```ts
   export default defineAgent({
-    model: "anthropic/claude-sonnet-5",   // explicit pin — eve's own default moved twice (0.36.0 zai/glm-5.2 → 0.47.2 openai/gpt-5.6-luna-fast)
+    model: "anthropic/claude-sonnet-5",   // explicit pin — eve's own default has moved three times (0.36.0 zai/glm-5.2 → 0.47.2 openai/gpt-5.6-luna-fast → 0.63.0 spacexai/grok-4.7)
     limits: { maxInputTokensPerSession: 100_000, maxOutputTokensPerSession: 20_000 },
   });
   ```

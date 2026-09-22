@@ -22,6 +22,30 @@ import { defineEvalConfig } from "eve/evals";
 export default defineEvalConfig({});
 ```
 
+**Shared resources: `setup` / `teardown`** (0.64). `setup` runs **once per `eve eval` invocation**, after
+discovery and before the target starts — the place to start a test database or run migrations. What it
+returns becomes `t.context`, typed by passing the config's type to `defineEval`:
+
+```ts
+// evals/evals.config.ts
+export default defineEvalConfig({
+  async setup() { return { database: await startTestDatabase() }; },
+  async teardown(context) { await context?.database.close(); },   // `undefined` when setup returned nothing or threw
+});
+
+// evals/database.eval.ts
+import type config from "./evals.config.js";
+export default defineEval<typeof config>({
+  async test(t) { await t.require((await t.context.database.query("SELECT 1 AS value")).rows[0]?.value, equals(1)); },
+});
+```
+
+The context object is **shared in the runner process, never serialized and never sent to the agent
+server** — class instances and functions keep their identity, and **concurrent evals share it**, so
+isolate any rows they modify. `teardown` runs after the local server and its sandbox handles shut down,
+including after a failed setup or startup, and a cleanup failure fails the command. The per-eval
+`timeoutMs` does **not** apply to either.
+
 ## Cases
 
 One file = one graded case by default; `test(t)` is the only required field. `t` is **both driver and assertion surface**.

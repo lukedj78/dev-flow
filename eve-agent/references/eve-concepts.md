@@ -5,7 +5,7 @@ The cross-cutting concepts behind every capability. This complements `eve-conven
 ## Agent config — `agent/agent.ts` (`defineAgent`)
 
 Root-only. Fields:
-- `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; **eve's own scaffold default is now `openai/gpt-5.6-luna-fast`** — `DEFAULT_AGENT_MODEL_ID`, changed in 0.47.2 from the `zai/glm-5.2` of 0.36.0, and used for all three of `eve init`, a config-less agent, and the setup picker's pre-selection. It has moved twice in eleven minor versions, so pin explicitly and **check image support before inheriting whatever it is today** — an agent that will ever see a screenshot needs a vision-capable model or an image route to one) or a `LanguageModel`; may be a `defineDynamic({ events })` for per-session/turn/step model choice — since 0.33.0 there is no `fallback`, every matching handler must return a concrete model.
+- `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; **eve's own scaffold default is now `spacexai/grok-4.7`** — `DEFAULT_AGENT_MODEL_ID` read off `eve@0.64.0`'s `dist`, changed in 0.63.0 from the `openai/gpt-5.6-luna-fast` of 0.47.2, itself from the `zai/glm-5.2` of 0.36.0, and used for all three of `eve init`, a config-less agent, and the setup picker's pre-selection. **Three moves in twenty-seven minor versions**, so pin explicitly and never inherit it
   - **Or `auto()` — a model picked per turn by an evaluation model** (`import { auto } from "eve/models"`; renamed from `autoModel`/`eve/experimental/evaluate` in **eve 0.60.0** — the old import path is gone, not deprecated, as of eve@0.63.0. Depends on `ai@^7.0.105`; the bundled `docs/guides/evaluate.md` is the source). The standalone question-asking function moved too: `evaluate` now imports from `eve/ai`, not `eve/experimental/evaluate`. *Still experimental: its API can change between eve releases, and the AI SDK evaluation-model spec can change in patch releases* — pin eve and re-read the page on upgrade.
     ```ts
     import { defineAgent } from "eve";
@@ -70,23 +70,36 @@ Customize:
 
 ## Sandbox — the agent's isolated `/workspace`
 
-Every agent has exactly one sandbox: an isolated bash filesystem rooted at `/workspace`, where `bash`/`read_file`/`write_file` (and the opt-in `glob`/`grep`) run and which custom code reaches via `ctx.getSandbox()`. It **never touches your app runtime** (authored tools keep full `process.env`; only sandbox-targeted tools run inside). Backends (`defaultBackend()` picks best-available): **Vercel Sandbox** (hosted), **Docker** (local containers), **microsandbox** (local VM, Apple Silicon/Linux KVM), **just-bash** (pure-JS interpreter, no isolation — the cheap fallback).
+Every agent has exactly one sandbox: an isolated bash filesystem rooted at `/workspace`, where `bash`/`read_file`/`write_file` (and the opt-in `glob`/`grep`) run and which custom code reaches via `ctx.getSandbox()`. It **never touches your app runtime** (authored tools keep full `process.env`; only sandbox-targeted tools run inside). Providers: **Vercel Sandbox** (hosted, snapshot-backed), **Docker** (local containers), **microsandbox** (local VM, Apple Silicon/Linux KVM), **just-bash** (pure-JS interpreter, no isolation — the cheap fallback), and `DefaultSandbox`, which picks Vercel on Vercel and otherwise tries Docker → microsandbox → just-bash.
 
-```ts
+⚠️ **Rewritten in 0.64 — the object form is gone.** *"Replace object-form sandbox definitions with exported provider environments whose `open()` method starts and returns the current eve session's persistent live sandbox"* (CHANGELOG 0.64.0, `49971b7`). A module now **exports an environment** and returns a sandbox from a `defineSandbox()` selector. The environment export is required because `eve build` prepares immutable inputs before any session exists.
+
+```ts title="agent/sandbox.ts"   // shorthand; agent/sandbox/sandbox.ts (folder) wins
 import { defineSandbox } from "eve/sandbox";
-import { vercel } from "eve/sandbox/vercel";
-export default defineSandbox({           // agent/sandbox.ts (shorthand) OR agent/sandbox/sandbox.ts (folder wins)
-  backend: vercel({ resources: { vcpus: 2 } }),
-  revalidationKey: () => "repo-bootstrap-v1",
-  async bootstrap({ use }) {/* template-scoped, runs once — clone/install/seed */},
-  async onSession({ use, ctx }) {/* per-session — network policy, resources, per-user creds */},
+import { VercelSandbox } from "eve/sandbox/vercel";   // DefaultSandbox from eve/sandbox · DockerSandbox · MicrosandboxSandbox · JustBashSandbox
+
+export const environment = VercelSandbox.environment({
+  prepare: async (sandbox) => {                        // was `bootstrap` — runs once per environment generation, not per session
+    const r = await sandbox.run({ command: "pnpm install --frozen-lockfile" });
+    if (r.exitCode !== 0) throw new Error(r.stderr);   // run() does not throw on a nonzero exit
+  },
+});
+
+export default defineSandbox(async ({ session }) => {  // was `onSession` — per durable session, after open()
+  const sandbox = await environment.open({ networkPolicy: "deny-all", resources: { vcpus: 2 } });
+  await sandbox.writeTextFile({ path: ".eve/session", content: session.id });
+  return sandbox;
 });
 ```
 
-- **Seeding:** files under `agent/sandbox/workspace/` mirror into `/workspace` at session start (structure intact; top-level entries are advertised to the model).
-- **Network policy** (three forms): `"allow-all"` (default) · `"deny-all"` · `{ allow: ["*.github.com"], subnets: { deny: [...] } }`. Set on the backend (pre-bootstrap), in `onSession`'s `use()`, or mid-turn via `sandbox.setNetworkPolicy(...)`.
-- **Destroying one** *(0.47.0)*: `await sandbox.delete()` permanently deletes the current session's sandbox; the next access reprovisions a fresh one. Use it to drop a poisoned or oversized workspace without retiring the session (`ctx.reset()` retires the whole session instead). ⚠️ **Docker handles stay bound to one physical container**, so the semantics differ per backend — and a custom `SandboxBackend`'s `delete()` must remove the session runtime and disposable state **without** deleting reusable templates. Same release: `onSession` callbacks receive session metadata through `ctx` while reaching the sandbox with `use()`.
-- **Credential brokering:** secrets **never enter the sandbox** — a per-domain `transform` injects an auth header at the firewall (supported by `vercel()`/`microsandbox()`), so egress authenticates while the secret stays out of the sandbox process.
+- **Old → new**: `defineSandbox({ backend, bootstrap, onSession, revalidationKey })` → `environment.open()` inside a `defineSandbox(selector)`; `backend: vercel()` → `VercelSandbox.environment()`; `defaultBackend()` → `DefaultSandbox.environment()`; `bootstrap` → the environment's `prepare`; `onSession` → code after `open()` in the selector; the generation is derived (sandbox source, preparation code, Dockerfile, environment options, workspace resources, skills), so **there is no `revalidationKey` to set**. Custom providers: `defineSandboxProvider()` from `eve/sandbox/provider`.
+- **The selector runs until initialization succeeds, then never again**: eve checkpoints the provider and its state, and later steps and restarts call `resume()` directly. If initialization throws, eve deletes the newly started sandbox and retries on the next access. So post-`open()` code is *session* setup, not per-turn setup.
+- **`prepare` builds an artifact, runtime never rebuilds it**: Vercel captures a snapshot, Docker an image, microsandbox a VM snapshot, just-bash a filesystem template. A missing artifact fails with rebuild/redeploy guidance instead of being repaired at runtime — which is why `eve build --skip-sandbox-prewarm` output is explicitly *not deployable*.
+- **Seeding:** files under `agent/sandbox/workspace/` seed writable `/workspace` when eve prepares a new environment generation; existing live state is **not** overwritten by later seed changes. Skills are a separate read-only tree at `$HOME/.agents/skills`. Refer to those two paths only — `/eve/resources` is provider-internal staging.
+- **Network policy** goes to `open()` (`"allow-all"` · `"deny-all"` · `{ allow: { "api.example.com": [...] } }`) and applies to the live sandbox, not the environment; Docker supports only the two coarse forms. `sandbox.setNetworkPolicy(...)` updates it afterwards (the Vercel environment returns a session where it is always available).
+- **Lifecycle:** `sandbox.stop()` stops compute and keeps state; `sandbox.delete()` clears provider state so the next `ctx.getSandbox()` reruns the selector on a fresh sandbox (`ctx.reset()` retires the whole session instead).
+- **Credential brokering:** secrets **never enter the sandbox** — a per-domain `transform` injects an auth header at the firewall, so egress authenticates while the secret stays out of the sandbox process.
+- **Sharing:** a declared subagent can inherit its dispatching parent's sandbox with `defineParentSandbox()` — and then cannot declare its own workspace or skill files. Built-in environments do **not** share resources across sessions; a session-specific path is not an isolation boundary.
 - The default sandbox is **not** a substitute for configuring network policy, credentials, retention, or deletion (see Responsible use).
 
 ## Execution model & durability
@@ -157,10 +170,10 @@ import { workflow } from "eve/tools/workflow";   // 0.45.0: was eve/tools · 0.6
 export default workflow({ maxSubagents: 20 });   // default 100, integer 1–128
 ```
 
-⚠️ **Renamed in 0.64, and the old name is gone.** `experimental_workflow` and the uppercase `Workflow`
-framework tool *"and its exports have been removed"* — the replacement is the lowercase `workflow()`
-factory from the same subpath, and the file name still gives the tool its model-facing name
-(`tools/workflows.mdx`, read off `eve@0.64.0`, 2026-09-22). eve no longer discovers or injects an agent
+⚠️ **Renamed in 0.60.0, and the old name is gone.** `experimental_workflow` and the uppercase `Workflow`
+framework tool *"and its exports have been removed"* (CHANGELOG 0.60.0, `8bc931f`) — the replacement is the
+lowercase `workflow()` factory from the same subpath, and the file name still gives the tool its model-facing
+name (`tools/workflows.mdx`, re-read on `eve@0.64.0`, 2026-09-23). eve no longer discovers or injects an agent
 catalog for it: the generated program resolves targets exactly like `ctx.agent` elsewhere.
 
 It's a **coordination layer only** — the program's single host capability is
@@ -209,7 +222,7 @@ export default defineWorkflowTool({
 - `ctx` inside the body is `WorkflowToolContext`, not the ordinary `ToolContext`: `session`, `callId`, `toolName`, `abortSignal`, plus the workflow-only `ask`, `agent` and (since 0.64) `agents`.
   - **`ctx.agent(name, input)`** — the first argument is the **model-visible subagent name**, not a key: `ctx.agent("reviewer", { message, agentId?, outputSchema? })`. **eve assigns the replay-stable invocation identity itself**, including repeated and parallel calls to the same subagent; `agentId` continues an existing child; an inline `outputSchema` forces structured output *and types the result*.
   - **`ctx.ask(request)`** — ask the human on the session's channel (`prompt`, `display`, `options`); awaiting it suspends the run. It composes with `approval`, which gates the call *before* `execute` runs and can only show the model's input.
-  - **`ctx.agents`** (0.64) — the effective callable-agent descriptions, for a body that decides where to delegate.
+  - **`ctx.agents`** (0.60.1; the root copy target lands at `ctx.agents.agent` in 0.61.0) — the effective callable-agent descriptions, including subagents hidden from the parent model, for a body that decides where to delegate. Reading it **in a step throws** (0.61.1), with the same rule for `ctx.agent()`/`ctx.ask()`.
   - `getSandbox`/`getSkill` are unavailable anywhere. **`getToken`/`requireAuth` live on the step context**: a `"use step"` helper that takes `ctx` directly receives a restricted `WorkflowStepToolContext` (`session`, `callId`, `toolName`, `abortSignal`, `getToken`, `requireAuth`). Read `ctx.agents`, call `ctx.agent()` and `ctx.ask()` in the body; pass a step only the serializable values it needs.
 - **`yield` reports progress, `await` suspends — and background mode publishes nothing.** A body may be an async generator. In **default** execution `yield value` emits an `action.partial` snapshot for the pending call (last-write-wins per tool-call id, never entering model history as an intermediate result). In **background** execution the value is *consumed without publishing progress or requesting a parent turn*: 0.63 removed background execution from `defineTool` and dynamic tools altogether, along with the `TaskExec` and `postMessage` authoring APIs, and delivers each cohort's completed/failed/cancelled outcomes in one automatic report. **`yield task.postMessage(...)` no longer exists** — do not write it. `return value` settles the call; with no return, the last yield becomes the output (or `null`). Prefer an explicit return when progress and result have different shapes.
 - **`ctx.abortSignal` is durable** — it survives replay, aborts on a steered turn, `task_cancel` or the session ending, and a step that receives it observes the abort. Pass it into the steps that should stop and clean up in `try/finally`.

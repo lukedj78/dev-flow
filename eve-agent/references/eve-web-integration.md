@@ -274,7 +274,7 @@ Next app, but it is the contract for non-Next consumers and `curl` verification:
 * `POST /eve/v1/session/:sessionId` — continue (next turn).
 * `GET  /eve/v1/session/:sessionId/stream` — stream events as **NDJSON** (`?startIndex=<n>` to replay).
 * `POST /eve/v1/session/:sessionId/{clear,compact,reset}` — session control (0.31.0 moved these off the old token-body routes).
-* `GET  /eve/v1/info` — agent inspection · `GET /eve/v1/health` — public health check.
+* `GET  /eve/v1/info` — agent inspection, **agent-info version 6** since 0.64 (was 4); the TypeScript client validates the payload and rejects a malformed or older one · `GET /eve/v1/health` — public health check.
 
 Accepted asynchronous work returns **202**; a follow-up on an inactive session returns **409** with
 `code: "session_not_active"`.
