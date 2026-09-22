@@ -1,12 +1,13 @@
 {
-  "allowlist": true,
   "review": true,
-  "approve": true,
-  "install_snapshot": true,
+  "allowlist": false,
+  "approve": false,
+  "install_snapshot": false,
+  "agent_decided": true,
   "no_direct_add": true,
   "no_hand_copy": true,
+  "stopped_to_ask": true,
   "gate_check": true,
-  "item_in_lock": true,
-  "no_ungoverned_files": true,
-  "agent_decided": false
+  "item_in_lock": false,
+  "no_ungoverned_files": true
 }

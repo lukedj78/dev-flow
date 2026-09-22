@@ -347,6 +347,54 @@ class Hook(Base):
         self.assertEqual((decision["hookEventName"], decision["permissionDecision"]), ("PreToolUse", "deny"))
 
 
+class AskBeforeDeciding(Base):
+    """allow and approve are the user's decisions: the hook answers "ask", so an agent that skipped the
+    question meets a permission prompt instead of writing someone's name into the lock."""
+
+    def run_hook(self, command: str) -> dict | None:
+        payload = json.dumps({"tool_name": "Bash", "cwd": str(self.root), "tool_input": {"command": command}})
+        out = io.StringIO()
+        stdin = sys.stdin
+        try:
+            sys.stdin = io.StringIO(payload)
+            with redirect_stdout(out):
+                ri.cmd_hook(None)
+        finally:
+            sys.stdin = stdin
+        return json.loads(out.getvalue())["hookSpecificOutput"] if out.getvalue().strip() else None
+
+    def test_allow_and_approve_ask_the_user(self) -> None:
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+        cmd = ("S=~/.claude/skills/registry-intake/scripts/registry_intake.py\n"
+               "python3 $S allow . @x 'https://x.dev/r/{name}.json' --reason r --by luca && "
+               "python3 $S approve . @x/pdf/card --by luca")
+        d = self.run_hook(cmd)
+        self.assertEqual(d["permissionDecision"], "ask")
+        self.assertIn("allowlist the registry @x", d["permissionDecisionReason"])
+        self.assertIn("approve @x/pdf/card", d["permissionDecisionReason"])
+        self.assertIn("decided by luca", d["permissionDecisionReason"])
+
+    def test_without_by_the_prompt_says_nobody_was_named(self) -> None:
+        project(self.root)
+        d = self.run_hook("python3 registry-intake/scripts/registry_intake.py allow . @x https://x.dev/r/{name}.json --reason r")
+        self.assertIn("nobody named", d["permissionDecisionReason"])
+
+    def test_read_only_and_unrelated_commands_pass_silently(self) -> None:
+        project(self.root)
+        for c in ["python3 registry-intake/scripts/registry_intake.py review . @x/a --registry '@x=https://x.dev/r/{name}.json'",
+                  "python3 registry-intake/scripts/registry_intake.py check .",
+                  "python3 registry-intake/scripts/registry_intake.py install . @x/a",
+                  "git commit -m 'approve the design'"]:
+            with self.subTest(c=c):
+                self.assertIsNone(self.run_hook(c))
+
+    def test_deny_wins_over_ask(self) -> None:
+        project(self.root)
+        d = self.run_hook("python3 registry_intake.py approve . @x/a --by luca; npx shadcn add @x/a")
+        self.assertEqual(d["permissionDecision"], "deny")
+
+
 class PhaseGate(unittest.TestCase):
     DEVFLOW = HERE.parents[1] / "dev-flow" / "scripts"
 

@@ -833,10 +833,13 @@ Items from a shadcn-format registry other than shadcn's own (`@ns/item`, a regis
 installed with `shadcn add` directly — a hook refuses it. They go through registry intake:
 
 1. `registry_intake.py review . @ns/item` — read-only report of files, npm deps, env vars and findings
-2. `registry_intake.py approve . @ns/item --by <name>` — snapshots the item into `{VENDOR}/` and records it in `{LOCK}`
+2. **Stop and ask the user**, always, even for a clean review or when in a hurry: a new registry needs
+   their yes before `registry_intake.py allow . @ns <url> --reason "..." --by <them>`, and the item needs
+   their yes before `registry_intake.py approve . @ns/item --by <them>`. `--by` is the person who said
+   yes, never the agent or the OS login. The hook asks them to confirm both commands.
 3. `registry_intake.py install . @ns/item` — installs the snapshot, never the live URL
 
-A new registry needs `registry_intake.py allow . @ns <url> --reason "..."` first. Blocking findings are
+Blocking findings are
 fixed, ported by hand, or accepted one by one with a written reason. Imported code has to pass the
 capped design lint; raising `--max-warnings` fails `registry_intake.py check`.
 {SETUP_MARK[1]}
@@ -1027,6 +1030,30 @@ def hook_decision(payload: dict) -> str | None:
     return None
 
 
+# `registry_intake.py allow|approve`, called by path or through a variable holding it (`python3 $S approve`)
+DECISION_CALL = re.compile(r"""(?:\S*registry_intake\.py["']?|["']?\$\{?\w+\}?["']?)\s+(allow|approve)\s+(?:\S+\s+)?(\S+)""")
+
+
+def hook_ask(payload: dict) -> str | None:
+    """None, or what the user is asked to confirm: allowlisting a registry and approving an item are
+    their decisions, and an agent that skipped the question still meets the prompt."""
+    if payload.get("tool_name") != "Bash":
+        return None
+    command = (payload.get("tool_input") or {}).get("command") or ""
+    if "registry_intake" not in command:
+        return None
+    asks = []
+    for verb, target in DECISION_CALL.findall(command):
+        by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
+        who = by.group(1).strip("\"'") if by else "nobody named"
+        what = f"allowlist the registry {target}" if verb == "allow" else f"approve {target} into a snapshot"
+        asks.append(f"{what}, recorded as decided by {who}")
+    if not asks:
+        return None
+    return ("registry intake: the agent wants to " + "; and to ".join(asks) +
+            ". Confirm only if you said yes to this — the lock will say you did.")
+
+
 def cmd_hook(_args) -> int:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
@@ -1036,6 +1063,12 @@ def cmd_hook(_args) -> int:
     if reason:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                                  "permissionDecisionReason": reason}}))
+        return 0
+    ask = hook_ask(payload)
+    if ask:
+        # "ask": the reason is shown to the user, not to Claude (hooks docs, PreToolUse decision control)
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                                 "permissionDecisionReason": ask}}))
     return 0
 
 

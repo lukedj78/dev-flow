@@ -1,1 +1,0 @@
-{"i": 0, "tool": "Bash", "input": "command=python3 ~/.claude/skills/registry-intake/scripts/registry_intake.py review . https://reactbits.dev/r/PeekRating-TS-TW.json --registry '@reactbits=https://reactbits.dev/r/{name}.json'\ndescription=Review", "output": "tier low \u00b7 clean"}
