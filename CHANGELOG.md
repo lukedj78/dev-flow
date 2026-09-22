@@ -16,6 +16,17 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`eve-agent` §13 (evaluation models): confidence, a mock for the branches, the context limits.** Three things
+  Vercel's KB guide *"How to classify, route, and score with Jev and AI SDK"* (2026-09-19) documents and §13 did not.
+  - `providerMetadata.typesafe.confidence`: distribution concentration, only for `choice`/`score`, untyped, and
+    gated together with the selected probability, with missing metadata failing closed.
+  - **`Experimental_EvaluationMockModelV4`** from `ai/test` (verified in `ai@7.0.109`): it unit-tests the
+    thresholds with no network or Gateway credentials, while the eval in (d) keeps the calibration. New
+    subsection (f), with the four cases to cover.
+  - **64k tokens per request, 32k for the `state`**, and a `score` that is a 0-indexed probability-weighted mean.
+
+  The boolean-has-no-confidence trap is from Langfuse's *"Using TypeSafe's Jev for evals"* (2026-09-18). Found
+  through shipwithjev.com, an unaffiliated directory of Jev builds that is not itself a source.
 - **shadcn's registry now imports `cn` from the `cn` package, and dev-flow says which way to point it.** The shadcn changelog ("September 2026 - cn") moved every registry component, block and example to `import { cn } from "cn"`. Each item now declares `cn`, `init` writes a one-line `lib/utils.ts` re-export, and existing projects are told *"Nothing breaks"*. We had made `cn` the default on 2026-09-02 behind `@/lib/utils`, so what changed is where primitives import it from. The compliance runs showed agents reading the new import as a broken install and rewriting vendored primitives back. `design-md-to-app/references/shadcn-mapping.md` §cn now gives two opposite rules, depending on `lib/utils.ts`:
   - **Stock:** leave `from "cn"` alone. It is the same function, and rewriting it forks a primitive.
   - **Configured** (`createCn` / `extendTailwindMerge`, as in bottega and video, for a custom type scale): every `cn` must come from `@/lib/utils`, primitives included. The package's stock instance would bring back the colour silently dropped by `cn("text-pure-white", "text-body")`.

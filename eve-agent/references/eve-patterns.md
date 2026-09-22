@@ -664,6 +664,34 @@ item" — in a single call before any agent turn is spent. In §12's shape it is
 expensive one**: it decides which items deserve an investigation; it never produces the conclusion itself, and it
 never closes anything on its own.
 
+**f. Test the branching without calling Jev.** The thresholds in (b), (c) and (e) are application code, so unit-test
+them like application code. `ai/test` ships **`Experimental_EvaluationMockModelV4`**, verified in `ai@7.0.109`'s
+`dist/test/index.d.ts`, which returns whatever answers you hand it. Pass it as the `model` and every branch runs with
+fixed inputs, no network and no Gateway credentials. That is the split with (d): the mock proves the code does the
+right thing *for* a given answer, and the eval proves Jev *gives* the right answer on your domain. Pattern from
+Vercel's KB guide *"How to classify, route, and score with Jev and AI SDK"* (2026-09-19):
+
+```ts title="lib/route-ticket.test.ts"
+import { Experimental_EvaluationMockModelV4 as MockEvaluationModel } from "ai/test";
+
+type EvaluationResult = Awaited<ReturnType<MockEvaluationModel["doEvaluate"]>>;
+
+function mockJev(answers: EvaluationResult["answers"], confidence?: Record<string, number>) {
+  return new MockEvaluationModel({
+    doEvaluate: async () => ({
+      answers,
+      warnings: [],
+      ...(confidence && { providerMetadata: { typesafe: { confidence } } }),
+    }),
+  });
+}
+// routeTicket(ticket, model = "typesafe-ai/jev") — the function under test takes the model as a parameter
+```
+
+Write at least these cases: a clear answer is acted on, an answer exactly at the floor, a low selected
+probability goes to a person, and **missing confidence metadata goes to a person**. The last one is the
+fail-closed rule from (b), applied to the metadata.
+
 **Not a fit — choosing the subagent.** A declared subagent is picked by the **parent model** from its required
 `description`, and conditional exposure through `defineDynamic` runs at `session.started` or `turn.started` only
 (*"step.started is not supported for subagents"*, `docs/subagents/index.mdx`). There is no documented hook where an
@@ -681,8 +709,23 @@ and keep specialist selection on descriptions that do not overlap (§7).
   (`dev-flow/references/eu-data-sovereignty.md` §4.10).
 - **Italian is not documented.** Neither the launch post nor the Gateway page lists supported languages; on a product
   whose users write in Italian, the eval in (d) is what tells you whether the thresholds hold.
-- **Limits stated by TypeSafe:** text input only, no string output, a `choice` of at most 255 options, 70–500 ms
-  end-to-end; no calibration figures are published, so "calibrated" is a claim to test, not a property to rely on.
+- **Limits stated by TypeSafe and the Gateway:** text input only, no string output, a `choice` of at most 255
+  options, a `score` of 2 to 10 levels, **64,000 tokens per request and 32,000 for the `state`** (Vercel KB guide,
+  2026-09-19), 70–500 ms end-to-end. Truncate the state yourself, as (c) does, rather than learning the limit from a
+  failed call. No calibration figures are published, so "calibrated" is a claim to test, not a property to rely on.
+- **Probability and confidence are two numbers; gate on both.** `probabilities` says which answer won and by how much.
+  `result.providerMetadata.typesafe.confidence`, keyed by question id, says how concentrated the whole distribution
+  is, from 0 (spread evenly) to 1 (all on one option). The Vercel guide routes automatically only when *both*
+  clear their floors (confidence ≥ 0.6 and selected probability ≥ 0.7 in its example) and sends everything else to
+  a person. Three traps:
+  - Confidence exists **only for `choice` and `score`**. A boolean has `probability` and nothing else, so code
+    that reads confidence on every answer breaks on binaries (Langfuse, *"Using TypeSafe's Jev for evals"*,
+    2026-09-18).
+  - It is **provider metadata, untyped**. It is not in `ai`'s types, so read it defensively, and treat
+    "missing" as "not confident".
+  - `score` is the **probability-weighted mean of the levels, indexed from zero**. With four levels, 2.86 sits
+    between the third and the fourth. `probabilities` uses string keys (`"3"` is the fourth level), and a
+    threshold like (b)'s `tone.score > 0.5` is on that 0-based scale.
 - **Calibrate thresholds with evals, not intuition.** A probability is only meaningful against labelled cases from
   your domain; write the eval (d) before trusting the gate (b, c).
 - **Design the questions like a form.** One decision per question, `instructions` phrased as a yes/no or a pick,
