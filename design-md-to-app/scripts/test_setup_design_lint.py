@@ -247,8 +247,13 @@ class Policy(unittest.TestCase):
             src = sdl.preset_source({**u, "ui": "shadcn"}, "error")
             self.assertIn('"no-restricted-imports": ["error"', src)
             self.assertIn('ignores: ["components/ui/**"]', src, "the primitives themselves import their bases")
-            for banned in ('"@mui/*"', '"radix-ui"', '"@radix-ui/react-*"', '"@base-ui/react/*"', '"cmdk"'):
+            for banned in ('"@mui/*"', '"/radix-ui"', '"@radix-ui/react-*"', '"@base-ui/react/*"', '"/cmdk"',
+                           '"/input-otp"', '"/vaul"', '"/antd"'):
                 self.assertIn(banned, src)
+            # gitignore-style patterns: a slash-free name matches at any depth, so a bare "input-otp"
+            # banned the project's own components/ui/input-otp (FITROOM, 2026-09-22)
+            for bare in ('"input-otp"', '"vaul"', '"cmdk"', '"radix-ui"', '"antd"'):
+                self.assertNotIn(bare, src, f"{bare} must be anchored with a leading slash")
             for allowed in ('"sonner"', '"recharts"', '"react-day-picker"'):
                 self.assertNotIn(allowed, src, "shadcn's own docs import these from app code")
             base_ui = sdl.preset_source({**u, "ui": "base-ui"}, "error")

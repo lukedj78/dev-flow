@@ -311,6 +311,15 @@ preset adds ESLint's own `no-restricted-imports` for golden rule 3 (`references/
   `Dialog` from `radix-ui` instead of `components/ui/dialog` forks the primitive's behaviour. Skipped for
   `stack.ui = "base-ui"`, where the headless primitives are the library.
 
+⚠️ **Slash-free names are written anchored — `/input-otp`, not `input-otp`.** The patterns are
+gitignore-style, so a name without a slash matches that path segment *at any depth*: a bare `input-otp`
+also banned the project's own `@/components/ui/input-otp` (shadcn ships `components/ui/input-otp.tsx`)
+with the golden-rule message, and a bare `vaul` would ban any `…/vaul/…` path. The leading slash anchors
+the name to the import root: the package and its subpaths (`input-otp/dist/…`) stay banned, local paths
+that merely contain the name do not. `setup_design_lint.py` anchors every slash-free entry itself;
+scoped names and `radix-ui/*` already contain a slash and are anchored by the gitignore rules. Measured
+with eslint 10.11 on FITROOM, 2026-09-22. A preset generated before that date needs a re-run.
+
 Not banned, on purpose: `sonner` (`toast` is called from app code in shadcn's own docs), `recharts`
 (charts compose it with `ChartContainer`), `react-day-picker` (its `DateRange` type is used by callers).
 
