@@ -20,6 +20,29 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **Expo SDK 58 is in beta, and our beta page said the opposite of what `expo@next` now does.**
+  `rn-upgrade/references/beta-preview.md` was snapshotted on 2026-08-26, when `next` pointed at stable
+  `57.0.16`, and told the reader that `expo install expo@next` installs stable. On 2026-09-22 `next` is
+  **`58.0.0-preview.5`**, so the same command moves a project onto a beta. The page now carries the
+  current dist-tag map (`latest` `57.0.24`, `canary` `58.0.0-canary-20260909-ea7a89a`), states the trap in
+  both directions, and says to name the version rather than the tag. Same correction in `rn-upgrade`
+  Step 8.
+- **`rn-upgrade/references/breaking-changes.md` §SDK 58 — the crossing, written before we have to make it.**
+  From the official beta changelog (2026-09-15): iOS 27's **UIScene life cycle** (`prebuild` generates
+  `SceneDelegate.swift`; bare and hand-edited AppDelegates need the migration) and **resizable apps**, where
+  `ScreenOrientation.lockAsync` may do nothing and `requireFullScreen` no longer opts out; React Native's
+  **Strict TypeScript API** as the default, with the `react-native-legacy-deep-imports` escape hatch removed
+  after 0.88; the removals (`InteractionManager`, `Modal`'s `animated`, `StatusBar` props, `ImageBackground`
+  deprecated); the **expo-router core rework**; `File.write()` going async; libSQL dropped from `expo-sqlite`;
+  foreground notifications shown by default; **R8 on by default** on Android; and Expo CLI now setting
+  `NODE_ENV` itself, so `NODE_ENV=test npx expo start` loads `.env.development`. The beta's own cost is
+  recorded too: EAS Build images with Xcode 27 were still "coming soon", Expo Go 58 is not in the stores, and
+  React Native 0.88 is an RC. `expo@57` stays the pinned default.
+- **`rn-components-apis` rule 4** now says an orientation lock is not a layout guarantee on iOS 27, next to
+  the existing `useWindowDimensions()` rule.
+- **Noted, not adopted:** `@expo/agent-cli` (MIT, experimental) with `smoke` = start + screenshot + stop and
+  `skills:sync` for agent skills shipped in `node_modules`, and `expo-device-hub` now an official dev-tools
+  plugin. Both are candidates for the visual-verification loop the `rn-*` skills lack; revisit at SDK 58 stable.
 - **`eve-agent` §13 / `eu-data-sovereignty.md` §4.10: where Jev runs, stated precisely, and Laya as the EU-hostable
   option.**
   - **Jev.** "Jev is a US transfer" was too blunt. The Gateway lists exactly one Jev endpoint, TypeSafe's, with no

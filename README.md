@@ -1295,7 +1295,7 @@ The 16 mobile skills mirror the web stack philosophy: opinionated defaults, idem
 | `rn-module-add` | `scaffolded` → `module-added` | Wires `auth` / `db` / `storage` / `realtime` / `push` / `payments` / `cms` modules. Provider-agnostic (Supabase, Firebase, custom REST, tRPC, RevenueCat; Sanity for `cms` — the Studio is the admin panel). |
 | `rn-write-tests` | any | Jest + RNTL + Maestro setup + tests for one source file. Mirrors `write-tests` for RN. |
 | `rn-eas-deploy` | `feature_complete` → `deployed` | End-to-end deploy: pre-submission checklist → preview build → smoke → production build → EAS Submit → channels. Refuses incomplete checklist. |
-| `rn-upgrade` | any (maintenance) | Upgrades an Expo/RN project's SDK: `expo install --fix` → `expo-doctor` → cache clear → prebuild (CNG vs bare) → breaking-changes checklist. Defers per-version detail to Expo docs/MCP. |
+| `rn-upgrade` | any (maintenance) | Upgrades an Expo/RN project's SDK: `expo install --fix` → `expo-doctor` → cache clear → prebuild (CNG vs bare) → breaking-changes checklist. Defers per-version detail to Expo docs/MCP. **§SDK 58** is written up before we have to cross it — iOS 27's scene life cycle and resizable apps (an orientation lock stops being a layout guarantee), React Native's Strict TypeScript API, the expo-router core rework, R8 on by default — and the beta page tracks what `expo@next` resolves to *today*, since it has meant both "stable" and "beta" within a month. |
 
 **Use case — idea to App Store**:
 

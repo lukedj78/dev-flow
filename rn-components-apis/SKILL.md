@@ -10,7 +10,7 @@ description: 'Use when working with React Native core components (View, Text, Sc
 1. **`Pressable` for any touchable** — never `TouchableOpacity` / `TouchableHighlight` / `TouchableWithoutFeedback` in new code.
 2. **`expo-image` for any image** — never `Image` from `react-native` (no caching).
 3. **`@shopify/flash-list` for lists** with > 20 items or unknown length — never `FlatList` at scale.
-4. **`useWindowDimensions()` hook** in the component — never `Dimensions.get('window')` at module top-level (fails on rotation/foldables).
+4. **`useWindowDimensions()` hook** in the component — never `Dimensions.get('window')` at module top-level (fails on rotation/foldables). **An orientation lock is not a layout guarantee**: on iOS 27 apps are resizable and `ScreenOrientation.lockAsync` may have no effect, with `requireFullScreen` no longer opting out (Expo SDK 58 changelog, 2026-09-15). Every screen has to survive a width it did not choose — and on a foldable, a width that changes while it is open.
 5. **`Platform.select({ ios, android })`** for platform-specific styles or behavior — never `Platform.OS === ...` ternaries scattered across the file.
 
 ## Quick decision tree

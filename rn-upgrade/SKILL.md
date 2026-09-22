@@ -105,7 +105,7 @@ Full rationale + exact per-mode commands: `references/native-rebuild.md`.
 
 ### Step 7 — Breaking-changes checklist
 
-Walk `references/breaking-changes.md`: removed APIs, moved imports, deprecated native modules for the SDK range being crossed. The most common one to check every upgrade: **`expo-av` → `expo-audio` + `expo-video`** (the AV module was deprecated and split into two focused packages). If the project uses `expo-av` for camera-adjacent audio/video, migrate before considering the upgrade done.
+Walk `references/breaking-changes.md`: removed APIs, moved imports, deprecated native modules for the SDK range being crossed — including **§SDK 58**, whose crossing is bigger than most (iOS 27's scene life cycle and resizable apps, React Native's Strict TypeScript API, the expo-router core rework, R8 on by default). The most common one to check every upgrade: **`expo-av` → `expo-audio` + `expo-video`** (the AV module was deprecated and split into two focused packages). If the project uses `expo-av` for camera-adjacent audio/video, migrate before considering the upgrade done.
 
 After migrating any deprecated module, manually test:
 - [ ] Camera capture (photo + video, if used).
@@ -122,11 +122,12 @@ npm view expo dist-tags          # ALWAYS first — see below
 npx expo install expo@<tag> --fix
 ```
 
-- ⚠️ **`@next` does not mean "beta".** On 2026-08-26 `next` and `latest` were **the same version**
-  (`57.0.16`), so `expo install expo@next` installs *stable*. Between cycles that is normal. The
-  prerelease channel is **`canary`** / **`canary-sdk-NN`**; `-preview.N` versions appear during a
-  cycle; `sdk-NN` tags pin an SDK line. Read the tags, then pick — `[VERIFY]` against
-  `npm view expo dist-tags` and `https://expo.dev/changelog`.
+- ⚠️ **`@next` does not mean anything fixed — read it.** On 2026-08-26 `next` and `latest` were the
+  same version (`57.0.16`), so `expo install expo@next` installed *stable*. On 2026-09-22 `next` is
+  `58.0.0-preview.5`, so the same command installs a **beta**. `canary` / `canary-sdk-NN` are the
+  nightlies, `-preview.N` versions appear during a cycle, and `sdk-NN` pins an SDK line. Read the tags,
+  then name the version you propose — `[VERIFY]` against `npm view expo dist-tags` and
+  `https://expo.dev/changelog`.
 - Check available runtime versions/manifests via `https://exp.host/--/api/v2/versions` (live, 200 on 2026-08-26) when diagnosing beta-channel compatibility issues.
 - Beta SDKs are inherently less stable — NEVER move a production app onto a prerelease tag without the user's explicit, informed confirmation (this is user-facing risk, not a default). And say **which** tag you are proposing and what it currently resolves to: "the beta" is not a version.
 
