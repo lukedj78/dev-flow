@@ -16,7 +16,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineTool`, `disableTool`, `defineDynamic`, `toolOutput`, background-task types | `eve/tools` |
 | approval policies `always` / `once` / `never` (+ `Approval`/`ApprovalContext`/`ApprovalStatus` types) | `eve/tools/approval` (types also on `eve/tools`) |
 | built-in tool definitions — `bash`, `readFile`, `writeFile`, `todo`, `webFetch`, `loadSkill` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/todo`, `/web_fetch`, `/load_skill`. **`eve/tools/defaults` was removed in 0.45.0** |
-| the opt-in ones, not registered by default — `glob`, `grep`, `experimental_workflow`, `sleep`, `webSearch` | `eve/tools/glob`, `/grep`, `/workflow`, `/sleep`, `/web_search` |
+| the opt-in ones, not registered by default — `glob`, `grep`, `workflow` (lowercase since 0.64), `sleep`, `webSearch` | `eve/tools/glob`, `/grep`, `/workflow`, `/sleep`, `/web_search` |
 | `defineSkill` | `eve/skills` |
 | `defineInstructions` | `eve/instructions` |
 | `defineDynamic` | `eve/tools` · `eve/skills` · `eve/instructions` |

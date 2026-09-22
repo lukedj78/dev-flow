@@ -20,6 +20,27 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`eve-agent`: the workflow surface, re-verified against eve@0.64.0 — four things were wrong.** 0.64 shipped
+  the same day as the 0.63.0 pass and lands exactly where that pass did not look.
+  - **`experimental_workflow` is removed** (0.64, `8bc931f`), together with the uppercase `Workflow` framework
+    tool. The replacement is the lowercase **`workflow({ maxSubagents })`** from `eve/tools/workflow`
+    (default 100, integer 1–128), with no injected agent catalog and one scheduling rule that decides which
+    programs work: the sandbox resumes only after *every* pending call in a batch settles, so `Promise.all`
+    fan-out → fan-in is supported and `Promise.race` is not.
+  - **`ctx.agent(name, input)`** takes the model-visible subagent name — this skill described a required
+    replay-stable `key`, which does not exist: eve assigns the invocation identity itself, `agentId`
+    continues an existing child, and an inline `outputSchema` types the result.
+  - **`ctx.agents`** is new, and `"use step"` helpers receive a restricted **`WorkflowStepToolContext`**,
+    which is where `getToken`/`requireAuth` live.
+  - **`yield task.postMessage(...)` no longer exists** (0.63, `d2c92df`) and a background body's yields are
+    *consumed without publishing progress*; durable background execution is now `defineWorkflowTool`-only.
+    Two places in `eve-concepts.md` still described the 0.55 behaviour.
+- **Jev has three call paths now** (Vercel changelog 2026-09-21): the AI SDK, an existing TypeSafe client
+  pointed at `https://ai-gateway.vercel.sh/typesafe` (its `systemOne` calls and `noul` questions unchanged),
+  and a native HTTP API, `POST https://ai-gateway.vercel.sh/v1/evaluate`. All three bill and log through the
+  Gateway. Recorded in `eve-scaffold.md`, `eve-patterns.md` §13 and `eu-data-sovereignty.md` §4.10, with the
+  consequence that matters: a **non-TypeScript service** can run the same guardrail or triage without an SDK,
+  while everything about residency and minimisation is unchanged — and `ai/test`'s mock only covers the SDK path.
 - **Expo SDK 58 is in beta, and our beta page said the opposite of what `expo@next` now does.**
   `rn-upgrade/references/beta-preview.md` was snapshotted on 2026-08-26, when `next` pointed at stable
   `57.0.16`, and told the reader that `expo install expo@next` installs stable. On 2026-09-22 `next` is

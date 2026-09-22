@@ -30,6 +30,23 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-09-22 (second, against eve@0.64.0) — the workflow surface only.** 0.64
+> shipped the same day as the 0.63.0 pass below, and it lands on the one area that pass did not touch.
+> `npm pack eve@0.64.0`, `CHANGELOG.md` + `docs/tools/workflows.mdx`. **Four corrections, all of which
+> this skill had wrong**: ① **`experimental_workflow` is removed** (0.64, `8bc931f`) — *"Remove the
+> experimental uppercase `Workflow` tool and `experimental_workflow`; migrate its tool file to the new
+> lowercase factory"* — replaced by `workflow({ maxSubagents })` from the same `eve/tools/workflow`
+> subpath, with `maxSubagents` defaulting to 100 (integer 1–128), no injected agent catalog, and one
+> scheduling rule worth knowing: the sandbox resumes only after every pending call in a batch settles,
+> so `Promise.all` works and `Promise.race` does not. ② **`ctx.agent(name, input)`** takes the
+> model-visible subagent name, not a `key` — eve assigns the replay-stable invocation identity itself;
+> `agentId` continues a child and an inline `outputSchema` types the result. ③ **`ctx.agents`** is new,
+> and `"use step"` helpers get a restricted **`WorkflowStepToolContext`** where `getToken`/`requireAuth`
+> live. ④ **`yield task.postMessage(...)` no longer exists** (0.63, `d2c92df`) and background yields are
+> *consumed without publishing progress* — the previous text described the 0.55 behaviour. Corrected in
+> `eve-concepts.md` §Workflow tools and §Dynamic workflows, `eve-conventions.md`. **The rest of this map
+> still reflects the 0.63.0 pass.**
+>
 > **Verification pass 2026-09-22 against eve@0.63.0** (eve shipped 0.58.1 → 0.63.0 — five minor
 > releases — in the five days since the 09-17 pass; `npm pack eve@0.63.0`, then `CHANGELOG.md` +
 > `docs/`, same technique). **Three breaking renames land on identifiers this skill had just

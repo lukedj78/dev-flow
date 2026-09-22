@@ -707,6 +707,13 @@ and keep specialist selection on descriptions that do not overlap (§7).
 
 **Rules for every use:**
 
+- **Three call paths, one service.** Since 2026-09-21 the Gateway also serves Jev over a native HTTP API
+  (`POST https://ai-gateway.vercel.sh/v1/evaluate`) and to an existing TypeSafe client pointed at
+  `https://ai-gateway.vercel.sh/typesafe`, alongside the AI SDK. All three bill and log through the
+  Gateway. It matters here for one reason: a **non-TypeScript service** — a Python ML worker, a Go
+  job — can now ask the same typed questions without an SDK, so the guardrail in (c) or the triage in
+  (e) need not be rewritten at a language boundary. Everything below applies to all three paths; the
+  mock in (f) exists only for the AI SDK one.
 - **It is a processor, and where it runs is TypeSafe's choice, not ours.** Jev is a proprietary model: no weights are
   published, and the Gateway catalog lists exactly one endpoint, `provider_name: "typesafe-ai"`, with no region
   (`GET /v1/models/typesafe-ai/jev/endpoints`, 2026-09-22). TypeSafe's privacy policy says *"The Services are

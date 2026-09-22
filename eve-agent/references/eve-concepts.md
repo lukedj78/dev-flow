@@ -64,7 +64,7 @@ eve runs the agent loop (model calls, tool execution, compaction) and ships buil
 
 Customize:
 - **Override** — `agent/tools/<slug>.ts` spreading the default: `import { writeFile } from "eve/tools/write_file"; export default defineTool({ ...writeFile, async execute(i, ctx) {…} });` — **`eve/tools/defaults` was removed in 0.45.0**; every built-in now lives on its own subpath, named after the *tool* (`eve/tools/read_file`, `/write_file`, `/web_fetch`, `/load_skill`, `/todo`, `/bash`) while the export keeps camelCase (`readFile`, `writeFile`, `webFetch`, `loadSkill`).
-- **Opt in** — the framework tools that are *not* registered by default are one re-export each: `export { glob as default } from "eve/tools/glob"` (same for `grep`), `experimental_workflow()` from `eve/tools/workflow`, `sleep()` from `eve/tools/sleep`. **The filename is what names the tool**, not the export.
+- **Opt in** — the framework tools that are *not* registered by default are one re-export each: `export { glob as default } from "eve/tools/glob"` (same for `grep`), `workflow()` from `eve/tools/workflow` (**lowercase since 0.64 — `experimental_workflow` and the uppercase `Workflow` framework tool were removed**), `sleep()` from `eve/tools/sleep`. **The filename is what names the tool**, not the export.
 - **Disable** — `agent/tools/bash.ts` → `export default disableTool();` (from `eve/tools`).
 - **Extend** — new tools with fresh slugs join the built-ins.
 
@@ -148,30 +148,44 @@ Resolve **model, tools, skills, and instructions** at runtime from a session eve
 
    **Why this rule is worth a paragraph: it fails silently and totally.** eve logs `Dynamic tool "<name>" callback "execute" has a non-serializable capture` and then *skips the complete resolver result* — not the one offending tool, all of them. The agent starts, answers, and behaves like an agent that was never given any tools: in the reference implementation it began guessing at `load_skill("shop")`, `load_skill("catalog")`, and finally told the shopper it had no way to search. Nothing throws, no request 500s, and the only evidence is one line in the dev server log. **When an eve agent behaves as though its tools do not exist, read the server log for this message before debugging the model.**
 
-## Dynamic workflows — `experimental_workflow` (model-orchestrated subagents)
+## Dynamic workflows — `workflow()` (model-orchestrated subagents)
 
 Let the **model write JavaScript** that coordinates the agent's own subagents as **one durable step** — programmatic fan-out where the program decides how many subagents to run, which output feeds which call, and how to combine results.
 
-```ts
-import { experimental_workflow } from "eve/tools/workflow";   // 0.45.0: era eve/tools
-export default experimental_workflow({ maxSubagents: 4 });   // WORKFLOW_SUBAGENT_LIMIT_REACHED past the budget
+```ts title="agent/tools/workflow.ts"
+import { workflow } from "eve/tools/workflow";   // 0.45.0: was eve/tools · 0.64: lowercase factory
+export default workflow({ maxSubagents: 20 });   // default 100, integer 1–128
 ```
 
-It's a **coordination layer only** — no filesystem/network/shell, only calls to the built-in `agent`, declared subagents, and remote agents. The whole orchestration is one step, so it resumes after a restart even if a child is long-running or human-gated.
+⚠️ **Renamed in 0.64, and the old name is gone.** `experimental_workflow` and the uppercase `Workflow`
+framework tool *"and its exports have been removed"* — the replacement is the lowercase `workflow()`
+factory from the same subpath, and the file name still gives the tool its model-facing name
+(`tools/workflows.mdx`, read off `eve@0.64.0`, 2026-09-22). eve no longer discovers or injects an agent
+catalog for it: the generated program resolves targets exactly like `ctx.agent` elsewhere.
+
+It's a **coordination layer only** — the program's single host capability is
+`ctx.agent(name, { message, agentId?, outputSchema? })`, with no workflow context, session state,
+credentials, imports or ordinary tools, and it must return a JSON-serializable value. It **can** call
+subagents that are hidden from the model (`tool: false`, or a same-named `disableTool()` file), so name
+those in the tool description or the instructions when you want them used. The whole orchestration is one
+step, so it resumes after a restart even if a child is long-running or human-gated. One scheduling rule
+decides the shapes that work: the sandbox resumes only after **every pending call in the current batch
+settles**, so `Promise.all` fan-out → fan-in is supported and **`Promise.race` does not resume on the
+first child**. A child failure is thrown at its `ctx.agent` call, so generated code can catch it.
 
 ### The general form: model-written code, and what makes it safe
 
-`experimental_workflow` is eve's narrow version of a broader idea — **let the model write a program instead of emitting one tool call at a time**. The general mechanism is [`run`](https://github.com/vercel-labs/run) (`run@2.0.1`, *"secure QuickJS-backed JavaScript runtime with host functions and continuations"*), which is also what powers **code-mode tool execution in the AI SDK**. Worth understanding even if you only ever use eve's version, because it names the three properties that make model-written code safe at all:
+`workflow()` is eve's narrow version of a broader idea — **let the model write a program instead of emitting one tool call at a time**. The general mechanism is [`run`](https://github.com/vercel-labs/run) (`run@2.0.1`, *"secure QuickJS-backed JavaScript runtime with host functions and continuations"*), which is also what powers **code-mode tool execution in the AI SDK**. Worth understanding even if you only ever use eve's version, because it names the three properties that make model-written code safe at all:
 
 - **Isolation is in-process, not OS-level.** The code runs in a QuickJS context inside a worker thread — `eval` with the plug pulled, not a VM. Cheap enough to run per tool call; **not** a substitute for Vercel Sandbox when you need OS-level isolation, and the blog says so itself.
 - **`hostFunctions` is the entire egress surface.** The sandboxed program can reach exactly what you hand it and nothing else — no ambient secrets, no internal services, no `fetch` you didn't pass in. This is #6's read-vs-egress boundary expressed as a *mechanism* rather than a policy: not "the agent shouldn't call that", but "there is nothing to call".
-- **A host function can interrupt, and resumption replays.** Settled host-function calls return their **recorded** results when the program resumes, so a pause for human approval mid-program is durable rather than a re-run. Same replay contract as eve's own step boundaries — which is why `experimental_workflow` can be one durable step at all.
+- **A host function can interrupt, and resumption replays.** Settled host-function calls return their **recorded** results when the program resumes, so a pause for human approval mid-program is durable rather than a re-run. Same replay contract as eve's own step boundaries — which is why `workflow()` can be one durable step at all.
 
 Config is `run({ source, hostFunctions, limits: { timeoutMs, memoryLimitBytes } })`, or `createRunner()` for a shared budget. Node 22.13+ / Bun. `[VERIFY]` before wiring it directly into an eve agent — eve exposes the workflow tool, not `run`, and whether you should reach past it is a design decision, not a default.
 
 ## Workflow tools — `defineWorkflowTool` (durable waits, not model-orchestrated fan-out)
 
-Landed **0.48.0–0.52.0**; a different mechanism from `experimental_workflow` above, and easy to conflate by name alone: `experimental_workflow` lets **the model** write the coordination code as one durable step; `defineWorkflowTool` lets **you** write an ordinary static tool whose executor is *itself* a durable Workflow run — for a tool that must wait on a person, a webhook, or a timer without holding compute, not for model-orchestrated multi-agent fan-out.
+Landed **0.48.0–0.52.0**; a different mechanism from `workflow()` above, and easy to conflate by name alone: `workflow()` (until 0.64, `experimental_workflow`) lets **the model** write the coordination code as one durable step; `defineWorkflowTool` lets **you** write an ordinary static tool whose executor is *itself* a durable Workflow run — for a tool that must wait on a person, a webhook, or a timer without holding compute, not for model-orchestrated multi-agent fan-out.
 
 ```ts title="agent/tools/deploy.ts"
 import { defineWorkflowTool } from "eve/tools";
@@ -192,8 +206,14 @@ export default defineWorkflowTool({
 ```
 
 - **`"use workflow"` must open the executor**, inline or as a top-level `async function` in the same module or an imported one — a missing directive is a build error. Side effects, the clock, randomness and `process.env` belong in a separate `"use step"` function; the workflow body itself is replayed and must stay deterministic.
-- `ctx` inside the body is `WorkflowToolContext`, not the ordinary `ToolContext`: only `session`, `callId`, `toolName`, `abortSignal`, plus two workflow-only methods — `ctx.ask(request)` (ask the human on the session's channel; awaiting it suspends the run) and `ctx.agent(input)` (call a visible subagent with a required, replay-stable `key`, and wait for its result). `getSandbox`/`getSkill`/`getToken`/`requireAuth` are **not** on this context.
-- **Two independent execution axes.** Durable suspension (`ctx.ask`, an awaited `createHook`/`createWebhook`, `sleep` — all from the vendored `workflow` package) is orthogonal to `execution: "background"`. Default execution parks the calling turn until the run settles; `execution: "background"` returns `{ status: "working", taskId }` immediately and delivers the result as a later task notification, `yield task.postMessage(...)` to nudge the parent mid-run.
+- `ctx` inside the body is `WorkflowToolContext`, not the ordinary `ToolContext`: `session`, `callId`, `toolName`, `abortSignal`, plus the workflow-only `ask`, `agent` and (since 0.64) `agents`.
+  - **`ctx.agent(name, input)`** — the first argument is the **model-visible subagent name**, not a key: `ctx.agent("reviewer", { message, agentId?, outputSchema? })`. **eve assigns the replay-stable invocation identity itself**, including repeated and parallel calls to the same subagent; `agentId` continues an existing child; an inline `outputSchema` forces structured output *and types the result*.
+  - **`ctx.ask(request)`** — ask the human on the session's channel (`prompt`, `display`, `options`); awaiting it suspends the run. It composes with `approval`, which gates the call *before* `execute` runs and can only show the model's input.
+  - **`ctx.agents`** (0.64) — the effective callable-agent descriptions, for a body that decides where to delegate.
+  - `getSandbox`/`getSkill` are unavailable anywhere. **`getToken`/`requireAuth` live on the step context**: a `"use step"` helper that takes `ctx` directly receives a restricted `WorkflowStepToolContext` (`session`, `callId`, `toolName`, `abortSignal`, `getToken`, `requireAuth`). Read `ctx.agents`, call `ctx.agent()` and `ctx.ask()` in the body; pass a step only the serializable values it needs.
+- **`yield` reports progress, `await` suspends — and background mode publishes nothing.** A body may be an async generator. In **default** execution `yield value` emits an `action.partial` snapshot for the pending call (last-write-wins per tool-call id, never entering model history as an intermediate result). In **background** execution the value is *consumed without publishing progress or requesting a parent turn*: 0.63 removed background execution from `defineTool` and dynamic tools altogether, along with the `TaskExec` and `postMessage` authoring APIs, and delivers each cohort's completed/failed/cancelled outcomes in one automatic report. **`yield task.postMessage(...)` no longer exists** — do not write it. `return value` settles the call; with no return, the last yield becomes the output (or `null`). Prefer an explicit return when progress and result have different shapes.
+- **`ctx.abortSignal` is durable** — it survives replay, aborts on a steered turn, `task_cancel` or the session ending, and a step that receives it observes the abort. Pass it into the steps that should stop and clean up in `try/finally`.
+- **Two independent execution axes.** Durable suspension (`ctx.ask`, an awaited `createHook`/`createWebhook`, `sleep` — all from the vendored `workflow` package) is orthogonal to `execution: "background"`. Default execution parks the calling turn until the run settles; `execution: "background"` returns `{ status: "working", taskId }` immediately and delivers the result as a later task notification — one automatic report per cohort since 0.63, with no mid-run nudge (`task.postMessage` was removed with it), and **durable background execution is now `defineWorkflowTool`-only**.
 - Input must be a plain JSON object, and the tool must live under `agent/tools/` — a `defineDynamic` resolver cannot return a workflow tool.
 - The workflow's identity derives from the executor's module path and function name; renaming or moving it starts a *new* workflow lineage, and a run resumed on a deployment that no longer has it fails naming the missing workflow.
 
