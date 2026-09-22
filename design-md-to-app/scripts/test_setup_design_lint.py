@@ -260,6 +260,27 @@ class Policy(unittest.TestCase):
             self.assertIn('"@mui/*"', base_ui)
             self.assertNotIn('"@base-ui/react"', base_ui, "standalone Base UI: the headless primitives are the library")
 
+    def test_package_cn_is_banned_only_where_lib_utils_configures_the_merge(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (u,) = sdl.detect(root)
+            write(root, "lib/utils.ts", 'export { cn } from "cn"\n')
+            plain = sdl.preset_source({**u, "ui": "shadcn"}, "error")
+            self.assertNotIn('"name": "cn"', plain, "a stock cn: the package import is the same function")
+            write(root, "lib/utils.ts", 'import { createCn } from "cn/config"\n'
+                                         'export const cn = createCn({ extend: { classGroups: {} } })\n')
+            src = sdl.preset_source({**u, "ui": "shadcn"}, "error")
+            self.assertIn('"name": "cn", "importNames": ["cn"]', src)
+            self.assertIn('ignores: ["components/ui/**", "lib/utils.ts"]', src, "lib/utils itself builds cn from the package")
+            self.assertIn('files: ["components/ui/**"]', src, "shadcn add writes the package import into the primitives")
+            # one object per file set: a second no-restricted-imports on the same files would replace the bans
+            app_block = src.split("// cn is configured in")[0]
+            self.assertIn('"patterns"', app_block)
+            self.assertIn('"paths"', app_block)
+            write(root, "lib/utils.ts", 'import { extendTailwindMerge } from "tailwind-merge"\n')
+            self.assertIn('"name": "cn"', sdl.preset_source({**u, "ui": "shadcn"}, "error"),
+                          "a tailwind-merge config is a configured merge too")
+
     def test_shadows_by_exact_name_never_wildcard(self) -> None:
         src = self.preset()
         self.assertIn("allow: declaredShadows()", src)

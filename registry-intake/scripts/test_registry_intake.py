@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import io
+import datetime as dt
 import json
 import sys
 import tempfile
@@ -176,6 +177,37 @@ class Checks(unittest.TestCase):
             self.assertEqual(ri.installed_version(root, "motion"), "13.4.0")
             self.assertFalse(ri.major_conflict("^13.0.0", "13.4.0"))
             self.assertTrue(ri.major_conflict("~12.23.12", "13.4.0"))
+
+    def test_zero_major_caret_locks_the_minor(self) -> None:
+        # cn's own registry dependency moved 0.2 → 0.3 in three weeks; ^0.2.4 cannot take 0.3.x
+        self.assertTrue(ri.major_conflict("^0.2.4", "0.3.2"))
+        self.assertFalse(ri.major_conflict("^0.3.0", "0.3.2"))
+        self.assertFalse(ri.major_conflict("~0.2.4", "0.2.9"))
+
+    def test_reused_name_dates_the_current_line_not_2013(self) -> None:
+        times = {"created": "2013-06-12T13:14:40Z", "modified": "2026-09-21T10:39:34Z",
+                 "0.1.0": "2013-06-12T13:14:40Z", "0.1.1": "2013-06-12T13:20:00Z",
+                 "0.2.0": "2026-09-01T08:00:00Z", "0.3.2": "2026-09-21T10:39:34Z"}
+        start, gap = ri.current_line(times)
+        self.assertEqual(start[:10], "2026-09-01")
+        self.assertEqual((gap["before_version"], gap["after"]), ("0.1.1", "0.2.0 (2026-09-01)"))
+        self.assertEqual(ri.current_line({"1.0.0": "2024-01-01T00:00:00Z", "1.1.0": "2024-06-01T00:00:00Z"})[1], None)
+        self.assertEqual(ri.repo_id("git+https://github.com/shadcn-ui/cn.git"), ri.repo_id("git://github.com/shadcn-ui/cn"))
+
+    def test_reused_name_is_d8_review_unless_its_owner_was_checked(self) -> None:
+        recent = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=21)).isoformat()
+        gap = {"before": "0.1.1 (2013-06-12)", "after": "0.2.0 (2026-09-01)", "before_version": "0.1.1"}
+        npm = fake_npm({
+            "cn": {"name": "cn", "license": "MIT", "created": recent, "reused": gap,
+                   "repository": "git+https://github.com/shadcn-ui/cn.git", "scripts": {}},
+            "leftpad2": {"name": "leftpad2", "license": "MIT", "created": recent, "reused": gap,
+                         "repository": "git+https://github.com/someone-else/leftpad2.git", "scripts": {}},
+        })
+        it = ri.Item("@x/a", "s", item("a", [], dependencies=["cn", "leftpad2"]))
+        found = {(f.code, f.level, f.message.split(":")[0]) for f in ri.check_deps([it], npm)[0]}
+        self.assertIn(("D8", "info", "cn"), found)
+        self.assertIn(("D8", "review", "leftpad2"), found)
+        self.assertIn(("D5", "review", "cn"), found, "three weeks old is young, whatever the name's first owner did")
 
     def test_plain_ui_component_is_clean_and_low(self) -> None:
         codes, high = self.run_checks(item("a", [ui_file("components/pdf/card.tsx")]))

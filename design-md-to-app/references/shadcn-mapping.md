@@ -150,19 +150,59 @@ The CLI changed in 2024-2025. **There is no `--base-color`, `--style`, or intera
 
 `init` writes `components.json` at the project root — the anchor file `add` reads on every invocation. Don't rename or move it.
 
-Standard dependencies installed by `init`: `clsx`, `tailwind-merge`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, plus `@base-ui/react` (or `@radix-ui/react-*` if `--base radix` was chosen) packages added per-component. In theme-only mode (no `init` run), you can assume these are present if `package.json` lists them; if not, document the gap in `STYLE_NOTES.md`.
+Standard dependencies installed by `init`: `cn`, `class-variance-authority`, `lucide-react`, `tw-animate-css`, plus `@base-ui/react` (or `@radix-ui/react-*` if `--base radix` was chosen) packages added per-component. In theme-only mode (no `init` run), you can assume these are present if `package.json` lists them; if not, document the gap in `STYLE_NOTES.md`.
 
-⚠️ **Swap `lib/utils.ts` onto [`cn`](https://github.com/shadcn-ui/cn) — this is our default.** `init` still writes the `clsx` + `tailwind-merge` helper, so this is a step *after* it:
+### `cn` — one class merger, imported the way shadcn now writes it
+
+**What changed upstream (shadcn changelog, "September 2026 - cn", read 2026-09-22):** every registry
+component, block and example now imports `cn` **from the [`cn`](https://github.com/shadcn-ui/cn) package**
+(`import { cn } from "cn"`), not from `@/lib/utils`. Each item declares `cn` as a dependency, so
+`shadcn add` installs it in older projects too. `init` installs `cn` and writes a one-line
+`lib/utils.ts` (`export { cn } from "cn"`), which is kept so your own code has one place for helpers.
+*"Existing projects: Nothing breaks."* Verified on the served item (`r/styles/base-nova/separator.json`:
+`dependencies: ["cn"]`) and with `shadcn add --dry-run` on a real project. We had already made `cn` our
+default on 2026-09-02, behind `@/lib/utils`. What is new is that the primitives now name the package.
+
+**Two rules follow, and they point opposite ways depending on one file:**
+
+1. **A stock `lib/utils.ts`** (`export { cn } from "cn"`, or the old clsx + tailwind-merge helper with no
+   config): **leave the `from "cn"` imports in `components/ui/` alone.** They are the same function.
+   Rewriting them to `@/lib/utils` is an edit to a vendored primitive for nothing (golden rule 3), and it
+   comes back on the next `add`. Agents did exactly this in the 2026-09-22 compliance runs, reading the
+   new import as a broken install.
+2. **A configured `lib/utils.ts`** (`createCn(...)` from `cn/config`, or `extendTailwindMerge`): **every
+   `cn` must come from `@/lib/utils`, primitives included.** The package's `cn` is the *stock* instance.
+   A primitive importing it bypasses the config and brings back the bug the config exists for, a class
+   silently dropped. A custom type scale is the usual case: to stock tables `text-body` is a colour, so
+   `cn("text-pure-white", "text-body")` loses the colour. bottega and video both carry that config for
+   that reason. After every `shadcn add`, rewrite `from "cn"` to the utils alias
+   (`@workspace/ui/lib/utils` in a shadcn monorepo). **The design-lint preset enforces it**: when
+   `setup_design_lint.py` finds `createCn`/`extendTailwindMerge` in `lib/utils.ts`, it bans importing
+   `cn` from the package everywhere but that file, `components/ui/**` included (`cn/config` and
+   `{ clsx } from "cn"` stay allowed). Better still, avoid the config: with typography inside shadcn's
+   numeric scale (`text-sm`…`text-4xl`, slots redefined), the stock tables are right and nothing needs
+   configuring.
+
+**Never two mergers in one workspace.** A monorepo whose `packages/ui` is on `cn` and whose `apps/web`
+still has `clsx` + `tailwind-merge` runs two engines that can disagree on the same class string.
+Run `migrate cn` in the lagging package. On 2026-09-22 that was bidmaster and eve-hospitality
+(`apps/web`), and desko, which was never migrated. Libraries in `node_modules` that still import
+`tailwind-merge`/`clsx` can be aliased to `cn` (`docs/aliasing.md` in the cn repo). The alias does not
+reach a library that bundles its own copy.
 
 ```ts
-// lib/utils.ts — replaces the two-line clsx + tailwind-merge helper
+// lib/utils.ts — stock (what init writes now)
 export { cn } from "cn"
 ```
 
 ```bash
-npm i cn && npm rm clsx tailwind-merge   # new project
-npx shadcn@latest migrate cn             # existing project — add --yes to skip the prompt
+npx shadcn@latest migrate cn             # an existing project on clsx + tailwind-merge — add --yes to skip the prompt
 ```
+
+⚠️ **`npm i cn@0.1.x` is a different package.** The `cn` name was reused: 0.1.0–0.1.1 (2013) were
+rumpl/cn, "Chuck Norris jokes"; shadcn's line starts at 0.2.0 (2026-09-01). `registry-intake` reports
+this as D8, and dates D5 from the current line, not from 2013. It also reads `^0.2.4` as refusing
+0.3.x, because under 1.0 the minor is the breaking number (D7).
 
 ⚠️ **`migrate` has no `--dry-run`** (that flag belongs to `add`; `migrate` takes only `-c`, `-l/--list`,
 `-y`, `-f/--from`, `-t/--to`). The safety net is git: migrate on a clean tree, read `git diff`, commit
@@ -189,11 +229,11 @@ tokens was rewritten onto `cn` + `cn/config` with the config intact — not flat
 re-export — and its merge test still passed 5/5. That is parity demonstrated on real code rather than
 claimed.
 
-**Why this is safe to do ahead of the CLI, checked rather than assumed:** the components `shadcn add` writes import **only `cn` from `@/lib/utils`** — verified across `button`, `dialog`, `card`, `input` and `badge` in the `new-york-v4` registry, none of which imports `clsx` or `tailwind-merge` directly. What sits behind that name is ours to choose. `cn` is a compiled drop-in with the same API and zero dependencies, and its parity is enforced in CI over 56,346 differential cases, 300,000 fuzzed strings and 5,054 custom-config cases.
+**Why adopting it on 2026-09-02 was safe, and what changed since:** then, the components `shadcn add` wrote imported **only `cn` from `@/lib/utils`**, so what sat behind that name was ours to choose. Since the September 2026 registry change they import the package directly (above). `cn` is a compiled drop-in with the same API and zero dependencies, and its parity is enforced in CI over 56,346 differential cases, 300,000 fuzzed strings and 5,054 custom-config cases.
 
 **Four conditions.** Tailwind **v4 only** — on v3 stay with tailwind-merge v2. `cn build` is optional and unnecessary for most projects (*"if you're unsure whether you need it, you don't"*). **Never `cn build` in a published component library**: your consumers' classes aren't in your corpus. And `experimentalParseClassName` has no equivalent.
 
-**Rolling back is two commands** — `npm i clsx tailwind-merge` and restore the two-line helper — which is what makes adopting a package this young a reasonable default rather than a bet. `cn` was at `0.2.4` on 2026-09-02; re-check the line before assuming it is still pre-1.0.
+**Rolling back is no longer two commands.** Since the registry imports the package, every primitive added after September 2026 depends on `cn` directly. `cn` was at `0.2.4` on 2026-09-02 and `0.3.2` on 2026-09-22: re-check the line before assuming it is still pre-1.0, and remember that a `^0.2.x` range will not take 0.3.
 
 ### Serving a registry: search is opt-in, and the opt-in is the response itself
 

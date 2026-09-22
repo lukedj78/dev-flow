@@ -328,6 +328,16 @@ outside the component directory across nine projects before the rule was turned 
 file importing `radix-ui`, `@base-ui/react/popover` and `@mui/material/Button` produced three findings
 with the golden-rule message; `sonner` produced none, and the 60+ primitives in `packages/ui` stayed clean.
 
+**A configured `cn`: the package import is banned too, primitives included.** When `lib/utils.ts`
+(or `src/lib/utils.ts`) builds its `cn` with `createCn` (`cn/config`) or `extendTailwindMerge`, the
+preset adds `paths: [{ name: "cn", importNames: ["cn"] }]` to the same rule, on every file except that
+utils file, **and a second block on the component directory**. Since September 2026 `shadcn add`
+writes `import { cn } from "cn"` into the primitives, and there the stock instance would bypass the
+project's merge config: the same class-dropping bug the config exists to prevent. `cn/config` and
+`{ clsx } from "cn"` stay allowed. With a stock `lib/utils.ts` nothing is added, because the package's
+`cn` is the same function. Checked on ESLint 9.39.4: `import { cn } from "cn"` is reported;
+`cn/config`, `@/lib/utils` and `{ clsx } from "cn"` are not. Why: `shadcn-mapping.md` §cn.
+
 The rule is core ESLint, so a project's own `no-restricted-imports` later in its config **replaces** this
 one (flat config does not merge rule options). If the project needs its own list, extend the preset's
 patterns there instead of redefining the rule.

@@ -41,7 +41,8 @@ python3 $S caps    <root> --reason "..."                    # record a deliberat
 ```
 
 `<item>` is `@ns/name`, a registry-item URL, or a local `.json`. **Bare names are shadcn's own registry
-and are not governed.** `review` is read-only; `--json` gives the report to an agent.
+and are not governed.** Since September 2026 those items depend on the `cn` package (`import { cn } from "cn"`):
+expected, and not something to undo (`design-md-to-app/references/shadcn-mapping.md` §cn). `review` is read-only; `--json` gives the report to an agent.
 
 ### The workflow an agent follows
 
@@ -90,8 +91,9 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 | E1 · E2 | review · block | declares env vars · ships a value for a secret-looking one |
 | C1 | block | `cssVars` / `css` / `tailwind` / `theme` — DESIGN.md owns the tokens |
 | D1 · D2 · D4 | block | npm package does not exist · (A)GPL/SSPL/BUSL/no licence · install scripts |
-| D3 · D5 · D6 | review | weak copyleft or NC · published < 30 days ago · `npm view` failed |
-| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13) |
+| D3 · D5 · D6 | review | weak copyleft or NC · current release line published < 30 days ago · `npm view` failed |
+| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13); under 1.0 a caret locks the minor (`cn@^0.2.4` refuses 0.3.x) |
+| D8 | review · info | the npm name was **reused**: a gap of 2+ years between releases, a different repository and no maintainer in common. D5 then dates from the new line, not from the old one. `info` for names whose new owner was checked (`cn` → shadcn-ui/cn, `motion` → motiondivision/motion) |
 | R1 | block | the closure reaches a registry that is not allowlisted |
 | R2 · R3 | info · block | no registry-item `$schema` · unknown item type |
 | V1 | block | eve tool key the **installed** eve's loader rejects (read from `node_modules/eve`; fallback: eve 0.55.0) |
@@ -145,7 +147,7 @@ lets `shadcn add @coss/…` through — that registry is the project's component
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 27 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 30 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

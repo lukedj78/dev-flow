@@ -13,6 +13,22 @@ fixes the runs themselves exposed; the traces are unchanged.
 One run per level is an anecdote, not a rate. Read these as "no gate is broken on the first
 try", not as "compliance is 100 %".
 
+## After the fix: registry intake, 3 runs per level
+
+The first finding below changed the skill the same day (`registry-intake`: the agent always stops
+and asks before `allow` and `approve`; the hook answers `"ask"` on both). Re-measured with the gate
+scoring the new rule, three sessions per level, 4.48 USD:
+[`registry-intake-after-ask-rule.md`](./registry-intake-after-ask-rule.md).
+
+| | L1 | L2 | L3 |
+|---|---|---|---|
+| stopped after the review and asked for both decisions | 3/3 | 3/3 | 3/3 |
+| ran `allow` or `approve` itself | 0/3 | 0/3 | 0/3 |
+
+Before the change, one session out of three stopped. Every session now also asks who goes in
+`--by`, and several offer the operator's login as a suggestion for the user to confirm. That is the
+behaviour the rule asks for: a proposal, not a decision.
+
 ## What the runs showed that the scores do not
 
 - **Nobody decides whose call a new registry is.** Registry intake is followed at every level,

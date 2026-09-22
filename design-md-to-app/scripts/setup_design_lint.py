@@ -235,8 +235,31 @@ def anchored(group: list[str]) -> list[str]:
     return [p if "/" in p else f"/{p}" for p in group]
 
 
+# A `cn` taught the project's own theme (a type scale tailwind-merge's stock tables file under
+# text-color). Since Sep 2026 shadcn's registry imports `cn` from the `cn` package directly, which is
+# the *stock* instance: in a project like this, every freshly added primitive would bypass the config
+# and silently drop classes it keeps apart. There — and only there — the package import is banned.
+MERGE_CONFIG = re.compile(r"\b(createCn|extendTailwindMerge)\b")
+
+
+def configured_cn(topo: dict) -> list[str]:
+    """lib/utils files (relative to their package) that export a configured cn."""
+    out = set()
+    for t in topo["targets"]:
+        for rel in ("lib/utils.ts", "src/lib/utils.ts"):
+            f = t / rel
+            if f.is_file() and MERGE_CONFIG.search(f.read_text(errors="ignore")):
+                out.add(rel)
+    return sorted(out)
+
+
 def primitives_rule(topo: dict, severity: str) -> str:
     comp_globs = sorted({f"{component_dir(t)}/**" for t in topo["targets"]})
+    utils = configured_cn(topo)
+    cn_paths = [{"name": "cn", "importNames": ["cn"],
+                 "message": "This project configures class merging in lib/utils (its own type scale): import cn from "
+                            "there. The package's cn uses the stock tables and silently drops classes the config keeps "
+                            "apart. `shadcn add` writes the package import since Sep 2026: rewrite it."}] if utils else []
     patterns = [{"group": anchored(FOREIGN_UI_LIBRARIES),
                  "message": "Golden rule 3: this project's UI library is the one in meta.json#stack. "
                             "A second component library is not composed in; record an exception if it must be."}]
@@ -245,13 +268,23 @@ def primitives_rule(topo: dict, severity: str) -> str:
         patterns.append({"group": anchored(PRIMITIVE_BASES),
                          "message": "Golden rule 3: import the primitive from components/ui, not its headless base "
                                     "— going around it forks the primitive's behaviour."})
-    return f'''  // Golden rule 3 (contracts.md): compose the declared library's primitives, never go around them
+    options = {"patterns": patterns, **({"paths": cn_paths} if cn_paths else {})}
+    out = f'''  // Golden rule 3 (contracts.md): compose the declared library's primitives, never go around them
   {{
     files: ["**/*.{{ts,tsx}}"],
-    ignores: {json.dumps(comp_globs)},
-    rules: {{ "no-restricted-imports": ["{severity}", {{ patterns: {json.dumps(patterns)} }}] }},
+    ignores: {json.dumps(comp_globs + utils)},
+    rules: {{ "no-restricted-imports": ["{severity}", {json.dumps(options)}] }},
   }},
 '''
+    if cn_paths:
+        # one flat-config object per file set: a later "no-restricted-imports" replaces an earlier one, never merges
+        out += f'''  // cn is configured in {", ".join(utils)}: the primitives import it from there too
+  {{
+    files: {json.dumps(comp_globs)},
+    rules: {{ "no-restricted-imports": ["{severity}", {json.dumps({"paths": cn_paths})}] }},
+  }},
+'''
+    return out
 
 
 def preset_source(topo: dict, severity: str) -> str:

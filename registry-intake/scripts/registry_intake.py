@@ -117,6 +117,7 @@ CODES = {
     "D5": "npm dependency published less than 30 days ago",
     "D6": "npm dependency could not be verified (npm view failed)",
     "D7": "npm dependency range excludes the version the project has installed",
+    "D8": "npm package name was reused — a long gap between releases, likely a new owner",
     "R1": "registry dependency outside the allowlist",
     "R2": "item does not declare the shadcn registry-item $schema",
     "R3": "item type is not a shadcn registry type",
@@ -424,18 +425,68 @@ def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[
     return out, high
 
 
+# A gap this long between two consecutive releases means the name most likely changed hands: npm
+# hands abandoned names to new owners (`cn` was a Chuck Norris joke package in 2013, shadcn's class
+# merger since 2026-09-01). `time.created` then says 2013, and D5 would wave a 3-week-old package through.
+REUSED_GAP_DAYS = 730
+# Reused names whose current owner has been checked on the package's own repository (2026-09-22):
+# `cn` 0.1.x was rumpl/cn, `motion` 5.0.0-beta was steelbrain/pundle.
+KNOWN_REUSED = {"cn": "github.com/shadcn-ui/cn", "motion": "github.com/motiondivision/motion"}
+
+
+def repo_id(url: str) -> str:
+    return re.sub(r"^(git\+)?[a-z+]+://|^git@|\.git$", "", (url or "").strip().lower()).replace("github.com:", "github.com/")
+
+
+def owners(d: dict) -> set[str]:
+    m = d.get("maintainers") or []
+    return {str(x).split("<")[0].strip().lower() for x in (m if isinstance(m, list) else [m])}
+
+
+def changed_hands(name: str, before_version: str, now: dict) -> bool:
+    """A long gap alone is a paused project (clsx: 2020 → 2022, same repo, same maintainer). A reused name
+    also has a different repository and no maintainer in common across the gap."""
+    r = subprocess.run(["npm", "view", f"{name}@{before_version}", "repository.url", "maintainers", "--json"],
+                       capture_output=True, text=True, check=False, timeout=60)
+    try:
+        old = json.loads(r.stdout or "{}") if not r.returncode else {}
+    except json.JSONDecodeError:
+        old = {}
+    if not old:
+        return False
+    return repo_id(old.get("repository.url", "")) != repo_id(now.get("repository.url", "")) and not (owners(old) & owners(now))
+
+
+def current_line(times: dict) -> tuple[str | None, dict | None]:
+    """(date the current release line started, the gap before it if the name was reused)."""
+    rel = sorted((v, k) for k, v in times.items() if k not in ("created", "modified"))
+    if not rel:
+        return times.get("created"), None
+    start, gap = rel[0][0], None
+    for (a, va), (b, vb) in zip(rel, rel[1:]):
+        if (dt.datetime.fromisoformat(b.replace("Z", "+00:00")) -
+                dt.datetime.fromisoformat(a.replace("Z", "+00:00"))).days >= REUSED_GAP_DAYS:
+            start, gap = b, {"before": f"{va} ({a[:10]})", "after": f"{vb} ({b[:10]})", "before_version": va}
+    return start, gap
+
+
 def npm_facts(spec: str) -> dict | None:
     name = re.sub(r"(?<=.)@[^/]*$", "", spec)
-    r = subprocess.run(["npm", "view", name, "name", "license", "time.created", "scripts", "version", "--json"],
-                       capture_output=True, text=True, check=False, timeout=60)
+    r = subprocess.run(["npm", "view", name, "name", "license", "time", "scripts", "version", "repository.url",
+                        "maintainers", "--json"], capture_output=True, text=True, check=False, timeout=60)
     if r.returncode:
         return {"missing": "E404" in (r.stdout + r.stderr), "name": name}
     try:
         d = json.loads(r.stdout or "{}")
     except json.JSONDecodeError:
         return None
-    return {"name": name, "license": d.get("license"), "created": d.get("time.created"),
-            "scripts": d.get("scripts") or {}, "version": d.get("version")}
+    times = d.get("time") if isinstance(d.get("time"), dict) else {}
+    started, reused = current_line(times)
+    if reused and not changed_hands(name, reused["before_version"], d):
+        # a paused project, not a new owner: the whole history is one package
+        started, reused = min((v for k, v in times.items() if k not in ("created", "modified")), default=None), None
+    return {"name": name, "license": d.get("license"), "created": started, "reused": reused,
+            "repository": d.get("repository.url") or "", "scripts": d.get("scripts") or {}, "version": d.get("version")}
 
 
 def installed_version(root: Path, name: str) -> str | None:
@@ -460,10 +511,15 @@ def installed_version(root: Path, name: str) -> str | None:
 
 
 def major_conflict(declared: str, present: str) -> bool:
-    """True when a caret/tilde range cannot accept the version already in the project."""
-    m = re.match(r"^[\^~]?(\d+)\.", declared.strip())
-    p = re.match(r"^(\d+)\.", present.strip())
-    return bool(m and p and m.group(1) != p.group(1))
+    """True when a caret/tilde range cannot accept the version already in the project. Under 1.0 a caret
+    locks the minor (`^0.2.4` refuses 0.3.x): for a 0.x package the minor is the breaking number."""
+    m = re.match(r"^([\^~]?)(\d+)\.(\d+)", declared.strip())
+    p = re.match(r"^(\d+)\.(\d+)", present.strip())
+    if not (m and p):
+        return False
+    if m.group(2) != p.group(1):
+        return True
+    return m.group(1) == "^" and m.group(2) == "0" and m.group(3) != p.group(2)
 
 
 def check_deps(items: list[Item], npm=None, root: Path | None = None) -> tuple[list[Finding], dict]:
@@ -494,11 +550,23 @@ def check_deps(items: list[Item], npm=None, root: Path | None = None) -> tuple[l
             hooks = [s for s in ("preinstall", "install", "postinstall") if s in (f.get("scripts") or {})]
             if hooks:
                 out.append(Finding("D4", "block", it.key, f"{name}: runs {', '.join(hooks)}"))
+            if f.get("reused"):
+                g = f["reused"]
+                known = KNOWN_REUSED.get(name)
+                if known and known in (f.get("repository") or ""):
+                    out.append(Finding("D8", "info", it.key, f"{name}: name reused ({g['before']} → {g['after']}); "
+                                                             f"current owner checked: {known}"))
+                else:
+                    out.append(Finding("D8", "review", it.key,
+                                       f"{name}: name reused — last release {g['before']}, then {g['after']}; "
+                                       f"the package behind it is not the one that name used to be. Repository now: "
+                                       f"{f.get('repository') or 'none'}"))
             created = f.get("created")
             if created:
                 age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(created.replace("Z", "+00:00"))
                 if age.days < 30:
-                    out.append(Finding("D5", "review", it.key, f"{name}: first published {age.days} days ago"))
+                    out.append(Finding("D5", "review", it.key, f"{name}: current release line first published "
+                                                               f"{age.days} days ago"))
     return out, facts
 
 
