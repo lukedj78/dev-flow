@@ -700,13 +700,45 @@ and keep specialist selection on descriptions that do not overlap (§7).
 
 **Rules for every use:**
 
-- **It is a processor.** The `state` leaves your system through AI Gateway to TypeSafe AI. Send the fields the
-  question needs — ids and extracted values, not whole transcripts — set `zeroDataRetention: true` where the
-  plan allows, and record it with `data_residency.py add`. **It is a US transfer**: TypeSafe AI's privacy policy
-  says *"The Services are hosted in the United States"* and names no DPA, SCCs or DPF (read 2026-09-17); the
-  Gateway catalog marks the model `zdr: all` and `no_training: all`. Under `data_residency = "eu-sovereign"` it is a
-  flagged row, and identity documents or special-category data never go into its `state`
-  (`dev-flow/references/eu-data-sovereignty.md` §4.10).
+- **It is a processor, and where it runs is TypeSafe's choice, not ours.** Jev is a proprietary model: no weights are
+  published, and the Gateway catalog lists exactly one endpoint, `provider_name: "typesafe-ai"`, with no region
+  (`GET /v1/models/typesafe-ai/jev/endpoints`, 2026-09-22). TypeSafe's privacy policy says *"The Services are
+  hosted in the United States"* and names no DPA, SCCs or DPF (read 2026-09-17). Where our own code runs does not
+  change that: an eve agent in `fra1` still sends the `state` through the Gateway to TypeSafe. So **it is a US
+  transfer exactly when the `state` holds personal data**, and a request carrying ids, enums or already-anonymised
+  values is not a transfer of personal data at all. That makes minimisation the control. Send the fields the question
+  needs, not whole transcripts; set `zeroDataRetention: true` where the plan allows; record the row with
+  `data_residency.py add`. Under `eu-sovereign`, identity documents and special-category data never go into its
+  `state` (`dev-flow/references/eu-data-sovereignty.md` §4.10).
+  - **Asking the Gateway for EU inference is one call:** `providerOptions.gateway.inferenceRegion = { scope: "zone",
+    geoRegion: "eu" }` fails closed with HTTP 400 when no EU endpoint exists. That is what the single region-less
+    endpoint suggests today. This is not verified by a call, so run it before assuming either way, and re-run it on
+    upgrade, because a new endpoint would change the answer.
+  - **An EU-hosted Jev would be a TypeSafe offer** (a dedicated deployment, an EU endpoint). None is documented.
+    Ask them, and record the answer in §4.10.
+- **The self-hosted alternative: Laya — to measure, not a default.** Where the constraint is that no text leaves the
+  EU, the same shape of model can run on your own EU machines. [Laya](https://github.com/NandhaKishorM/laya)
+  (ConvAI Innovations, **Apache-2.0**, weights on Hugging Face under the same licence) answers `choice` / `score` /
+  yes-no questions with probabilities in one forward pass, **with no text generation**. Its three checkpoints run
+  421M, 322M and 421M parameters with a `Router` that picks one per language. `laya-multilingual` lists Italian among 51
+  languages. Read on 2026-09-22 from its README and model cards. Before it goes near a product:
+  - **It is four days old** (repo created 2026-09-18). The stars measure attention, not maturity.
+  - **Its context is 512–1,024 tokens**, against Jev's 32,000 of state. A long email or a ticket with its history
+    does not fit, so this is a model for short, extracted fields.
+  - **It is weaker than Jev on the independent numbers, all author-reported and unverified:**
+    - a Feishu message-classification bench gave Jev 64/64 and Laya 20/64;
+    - local email triage reached 65% accuracy;
+    - on the README's own benchmark, `laya-multilingual` scores **0.45** on MASSIVE intent across 13 non-English
+      languages and 0.73 on XNLI across 14.
+  - **High confidence does not mean it is right.** The README reports that the English checkpoint on non-Latin
+    script scored *"0.000 accuracy at 0.952 confidence"*. The confidence gate above does not protect there; the
+    `Router` choosing the multilingual checkpoint does.
+  - **Python only** (`pip install laya`): no AI SDK provider, no `experimental_evaluate`. From an eve agent (TypeScript)
+    it is a separate service in an EU region, called from inside the tool like any HTTP dependency, with (f)'s tests
+    around the caller.
+
+  Adopt it only after an eval on your own Italian data (d) beats the thresholds you need. Until then, a US transfer
+  of minimised fields through Jev is usually the better trade than a local model that gets a third of them wrong.
 - **Italian is not documented.** Neither the launch post nor the Gateway page lists supported languages; on a product
   whose users write in Italian, the eval in (d) is what tells you whether the thresholds hold.
 - **Limits stated by TypeSafe and the Gateway:** text input only, no string output, a `choice` of at most 255

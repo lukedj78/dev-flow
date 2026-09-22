@@ -16,6 +16,17 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`eve-agent` §13 / `eu-data-sovereignty.md` §4.10: where Jev runs, stated precisely, and Laya as the EU-hostable
+  option.**
+  - **Jev.** "Jev is a US transfer" was too blunt. The Gateway lists exactly one Jev endpoint, TypeSafe's, with no
+    region. TypeSafe hosts in the US, and the region our own code runs in does not change that. So it is a transfer
+    **when the `state` holds personal data**, and minimising the state is the control. An EU pin through the
+    Gateway's `inferenceRegion` is documented to fail closed (400) without an EU endpoint: one call answers it, not
+    yet made.
+  - **Laya** (`NandhaKishorM/laya`, Apache-2.0 with open weights, lists Italian) is the same kind of typed-decision
+    model, one you can run on your own EU machines. It is written up as **to measure, not a default**: four days old,
+    512–1,024 tokens of context, weaker than Jev on the independent numbers, confident while wrong on non-Latin
+    script, and Python only. Found through madewithlaya.com, an unaffiliated directory.
 - **`eve-agent` §13 (evaluation models): confidence, a mock for the branches, the context limits.** Three things
   Vercel's KB guide *"How to classify, route, and score with Jev and AI SDK"* (2026-09-19) documents and §13 did not.
   - `providerMetadata.typesafe.confidence`: distribution concentration, only for `choice`/`score`, untyped, and
