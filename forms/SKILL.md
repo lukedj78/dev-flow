@@ -428,7 +428,7 @@ To scaffold the toolkit in a fresh project run:
 python3 scripts/scaffold_lib_forms.py --root <project-root>
 ```
 
-The script reads `meta.json#stack.forms`, picks the matching template, writes the 7 files, runs `npx shadcn@latest add field input textarea select checkbox switch radio-group button label sonner` for the missing UI primitives, and appends a `history` entry to `meta.json`.
+The script reads `meta.json#stack.forms`, picks the matching template, writes the 7 files, prints the `npx shadcn@latest add field input textarea select checkbox switch radio-group button label <toast|sonner>` line for the missing UI primitives, and appends a `history` entry to `meta.json`. The toast backend follows the installed primitive: shadcn's Base UI `components/ui/toast.tsx` (`toast.add`, the default for `--base base`) or `components/ui/sonner.tsx` (`toast.error`) — `mapFormError.ts` is written for the one it finds.
 
 ## Workflow
 

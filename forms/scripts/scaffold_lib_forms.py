@@ -34,9 +34,15 @@ Notes:
   FormProvider.tsx, FormField.tsx, FormActions.tsx, mapFormError.ts
 - After scaffolding, prints a checklist of remaining manual steps:
   * Install dependencies (npm install … or pnpm add …)
-  * Mount <Toaster richColors position="top-right" /> in app/layout.tsx
+  * Mount the toaster in app/layout.tsx (Base UI <Toaster /> from
+    components/ui/toast, or sonner's <Toaster />)
   * Add the shadcn primitives (field input textarea select checkbox switch
-    radio-group button label sonner) via `npx shadcn@latest add …`
+    radio-group button label + toast or sonner) via `npx shadcn@latest add …`
+- The toast backend follows the installed primitive: components/ui/toast.tsx
+  built on createToastManager (shadcn Base UI, the 2026-07 default) or
+  components/ui/sonner.tsx. The toolkit's mapFormError.ts carries two lines
+  tagged `// forms:toast-import` / `// forms:toast-call`; they are rewritten
+  for the detected backend and the tags stripped.
   * Optionally adapt the error classes inside mapFormError.ts to your
     services layer (SessionExpiredError, ForbiddenError, ValidationProblem,
     ServerProblem are placeholders).
@@ -125,7 +131,7 @@ def check_app_router(root: Path) -> None:
 def parse_toolkit_md(md_path: Path) -> dict[str, str]:
     """Extract the 7 code blocks from a toolkit reference markdown file.
 
-    Each section heading like `## \`lib/forms/<file>\`` is followed by a
+    Each section heading like ``## `lib/forms/<file>` `` is followed by a
     fenced code block. We capture the body of each fence and map it to the
     filename.
     """
@@ -150,6 +156,46 @@ def parse_toolkit_md(md_path: Path) -> dict[str, str]:
             "Check section headings — they must look like '## `lib/forms/<file>`'."
         )
     return extracted
+
+
+TOAST_VARIANTS = {
+    "base-ui": {
+        "import": 'import { toast } from "@/components/ui/toast";',
+        "call": 'toast.add({ title: message, type: "error" });',
+    },
+    "sonner": {
+        "import": 'import { toast } from "sonner";',
+        "call": "toast.error(message);",
+    },
+}
+TOAST_TAG = re.compile(r"^(?P<indent>[ \t]*).*// forms:toast-(?P<kind>import|call)[ \t]*$", re.MULTILINE)
+
+
+def detect_toast(root: Path, stack: dict) -> tuple[str, bool]:
+    """Return (backend, installed). Base UI Toast wins when both exist."""
+    ui_dir = root / "components" / "ui"
+    toast_file = ui_dir / "toast.tsx"
+    if toast_file.exists() and "createToastManager" in toast_file.read_text():
+        return "base-ui", True
+    if (ui_dir / "sonner.tsx").exists():
+        return "sonner", True
+    # Nothing installed yet: follow the primitive base shadcn will install.
+    return ("base-ui" if stack.get("ui_base", "base") == "base" else "sonner"), False
+
+
+def apply_toast(files: dict[str, str], backend: str) -> dict[str, str]:
+    variant = TOAST_VARIANTS[backend]
+
+    def repl(m: re.Match[str]) -> str:
+        return m.group("indent") + variant[m.group("kind")]
+
+    out = dict(files)
+    body = out["mapFormError.ts"]
+    if len(TOAST_TAG.findall(body)) != 2:
+        fail("mapFormError.ts in the toolkit reference must carry exactly one "
+             "`// forms:toast-import` and one `// forms:toast-call` line.")
+    out["mapFormError.ts"] = TOAST_TAG.sub(repl, body)
+    return out
 
 
 def write_files(target_dir: Path, files: dict[str, str], force: bool) -> list[str]:
@@ -190,25 +236,33 @@ def append_history(
         f.write("\n")
 
 
-def print_next_steps(library: str) -> None:
+def print_next_steps(library: str, toast: str, toast_installed: bool) -> None:
+    toast_pkg = " sonner" if toast == "sonner" else ""
+    toast_primitive = "sonner" if toast == "sonner" else "toast"
     print()
     print("Next steps:")
     print()
     print("1. Install dependencies:")
     if library == "tanstack-form":
-        print("     npm install @tanstack/react-form zod sonner")
+        print(f"     npm install @tanstack/react-form zod{toast_pkg}")
     else:
-        print("     npm install react-hook-form @hookform/resolvers zod sonner")
+        print(f"     npm install react-hook-form @hookform/resolvers zod{toast_pkg}")
     print()
-    print("2. Install shadcn primitives:")
+    print("2. Install shadcn primitives (skip the ones already in components/ui/):")
     print(
         "     npx shadcn@latest add field input textarea select "
-        "checkbox switch radio-group button label sonner"
+        f"checkbox switch radio-group button label {toast_primitive}"
     )
+    if not toast_installed:
+        print(f"   ⚠ No toast primitive found — mapFormError.ts was written for {toast}.")
     print()
-    print("3. Mount the Toaster in app/layout.tsx:")
-    print("     import { Toaster } from \"sonner\";")
-    print("     <Toaster richColors position=\"top-right\" />")
+    print("3. Mount the toaster in app/layout.tsx:")
+    if toast == "sonner":
+        print("     import { Toaster } from \"@/components/ui/sonner\";")
+        print("     <Toaster richColors position=\"top-right\" />")
+    else:
+        print("     import { Toaster } from \"@/components/ui/toast\";")
+        print("     <Toaster />   // Base UI: the provider + viewport that toast.add() renders into")
     print()
     print("4. Adapt the error classes inside lib/forms/mapFormError.ts to")
     print("   match your services layer (SessionExpiredError, ForbiddenError,")
@@ -271,6 +325,9 @@ def main() -> None:
 
     print(f"→ Scaffolding lib/forms/ ({library}) at {root}")
     files = parse_toolkit_md(md_path)
+    toast, toast_installed = detect_toast(root, stack)
+    info(f"toast backend: {toast}{'' if toast_installed else ' (not installed yet)'}")
+    files = apply_toast(files, toast)
     target_dir = root / "lib" / "forms"
     written = write_files(target_dir, files, args.force)
     if not written:
@@ -283,7 +340,7 @@ def main() -> None:
     print()
     print(f"✓ Wrote {len(written)} file(s) into lib/forms/")
     print(f"✓ Appended history entry to {meta_path.relative_to(root)}")
-    print_next_steps(library)
+    print_next_steps(library, toast, toast_installed)
 
 
 if __name__ == "__main__":

@@ -221,14 +221,28 @@ PRIMITIVE_BASES = ["radix-ui", "radix-ui/*", "@radix-ui/react-*", "@base-ui/reac
                    "vaul", "cmdk", "input-otp"]
 
 
+def anchored(group: list[str]) -> list[str]:
+    """Anchor slash-free package names ("input-otp" → "/input-otp").
+
+    `no-restricted-imports` patterns are gitignore-style: a name without a slash matches that
+    segment at ANY depth, so "input-otp" also banned the project's own primitive
+    `@/components/ui/input-otp` (shadcn ships components/ui/input-otp.tsx), and "vaul" would ban
+    any `…/vaul/…` path. A leading slash anchors it to the import root: the package and its
+    subpaths stay banned, local paths that merely contain the name are not. Names that already
+    contain a slash (scoped packages, `radix-ui/*`) are anchored by gitignore rules already.
+    Verified with eslint 10.11 on 2026-09-22 (FITROOM).
+    """
+    return [p if "/" in p else f"/{p}" for p in group]
+
+
 def primitives_rule(topo: dict, severity: str) -> str:
     comp_globs = sorted({f"{component_dir(t)}/**" for t in topo["targets"]})
-    patterns = [{"group": FOREIGN_UI_LIBRARIES,
+    patterns = [{"group": anchored(FOREIGN_UI_LIBRARIES),
                  "message": "Golden rule 3: this project's UI library is the one in meta.json#stack. "
                             "A second component library is not composed in; record an exception if it must be."}]
     # standalone Base UI has no components/ui: there the headless primitives ARE the library
     if topo.get("ui") != "base-ui":
-        patterns.append({"group": PRIMITIVE_BASES,
+        patterns.append({"group": anchored(PRIMITIVE_BASES),
                          "message": "Golden rule 3: import the primitive from components/ui, not its headless base "
                                     "— going around it forks the primitive's behaviour."})
     return f'''  // Golden rule 3 (contracts.md): compose the declared library's primitives, never go around them

@@ -1,6 +1,6 @@
 # module-add → `auth` (better-auth)
 
-Wire **better-auth** as the auth layer of an existing scaffold. Defaults: email/password + magic-link. Database adapter: Drizzle (assumes `module-db` already ran).
+Wire **better-auth** as the auth layer of an existing scaffold. Defaults: email/password + a passwordless email sign-in — **email OTP** (`emailOTP` plugin) when the product is a PWA or will be installed to the home screen, magic-link otherwise (see *Magic link or email OTP* below). Database adapter: Drizzle (assumes `module-db` already ran).
 
 ## Idempotency check
 
@@ -32,24 +32,68 @@ npm install --save-dev @types/node     # only if not already installed
 ```typescript
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { getDb } from "@/lib/db";
+import { db } from "@/lib/db";
 
-// ⚠️ `getDb()`, not `db`. `module-add db`'s recommended driver-switch client
-// exports `createDb` / `getDb` and no bare `db` — this file used to import a
-// symbol that reference never defines, so following both in order did not
-// compile. Only the "simpler alternative" Neon-only client exports `db`.
+// ⚠️ `db` (the lazy Proxy from `module-add db`), not `getDb()`. `auth` is built at
+// module scope, so `getDb()` here opens the database on import — in every parallel
+// `next build` worker. With PGlite that aborts the build (`RuntimeError: Aborted()`);
+// the Proxy defers the connection to the adapter's first query.
 export const auth = betterAuth({
-  database: drizzleAdapter(getDb(), { provider: "pg" }),
+  database: drizzleAdapter(db, { provider: "pg" }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
   },
-  // Magic-link via email — wire after `module-add email` is run.
-  // plugins: [magicLink({ sendMagicLink: ... })],
+  // Passwordless sign-in — wire after `module-add email` is run. PWA: emailOTP
+  // (see below); plain web app: magicLink({ sendMagicLink: ... }).
+  // plugins: [emailOTP({ sendVerificationOTP: ... })],
 });
 
 export type Session = typeof auth.$Infer.Session;
 ```
+
+### Magic link or email OTP
+
+Both are passwordless and both need `module-add email`. They differ in **where the link opens**:
+
+- A **magic link** is opened by the mail app, which hands it to the system browser. On iOS an
+  installed PWA is a separate web-app container: the link signs in **Safari**, not the home-screen
+  app, and the user is still signed out where they started. (Android behaves the same unless the
+  PWA's scope captures links.) This is the whole problem for a mobile-first PWA.
+- An **email OTP** is a 6-digit code the user types into the screen they are already on, so the
+  session cookie lands in the right container. Default for PWAs and for anything installed to the
+  home screen.
+
+Verified with better-auth 1.7.5 (FITROOM, 2026-09):
+
+```typescript
+// lib/auth.ts
+import { emailOTP } from "better-auth/plugins";
+
+plugins: [
+  emailOTP({
+    otpLength: 6,
+    expiresIn: 600,          // seconds
+    allowedAttempts: 5,      // then the code is burnt: TOO_MANY_ATTEMPTS
+    storeOTP: "hashed",      // never keep usable codes in the verification table
+    async sendVerificationOTP({ email, otp, type }) { /* send via lib/email */ },
+  }),
+  nextCookies(),             // from "better-auth/next-js" — keep it LAST
+],
+```
+
+```typescript
+// lib/auth-client.ts
+import { emailOTPClient } from "better-auth/client/plugins";
+// createAuthClient({ plugins: [emailOTPClient()] })
+
+await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+await authClient.signIn.emailOtp({ email, otp });
+```
+
+Set `emailAndPassword: { enabled: false }` when OTP is the only method. The code input is the
+`InputOTP` primitive from `components/ui/` (golden rule 3), not six hand-rolled `<input>`s. Give
+it `autoComplete="one-time-code"` and `inputMode="numeric"` so iOS offers the code from Mail.
 
 ### `lib/auth-client.ts`
 
@@ -100,7 +144,7 @@ error message names the replacement, and `auth@latest` tracks better-auth's
 version (1.7.2 at the time of writing).
 
 ⚠️ **The generator cannot load a config that imports through a path alias.**
-`lib/auth.ts` normally does `import { getDb } from "@/lib/db"`, and the CLI
+`lib/auth.ts` normally does `import { db } from "@/lib/db"`, and the CLI
 resolves the file outside Next's module resolution, so it exits `MODULE_NOT_FOUND`
 on the alias. Two ways out, in order: run it against a config whose imports are
 relative, or — when the schema is otherwise correct and one field is missing —
@@ -116,6 +160,40 @@ export * from "./auth-schema";
 ```
 
 and apply it (`pnpm db:push` in dev, `db:generate` + `db:migrate` for anything real).
+
+### Two things the generator gets wrong on Postgres, and the only fix that survives regeneration
+
+Field-verified against `auth@1.7.5` (Hostitaly, 2026-09-16). Both are in the generator, so **editing
+the generated file by hand is not a fix** — the next `generate` silently reverts it.
+
+1. **Every instant is `timestamp without time zone`.** The generator hard-codes
+   `` `timestamp('${name}')` `` for the `pg` provider (`auth/dist/index.mjs`, the `date` field map);
+   there is no adapter option. A naive column stores the *writing process's* wall clock while Postgres
+   compares in the *server's* zone, so `session.expires_at`, `verification.expires_at` and any invitation
+   expiry drift by the client/server offset, and at the DST fold two instants an hour apart collapse into
+   one. Seventeen columns across `user`, `session`, `account`, `verification`, `two_factor`,
+   `organization`, `member`, `invitation`.
+2. **Anything you add to a table's extras array is dropped**, including the
+   `UNIQUE (organization_id, id)` a multi-tenant schema needs so child tables can carry a composite
+   foreign key `(organization_id, <parent>_id) → parent(organization_id, id)`.
+
+The fix is a **post-generation patch script chained into the generate command**, so the file stays
+generated and the correction cannot be forgotten:
+
+```jsonc
+// package.json
+"auth:generate": "dotenv -e .env.local -- auth generate --config lib/auth/cli.ts --output lib/db/schema/auth.ts --yes && node scripts/patch-auth-schema.mjs lib/db/schema/auth.ts"
+```
+
+The script rewrites `timestamp("x")` → `timestamp("x", { withTimezone: true })`, injects the `unique(...)`
+entries, and **exits non-zero** if a column or a table's extras array is not where it expects — so a
+future better-auth version cannot drop either quietly. Then generate the migration and **add an explicit
+`USING "<col>" AT TIME ZONE 'UTC'`** to each `SET DATA TYPE timestamptz`: without it Postgres converts
+using the session's TimeZone, so the result depends on who runs the migration. State in the migration
+header how existing rows are interpreted — the zone of the process that wrote them is not recorded.
+
+Pair it with a test that reads `information_schema.columns` and fails when a naive instant or a missing
+composite unique reappears; an exact-set assertion catches both a new offender and a fixed one.
 
 ## Environment variables
 
@@ -207,7 +285,69 @@ Run `pnpm typecheck` to confirm — every action that called the stub now resolv
 
 The actions in the template **return** `{ ok: false }` for **business** errors (validation, "title too short", "this practice is archived"). They **throw** for **system** errors (DB down, auth not wired, request unauthorized). The reason: a logged-out user submitting a form is a system-level state — the form should never have been rendered in the first place — so it's a 500, not a 4xx-style field error. The thrown error hits `app/error.tsx`, the user gets the clean fallback, and your logs show the real cause.
 
-If you want to gate the form at render time instead of catching the throw, do an `await getSession()` check in the parent RSC and `redirect("/sign-in")` if null — that's the right place to handle "user not logged in", not deep inside the action.
+If you want to gate the form at render time instead of catching the throw, do an `await getSession()` check in the parent RSC and `redirect("/sign-in")` if null — that's the right place to handle "user not logged in", not deep inside the action. **With `cacheComponents: true` (Next 16), do it the way the next section says** — a top-level session read in a layout breaks instant navigation.
+
+### Next 16 `cacheComponents`: protecting routes without breaking instant navigation
+
+With `cacheComponents: true`, a layout that awaits the session at its top level and calls
+`redirect()` fails instant-navigation validation. In dev the overlay reports **"Could not validate
+instant"** for every protected route: a request read cannot be prerendered into the static shell.
+Reading `cookies()`/`headers()` outside a `<Suspense>` boundary is a build error. The pattern that
+satisfies it, from `node_modules/next/dist/docs/01-app/02-guides/authentication-with-cache-components.md`
+(verified on Next 16.3.4 + better-auth 1.7.5), has **three parts, and all three are needed**:
+
+**1. `proxy.ts`: an optimistic cookie check.** Next's `authentication.md` §Optimistic checks with
+Proxy. It only asks whether a session cookie is present, with no DB lookup, so signed-out visitors
+are redirected before render and prefetches never hit a redirect mid-tree:
+
+```typescript
+// proxy.ts (Next 16 renamed middleware.ts; runs on Node — do not set `runtime`)
+import { getSessionCookie } from "better-auth/cookies";
+import { type NextRequest, NextResponse } from "next/server";
+
+const PROTECTED = ["/dashboard", "/settings"];
+
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && !getSessionCookie(request)) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
+  return NextResponse.next(); // or the next-intl middleware: `return intl(request)`
+}
+```
+
+A cookie that is present can still be expired or forged, so this is never the authorization check.
+
+**2. `getCurrentUser()` with `"use cache: private"`.** This is the real check. The directive may
+read `headers()`/`cookies()`, keeps the result in the browser only, and lets authenticated routes
+prefetch per session. `redirect()` throws, so a redirect is never cached; only a resolved user is:
+
+```typescript
+// lib/auth/session.ts
+import "server-only";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "./auth";
+
+export async function getCurrentUser() {
+  "use cache: private";
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/sign-in"); // next-intl: getPathname({ href, locale: await locale() }) from next/root-params
+  return { id: session.user.id, email: session.user.email, name: session.user.name };
+}
+```
+
+Return a small serialisable object, not the whole session. Server Actions still use a plain
+`getSession()` and throw on null, as above. Never read the session inside a plain `"use cache"`
+function: it throws.
+
+**3. Call it inside `<Suspense>`, never at the layout's top level.** Put the user menu, the
+role-dependent nav, and the page body that needs the user in a component that awaits
+`getCurrentUser()`, wrapped in a `<Suspense fallback={<Skeleton />}>`. The chrome outside the
+boundary stays in the static shell.
+
+To migrate one route at a time, `export const instant = false` on a page or layout lets it keep
+blocking on the server (same guide, §Migrating an existing app).
 
 ## When the product **is** an MCP server — OAuth for coding agents
 
@@ -338,5 +478,8 @@ documents an API *for* coding agents: that one writes the runbook, this one issu
   caller's `cookie` header) rather than sharing the database: one component holds
   the session store, and the sidecar never needs database credentials at all.
 - better-auth's Drizzle adapter requires the schema to be in a specific shape. The `@better-auth/cli generate` tool handles this — don't hand-write the auth tables.
-- Magic-link requires `module-add email` (Resend is the default). Don't enable magic-link before email is wired — better-auth will throw at runtime.
+- Magic-link **and email OTP** require `module-add email` (Resend is the default). Don't enable either before email is wired — better-auth will throw at runtime. In dev, `sendVerificationOTP` can log the code to the server console until email lands.
+- **PWA → email OTP, not magic link**: on iOS a mail link opens Safari, not the installed app (see *Magic link or email OTP*).
+- **`cacheComponents: true` → proxy cookie check + `"use cache: private"` `getCurrentUser()` inside `<Suspense>`.** A top-level session `redirect()` in a layout triggers "Could not validate instant" in dev.
+- **Pass the lazy `db` to `drizzleAdapter`, never `getDb()`.** `auth` is built at import time, and an eager client aborts `next build` under PGlite.
 - For social login (Google/GitHub/etc.), the user has to register OAuth apps with each provider and add `BETTER_AUTH_GOOGLE_CLIENT_ID` etc. to env. This is out of scope for v1 — leave a comment in `auth.ts` showing how to add them.

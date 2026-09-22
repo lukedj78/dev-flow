@@ -7,7 +7,9 @@ Dependencies:
 - `@hookform/resolvers` ^5
 - `zod` ^4
 - shadcn `Field` component installed
-- `sonner` mounted at the root layout
+- a toast primitive mounted at the root layout — Base UI `Toast` (`components/ui/toast.tsx`)
+  or `sonner`; `scaffold_lib_forms.py` rewrites the two `// forms:toast-*` lines of
+  `mapFormError.ts` to match the one installed (see `toolkit-tanstack.md`).
 
 ---
 
@@ -287,11 +289,15 @@ Identical surface to the TanStack version; only the per-field setter changes —
 
 ```ts
 "use client";
-import { toast } from "sonner";
 import type { UseFormReturn } from "react-hook-form";
+import { toast } from "@/components/ui/toast"; // forms:toast-import
 
 export interface FormErrorContext {
   form: UseFormReturn<never>;
+}
+
+function notifyError(message: string): void {
+  toast.add({ title: message, type: "error" }); // forms:toast-call
 }
 
 class SessionExpiredError extends Error {}
@@ -313,11 +319,13 @@ class ServerProblem extends Error {
 
 export function mapFormError(err: unknown, ctx: FormErrorContext): void {
   if (err instanceof SessionExpiredError) {
+    // A full reload on purpose: it drops client state tied to the dead session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/auth/refresh");
     return;
   }
   if (err instanceof ForbiddenError) {
-    toast.error("You don't have permission to perform this action.");
+    notifyError("You don't have permission to perform this action.");
     return;
   }
   if (err instanceof ValidationProblem) {
@@ -327,18 +335,18 @@ export function mapFormError(err: unknown, ctx: FormErrorContext): void {
         message: msgs[0],
       });
     }
-    toast.error("Some fields need attention.");
+    notifyError("Some fields need attention.");
     return;
   }
   if (err instanceof ServerProblem) {
-    toast.error(err.detail);
+    notifyError(err.detail);
     return;
   }
   if (err instanceof TypeError) {
-    toast.error("Network error. Please retry.");
+    notifyError("Network error. Please retry.");
     return;
   }
-  toast.error("Something went wrong.");
+  notifyError("Something went wrong.");
 }
 ```
 

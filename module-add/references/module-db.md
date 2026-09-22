@@ -1,6 +1,6 @@
 # module-add → `db` (Drizzle ORM + Neon Postgres)
 
-Wire **Drizzle ORM** with a **Neon** Postgres database into an existing scaffold. Defaults: Neon serverless driver, `drizzle-kit` for migrations, schema in `lib/db/schema.ts`.
+Wire **Drizzle ORM** with a **Neon** Postgres database into an existing scaffold. Defaults: Neon serverless driver, `drizzle-kit` for migrations, schema in `lib/db/schema.ts`, and a **lazy** client that opens on the first query, not on import.
 
 ## ⚠ Read before running
 
@@ -47,10 +47,16 @@ config the same way the client branches (`driver: "pglite"` is one of the five
 this version accepts — verified at `drizzle-kit@0.31.10`):
 
 ```typescript
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
-import "dotenv/config";
 
-const url = process.env.DATABASE_URL;
+// Same precedence as Next: .env.local overrides .env. A bare `import "dotenv/config"`
+// reads only `.env`, so a URL kept in `.env.local` (where Next and this skill put it)
+// is invisible to drizzle-kit, which then silently takes the PGlite branch.
+config({ path: [".env.local", ".env"], quiet: true });
+
+// Migrations and push want a direct connection: prefer Neon's unpooled URL when set.
+const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 
 export default defineConfig(
   url
@@ -72,39 +78,94 @@ export default defineConfig(
 
 ### `lib/db/index.ts`
 
-**Recommended: driver-switch by URL** (field-verified). One client that picks the driver
-from `DATABASE_URL`: Neon over HTTP in prod/preview, node-postgres for a local Postgres,
-and **embedded PGlite when no URL is set** — so `pnpm dev` and CI run with zero infra and
-the *same* Drizzle schema, and prod is a one-env-var swap. This removes the "manually swap
-neon-http for node-postgres" caveat entirely. `pg`/`pglite` are `require`d lazily so
-serverless bundlers (and eve/nitro) don't trace them into the Neon build.
+**Recommended: driver-switch by URL, opened lazily** (field-verified on FITROOM, 2026-09 —
+drizzle-orm 0.45.3, @neondatabase/serverless, @electric-sql/pglite 0.5.8, Next 16.3). One
+client that picks the driver from `DATABASE_URL`: Neon in prod/preview, node-postgres for a
+local Postgres, and **embedded PGlite when no URL is set** — so `pnpm dev` and CI run with zero
+infra and the *same* Drizzle schema, and prod is a one-env-var swap. `pg`/`pglite` are
+`require`d lazily so serverless bundlers (and eve/nitro) don't trace them into the Neon build.
+
+**Pick the Neon driver by one question: does any code path need an interactive transaction?**
+(`db.transaction(async (tx) => …)` — read, decide, write under a lock: bookings, stock,
+balances, idempotency keys.)
+
+| Neon driver | Transport | `db.transaction()` | Use when |
+|---|---|---|---|
+| `drizzle-orm/neon-serverless` + `Pool` | WebSocket | ✅ interactive | anything with a read-then-write invariant. **Default below.** |
+| `drizzle-orm/neon-http` + `neon()` | HTTP fetch | ❌ throws `No transactions support in neon-http driver` | read-heavy apps with single-statement writes; `db.batch([...])` still runs several statements in one non-interactive transaction |
+
+The neon-http refusal is not a Drizzle gap: Neon's own README says the HTTP query function
+supports neither sessions nor transactions, and points to `Pool`/`Client` over WebSocket for
+them. Choosing neon-http and discovering this at the first booking flow means rewriting the
+client, so decide here. The Pool needs a global `WebSocket` — built into Node ≥ 22; on older
+Node set `neonConfig.webSocketConstructor = ws` (`npm i ws`).
 
 ```typescript
-import { drizzle as drizzleNeon, type NeonHttpDatabase } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import "server-only";
+import { Pool } from "@neondatabase/serverless";
+import { drizzle as drizzleNeon, type NeonDatabase } from "drizzle-orm/neon-serverless";
 import { createRequire } from "node:module";
 import * as schema from "./schema";
 
 const nodeRequire = createRequire(import.meta.url);
-export type Database = NeonHttpDatabase<typeof schema>;
+export type Database = NeonDatabase<typeof schema>;
 
-export function createDb(url?: string): Database {
-  if (url && /neon\.tech/.test(url)) return drizzleNeon(neon(url), { schema });
+function createDb(url: string | undefined): Database {
+  if (url && /neon\.tech/.test(url)) {
+    return drizzleNeon({ client: new Pool({ connectionString: url }), schema });
+  }
   if (url) {
-    const { Pool } = nodeRequire("pg") as typeof import("pg");
+    const { Pool: PgPool } = nodeRequire("pg") as typeof import("pg");
     const { drizzle } = nodeRequire("drizzle-orm/node-postgres") as typeof import("drizzle-orm/node-postgres");
-    return drizzle(new Pool({ connectionString: url, max: 4 }), { schema }) as unknown as Database;
+    return drizzle({ client: new PgPool({ connectionString: url, max: 4 }), schema }) as unknown as Database;
   }
   const { PGlite } = nodeRequire("@electric-sql/pglite") as typeof import("@electric-sql/pglite");
   const { drizzle } = nodeRequire("drizzle-orm/pglite") as typeof import("drizzle-orm/pglite");
-  const { resolve } = nodeRequire("node:path") as typeof import("node:path");
-  return drizzle(new PGlite(process.env.PGLITE_DATA_DIR ?? resolve(process.cwd(), ".data/pglite")), { schema }) as unknown as Database;
+  const { dirname, resolve } = nodeRequire("node:path") as typeof import("node:path");
+  const { mkdirSync } = nodeRequire("node:fs") as typeof import("node:fs");
+  const dataDir = process.env.PGLITE_DATA_DIR ?? resolve(process.cwd(), ".data/pglite");
+  mkdirSync(dirname(dataDir), { recursive: true }); // PGlite does not create the parent
+  return drizzle({ client: new PGlite(dataDir), schema }) as unknown as Database;
 }
 
-// HMR-safe singleton (Next re-evaluates modules; PGlite is single-process).
+// Lazy, HMR-safe singleton: the driver opens on the FIRST QUERY, never on import.
 const g = globalThis as unknown as { __db?: Database };
-export function getDb(): Database { return (g.__db ??= createDb(process.env.DATABASE_URL)); }
+export function getDb(): Database {
+  return (g.__db ??= createDb(process.env.DATABASE_URL));
+}
+
+/** Same client as getDb(), usable as a value (adapters, `drizzleAdapter(db, …)`)
+ *  without opening a connection at import time. */
+export const db: Database = new Proxy({} as Database, {
+  get(_target, prop) {
+    const real = getDb();
+    const value = Reflect.get(real, prop, real);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
 ```
+
+⚠️ **Why lazy is not optional.** `next build` imports every route module in several parallel
+worker processes to collect page data. A client created at module scope (`export const db =
+createDb(…)`) opens the database once *per worker* — for PGlite, that is several processes on
+one single-process data directory, and the build dies with **`RuntimeError: Aborted()`** in the
+PGlite WASM engine (observed on FITROOM, Next 16.3.4 + PGlite 0.5.8, as soon as `lib/auth`
+imported `lib/db`). With Neon it is a connection per worker for pages that never query. Opening
+on the first query costs nothing and removes both.
+
+The `Proxy` exists for libraries that take the client **as a value** at module scope — better-auth's
+`drizzleAdapter(db, …)` is the usual one. Passing `getDb()` there would open the connection at
+import again; the Proxy defers it until the adapter actually runs a query. App code can use either
+`db` or `getDb()`.
+
+**Extensions under PGlite.** Postgres extensions your migrations use must be loaded explicitly:
+`new PGlite(dataDir, { extensions: { btree_gist } })` with
+`import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist"` (needed for an `EXCLUDE
+USING gist` no-overlap constraint, which then raises SQLSTATE `23P01` on conflict). `drizzle-kit
+migrate` cannot pass extensions, so a project that needs one runs migrations through a small
+`lib/db/migrate.ts` with the same driver switch — `migrate()` from `drizzle-orm/<driver>/migrator`
+— and `"db:migrate": "tsx lib/db/migrate.ts"`. Start that file with the same
+`config({ path: [".env.local", ".env"] })` call as `drizzle.config.ts`.
 
 Add dev deps for the fallback branches: `pnpm add -D @electric-sql/pglite pg @types/pg`.
 **Gotcha (Turbopack):** never build the PGlite dataDir with `new URL(..., import.meta.url)`
@@ -124,12 +185,16 @@ directory is left corrupt, so every later `drizzle-kit push` fails until you
 with it stopped. Prefer resolving sessions over HTTP from the second process to
 having two of them on one directory.
 
-**Simpler alternative** (Neon-only — fine when you always have a Neon URL, incl. dev):
+**Simpler alternative** (Neon-only, no transactions — fine when you always have a Neon URL,
+incl. dev, and no flow needs `db.transaction()`; still open it lazily):
 
 ```typescript
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-export const db = drizzle({ client: neon(process.env.DATABASE_URL!) });
+import * as schema from "./schema";
+
+let client: NeonHttpDatabase<typeof schema> | undefined;
+export const getDb = () => (client ??= drizzle({ client: neon(process.env.DATABASE_URL!), schema }));
 ```
 
 ### `lib/db/schema.ts`
@@ -203,7 +268,10 @@ Append to `scripts`:
 Append to `.env.local.example`:
 
 ```
-DATABASE_URL=postgresql://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require
+DATABASE_URL=postgresql://user:password@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
+# Direct (non-pooler) URL for drizzle-kit push/migrate — optional, falls back to DATABASE_URL
+DATABASE_URL_UNPOOLED=postgresql://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require
+# Leave both unset for embedded PGlite (.data/pglite — add it to .gitignore)
 ```
 
 Tell the user to:
@@ -241,6 +309,9 @@ This pushes the schema to the connected Neon DB. The user runs this after they'v
 
 ## Known caveats
 
-- Neon's serverless driver works only over HTTP, not TCP. The **driver-switch `lib/db/index.ts`** above handles this automatically (node-postgres for a local TCP Postgres, PGlite when no URL) — prefer it over the Neon-only version precisely to avoid a manual swap. If you used the simpler Neon-only client, local dev against Docker Postgres needs the manual `neon-http` → `node-postgres` swap.
+- Neon's serverless drivers speak HTTP (`neon()`) or WebSocket (`Pool`/`Client`), not raw TCP. The **driver-switch `lib/db/index.ts`** above handles this automatically (node-postgres for a local TCP Postgres, PGlite when no URL) — prefer it over the Neon-only version precisely to avoid a manual swap.
+- **neon-http has no interactive transactions** — `db.transaction()` throws at runtime, not at compile time (the type exists). Use the `neon-serverless` Pool (default above) whenever a flow must read and write under one lock.
+- **Never create the client at module scope.** Parallel `next build` workers each open it; with PGlite that aborts the build (`RuntimeError: Aborted()`). Use `getDb()` / the lazy `db` Proxy.
+- **`import "dotenv/config"` reads only `.env`.** Every CLI entry point (drizzle.config.ts, migrate/seed scripts) loads `config({ path: [".env.local", ".env"] })`, the same precedence Next uses.
 - Drizzle's `drizzle-kit push` is destructive on column drops. For production, the user should switch to `drizzle-kit generate` + `drizzle-kit migrate` workflow. Mention this in the report — `push` is fine for dev only.
 - The `posts` example table is throwaway — invite the user to replace it once their schema starts taking shape.
