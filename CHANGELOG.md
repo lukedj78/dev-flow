@@ -20,6 +20,26 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`eve-agent` §13: Rizzo Flow replaces Laya as the self-hosted option, and the arithmetic that decides it is written down.**
+  [Rizzo Flow](https://github.com/Rizzo-AI-Academy/rizzo-flow) (Apache-2.0, Spark-X2.5-4B + LoRA on llama.cpp, from the
+  authors of the `rizzo-pii` model `annotix` uses) answers typed questions with probabilities and **speaks the TypeSafe
+  request/response shape on `POST /v1/systemone`**, so moving a client is one base URL. Its native endpoint adds what Jev
+  lacks: a `numeric` type with anchors and **built-in abstention** with a `status` field — a better shape for "the evidence
+  does not say" than any threshold.
+  - **The numbers, from their own table:** `typed-decisions` accuracy 0.648 against Jev's published 0.727, ECE 0.349 → 0.112
+    against the base weights, ≈ 50 ms and 5.6 GiB at Q8_0 — with confidence intervals, held-out splits, a contamination
+    check and their own regression (worse on missing evidence) stated.
+  - **Where it runs.** Vercel is CPU-only (Functions, Fluid and Sandbox list vCPU and memory, no GPU, checked 2026-09-26),
+    so it is always a separate service called server-side. An EU GPU costs ≈ **€575/month** (Scaleway `L4-1-24G`, verified);
+    Jev bills **$0.042 per million input tokens**, ≈ **$0.00013** for a 3,000-token document with its questions batched.
+    The crossover is millions of documents a month, so the rule is stated plainly: **self-host for confidentiality, never
+    to save money** — and a cloud GPU host is still a sub-processor; only on-prem removes the row.
+  - **The four constraints that bite**: ≤ 26 options (cascade beyond that), an 8k-token state by default, uncalibrated
+    probabilities with confident wrong answers when a fact is missing, and English instructions being materially stronger
+    than Italian ones.
+  - **Their agent skill is the one to use** (`skills/rizzo-flow`, Apache-2.0: API reference, use cases, stdlib client, and
+    an explicit "do not use it for"). Recorded in `dev-flow/references/external-skills.md`; §13 keeps only the decision and
+    the wiring. Laya stays out: a 512–1,024-token context and no API compatibility made it a rewrite, not a swap.
 - **`eve-agent`: full sweep against eve@0.64.0, and three version labels from yesterday's partial pass corrected.**
   `npm pack` of both 0.63.0 and 0.64.0, a file-by-file diff of the two bundled `docs/` trees (26 pages changed) and
   the CHANGELOG between them.

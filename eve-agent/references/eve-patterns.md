@@ -730,29 +730,55 @@ and keep specialist selection on descriptions that do not overlap (§7).
     upgrade, because a new endpoint would change the answer.
   - **An EU-hosted Jev would be a TypeSafe offer** (a dedicated deployment, an EU endpoint). None is documented.
     Ask them, and record the answer in §4.10.
-- **The self-hosted alternative: Laya — to measure, not a default.** Where the constraint is that no text leaves the
-  EU, the same shape of model can run on your own EU machines. [Laya](https://github.com/NandhaKishorM/laya)
-  (ConvAI Innovations, **Apache-2.0**, weights on Hugging Face under the same licence) answers `choice` / `score` /
-  yes-no questions with probabilities in one forward pass, **with no text generation**. Its three checkpoints run
-  421M, 322M and 421M parameters with a `Router` that picks one per language. `laya-multilingual` lists Italian among 51
-  languages. Read on 2026-09-22 from its README and model cards. Before it goes near a product:
-  - **It is four days old** (repo created 2026-09-18). The stars measure attention, not maturity.
-  - **Its context is 512–1,024 tokens**, against Jev's 32,000 of state. A long email or a ticket with its history
-    does not fit, so this is a model for short, extracted fields.
-  - **It is weaker than Jev on the independent numbers, all author-reported and unverified:**
-    - a Feishu message-classification bench gave Jev 64/64 and Laya 20/64;
-    - local email triage reached 65% accuracy;
-    - on the README's own benchmark, `laya-multilingual` scores **0.45** on MASSIVE intent across 13 non-English
-      languages and 0.73 on XNLI across 14.
-  - **High confidence does not mean it is right.** The README reports that the English checkpoint on non-Latin
-    script scored *"0.000 accuracy at 0.952 confidence"*. The confidence gate above does not protect there; the
-    `Router` choosing the multilingual checkpoint does.
-  - **Python only** (`pip install laya`): no AI SDK provider, no `evaluate`. From an eve agent (TypeScript)
-    it is a separate service in an EU region, called from inside the tool like any HTTP dependency, with (f)'s tests
-    around the caller.
-
-  Adopt it only after an eval on your own Italian data (d) beats the thresholds you need. Until then, a US transfer
-  of minimised fields through Jev is usually the better trade than a local model that gets a third of them wrong.
+- **The self-hosted alternative: Rizzo Flow.** Where the constraint is that the text must not leave your
+  perimeter — a law firm's filings, medical records, anything under professional secrecy — the same programming
+  model runs on hardware you control. [Rizzo Flow](https://github.com/Rizzo-AI-Academy/rizzo-flow)
+  (Rizzo AI Academy, **Apache-2.0**, Spark-X2.5-4B + their own LoRA, served by llama.cpp) answers typed
+  questions with probabilities and **zero generated tokens**, and its
+  **`POST /v1/systemone` speaks the TypeSafe request and response shape**, so a client moves over by changing
+  the base URL (`TYPESAFE_BASE_URL`; they designed it for that and say it is not yet tested against the real
+  SDK). Its native `POST /v1/decisions` adds what Jev does not have: a `numeric` type with anchors and
+  **built-in abstention** — `__insufficient__`, `__below_range__`, `__above_range__` with a `status` field —
+  which is the better shape for "the evidence does not say" than any threshold. Read 2026-09-26; from the same
+  authors as the `rizzo-pii` model `annotix` already uses.
+  - **What it measures, on their own benchmark table:** `typed-decisions` accuracy **0.648** against Jev
+    1.13.0's dataset card **0.727**, with better-shaped probabilities than the base weights (ECE 0.349 → 0.112).
+    ≈ 50 ms per decision and 5.6 GiB of GPU memory at Q8_0 on an RTX 5060 Ti. The repo reports confidence
+    intervals, held-out splits, a contamination check and its own regressions — including that the fine-tune
+    got **worse** on missing evidence (0.583 against 0.750 for the base weights).
+  - **Where it runs, and the honest arithmetic.** Not on Vercel: Functions, Fluid and Sandbox are CPU-only
+    (their compute docs list vCPU and memory, no GPU, checked 2026-09-26), so this is always a **separate
+    service the app calls server-side over a private network**, never from the browser. An always-on EU GPU is
+    the cost: Scaleway `L4-1-24G` is **€0.79/hour, ≈ €575/month** (verified 2026-09-26); Hugging Face
+    Inference Endpoints list an L4 at **$0.80/hour** but the company is US-controlled, so under `eu-sovereign`
+    that is a flagged row, exactly like Vercel. On the other side, Jev bills **$0.042 per million input
+    tokens**: a 3,000-token document with every question batched into one request costs about
+    **$0.00013**. The crossover is **millions of documents a month**, which no professional firm reaches.
+    So: **self-host for confidentiality, never to save money** — and if the machine is a cloud VM, that
+    provider is still a sub-processor in the register (`data_residency.py add`); only on-prem removes the row.
+  - **Four constraints that bite in practice.** **≤ 26 options** per question (Jev: 255), so a real taxonomy
+    needs a two-stage cascade — macro first, then the winner's children. **State ≤ 8,192 tokens** by default
+    (`--ctx 32768` for longer), so a long document needs the deciding pages selected, not the whole file.
+    **Probabilities are uncalibrated** unless you run their `rizzo calibrate` on labelled domain data, and the
+    model *answers confidently when the fact is missing* (6 of 36 cases) — so gate on `status` first, then on a
+    margin, and never put a threshold near 0.5. **English is strongest**: their guidance is to write the
+    instructions and options in English while the state stays in its own language, which for our
+    Italian-language products is the difference between a usable result and a coin toss.
+  - **Use their skill, do not write ours.** The repo ships `skills/rizzo-flow` (Apache-2.0): a well-formed
+    SKILL.md with an API reference, a use-case catalogue and a stdlib-only Python client (their
+    `skills/rizzo-flow/references/` and `scripts/`), including the parts most
+    skills omit — when *not* to use it, how to write the questions, and how to read the probabilities
+    responsibly. Point the user at it rather than re-deriving 190 lines that will drift; this section owns only
+    the decision and the wiring (`dev-flow/references/external-skills.md`).
+  - **The pattern worth keeping even if you stay on Jev**: the interface is the same, so run the local engine
+    in **dev, CI and evals** — free, no key, no network — and let production use whichever the confidentiality
+    constraint allows. That also makes (f)'s mock unnecessary for integration tests.
+  - **Still to measure before any product relies on it:** the accuracy on *your* documents in Italian, with a
+    labelled sample, through the eval in (d). It is five days old, tested mostly on one machine, keeps one
+    model resident and serializes requests, and is explicitly not hardened for public exposure. A
+    high-stakes domain — legal, medical, credit, hiring — uses it as a **pre-filter that routes to a person**,
+    which is what their own skill says. (Laya, the other open option looked at on 2026-09-22, stays out: a
+    512–1,024-token context and no API compatibility made it a rewrite rather than a swap.)
 - **Italian is not documented.** Neither the launch post nor the Gateway page lists supported languages; on a product
   whose users write in Italian, the eval in (d) is what tells you whether the thresholds hold.
 - **Limits stated by TypeSafe and the Gateway:** text input only, no string output, a `choice` of at most 255
