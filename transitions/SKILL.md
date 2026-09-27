@@ -64,7 +64,7 @@ Its `/c/micro` set (30 micro-interactions) is Motion-based and calls `useReduced
 onto **our** primitive through `lib/motion/tokens.ts` — not install a second one. For the few with no primitive
 behind them, install through `registry-intake` (never a bare `shadcn add`), take the `TS-TW` variant, and expect
 two findings: the items declare `motion@^12` against our 13, and their long arbitrary-value class lists raise the
-design-lint cap. Details, the full micro list and the primitive map: `references/react-bits.md`.
+design-lint cap. Details, the full micro list and the primitive map: `references/react-bits.md`. Other catalogues worth *looking* at under the same two rules — a MIT page of ~24 named loaders, and unlumen UI's paid `@unlumen-ui` registry, which lands in a second `components/unlumen-ui/` namespace: `references/motion-catalogues.md`.
 
 **Never jump to Tier 3 for a fade.** A `<Suspense>` fallback, a hover lift, a dropdown open — all Tier 0/1. Reserve Motion for interactions that genuinely need physics or layout animation.
 
@@ -168,6 +168,7 @@ the string said: `module-add motion` now writes `stack.motion.library` and
 
 ## Reference files
 
+- `references/motion-catalogues.md` — where to look for motion and what looking may turn into: the loader vocabulary at loading.daniasyrofi.com (MIT, and why a skeleton still beats a spinner for content), and unlumen UI (`@unlumen-ui` shadcn registry, Free/Pro, **$119 one-time** or $69/year — with its second component namespace and the routing to `vgpu-shaders` / `animated-icons`).
 - `references/react-bits.md` — React Bits as a motion source: licence, the `TS-TW` rule, the micro→primitive map golden rule 3 imposes, the Motion-12 and arbitrary-value traps, and where its other categories land on the ladder.
 
 - `references/motion-library.md` — the curated, tokenized transition library: each entry → tier, tokens used, code snippet, and its `prefers-reduced-motion` fallback. Grouped enter/exit · toggle · hover · feedback · layout · route.

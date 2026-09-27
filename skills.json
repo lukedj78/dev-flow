@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-26T13:19:34Z",
+  "generated_at": "2026-09-27T10:50:16Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -450,6 +450,7 @@
       "references": [
         "audit-recipe.md",
         "contracts.md",
+        "motion-catalogues.md",
         "motion-library.md",
         "react-bits.md",
         "tw-animate-css.md"
@@ -458,7 +459,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 176,
+      "skill_md_lines": 177,
       "bundle": "dist/transitions.skill"
     },
     {
