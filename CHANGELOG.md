@@ -144,6 +144,17 @@ What a bump means here:
   - The compliance gate follows the rule. `agent_decided` (running `allow`/`approve` in a session nobody can answer) is now a scored violation, and a new `stopped_to_ask` outcome (builtin `final_asks`) passes when the session ends on a question that names the decision. The generic "halt" relaxation it replaces is removed.
 
 ### Added
+- **`motion-catalogues.md` gains Watermelon UI — and the rule that makes it usable.** MIT on both halves
+  (`watermelon-platform` 587★, `watermellon-registry` 97★), a real shadcn registry (`watermelon`, **1,178 items**,
+  `/r/{name}.json`) landing in `components/watermelon/`. **Every item ships twice**, and diffing `activities-card`
+  against `activities-card-base` shows what the suffix means: hardcoded `#3E3E43`, `text-[15px]` and `dark:` colour
+  pairs on one side, `bg-accent/40`, `border-border`, `text-muted-foreground`, `text-sm` on the other. **Take the
+  `-base` twin** — the same decision React Bits' `TS-TW` suffix forces. Run through our own
+  `registry_intake.py review`: one item clean at tier low, one needing a human on **S6** (a 1,000-character class
+  list), both raising **D8 as info** on `motion`, which is the reused-name check behaving correctly. It also publishes
+  `llms.txt`, OpenAPI, read-only catalogue endpoints and an **unauthenticated public MCP** (`search`,
+  `get_inspiration`, `get_component`, `compose_page`) — written up as a browsing surface whose output is data, never
+  an authorisation to install, with their `AI_POLICY.md` noted as a stated policy rather than a proof.
 - **`transitions/references/motion-catalogues.md` — where to look for motion, and what looking is allowed to turn into.**
   Two catalogues read on 2026-09-27, both under the same two rules the React Bits reference already states: golden rule 3
   (port the timings onto our primitive, never compose from a second library) and `registry-intake` for anything that

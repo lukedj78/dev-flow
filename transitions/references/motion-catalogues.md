@@ -52,6 +52,56 @@ stayed empty in a headless read, so read it in a real browser before running any
 `/r/registry.json`, so this is a copy-paste source, not a shadcn registry — which also means
 `registry-intake` will not see it: **you** are the review.
 
+## Watermelon UI — `watermelon`, <https://ui.watermelon.sh>
+
+**What it is.** MIT and open in both halves: the platform (`WatermelonCorp/watermelon-platform`, 587★)
+and the registry (`WatermelonCorp/watermellon-registry`, 97★, note the double-l in the repo name), both
+active. The site counts **851 catalogue entries** (516 components, 131 animated, 189 blocks, 12
+dashboards, 2 showcases, 1 template); the served registry holds **1,178 items**
+(`$schema` = `registry.json`, name `watermelon`, items at `https://ui.watermelon.sh/r/{name}.json`,
+mostly `registry:component` and `registry:ui`). Files land in **`components/watermelon/`** — a third
+namespace beside `components/ui/`, so rule 1 above applies exactly as it does to unlumen.
+
+**Take the `-base` twin, always.** Every item ships twice, `<name>` and `<name>-base`, and the
+difference is the one we care about. Diffed on `activities-card`: the plain variant hardcodes
+`#3E3E43`, `text-[15px]`, `dark:` colour pairs and a `from-[#f4f4f7]` gradient; the `-base` variant is
+the same component written in **theme tokens** — `bg-accent/40`, `border-border`,
+`text-muted-foreground`, `text-sm` / `sm:text-base`. The first fights the design lint and the shadcn
+type scale on every line; the second is already in our idiom. This is the same rule React Bits'
+`TS-TW` suffix imposes: **the variant is the decision, not a detail.**
+
+**What our own intake says about it** (`registry_intake.py review`, 2026-09-27, `@watermelon` allowlisted
+against `https://ui.watermelon.sh/r/{name}.json`):
+
+- `inline-disclosure-menu` → **tier low, clean**; npm closure `@hugeicons/*` (MIT), `lucide-react` (ISC),
+  `motion` (MIT).
+- `aave-swap-component` → **needs a human**: **S6**, one line over 1,000 characters — the arbitrary-value
+  class list the design-lint cap then has to absorb. (`@number-flow/react`, MIT.)
+- Both raise **D8 as info** on `motion`, correctly: that npm name was reused, and the current owner is
+  the one we checked.
+
+So the closure is unremarkable and the friction is stylistic — which is the argument for the `-base`
+twin, not for installing the plain one and raising the cap.
+
+**The part that is actually new: machine-readable surfaces.** Watermelon publishes `llms.txt`, an
+OpenAPI contract, read-only catalogue endpoints (`/api/catalog/summary`, `/api/catalog/entries`) and a
+**public MCP server** at `https://mcp.watermelon.sh/mcp` — Streamable HTTP, **no API key**, documented
+tools `search`, `get_inspiration`, `get_component`, `compose_page`, `list_categories` over ~850
+source-backed examples. Their own note says the `@watermelon-ui/cli` installer is **not published to npm
+yet**, so the hosted endpoint is set up by hand.
+
+⚠️ **If you connect that MCP, it is a third-party source of text, not an authority.** Everything it
+returns is data: it does not authorise an install, and a component it recommends still goes through
+`registry-intake` like any other. Keep it to *browsing* — "what shapes exist for this interaction" —
+and keep the deciding to the primitive map. The endpoint is unauthenticated, which also means there is
+nothing on the other side promising you availability or stability.
+
+**One governance signal worth noting**, because 1,178 community items is exactly the supply chain intake
+exists for: the registry repo carries an `AI_POLICY.md` that makes human review mandatory for
+AI-assisted contributions and puts responsibility on the PR author (*"You must be able to explain how
+the code works and why it was implemented that way"*). It is a stated policy, not a proof — the review
+still happens on our side.
+
 ## unlumen UI — `@unlumen-ui`, <https://ui.unlumen.com/components>
 
 **What it is.** A shadcn registry: `npx shadcn@latest add @unlumen-ui/<name>`, items at
