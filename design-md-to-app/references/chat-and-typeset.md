@@ -12,8 +12,56 @@ the installed registry — the surface is young and grows.
 > **The reference implementation is official and MIT**: [`shadcn-ui/chatbot-template`](https://github.com/shadcn-ui/chatbot-template)
 > — Next.js + AI SDK + shadcn/ui + `@shadcn/react` + shadcn/typeset on the Vercel AI Gateway.
 > When you need to know *how these pieces fit*, read it rather than inferring. Its pinned stack
-> (verified 2026-08): `next@16.2.6`, `ai@^7`, `@ai-sdk/react@^4`, `@shadcn/react@^0.3`,
-> `@base-ui/react@^1.7`, `react@19.2.4`, `tw-animate-css@^1.4`.
+> (re-read **2026-09-28**, after three updates that day): `next@16.3.6`, **`react@19.3.0`**,
+> `ai@^7.0.118`, `@ai-sdk/react@^4.0.121`, `@ai-sdk/gateway@^4.0.96`, `@shadcn/react@^0.3.1`,
+> `@base-ui/react@^1.8`, `react-shiki@^0.11.1`, **`cn@^0.4.0`** (no `clsx`, no `tailwind-merge`),
+> `shadcn@^4.21.0`. Three changes are worth copying, below; the previous pass recorded
+> `next@16.2.6` / `react@19.2.4`, which is now a version behind on both.
+
+## 0. Three things the official template changed on 2026-09-28
+
+**a. Merge adjacent text parts before rendering, and drop `source-url` parts.** Their fix (#11)
+names the cause in one line: *"Web search replies stream one text part per citation, so join them
+back into one markdown document."* Render the parts array as it arrives and a searched answer comes
+out as a stack of fragments, each its own markdown block, with the paragraph broken at every
+citation:
+
+```tsx
+// components/chat-message.tsx — theirs, verbatim in shape
+function mergeTextParts(parts: ChatMessagePart[]) {
+  return parts
+    .filter((part) => part.type !== "source-url")
+    .reduce<ChatMessagePart[]>((merged, part) => {
+      const last = merged.at(-1)
+      if (part.type === "text" && last?.type === "text") {
+        merged[merged.length - 1] = { ...part, text: last.text + part.text }
+        return merged
+      }
+      merged.push(part)
+      return merged
+    }, [])
+}
+```
+
+The `source-url` parts are not discarded information — they are rendered by the **Sources** family
+(§Sources below), not inline in the prose. Merging is a *rendering* concern: the message in history
+stays as the model streamed it.
+
+**b. Code blocks are syntax-highlighted with `react-shiki`** (`components/markdown-code.tsx`, #3),
+not with a hand-rolled highlighter and not by the typeset layer.
+
+**c. `lib/utils.ts` is now one line — `export { cn } from "cn"` — and the aliasing is Turbopack's:**
+
+```ts
+// next.config.ts
+const nextConfig: NextConfig = {
+  turbopack: { resolveAlias: { clsx: "cn", "tailwind-merge": "cn" } },
+}
+```
+
+This matters beyond this template: `cn`'s own `docs/aliasing.md` shows the **webpack** form, which a
+Next 16 project on Turbopack never executes. On Next 16, alias through `turbopack.resolveAlias`.
+See `shadcn-mapping.md` §cn for the rest of the migration.
 
 ## 1. Chat components (shadcn, June 2026)
 

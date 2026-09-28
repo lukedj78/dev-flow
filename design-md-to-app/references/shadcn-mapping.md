@@ -187,8 +187,10 @@ default on 2026-09-02, behind `@/lib/utils`. What is new is that the primitives 
 still has `clsx` + `tailwind-merge` runs two engines that can disagree on the same class string.
 Run `migrate cn` in the lagging package. On 2026-09-22 that was bidmaster and eve-hospitality
 (`apps/web`), and desko, which was never migrated. Libraries in `node_modules` that still import
-`tailwind-merge`/`clsx` can be aliased to `cn` (`docs/aliasing.md` in the cn repo). The alias does not
-reach a library that bundles its own copy.
+`tailwind-merge`/`clsx` can be aliased to `cn`. ⚠️ **cn's `docs/aliasing.md` shows the webpack form, which
+a Next 16 project never runs** — Turbopack is the default bundler. The working form is the one the official
+`chatbot-template` adopted on 2026-09-28: `turbopack: { resolveAlias: { clsx: "cn", "tailwind-merge": "cn" } }`
+in `next.config.ts`. The alias does not reach a library that bundles its own copy.
 
 ```ts
 // lib/utils.ts — stock (what init writes now)

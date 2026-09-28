@@ -20,6 +20,22 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`chatbot-template` re-read after three updates on 2026-09-28, and one of its fixes is a rendering rule we
+  did not have.** The official template (MIT, 980★) now pins `next@16.3.6`, **`react@19.3.0`**, `ai@^7.0.118`,
+  `@shadcn/react@^0.3.1`, `cn@^0.4.0` — no `clsx`, no `tailwind-merge` — against the `next@16.2.6` / `react@19.2.4`
+  our reference recorded in August.
+  - **Merge adjacent text parts before rendering, and keep `source-url` parts out of the prose.** Their own words:
+    *"Web search replies stream one text part per citation, so join them back into one markdown document."* Rendered
+    as they arrive, a searched answer becomes a stack of fragments broken at every citation. New §0 in
+    `chat-and-typeset.md` with the reducer, and the note that the sources still render — through the Sources family,
+    not inline.
+  - **Code blocks are `react-shiki`**, not a hand-rolled highlighter and not the typeset layer.
+  - **The `cn` alias is Turbopack's.** `lib/utils.ts` is now `export { cn } from "cn"` and `next.config.ts` carries
+    `turbopack: { resolveAlias: { clsx: "cn", "tailwind-merge": "cn" } }`. This corrects `shadcn-mapping.md`: cn's own
+    `docs/aliasing.md` shows the **webpack** form, which a Next 16 project on Turbopack never executes.
+  - **React 19.3 is here**, which retires a "future rung" in `transitions/references/motion-library.md`: `<AnimateView>`
+    works on a fresh Next 16.3 scaffold, while an existing 19.2.4 project still gets the runtime throw — so the bump is
+    its own change, not a detail of adding an animation.
 - **`eve-agent` §13: Rizzo Flow replaces Laya as the self-hosted option, and the arithmetic that decides it is written down.**
   [Rizzo Flow](https://github.com/Rizzo-AI-Academy/rizzo-flow) (Apache-2.0, Spark-X2.5-4B + LoRA on llama.cpp, from the
   authors of the `rizzo-pii` model `annotix` uses) answers typed questions with probabilities and **speaks the TypeSafe

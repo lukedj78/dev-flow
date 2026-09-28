@@ -177,8 +177,12 @@ That throw is the whole compatibility story: `motion`'s `peerDependencies` still
 npm installs it happily on React 19.2 and the component **fails at runtime, not at install**.
 `React.ViewTransition` became a plain export in **react@19.3.0** (verified in the package's
 `cjs/react.production.js`: `exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE`) — before that it was
-`unstable_ViewTransition`. **Our projects are on React 19.2.4 today**, so this is a future rung: check
-`react`'s version before proposing it, and `[VERIFY]` that the installed Next supports 19.3.
+`unstable_ViewTransition`. **That rung arrived on 2026-09-28**: `react@19.3.0` is npm's `latest`, and
+shadcn's own `chatbot-template` ships `next@16.3.6` + `react@19.3.0`, so a fresh Next 16.3 scaffold can use
+`<AnimateView>` today. An **existing** project is a different answer: most of ours were scaffolded on
+19.2.4, where `motion`'s `peerDependencies` (`^18 || ^19`) install it happily and the component throws in
+the browser. So check `react`'s installed version before proposing it, and treat the bump to 19.3 as its
+own change with its own test pass, not as a detail of adding an animation.
 
 **Three constraints the docs state, and one they don't.** It is **not interruptible** — no changing
 direction mid-animation; **a duplicate `name`** on either side of the transition makes the animation
