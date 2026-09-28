@@ -20,6 +20,15 @@ What a bump means here:
   - `module-add`: `module-db` now documents the lazy client (`getDb()` + `Proxy`; an eager one aborts `next build` under PGlite). The neon-serverless `Pool` is the default, because neon-http has no interactive transactions. dotenv reads `.env.local`. `module-auth` now recommends email OTP for PWAs and documents the Next 16 `cacheComponents` pattern (`proxy.ts` cookie check, then `'use cache: private'` `getCurrentUser()` inside `<Suspense>`). `drizzleAdapter` takes the lazy `db`.
 
 ### Changed
+- **`external-skills.md` gains Skillry** — a marketplace of design-led agent skills (hero blocks, decks, short films,
+  OG images), read 2026-09-28. Recorded the way that file requires: the price first (free tier; **$9.99/month, $79/year,
+  $169 one-time founding**), and the boundary next. The boundary is theirs, not ours: their own product pages say
+  *"Not for: teams already running a mature design system — this palette and type scale will fight yours"*, which is
+  golden rule 3 written by the seller. So the fit is an artefact **outside** a product codebase — a deck, an OG image,
+  a launch film — and inside a dev-flow app the answer stays `design-md-to-app` and the DESIGN.md tokens. Also noted:
+  the licence permits selling the *output* but forbids redistributing the skill package, so it must never be committed
+  into a repository handed to a client; and the catalogue is early, with install counts in the single and low double
+  digits (they decline to show a success rate without its sample size, which is the right instinct).
 - **`chatbot-template` re-read after three updates on 2026-09-28, and one of its fixes is a rendering rule we
   did not have.** The official template (MIT, 980★) now pins `next@16.3.6`, **`react@19.3.0`**, `ai@^7.0.118`,
   `@shadcn/react@^0.3.1`, `cn@^0.4.0` — no `clsx`, no `tailwind-merge` — against the `next@16.2.6` / `react@19.2.4`
