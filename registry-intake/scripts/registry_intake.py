@@ -1196,9 +1196,16 @@ installed with `shadcn add` directly — a hook refuses it. They go through regi
    yes, never the agent or the OS login. The hook asks them to confirm both commands.
 3. `registry_intake.py install . @ns/item` — installs the snapshot, never the live URL
 
-Blocking findings are
-fixed, ported by hand, or accepted one by one with a written reason. Imported code has to pass the
-capped design lint; raising `--max-warnings` fails `registry_intake.py check`.
+Blocking findings are fixed, ported by hand, or accepted one by one with a written reason. Imported
+code has to pass the capped design lint; raising `--max-warnings` fails `registry_intake.py check`.
+
+## Third-party agent skills
+
+A skill is instructions this agent obeys, so the same hook refuses `npx skills add`, `skills update`
+and `gh skill install`: read one with `registry_intake.py skill-review . <name|url>`, show the
+report, and let the **user** run the install. `registry_intake.py skill-approve . <name> --by <them>`
+then records who reviewed it and the sha256 of the text that landed, and `check` reports it if that
+text later changes.
 {SETUP_MARK[1]}
 """
 
