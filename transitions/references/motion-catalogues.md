@@ -133,3 +133,52 @@ recorded in `meta.json#stack_config.primitive_exceptions`.
 documentation — a props table, then a "Notes" section that states the awkward truths (fixed image
 width, the anchor is a plain `<a>` and not a Next `<Link>`, the responsive heights). That is the
 shape our own references aim for.
+
+## Arc UI — `@uiarc`, <https://uiarc.dev>
+
+**What it is.** A shadcn registry — `"@uiarc": "https://uiarc.dev/r/{name}.json"` in
+`components.json`, then `shadcn add @uiarc/button` — advertising **138 components and 83 blocks with
+motion built in**, of which 98 components and 22 starter blocks are free. React 19 and the `@/*`
+alias are required; `motion` and `lucide-react` are optional. **No Tailwind**: every component ships
+a `.module.css` beside its `.tsx`, and the token layer is plain CSS custom properties.
+
+**The price, before anyone gets close to a signup page** (2026-09-30): **Pro $129/year** or
+**$199 one payment** for 40 Pro components and 61 Pro blocks. Pro items install from the same URL
+once signed in, so that half of the registry is authenticated.
+
+**The licence, which is unusually clear and unusually good for agency work.** Free source is
+**MIT** — *"use, change and share it, commercially or not. Keep the copyright notice."* Pro allows
+unlimited personal and commercial projects and, explicitly, *"build end products for clients and
+hand them over, including the Pro source inside them"*, plus selling paid SaaS. Forbidden:
+redistributing, reselling or sublicensing *"Pro source on its own"*, building anything whose
+*"main value is the components themselves"* (UI kits, libraries, templates), and exposing it through
+a tool that lets others copy it. **One purchase is one seat, one person**: anyone on the team who
+works directly with Pro source needs their own, while reviewers of the finished product do not.
+
+**Why the default action is still to port, not to install.** `@uiarc/arc-foundation` — a
+`registryDependency` of every component — writes a **13,560-character `foundation.css` that defines
+97 custom properties on `:root`**, to be imported from the root layout. In a dev-flow app DESIGN.md
+owns that layer, so installing it means two token systems in one project, which is golden rule 3.
+The CSS Modules are the second half of the same problem: `@shadcn/lint` and our design-lint preset
+reason about Tailwind classes and see nothing inside a `.module.css`, so the imported components sit
+outside every check the rest of the app passes.
+
+That item is also **why `registry-intake` has a C2 finding**: C1 reads an item's `cssVars` / `css` /
+`theme` keys, Arc UI carries its palette in a file, and the review called it clean until C2 read the
+file. Verified on 2026-09-30: `review @uiarc/button` now exits 1 on C2, and reports
+`motion@13.4.6` (MIT), which is the major our projects already run — no D7 conflict, unlike React
+Bits' `motion@^12`.
+
+**What to take for free, without installing anything.** Their `motion-tokens.ts` is a published,
+second opinion on the numbers our own token layer has to pick, and it is worth comparing against
+`lib/motion/`:
+
+| Role | Arc UI |
+|---|---|
+| durations (s) | instant `0.12` · fast `0.16` · exit `0.18` · standard `0.24` · considered `0.48` |
+| eases | enter `[0.16, 1, 0.3, 1]` · exit `[0.7, 0, 0.84, 0]` · standard `[0.22, 1, 0.36, 1]` · in-out `[0.65, 0, 0.35, 1]` |
+| springs | responsive `stiffness 520 / damping 38` · gentle `340 / 34` |
+
+Two things to read off that table rather than copy: exits are **shorter than entrances** (0.18
+against 0.24), and the enter ease is a strong ease-out while the exit ease is an ease-in — the
+asymmetry is the point, and it is the same shape our tokens should have.

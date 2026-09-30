@@ -134,6 +134,36 @@ class Checks(unittest.TestCase):
         findings, high = ri.check_files(it, Path("/nonexistent"), ri.EVE_TOOL_KEYS_FALLBACK)
         return {(f.code, f.level) for f in findings}, high
 
+    def test_a_token_layer_in_a_file_is_blocked_like_one_in_cssVars(self) -> None:
+        """Arc UI (`@uiarc`, read 2026-09-30) carries its palette in `foundation.css`, not in the
+        item's `cssVars` key, so C1 passed it. C2 is the same rule reading the file."""
+        css = ":root {\n  color-scheme: light;\n  --neutral-0: oklch(100% 0 0);\n  --accent: oklch(55% .2 250);\n}"
+        codes, _ = self.run_checks(item("a", [ui_file("registry/foundation.css", css)]))
+        self.assertIn(("C2", "block"), codes)
+
+    def test_the_scope_is_what_makes_it_global(self) -> None:
+        for css, blocked, why in [
+            (":root { --accent: red }", True, ":root owns the page"),
+            ("html { --x: 1px }", True, "so does html"),
+            ("body{--y:2px}", True, "and body"),
+            ("@theme { --color-brand: oklch(50% 0 0) }", True, "Tailwind v4's theme block"),
+            (".btn { --gap: 4px; padding: var(--gap) }", False, "a component's own property"),
+            (":host { --pad: 2px }", False, "a shadow root is the component's scope, not the project's"),
+            (":root { color: red }", False, "no custom property, no token layer"),
+        ]:
+            with self.subTest(why=why):
+                codes, _ = self.run_checks(item("a", [ui_file("components/ui/x.css", css)]))
+                self.assertEqual(("C2", "block") in codes, blocked, why)
+
+    def test_the_finding_names_the_tokens_and_the_file(self) -> None:
+        it = ri.Item(key="@x/a", source="s",
+                     data=item("a", [ui_file("registry/foundation.css", ":root{--a:1;--b:2;--c:3;--d:4;--e:5}")]))
+        findings, _ = ri.check_files(it, Path("/nonexistent"), ri.EVE_TOOL_KEYS_FALLBACK)
+        c2 = next(f for f in findings if f.code == "C2")
+        self.assertIn("5 global design token(s)", c2.message)
+        self.assertIn("--a, --b, --c, --d…", c2.message)
+        self.assertIn("foundation.css", c2.where)
+
     def test_agentcn_shape_is_blocked_twice(self) -> None:
         codes, high = self.run_checks(item("a", [{"path": "t", "type": "registry:file", "target": "agent/tools/post_message.ts",
                                                    "content": TOOL_NEEDS_APPROVAL}]))

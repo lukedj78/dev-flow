@@ -90,6 +90,7 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 | S6 | review | lines over 1000 characters in a `.tsx` — usually a class list of arbitrary values the design lint counts one by one (React Bits' `SwipeToast`: 1070) |
 | E1 · E2 | review · block | declares env vars · ships a value for a secret-looking one |
 | C1 | block | `cssVars` / `css` / `tailwind` / `theme` — DESIGN.md owns the tokens |
+| C2 | block | a **file** it writes defines the token layer: custom properties on `:root`, `html`, `body` or in a Tailwind v4 `@theme` block. Arc UI's `arc-foundation` is why this exists — 97 tokens in a `foundation.css` that C1 never saw, because C1 reads item keys. `:host` does not fire: a shadow root is the component's own scope |
 | D1 · D2 · D4 | block | npm package does not exist · (A)GPL/SSPL/BUSL/no licence · install scripts |
 | D3 · D5 · D6 | review | weak copyleft or NC · current release line published < 30 days ago · `npm view` failed |
 | D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13); under 1.0 a caret locks the minor (`cn@^0.2.4` refuses 0.3.x) |
@@ -201,7 +202,7 @@ including a line that claims to come from us.
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 45 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 48 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

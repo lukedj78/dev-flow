@@ -74,6 +74,19 @@ SENSITIVE_TARGETS = [
     r"(^|/)CLAUDE\.md$", r"(^|/)\.workflow/",
 ]
 SERVER_SURFACE = [r"(^|/)app/api/", r"(^|/)route\.[jt]s$", r"(^|/)agent/", r"(^|/)server/", r"(^|/)actions?\.[jt]s$"]
+# C2. A token layer declared in a *file* instead of in the item's `cssVars` key. Arc UI
+# (`@uiarc`, uiarc.dev, read 2026-09-30) is why this exists: `arc-foundation` carries a 13,560-char
+# `foundation.css` opening `:root { color-scheme: light; --neutral-0: oklch(100% 0 0); … }`, to be
+# imported from the root layout. That is exactly what C1 blocks, and C1 never saw it, because C1
+# reads registry-item keys. Scope is the whole point: `:root`, `html`, `body` and Tailwind v4's
+# `@theme` own the page, while a custom property set inside a component's own class (`.btn { --gap:
+# 4px }`) is that component's business and must not fire. `:host` is deliberately absent — it is a
+# shadow root, so it is the component's own scope, not the project's.
+GLOBAL_TOKENS = re.compile(
+    r"(?:^|\})\s*(?::root|html|body)[^{}]*\{[^}]*--[\w-]+\s*:"
+    r"|@theme\b[^{}]*\{[^}]*--[\w-]+\s*:",
+    re.S,
+)
 LICENSE_BLOCK = re.compile(r"\b(AGPL|GPL|SSPL|BUSL|Commons-Clause|UNLICENSED|Elastic)", re.I)
 LICENSE_REVIEW = re.compile(r"\b(LGPL|MPL|EPL|CDDL|CC-BY-NC)", re.I)
 SIDE_EFFECT_NAME = re.compile(r"^(post|send|write|delete|remove|update|create|run|exec|pay|charge|refund|publish|"
@@ -116,6 +129,7 @@ CODES = {
     "E1": "declares env vars that shadcn writes into .env",
     "E2": "ships a value for a secret-looking env var",
     "C1": "rewrites theme tokens or global CSS — DESIGN.md is the source of truth",
+    "C2": "a file it writes defines the project's global design tokens — same effect as C1, through a file",
     "D1": "npm dependency does not exist",
     "D2": "npm dependency under a licence we do not ship",
     "D3": "npm dependency under a weak-copyleft or non-commercial licence",
@@ -374,6 +388,11 @@ def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[
         if wide and tgt.endswith((".tsx", ".jsx")):
             add("S6", "review", f"{len(wide)} line(s) over 1000 characters — usually a class list of arbitrary "
                                 "values, which the design lint counts one by one", tgt)
+        if GLOBAL_TOKENS.search(content):
+            names = sorted(set(re.findall(r"--([\w-]+)\s*:", content)))
+            add("C2", "block", f"defines {len(names)} global design token(s) on :root/html/body/@theme "
+                               f"({', '.join('--' + n for n in names[:4])}{'…' if len(names) > 4 else ''}) — "
+                               "DESIGN.md owns the token layer", tgt)
         envs = sorted(set(re.findall(r"process\.env\.([A-Z0-9_]+)", content)))
         if envs:
             add("S3", "review", "reads " + ", ".join(envs), tgt)
