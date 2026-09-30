@@ -173,6 +173,7 @@ For an EU-controlled auth stack: better-auth in an EU database, or self-hosted K
 |---|---|---|---|
 | Stripe | Default | EEA contracts with Stripe Payments Europe, Ltd (IE); DPA says data is transferred *"globally"* incl. Stripe, LLC (US); Stripe is processor **and** controller (fraud, risk, compliance); DPF active | [DPA](https://stripe.com/legal/dpa) |
 | Polar | Default (merchant of record) | Polar Software, Inc. (DE, USA); seller of record; hosting and DPA not published (not verified) | [privacy](https://polar.sh/legal/privacy) |
+| Creem | **EU alternative that is also a merchant of record** | Armitage Labs OÜ (Tallinn, **EE**, reg. 16977866); seller of record, and processor for the merchant's customer data; DPA Annex 3 names AWS **Germany** for servers but Supabase (**US**) for the database, plus Sentry, Papertrail/SolarWinds, BetterStack, PostHog, Resend, Google and Vercel (US) and OpenAI (IE + US); SCCs referenced, no DPF claim (read 2026-09-30) | [DPA](https://www.creem.io/dpa) |
 | RevenueCat | Default (mobile) | US; AWS and Snowflake in the **USA**; SCCs in the DPA; **no EU option** — flag and record | [DPA](https://www.revenuecat.com/dpa/) |
 | Mollie | EU alternative | Mollie B.V. (NL, DNB-licensed); controller for most processing; hosting location not verified | [privacy](https://www.mollie.com/privacy) |
 | Adyen | EU alternative | Adyen N.V. (NL, bank); controller for acquiring; hosting not stated | [privacy](https://www.adyen.com/policies-and-disclaimer/privacy-policy) |
