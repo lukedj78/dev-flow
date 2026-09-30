@@ -269,6 +269,38 @@ class Checks(unittest.TestCase):
         self.assertEqual(codes, {("D1", "block"), ("D2", "block"), ("D4", "block"), ("D5", "review"), ("D3", "review")})
 
 
+class MetaRecord(unittest.TestCase):
+    """`setup` is rerun whenever `check` reports a stale hook, so a no-op rerun must write nothing."""
+
+    COMPACT = ('{\n  "phase": "module_added",\n'
+               '  "stack": { "registry_intake": "enforced", "ui": "shadcn" },\n'
+               '  "note": "PRD \u00a76 \u2192 fase 3"\n}\n')
+
+    def test_an_unchanged_value_leaves_the_file_byte_for_byte(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / ".workflow").mkdir()
+            meta = root / ".workflow" / "meta.json"
+            meta.write_text(self.COMPACT)
+            ri.record(root, "enforced")
+            self.assertEqual(meta.read_text(), self.COMPACT,
+                             "a no-op setup reformatted the contract file and re-escaped its text")
+
+    def test_a_changed_value_is_written(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / ".workflow").mkdir()
+            meta = root / ".workflow" / "meta.json"
+            meta.write_text(self.COMPACT)
+            ri.record(root, "none")
+            d2 = json.loads(meta.read_text())
+            self.assertEqual(d2["stack"]["registry_intake"], "none")
+            self.assertEqual(d2["phase"], "module_added")
+            # the file is rewritten, but ensure_ascii=False keeps § and → as characters
+            self.assertIn("\u00a7", d2["note"])
+            self.assertIn("\u00a7", meta.read_text())
+
+
 class Flow(Base):
     def setUp(self) -> None:
         super().setUp()

@@ -1255,10 +1255,22 @@ def stack_ui(root: Path) -> str | None:
 
 
 def record(root: Path, value: str) -> None:
+    """Record `stack.registry_intake`, and **write nothing when it already says that**.
+
+    `setup` is documented as idempotent and is rerun whenever `check` reports a stale hook copy.
+    Rewriting `meta.json` unconditionally made every one of those reruns reformat the whole file:
+    `json.dumps` cannot reproduce the compact single-line objects a hand-written contract file uses,
+    so a no-op setup produced a hundred-line diff of pure formatting. Measured on 2026-09-30 across
+    fit-room and ldglab — both already `enforced`, both fully rewritten, both reverted. In a repo
+    where another agent is working that noise is a merge conflict for nothing, and it hides the one
+    change setup did mean to make."""
     meta = root / ".workflow" / "meta.json"
     if not meta.exists():
         return
-    d = json.loads(meta.read_text())
+    text = meta.read_text()
+    d = json.loads(text)
+    if (d.get("stack") or {}).get("registry_intake") == value:
+        return
     d.setdefault("stack", {})["registry_intake"] = value
     meta.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n")
 
