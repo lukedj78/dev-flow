@@ -4,6 +4,36 @@ Wire **Stripe** for subscriptions and one-time payments into an existing scaffol
 
 This is the **commerce backbone**: every customer-facing money flow goes through these primitives. The reference implementation is intentionally minimal — one webhook, one portal endpoint, one example page — because real billing UX is too project-specific to template.
 
+## Before the implementation: processor or merchant of record
+
+Stripe is a **payment processor**. The seller of record stays *you*, so VAT, GST and US sales-tax
+registration and remittance are yours — Stripe Tax computes them, it does not assume the liability.
+A **merchant of record** is the legal seller instead of you: it appears on the customer's statement,
+issues the invoice, and collects and remits the tax in every jurisdiction it supports. For a
+one-person SaaS selling across the EU and the US that difference is usually worth more than the fee
+gap, and it is the question to settle before writing a webhook.
+
+Fees and roles checked on **2026-09-30**:
+
+| Option | Role | Fee | Legal seller |
+|---|---|---|---|
+| **Stripe** (implemented) | processor | per-region card pricing; Stripe Tax is an add-on | you |
+| **Creem** | merchant of record | **3.9% + $0.40**, $0 monthly, $0 setup; payouts on the 1st and 15th, 0% on several methods; VAT/GST/sales tax in 50+ countries | [Armitage Labs OÜ](https://www.creem.io/terms), Tallinn, **Estonia** (reg. 16977866) |
+| **Polar** | merchant of record | free Starter **5% + $0.50** since May 2026; Pro $20/mo at 3.8% + $0.40; organisations created before 2026-05-27 grandfathered at 4% + $0.40 | Polar Software, Inc., Delaware, **US** |
+| Lemon Squeezy · Paddle | merchant of record | not re-checked in this pass — read the current page before quoting one | US · UK |
+
+**Creem is the only merchant of record in this table established in the EU**, which is why it is
+also a row in `dev-flow/references/eu-data-sovereignty.md` §4.8 — where the honest caveat lives:
+EU-established and EU-hosted for servers (AWS Germany), but its DPA names Supabase (**US**) for the
+database and several US sub-processors, so it is not an EU-only stack.
+
+Two notes for whoever implements a variant. Creem publishes a `SKILL.md` at
+`https://www.creem.io/SKILL.md`, which means it arrives as a third-party skill and goes through
+`registry-intake`'s `skill-review` first — on 2026-09-30 it reported K2 (`brew install`), K3 (it
+asks the agent to save it) and K7 (an unversioned URL). And the skill is marketing: the reason to
+consider Creem is the Estonian establishment and the DPA, not the file. Nothing here is implemented
+— follow `module-stubs.md`: a variant is written the first time a user asks for it.
+
 ## Idempotency check
 
 Before doing anything, check whether payments are already wired:

@@ -40,8 +40,32 @@ npx skills add <owner>/<repo>
 ```
 
 That is the [`skills`](https://www.npmjs.com/package/skills) CLI (the open agent-skills
-ecosystem). It writes to `.agents/skills/` in the working directory. Verified at
-`skills@1.5.23`.
+ecosystem, vercel-labs/skills, MIT). It writes the canonical copy to `.agents/skills/` in the
+working directory and symlinks each agent's directory at it. Verified at `skills@1.7.0`
+(2026-09-30; `1.5.23` on 2026-09-15).
+
+### Review it, and pin what landed
+
+A skill is not a dependency: it is **instructions the agent obeys**, and `skills add` fetches
+whatever the source serves today, with no version to pin and no diff on the next update. Rule 1
+above is now enforced rather than asserted — `registry-intake`'s PreToolUse hook **denies every
+agent-run `npx skills add`, `skills update` and `gh skill install`** — and the same skill reviews
+and records the text:
+
+```bash
+S=registry-intake/scripts/registry_intake.py
+python3 $S skill-review  <root> <owner-url-or-name>    # read-only, before you install
+# …the user installs it…
+python3 $S skill-approve <root> <name> --by <you>      # records source + sha256 in registry-lock.json
+python3 $S check         <root>                        # says if the text moved, or nobody reviewed it
+```
+
+The review reports what the rows above are checked by hand for: an unrestricted `allowed-tools`,
+an install piped into a shell, a skill that asks the agent to save itself, instructions to act
+without asking, a rule that contradicts one of ours, an endpoint it will send data to, a source
+with no version, a missing licence. See `registry-intake/SKILL.md` §Third-party agent skills for
+what each finding means and for the limits — chiefly that a skill installed globally into
+`~/.claude/skills` is outside every project and outside every lock.
 
 ## Adding a row
 
@@ -50,7 +74,8 @@ Before adding one, check it earns its place:
 - It does something **no dev-flow skill does**. An external skill that duplicates
   `design-md-to-app` or `rn-bootstrap` is not an option, it is a fork.
 - You have **read its SKILL.md**, not just its README — including what it sends
-  where, and which host it talks to.
+  where, and which host it talks to. `skill-review` is the checklist for that reading;
+  it does not replace it.
 - Its licence and its price are **stated as facts you checked**, with the date.
 - The "what dev-flow does instead" column is filled in honestly. If dev-flow has
   no free equivalent, say that plainly too — that is the strongest reason for a

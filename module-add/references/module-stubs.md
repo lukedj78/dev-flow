@@ -23,7 +23,7 @@ The remaining unimplemented work is **alternative variants inside existing modul
 |---|---|---|
 | `auth` | better-auth | Clerk, Auth.js, WorkOS |
 | `db` | Drizzle + Neon | Prisma, Supabase, PlanetScale |
-| `payments` | Stripe | Polar, Lemon Squeezy, Paddle |
+| `payments` | Stripe | Creem (EU-established merchant of record), Polar, Lemon Squeezy, Paddle — the choice is processor vs merchant of record, see `module-payments.md` |
 | `email` | Resend + React Email | Postmark, SES, Loops (marketing — different module entirely) |
 | `storage` | Vercel Blob | UploadThing and S3 are sketched in `module-storage.md`; Cloudflare R2, Supabase Storage are not |
 | `deploy` | Vercel | Fly.io, Cloudflare Pages, Render, Railway |
