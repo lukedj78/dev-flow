@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-30T19:53:57Z",
+  "generated_at": "2026-10-02T13:36:38Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -258,6 +258,7 @@
       "skill_file": "design-md-to-app/SKILL.md",
       "references": [
         "anti-slop-fallbacks.md",
+        "audio-audiocn.md",
         "base-ui-mapping.md",
         "chat-and-typeset.md",
         "contracts.md",
@@ -278,7 +279,7 @@
         "setup_design_lint.py",
         "test_setup_design_lint.py"
       ],
-      "skill_md_lines": 1235,
+      "skill_md_lines": 1236,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
