@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-02T13:36:38Z",
+  "generated_at": "2026-10-03T12:26:02Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -263,6 +263,7 @@
         "chat-and-typeset.md",
         "contracts.md",
         "design-system-lint.md",
+        "gauge-gauge-ui.md",
         "i18n-next-intl.md",
         "illustrations.md",
         "library-choice.md",
@@ -279,7 +280,7 @@
         "setup_design_lint.py",
         "test_setup_design_lint.py"
       ],
-      "skill_md_lines": 1236,
+      "skill_md_lines": 1237,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
