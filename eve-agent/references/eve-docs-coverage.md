@@ -30,6 +30,85 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-10-03 against eve@0.71.0 — tasks replace background tasks.** Same technique:
+> `npm pack` of both 0.64.0 and 0.71.0, a file-by-file diff of the two `docs/` trees and the CHANGELOG
+> between them — **16 stable releases, 67 doc files changed, 5 pages new**. This pass is different from the
+> others in kind: the previous ones found claims that had *aged*, this one found four passages that were
+> **actively wrong** — they described options and events that the framework now rejects at build time or no
+> longer emits. eve ships the migration itself in `docs/tools/tasks-upgrade.md`, which is the page to read
+> before touching an existing agent.
+>
+> **① `execution: "background"` is gone; you export a different function** (0.71.0). Rename `execute` to
+> **`task(input, ctx)`** and drop the option — the body is unchanged, and `defineWorkflowTool` rejects
+> `execution` with *"`execution` was replaced by `task()`"*. The three forms now are `execute` (an ordinary
+> call: the turn waits for the result), `task` (runs as a task; the result arrives as a `task.result`
+> message at a step boundary) and **`serve(receive, ctx)`** for work the model should be able to send more
+> input to while it runs. One behaviour changed for *every* `execute` tool: **a steering message now aborts
+> its `ctx.abortSignal`**, which is why `dismissible` was dropped from `ctx.ask` — a new message withdraws
+> the open questions of the calls the turn waits on (a withdrawn question resolves `{ status: "cancelled" }`,
+> and the `input.resolved` outcome `"dismissed"` is now `"cancelled"`). Corrected in `eve-concepts.md`
+> §`defineWorkflowTool` (the "two execution axes" bullet and the section's closing paragraph).
+>
+> **② `taskDeliveryPolicy` is gone, and with it the whole cohort model** (0.71.0) — the feature this file
+> recorded as ② of the 0.64 pass and we had just finished writing up. Results reach the model **one way: a
+> `task.result` message at a step boundary**. The `tasks` option of `session.cancel()` is removed (it now
+> cancels the turn, the `execute` calls it waits on and every working task, and still takes `turnId` and
+> `signal`); the model no longer sees `[Task state]` or `[Agents]` notes, prose notifications,
+> `<eve-empty-delivery/>` or result turns — a `[Tasks]` note lists working and idle tasks instead; and the
+> `BACKGROUND_TASK_FAILED` / `BACKGROUND_TASK_CANCELLED` codes are removed. Rewritten in
+> `eve-capabilities.md` §Subagent, where two paragraphs described the policy and its defaults.
+>
+> **③ The `subagent.*` events do not exist any more** (0.71.0): `task.started` replaces `subagent.called`,
+> `task.settled` replaces `subagent.completed` (adding `status` and `output`/`error`), `agent.started`
+> replaces `subagent.started` (adding `sessionId` and `streamPath`), and `subagent.event` is replaced by
+> `session.agent(started).stream()` — `session.streamSubagent()` is gone. A hook that filtered on completion
+> subscribes `task.settled` and returns early unless `event.data.status === "completed"`; the eval assertion
+> `t.calledSubagent(name, { status })` keeps its API and reads task events. This hits the hook example in
+> `eve-capabilities.md` §Hook (the parent-session note from the 0.64 pass, still true) and the event list in
+> `eve-concepts.md` §Client/stream. **`agentId` is removed everywhere**: the model continues a child by
+> **`taskId`**, every agent tool is a `serve` tool, the codes `AGENT_BUSY` / `AGENT_MISMATCH` /
+> `AGENT_UNREACHABLE` / `AGENT_INVOCATION_NOT_ADMITTED` have no replacement, and the limit is **32 working
+> tasks** (`TOO_MANY_TASKS`; an unknown id is `UNKNOWN_TASK`).
+>
+> **④ `ctx.agent(name)` returns a session, not an output** (0.71.0):
+> `await ctx.agent("reviewer").send(plan, { signal }).result()` gives `{ message, status }`, and a
+> `status === "failed"` must be handled because nothing throws. Each call opens a *new* session; later
+> `send`s on the same handle continue it until the run finishes. Corrected in `eve-concepts.md`.
+>
+> **⑤ A turn no longer ends while its tasks work** — the part that breaks *clients*, not agents. The new
+> **`turn.waiting`** event marks each wait and carries the open `turnId`; a question or sign-in from inside
+> a running call emits `input.requested` then `turn.waiting` and resumes under the same `turnId`, where it
+> used to emit `turn.completed` + `session.waiting` mid-turn. So `turn.completed` now means the turn really
+> ended, and **a client that closes its response on the first completed message shows the text written
+> before the wait instead of the reply**. The TypeScript client's `send(...).result()` already reads past
+> `turn.waiting`. The message stream version is **26** (the client accepts 21–26; a client capped at 25
+> fails the stream). Task results are no longer stream events at all — `message.received` lost `kind`, and
+> `data.kind: "execution.background_task"` is gone. Noted in `eve-concepts.md`'s event list, which is where
+> this skill tells the web app what it is consuming.
+>
+> **⑥ `ctx.getSkill(id)` was removed**, with `SkillHandle` and `SkillFile` from `eve/skills` (0.71.0):
+> `getSkill` appeared in six pages at 0.64 and in none at 0.71. The model still reads a skill's supporting
+> files; a tool no longer opens one by hand. Corrected in `eve-capabilities.md` and `eve-concepts.md`.
+>
+> **⑦ Remote agents are on protocol 2.** Deploy every remote agent **before** the deployments that call it:
+> a 0.71 remote agent still serves callers on 0.66–0.68 (protocol 1), but a 0.71 *caller* fails a call at
+> start against a protocol-1 remote agent, with an error naming both versions. Two things differ when
+> serving an older caller: the caller's channel does not nest the remote agent's live tool activity under
+> the call, and `ctx.ask()` in the remote agent returns `unavailable`.
+>
+> **Five new pages, none covered yet — the backlog this pass leaves.** `tools/tasks.md` (the model of the
+> above; the one to read next), `tools/tasks-upgrade.md` (the migration), **`code-extension.mdx`** —
+> `eve/extensions/code`, "eve-code", ships *inside* the `eve` package and turns an agent into a coding agent
+> (file-editing and search tools, an authenticated GitHub CLI tool, coding skills, a read-only worker
+> subagent, sandbox bootstrap), with a benchmark table against other harnesses dated 2026-10-03;
+> **`guides/self-modification.md`** — `eve dev` mounts a self-modification extension by default and
+> delegates source edits to a `self-modification__agent` subagent, local development only and never in a
+> production build (this is the successor to the `getLocalDevCapability()` removal logged as ⑤ of the 0.64
+> pass); and `guides/instrumentation/agent-runs.mdx` — Vercel **Agent Runs**, in Beta on Hobby, Pro and
+> Enterprise, for browsing eve sessions and conversation traces, which belongs beside
+> `eve-conventions.md` §Observability. Decided deliberately: this pass fixes what was **wrong** and records
+> what is **missing**, rather than growing the skill by five pages in one commit.
+>
 > **Verification pass 2026-09-23 against eve@0.64.0 — full sweep.** `npm pack` of **both** 0.63.0 and
 > 0.64.0, a file-by-file diff of the two `docs/` trees (26 pages changed, one directory added, one page
 > split into a directory) and the CHANGELOG between them. **It also corrects the partial 0.64 note this
@@ -324,6 +403,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/subagents` | `eve-capabilities.md` §Subagent | ✅ |
 | `/docs/sandbox` — **split into a directory in 0.64** (`index` + `default`/`vercel`/`docker`/`microsandbox`/`just-bash`) | `eve-concepts.md` §Sandbox — rewritten 2026-09-23 for the environment API (`DefaultSandbox`/`VercelSandbox`/… `.environment()` + `defineSandbox(selector)`, `prepare`, post-open init, lifecycle, seeding, network policy, credential brokering, `defineParentSandbox`) | ✅ |
 | `/docs/tools/human-in-the-loop` | `eve-concepts.md` §HITL + `eve-conventions.md` (approval) + `eve-capabilities.md` (`respond()` / `parseInputResponses`) | ✅ |
+| `/docs/tools/tasks` + `/docs/tools/tasks-upgrade` — **two new pages, eve 0.71.0** | ⚠️ **partially covered, 2026-10-03**: the breaking surface is corrected in `eve-capabilities.md` §Subagent and `eve-concepts.md` §Workflow tools (`task`/`serve`, `task.result` at a step boundary, `task.*` events, `taskId`, open turns), but the model itself — ordering dependent work, `task_wait`, the signals a body receives, cancellation — is not written up. **Read the upgrade page before touching an existing agent** | ⚠️ |
 | *(no eve page)* | `staged-writes.md` — an agent that changes a business's data has no write verb: propose, apply, discard. eve documents approvals, not this shape | ➕ |
 
 ## Connections & channels
@@ -351,13 +431,15 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 |---|---|---|
 | `/docs/guides/dynamic-capabilities` | `eve-concepts.md` §Dynamic capabilities + `eve-capabilities.md` §Connection (the `connections/` form, 0.47.4) | ✅ |
 | the `Workflow` tool (now inside `/docs/concepts/built-in-tools`; there is no `guides/dynamic-workflows` page) | `eve-concepts.md` §Dynamic workflows (`experimental_workflow()` from `eve/tools/workflow`) | ✅ |
-| `/docs/tools/workflows` — **new page, shipped between 0.48.0 and 0.52.0**, not present at the 0.45.0/0.47.6 passes | `eve-concepts.md` §Workflow tools (`defineWorkflowTool` from `eve/tools`, `"use workflow"`/`"use step"`, `ctx.ask`/`ctx.agent`, background-vs-waiting) — distinct from `experimental_workflow` above, added 2026-09-08 | ✅ |
+| `/docs/tools/workflows` — **new page, shipped between 0.48.0 and 0.52.0**, not present at the 0.45.0/0.47.6 passes | `eve-concepts.md` §Workflow tools (`defineWorkflowTool` from `eve/tools`, `"use workflow"`/`"use step"`, `ctx.ask`/`ctx.agent`, and since 0.71 `execute`-vs-`task`-vs-`serve` in place of background-vs-waiting) — distinct from `experimental_workflow` above, added 2026-09-08, corrected 2026-10-03 | ✅ |
 | `/docs/guides/session-context` | `eve-conventions.md` + `eve-concepts.md` + `eve-patterns.md` (`ctx.session.auth`) | ✅ |
 | `/docs/guides/auth-and-route-protection` | `eve-scaffold.md` §4 (helpers `jwtHmac`/`jwtEcdsa`/`httpBasic`/`oidc`, `ForbiddenError`/`UnauthenticatedError`, `withAuthChallenges`) + `eve-conventions.md` (fail-closed) + `eve-patterns.md` §1 | ✅ |
 | `/docs/guides/remote-agents` | `eve-capabilities.md` §Subagent (`defineRemoteAgent`) | ↪ |
 | `/docs/observability/instrumentation` (moved under a new `/docs/guides/instrumentation/` directory in eve 0.62.0) | `eve-conventions.md` §Observability — `agent/instrumentation/` is now the only supported layout (a flat `instrumentation.ts` fails the build); per-file `tracePolicy` unchanged in shape | ✅ |
 | `/docs/observability/instrumentation-migration` — **new page, eve 0.62.0** | `eve-conventions.md` §Observability (migration warning + before/after field mapping) | ✅ |
 | `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `auto` (renamed from `autoModel`/`eve/experimental/evaluate` in eve 0.60.0; now `eve/models`, experimental, eve@0.63.0) | ✅ |
+| `/docs/guides/self-modification` — **new page, eve 0.71.0** | ⛔ **not covered yet**: `eve dev` mounts a self-modification extension by default and delegates edits under `agent/` to a `self-modification__agent` subagent; local development only, never in a production build. `eve remote connect --url` does *not* mount it. Successor to the removed `getLocalDevCapability()` | ⛔ |
+| `/docs/code-extension` — **new page, eve 0.71.0** | ⛔ **not covered yet**: `eve/extensions/code` ("eve-code") ships inside the `eve` package and turns an agent into a coding agent — file-editing and search tools, an authenticated GitHub CLI tool, coding skills, a read-only worker subagent, sandbox bootstrap helpers — with the vendor's own harness benchmark on the page | ⛔ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
 
 ## Client, frontend, deployment
@@ -374,6 +456,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 |---|---|---|
 | `/docs/reference/telemetry` | `eve-conventions.md` §eve's CLI phones home — what the CLI sends, `EVE_TELEMETRY_DEBUG=1` to inspect it, `eve telemetry disable` / `EVE_TELEMETRY_DISABLED=1`, and why it is an R3 question on a client project | ✅ |
 | `/docs/guides/instrumentation-providers` | `eve-conventions.md` §What each trace records — the page that **replaced** `guides/instrumentation.md`; it finally documents `tracePolicy` (6 mentions) plus provider slots, redaction and lifecycle events | ✅ |
+| `/docs/observability/agent-runs` — **new page, eve 0.71.0** | ⛔ **not covered yet**: Vercel **Agent Runs**, Beta on Hobby/Pro/Enterprise — browse eve sessions and inspect conversation traces, plus the destination config. Belongs beside `eve-conventions.md` §Observability | ⛔ |
 | `/docs/memory/custom-provider` | ⛔ **deliberately not covered** — building a memory *provider* is framework extension work, not product work. `eve-capabilities.md` §Memory covers using the slots (`defineMemory`, `fileMemory()` + backends); write a provider and you are maintaining infrastructure the product did not ask for. Revisit if a project actually needs a store eve does not ship | ⛔ |
 
 ## Evals, patterns, reference

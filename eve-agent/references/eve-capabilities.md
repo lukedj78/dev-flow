@@ -64,8 +64,10 @@ export default defineTool({
   carry `Date` objects) fails on real runs while passing typecheck and mock evals. Project
   to plain objects (dates → ISO strings) in a shared `lib/` helper so every copy of the
   tool gets the fix.
-* `ctx` gives `ctx.session` (id, turn, `auth.current`/`auth.initiator`, `parent`),
-  `ctx.getSandbox()`, `ctx.getSkill(id)`.
+* `ctx` gives `ctx.session` (id, turn, `auth.current`/`auth.initiator`, `parent`) and
+  `ctx.getSandbox()`. **`ctx.getSkill(id)` was removed**, with the `SkillHandle` and `SkillFile`
+  types from `eve/skills` (0.71.0): the model still reads a skill's supporting files, a tool no
+  longer opens one by hand.
 * `execute` runs in the **trusted app runtime** — read secrets from `process.env` here; the
   model only sees the returned value.
 * **Idempotency:** an interrupted step re-runs. Any non-idempotent side effect must be made
@@ -476,30 +478,27 @@ Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard 
   if it were a local subagent.
 
 **Subagent sessions are persistent, and that is now the default** (0.45.0 — `experimental.subagentPersistentSessions`
-is gone, and `false` is no longer an opt-out). The delegation tool exposes an **`agentId`**, a finished child
-stays reachable for follow-up messages instead of ending at its first answer, and eve publishes the `<agents>`
-listing to the parent by itself. Two consequences for how you write the child: its instructions should survive
+is gone, and `false` is no longer an opt-out). A finished child stays reachable for follow-up messages instead
+of ending at its first answer, addressed by its **`taskId`** since 0.71, and eve publishes the listing to the
+parent by itself. Two consequences for how you write the child: its instructions should survive
 a second question about the same work, and the parent's prompt shouldn't re-explain context the child already
 has — the point of persistence is that the second turn is cheaper than the first.
 
-**When background results reach the parent: `taskDeliveryPolicy` (0.64).** Background work — background
-workflow tools and built-in, declared or remote subagents owned by the session — no longer always waits for
-its cohort. `send(...)` takes `taskDeliveryPolicy`:
+**When results reach the parent: one way, `task.result` at a step boundary (0.71).** `taskDeliveryPolicy`,
+its `"auto"` and `"cohort"` modes and the delivery cohorts are **gone**, together with the `tasks` option of
+`session.cancel()` — which now cancels the turn, the `execute` calls it waits on and every working task, and
+still takes `turnId` and `signal`. The model no longer sees `[Task state]` or `[Agents]` notes, prose task
+notifications or result turns; a `[Tasks]` note lists its working and idle tasks instead. The
+`BACKGROUND_TASK_FAILED` and `BACKGROUND_TASK_CANCELLED` codes are removed: a failed task reports its error in
+`task.settled` and in its `task.result` block.
 
-- **`"auto"`** — the default for **new channel sessions**: a terminal outcome can start a parent turn while
-  siblings are still running. The parent reports what is independently useful and stays silent when a useful
-  answer needs unfinished work, so *a model call may finish without a user-visible message*.
-- **`"cohort"`** — the default for **schedules** (and for internal subagent sessions' own background work):
-  completion, failure and cancellation notifications are held until every task in the cohort is terminal,
-  then delivered in one parent turn.
-
-The option is available on `from(...).send(...)`, cross-channel `to(...).send(...)`, fixed-session `send(...)`,
-Chat SDK `bridge.send(...)` and client sends; an explicit value **updates the session's policy**, including its
-pending tasks, and later sends that omit it keep that policy. Either way, user messages, input requests and
-explicit task messages are never held, and failure/cancellation update lifecycle state immediately even when
-their *report* waits. Each reporting turn sees the whole cohort, so a result withheld once stays available for
-a later combined report. Pick `"cohort"` when a half-answer is worse than a slow one (a digest, a report), and
-`"auto"` when the first useful result should reach the person straight away.
+Each **agent tool is now a `serve` tool**, so every delegation is a resumable task: the call returns a receipt
+at once and the child's reply arrives later as a `task.result` message. The model continues a child by
+**`taskId`** (`{ message, taskId: "researcher-7k2m9q" }`), not `agentId`, which is removed — update the
+instructions, the prompts and the evals that named it. `agentRouter()` and the `workflow` tool run each call
+as a task too. The old codes `AGENT_BUSY`, `AGENT_MISMATCH`, `AGENT_UNREACHABLE` and
+`AGENT_INVOCATION_NOT_ADMITTED` have no replacement; a `taskId` naming no unfinished task of that tool fails
+`UNKNOWN_TASK`, and the **33rd working task** fails `TOO_MANY_TASKS` (the limit is 32).
 
 Prefer a **skill** when a subagent would be overkill (a skill is lighter).
 
@@ -520,9 +519,15 @@ export default defineHook({
 Events include `session.started`, `turn.completed`, `message.completed`, `action.result`,
 and `*`. Handlers run after each event is durably recorded — use for audit logging, metrics,
 persisting sessions to your own DB. Not a place for behavior the model should invoke (use a tool).
-For **`subagent.called` / `subagent.completed`, `ctx.session.id` is the *parent* session** (0.64), and both
-typed and `*` handlers get that context even when the event arrives between parent turns — so an audit sink
-files child activity under the session a person can actually find.
+The **`subagent.*` events are removed (0.71)**: `task.started` replaces `subagent.called` (`taskId`,
+`callId`, `turnId`, `name`, `kind`), `task.settled` replaces `subagent.completed` (adding `status` and
+`output` or `error` unless cancelled), and `agent.started` replaces `subagent.started` (adding `sessionId`
+and `streamPath`). A hook that filtered on completion now subscribes `task.settled` and returns early unless
+`event.data.status === "completed"`. `ctx.session.id` is still the **parent** session, for typed and `*`
+handlers alike and even between parent turns, so an audit sink files child activity under the session a
+person can actually find. To follow a child's own events, `session.streamSubagent()` is now
+`session.agent(started).stream()` and takes the `agent.started` event. The eval assertion
+`t.calledSubagent(name, { status })` keeps its API and reads task events.
 
 **Observability sink (external), the way worldcup-eve does it** — `turn.completed` + `session.failed`
 posting to an external store. Two rules learned the hard way:
