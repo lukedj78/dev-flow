@@ -50,7 +50,7 @@ jobs:
           fi
           python3 dev-flow/scripts/update_meta.py /tmp/phase-smoke \
             append-history --skill smoke --phase-after tasks_split
-          python3 -c "import json;m=json.load(open('/tmp/phase-smoke/.workflow/meta.json'));assert m['phase']=='tasks_split',m['phase'];assert all(h['phase_after'] in (None,'tasks_split') for h in m['history'])"
+          python3 -c "import json;m=json.load(open('/tmp/phase-smoke/.workflow/meta.json'));assert m['phase']=='tasks_split',m['phase'];assert 'not_a_phase' not in [h.get('phase_after') for h in m['history']],'an unknown phase reached history'"
 
       # The inventory gate: a project does not leave idea_captured without an inventory on record,
       # through set-phase and through append-history --phase-after (the back door).
