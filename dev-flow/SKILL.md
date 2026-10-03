@@ -307,8 +307,8 @@ conclusion from zero.
 **On arrival.**
 
 1. **Classify it**, because the gate differs: a shadcn-format registry → `registry-intake review`; a
-   third-party agent skill → `registry-intake skill-review`; a **mod** (a Claude Code plugin) → no gate
-   exists yet, so say so; a paid service → the three-option comparison (DIY / self-hosted / managed),
+   third-party agent skill → `registry-intake skill-review`; a **mod** (a Claude Code plugin) → not dev-flow's:
+   mods are built and reviewed in their own session, and no intake gate exists for them — say both; a paid service → the three-option comparison (DIY / self-hosted / managed),
    price first, privacy separated from lock-in; a technique or article → no code, so a reference or
    nothing.
 2. **Read primary sources, never the landing page.** The registry item's own JSON, the `LICENSE` file
