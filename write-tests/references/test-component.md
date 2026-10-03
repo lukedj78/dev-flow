@@ -2,6 +2,15 @@
 
 Components live at `components/<group>/<name>.tsx` (e.g., `components/site/site-top-nav.tsx`). Their tests use Vitest + RTL with `userEvent` for interactions. Tests run in `jsdom`, not a real browser — anything that depends on real DOM measurement (canvas, intersection observer, ResizeObserver) needs explicit mocks.
 
+> **One consequence of jsdom worth knowing before anyone reads the Vitest 5 changelog and panics.** The
+> DOM matchers here come from `@testing-library/jest-dom/vitest`, which `vitest.setup.ts` registers
+> with `expect.extend`. Vitest ships its *own* fork of those matchers, and **5.0.0 made its
+> `toHaveTextContent` strict** (exact match, adding `toMatchTextContent` for partial) — but that fork
+> is **Browser Mode only**, documented under `api/browser/assertions`. In jsdom, jest-dom's version
+> wins and the `toHaveTextContent(/error/i)` below keeps working. The trap is directional: **move a
+> suite to Browser Mode and that same line breaks twice** — Vitest's signature takes
+> `string | number`, not a regex, and matches exactly. Use `toMatchTextContent` there.
+
 ## Test file location
 
 Two valid conventions — match what the project already does:
@@ -14,7 +23,7 @@ Default to **co-located** for new tests if no convention is established yet — 
 ## Canonical shape
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -152,7 +161,7 @@ it("renders correctly inside ThemeProvider", () => {
 Don't mock `@tanstack/react-query` itself — mock the fetcher/query-fn boundary (the server action or `fetch` call the query wraps) and render the component inside a real `QueryClientProvider`. A fresh `QueryClient` per test avoids cross-test cache bleed, and disabling retries keeps failing-query tests fast instead of waiting out the retry backoff.
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { listClients } from "@/lib/queries/clienti";
@@ -172,10 +181,6 @@ function renderWithClient(ui: React.ReactElement) {
 }
 
 describe("ClientList", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("renders rows once the query resolves", async () => {
     vi.mocked(listClients).mockResolvedValueOnce([{ id: 1, name: "Mario Rossi" }]);
     renderWithClient(<ClientList />);

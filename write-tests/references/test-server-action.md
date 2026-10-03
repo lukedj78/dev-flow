@@ -9,7 +9,7 @@ Server actions live at `lib/server/<domain>.ts`, are marked `"use server";`, and
 ## Canonical shape
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // 1. Mock auth helpers BEFORE importing the action.
 //    Path matches the project's `lib/auth-server.ts` (created by `module-add auth`)
@@ -45,10 +45,6 @@ vi.mock("@/lib/db", () => ({ db: mockDb }));
 //    below needs the binding in scope, not just the module mock.
 import { getCurrentUserId } from "@/lib/auth-server";
 import { createClient, updateClient, archiveClient } from "@/lib/server/clienti";
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("createClient", () => {
   it("returns { ok: false } with fieldErrors when name is too short", async () => {
@@ -147,6 +143,15 @@ it("sends a notification on successful create", async () => {
 
 ## Common pitfalls
 
-- **Forgetting to `vi.clearAllMocks()` in `beforeEach`**: mocks leak between tests, causing phantom failures. The setup template above already pins this.
+- **Expecting `vi.clearAllMocks()` to isolate mocks.** It clears *call history* — `mock.calls`,
+  `.instances`, `.contexts`, `.results` — and the upstream docs say in as many words that it **does
+  not reset implementations**. So the leak people reach for it to fix, an implementation set in one
+  test bleeding into the next, it never fixed, in Vitest 4 either. This file used to prescribe it as
+  exactly that fix; it was wrong. Since **Vitest 5 clears history by default** (`clearMocks: true`),
+  writing the line is now also redundant, which is why the templates above no longer open with it.
+  **What actually isolates implementations is `mockReset: true`** in `vitest.config.ts` (or a per-test
+  `mockReset()`), and the templates avoid needing it by setting every implementation with a
+  `…Once` variant inside the test that relies on it. A queued `…Once` that no test consumes is the
+  one case that still crosses the boundary — see `module-add/references/module-test.md`.
 - **Asserting on call counts that depend on mock chains**: if the action calls `db.select().from().where()`, asserting `expect(mockDb.where).toHaveBeenCalledTimes(1)` breaks when an unrelated branch also hits `.where()`. Prefer asserting on the **return** of the action, not internal call shapes.
 - **Mixing real and mocked auth**: don't do `vi.mocked(getCurrentUserId).mockResolvedValueOnce(undefined)` to simulate "no user" — `undefined` isn't the contract. The contract is: helper throws. Mock the throw.

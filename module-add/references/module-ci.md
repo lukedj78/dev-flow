@@ -83,7 +83,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22   # Vitest 5 requires ^22.12 || ^24 || >=26 — on 20 it fails at test time, not install
           cache: pnpm
 
       - name: Install dependencies
@@ -135,7 +135,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

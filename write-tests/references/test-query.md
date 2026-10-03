@@ -9,7 +9,7 @@ Queries live at `lib/queries/<domain>.ts`. They're **read-only** server-side fun
 ## Canonical shape
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth-server", () => ({
   getCurrentTenantId: vi.fn(() => Promise.resolve("tenant_7")),
@@ -31,10 +31,6 @@ const mockDb = {
 vi.mock("@/lib/db", () => ({ db: mockDb }));
 
 import { getClienti, getClienteById } from "@/lib/queries/clienti";
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("getClienti", () => {
   it("returns an empty array when no rows match", async () => {

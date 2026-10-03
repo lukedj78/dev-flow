@@ -32,6 +32,33 @@ pnpm dlx playwright install chromium
 
 ## Files to write
 
+> **Vitest 5 (2026-09-03) — three things that decide whether this scaffold runs at all.** Read from
+> the shipped package and the repo's own config docs on 2026-10-03, which is also what finally closed
+> the "major flagged, unverified" note this file's sibling `vercel-changelog-watch.md` had carried
+> since 2026-09-22.
+>
+> - **`engines.node` is `^22.12.0 || ^24.0.0 || >=26.0.0`** — Node 20 is out (its EOL was 2026-04-30),
+>   and so are the odd dev lines 23 and 25. **`peerDependencies.vite` is `^6.4.0 || ^7 || ^8`**: a
+>   project still on Vite 5 cannot take Vitest 5. The CI workflow in `module-ci.md` pins the runner
+>   accordingly — a workflow on `node-version: 20` fails at `pnpm test:run`, not at install.
+> - **`clearMocks` now defaults to `true`**, so Vitest calls `vi.clearAllMocks()` before each test by
+>   itself. The `beforeEach(() => vi.clearAllMocks())` that every template used to open with is
+>   redundant and has been removed. **Read the next bullet before concluding that mock isolation is
+>   now free** — it is not.
+> - **What the default does *not* do: reset implementations.** `mockClear` clears `mock.calls`,
+>   `.instances`, `.contexts` and `.results`; the docs say in as many words that it *"does not reset
+>   implementations"*. `mockReset` is what resets them and still defaults to `false`. So a
+>   `mockResolvedValue` set in one test, or a `mockResolvedValueOnce` queued and never consumed, still
+>   bleeds into the next test. **`vi.clearAllMocks()` never fixed that, in v4 either** — a pitfall
+>   note in `write-tests/references/test-server-action.md` claimed it did, and has been corrected.
+>   Where a suite sets non-`Once` implementations, set **`mockReset: true`** in the config below and
+>   re-run; the templates here use `…Once` per test and do not need it.
+>
+> One caveat the upstream docs flag on both options: with **`test.concurrent`**, one test finishing
+> clears the history of mocks other in-flight tests are using. Our templates are sequential, which is
+> now the only spelling anyway — **v5 removed the `sequential` test/suite option**, leaving
+> `concurrent` as the thing you opt *into*.
+
 ### `vitest.config.ts`
 
 ```typescript
@@ -85,7 +112,7 @@ vi.mock("next/cache", () => ({
 ### `lib/server/__tests__/practices.test.ts` (server-action smoke test)
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // Mock the auth helpers BEFORE importing the action.
 vi.mock("@/lib/auth", () => ({
@@ -110,9 +137,9 @@ vi.mock("@/lib/db", () => ({ db: mockDb }));
 import { createPractice } from "@/lib/server/practices";
 
 describe("createPractice", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  // No `beforeEach(() => vi.clearAllMocks())`: Vitest 5 clears call history by
+  // default. It does NOT reset implementations — see the note above before
+  // relying on that for isolation.
 
   it("returns { ok: false } with fieldErrors when input is invalid", async () => {
     // Title too short.
