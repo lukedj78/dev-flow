@@ -47,7 +47,26 @@ One item installs the whole set into `components/gauge/`:
 
 Ten of the fourteen files are `"use client"`.
 
-## Motion
+## Motion, and the one line that makes it ours
+
+**The transition is a choice of two**, declared in `transition.ts`:
+`GaugeTransition = GaugeSpringTransition | GaugeTweenTransition`, the default being a spring. The
+tween takes a cubic-bezier easing; the spring is tuned with the perceptual pair `visualDuration` and
+`bounce` rather than raw physics, and advanced with semi-implicit Euler in substeps, which stays
+stable when the spring is stiff. All of it dependency-free.
+
+**And this is why it fits our motion layer rather than fighting it**, from the file's own comment:
+
+> *"The perceptual pair maps onto stiffness and damping the same way the motion library does, so a
+> spring tuned against [it] …"*
+
+So a spring already tuned in `lib/motion/` transfers to a gauge as the same two numbers. That is the
+difference between a component with its own animation model — a second one to maintain beside Motion
+— and a component that speaks ours. Nothing else we have reviewed does this.
+
+**Gauges nest.** `context.tsx` states that a gauge inside another "animates and maps values exactly
+like" its parent, so a small dial inside a large one is one composition, not two components kept in
+sync by hand.
 
 One `requestAnimationFrame` loop, cancelled on teardown, in `use-animated-value.ts`. It honours
 `prefers-reduced-motion` **by snapping** — the comment says so in as many words — and reads the query
