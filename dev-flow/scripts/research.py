@@ -246,10 +246,16 @@ def cmd_papers(a) -> int:
     return ANSWERED
 
 
+# pullpush answers 429 to a very common word and 200 to a selective one, whatever `size` and `Accept`
+# say — measured 2026-10-03: `test` and `hello` 429, `tender` and `procurement` 200. A probe on a
+# common word reports the channel dead while real searches get through, so it asks a selective one.
+REDDIT_PROBE_WORD = "procurement"
+
+
 def cmd_status(_a) -> int:
     checks = [
         ("github (gh)", None),
-        ("reddit (pullpush)", "https://api.pullpush.io/reddit/search/submission/?q=test&size=1"),
+        ("reddit (pullpush)", f"https://api.pullpush.io/reddit/search/submission/?q={REDDIT_PROBE_WORD}&size=1"),
         ("x (fxtwitter)", "https://api.fxtwitter.com/status/20"),
         ("hacker news", "https://hn.algolia.com/api/v1/search?query=test&hitsPerPage=1"),
         ("reader (r.jina.ai)", "https://r.jina.ai/https://example.com"),

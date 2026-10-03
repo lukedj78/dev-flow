@@ -156,6 +156,25 @@ def cmd_record_artifact(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def inventory_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """Leaving `idea_captured` requires the inventory on record. Looking before building is the cheapest
+    step in the flow and the one skipped most, so it is checked where phase moves — in `set-phase` and in
+    `append-history --phase-after` alike — and not left to prose."""
+    if not cur_idx < PHASES.index("prd_drafted") <= new_idx:
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import inventory_gate
+
+    passed, why = inventory_gate.verify(root, meta)
+    if passed:
+        return None
+    return (
+        f"Phase change refused: {current!r} → {requested!r} needs an inventory (does this already exist?).\n"
+        + "".join(f"  {line}\n" for line in why.splitlines())
+        + inventory_gate.remedy(root) + "\n"
+    )
+
+
 def cmd_set_phase(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     meta_path, meta = load_meta(root)
@@ -178,6 +197,11 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
             f"Phase regression refused: current={current!r} → requested={requested!r}\n"
             f"Use --allow-regress only if you know what you're doing (e.g., manual reset).\n"
         )
+        return 1
+
+    refusal = inventory_refusal(root, meta, cur_idx, new_idx, current, requested)
+    if refusal:
+        sys.stderr.write(refusal)
         return 1
 
     # Crossing into `scaffolded` requires the design lint to be wired, or an explicit
@@ -236,6 +260,16 @@ def cmd_append_history(args: argparse.Namespace) -> int:
             sys.stderr.write(f"Unknown phase: {args.phase_after}\n")
             sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
             return 2
+
+    if phase_after:
+        cur_raw = meta.get("phase", "empty")
+        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
+        refusal = inventory_refusal(
+            root, meta, PHASES.index(cur) if cur in PHASES else -1, PHASES.index(phase_after), cur, phase_after
+        )
+        if refusal:
+            sys.stderr.write(refusal)
+            return 1
 
     history = meta.setdefault("history", [])
     history.append({

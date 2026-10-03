@@ -70,6 +70,34 @@ See `references/stack-expo-rn.md` for the full RN stack configuration and `refer
 
 ## Workflow
 
+### Step 0 — Look before you build (the first action on any new idea)
+
+**Before the first question, before the brainstorming, before a project folder exists:** does this
+already exist? Run the house search as a command, not as an intention:
+
+```bash
+python3 dev-flow/scripts/inventory.py scan <two or three words for the idea, in both languages>
+```
+
+It searches installed skills, plugins, **the other projects on this machine** and `references/resources.md`,
+and prints what it searched and what it could not read. Open what it finds. A project already on disk with
+the same idea is the most common hit and the one a skill search never shows.
+
+This holds when another process skill is loaded alongside this one — `brainstorming` included. Its
+checklist starts at "explore project context", which in an empty folder reads as *nothing to explore*;
+that is the gap this step closes. **The inventory comes first; the brainstorming starts after the verdict.**
+
+Then finish steps 2–4 of `references/before-you-build.md` as the idea needs, and record the verdict:
+
+```bash
+python3 dev-flow/scripts/inventory.py record <root> --verdict <have-it|adapts|halfway|build> \
+    --searched <what you looked at> [--not-covered <what you could not>] --summary "<one line>"
+```
+
+`set-phase` refuses to leave `idea_captured` without it (`scripts/inventory_gate.py`), through `append-history
+--phase-after` as well. Skipping is allowed and visible: `--verdict skipped --reason "…"`. An unexplained
+skip is not.
+
 ### Step 1 — Locate or create the project root
 
 Ask the user for the project's absolute path. If they don't have one, propose `~/projects/<slug>/` where slug is derived from the project name (see contract for derivation rules).
@@ -423,6 +451,7 @@ The report of an autonomous run opens with the assumptions made — count, then 
     run; a phase written by hand skips them.
   - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
 - `scripts/data_residency.py <decide|add|check|render> <project-root>` — the data-residency decision (four answers → `stack.data_residency`, `compliance.data_categories`), the sub-processor register (`meta.json#compliance.sub_processors`, rendered to `docs/compliance/subprocessors.md`), and `check`: register vs. declared stack, regions in `vercel.json` and `.env*.example`. Flags inform and never fail; only an undecided residency does. How-to: `references/eu-data-sovereignty.md`.
+- `scripts/inventory.py <scan|record>` — step 1 of the inventory as a command (`scan`: installed skills, plugins, the other projects on this machine, `resources.md`; prints what it searched and what it could not read) and the record of the verdict in `meta.json#inventory` (`record`). `scripts/inventory_gate.py` is what `set-phase` and `append-history --phase-after` check before a project leaves `idea_captured`. Stdlib only; `scan` writes nothing.
 - `scripts/research.py <status|repos|reddit|thread|hn|post|read|papers>` — the outside half of the inventory step: GitHub through `gh`, plus the four channels a `WebSearch` reads badly (a whole Reddit thread, an X post, a paper, a page as markdown). Stdlib only, no API key, nothing written. Exit `0` answered · `3` answered and empty · `4` could not look, and a `4` goes into the plan as a channel **not covered**. `read` refuses loopback, private IPv4 and `.local`/`.internal`/`.test`, because it renders through a third party. How-to: `references/before-you-build.md` §4.
 - `scripts/check_drift.py <project-root>` — diagnostic command. Compares `meta.json#artifacts` against the on-disk files and reports:
   - **fresh**: file matches its recorded hash, all upstreams match too.

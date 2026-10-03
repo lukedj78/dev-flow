@@ -108,6 +108,47 @@ class Parsing(unittest.TestCase):
                 self.assertIn("@jack", out)
 
 
+class StatusProbe(unittest.TestCase):
+    """`status` must not call a channel dead because its own probe asked a word the archive throttles."""
+
+    def setUp(self) -> None:
+        self._which, self._run = rs.shutil.which, rs.subprocess.run
+        rs.shutil.which = lambda _name: "/usr/bin/gh"
+        rs.subprocess.run = lambda *a, **k: type("R", (), {"returncode": 0})()
+
+    def tearDown(self) -> None:
+        rs.shutil.which, rs.subprocess.run = self._which, self._run
+
+    def probe(self, status_for) -> tuple[int, str, list[str]]:
+        seen: list[str] = []
+
+        def fake_get(url, accept="application/json"):
+            seen.append(url)
+            return status_for(url), ""
+
+        rs.get = fake_get
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = rs.cmd_status(None)
+        return rc, out.getvalue(), seen
+
+    def test_the_reddit_probe_does_not_ask_a_word_the_archive_throttles(self) -> None:
+        _, _, seen = self.probe(lambda _u: 200)
+        url = next(u for u in seen if "pullpush" in u)
+        word = url.split("q=")[1].split("&")[0]
+        self.assertNotIn(word, {"test", "hello", "the", "a"})
+
+    def test_everything_alive_is_exit_zero(self) -> None:
+        rc, out, _ = self.probe(lambda _u: 200)
+        self.assertEqual(rc, rs.ANSWERED)
+        self.assertNotIn("unreachable", out)
+
+    def test_one_dead_channel_is_named_and_not_hidden(self) -> None:
+        rc, out, _ = self.probe(lambda u: 429 if "pullpush" in u else 200)
+        self.assertEqual(rc, rs.EMPTY)
+        self.assertIn("unreachable (429)", out)
+
+
 class Freshness(unittest.TestCase):
     """A repo stopped a year ago is read for the idea, not adopted — so the age is named."""
 
