@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-03T17:38:43Z",
+  "generated_at": "2026-10-03T19:42:13Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 50,
+  "skill_count": 51,
   "families": {
     "core": [
       "compliance-audit",
@@ -11,6 +11,7 @@
       "prd-from-idea",
       "prd-to-tasks",
       "product-to-agent-skill",
+      "project-infra-setup",
       "registry-intake",
       "spec-review"
     ],
@@ -117,7 +118,7 @@
         "test_research.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 477,
+      "skill_md_lines": 479,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -178,6 +179,23 @@
       "scripts": [],
       "skill_md_lines": 266,
       "bundle": "dist/product-to-agent-skill.skill"
+    },
+    {
+      "name": "project-infra-setup",
+      "family": "core",
+      "role": "operative",
+      "description": "Set up a project's third-party environments from the command line: the GitHub repo, the Vercel project (region, environment variables, Git link), marketplace connectors (Neon Postgres, Blob storage, Resend email), DNS records and domains, secrets handled without ever pasting them in chat, and the su...",
+      "skill_file": "project-infra-setup/SKILL.md",
+      "references": [
+        "contracts.md",
+        "provisioning.md"
+      ],
+      "scripts": [
+        "make_issues.py",
+        "test_project_infra_setup.py"
+      ],
+      "skill_md_lines": 38,
+      "bundle": "dist/project-infra-setup.skill"
     },
     {
       "name": "registry-intake",

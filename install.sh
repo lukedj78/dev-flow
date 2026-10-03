@@ -148,6 +148,7 @@ SKILLS=(
   dev-flow
   prd-from-idea
   prd-to-tasks
+  project-infra-setup
   linear-scrum
   compliance-audit
   spec-review
