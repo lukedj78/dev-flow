@@ -81,17 +81,39 @@ import { env } from "@/lib/env";
  * The apiVersion is pinned. Stripe rolls forward; pinning protects you from
  * silent webhook payload changes. Bump deliberately when you're ready.
  *
- * The current SDK default is "2026-08-26.dahlia" (stripe-node 22.6.0+) — a fresh
- * `stripe` install now ships Dahlia types, so pinning an older literal like
- * "2025-09-30.clover" can throw a TS mismatch against the bundled types. Match
+ * The current SDK default is "2026-09-30.endive" (stripe-node 23.0.0, 2026-09-30)
+ * — a fresh `stripe` install ships Endive types, so pinning an older literal like
+ * "2026-08-26.dahlia" can throw a TS mismatch against the bundled types. Match
  * the pin to the installed SDK's types (or `stripe listen --latest-api-version`
- * to confirm your account).
+ * to confirm your account). [VERIFY] on install.
  */
 export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2026-08-26.dahlia",
+  apiVersion: "2026-09-30.endive",
   typescript: true,
 });
 ```
+
+**stripe-node 23.0.0 (2026-09-30) — what breaks, beyond the pin.** Read this before upgrading an
+existing project, because three of the four are silent:
+
+- **Node 20 is the minimum.** Node 18 support is dropped — check the runtime before the SDK.
+- **`verifyHeader()` / `verifyHeaderAsync()` now apply `Webhook.DEFAULT_TOLERANCE`** when
+  `tolerance` is omitted; they previously skipped the timestamp check entirely. An omitted argument
+  used to mean *no replay window* and now means *the default one*, so a test fixture with an old
+  timestamp starts failing — which is the check working. The mirror image is the dangerous half:
+  **passing `0` to `constructEvent` now really does skip the timestamp check**, where before `0`
+  was treated as the default. Nobody should pass `0`; if a codebase does, it just lost its replay
+  protection without a line changing.
+- **`Stripe.constructEventWithoutVerification()` is removed** from the top-level client (it was
+  added by mistake in 22.5.0). The method on `stripe.webhooks` remains — and the rule in this file
+  stands: a webhook route verifies, full stop.
+- **The `ErrorType` export is gone** — use `stripe.errors` / `Stripe.errors`, which works as both a
+  type and a value. And **an incomplete or severed response body now throws `StripeConnectionError`
+  instead of `StripeAPIError`**: retry logic that branched on the error class needs re-reading,
+  since this is the class of failure that *is* worth retrying.
+- Minor: `STRIPE_SUPPRESS_NOTICES=true` silences the SDK's test/sandbox notices — except for a
+  detected AI agent, which still sees them. `Stripe.V2List<T>` lost the never-populated `object`,
+  `has_more` and `url` fields.
 
 ### `lib/stripe-client.ts`
 
