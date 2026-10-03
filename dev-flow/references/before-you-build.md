@@ -42,12 +42,22 @@ Then **our own two indexes**, which exist so this step is not archaeology:
 Search with two or three different words for the same idea (thumbnail, cover, preview). One term
 finds half the things.
 
-### 2. In what is already paid for
+### 2. In what the tools already do, paid or free
 
-Ask which tools are already paid for and connected, and for each one ask whether it does this
-already. A CRM has workflows, an ERP has automations, the mail has rules and scheduling, Linear has
-cycles and templates, Vercel has cron. **This is the most boring step and the one most often
-skipped. It is also the one that saves the most money.**
+Ask which tools are already connected, and for each one ask whether it does this already. A CRM has
+workflows, an ERP has automations, the mail has rules and scheduling, Linear has cycles and
+templates, Vercel has cron, Neon has branching, Resend takes inbound mail. **This is the most boring
+step and the one most often skipped. It is also the one that saves the most work.**
+
+**On free tiers the second half of the question is the one that bites: where does the plan stop?**
+A capability included up to a ceiling is still included — until the ceiling, which is where a
+project quietly starts building what it already had. Write the ceiling into the plan beside the
+capability (`Vercel cron: yes, 2 jobs on Hobby`), because that number, not the feature, is what the
+decision rests on.
+
+And when a plan's terms turn on **commercial use**, that is a condition, not a footnote: it holds
+only while nothing ships commercially, and the day one does it is a licensing decision taken before
+shipping. `references/resources.md` lists the rows that change.
 
 ### 3. In the Claude ecosystem
 

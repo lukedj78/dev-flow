@@ -19,6 +19,20 @@ Most rows state the verdict and point at the file with the traps. A few — Higg
 pdfcn — have no file of their own, so the row *is* the record and is longer on purpose. Trimming
 those would lose facts with nowhere to go.
 
+**These verdicts assume no commercial use.** Today the setup runs on free tiers, with one paid
+subscription, so several rows are cheap because nothing ships commercially. They are conditional,
+and the condition is worth naming before it changes:
+
+| Row | Today | The day something ships commercially |
+|---|---|---|
+| **mapcn**, adopted | the default CARTO tiles are fine | they need a **CARTO Enterprise licence**, or another tile provider — a decision taken before shipping, not after |
+| **Remotion** (`~/projects/video`) | free | free for individuals, non-profits and for-profit organisations with **up to three employees**; a content factory is commercial by construction |
+| `launch-audit`'s identity block | a lighter obligation | **Article 5 of Directive 2000/31/EC** addresses commercial sites: name, geographic address, trade register, VAT number, *"easily, directly and permanently accessible"* |
+| Arc UI, unlumen, Skillry, Videorc Premium, the Creem and Polar fees | moot | they become numbers to decide |
+
+**GDPR does not move with this.** It follows personal data, not commerce, so `compliance-audit`
+stands exactly as it is.
+
 **Keep it honest.** A row states a **verdict and a date**, not a vibe. When a resource is added, read
 its licence file rather than a badge and its price as the page serves it. When a verdict changes —
 a price moves, a licence changes, we adopt something we had refused — edit the row and the date.
