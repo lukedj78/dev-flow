@@ -53,6 +53,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "dev-flow":                     ("core", "orchestrator"),
     "prd-from-idea":                ("core", "discovery"),
     "prd-to-tasks":                 ("core", "discovery"),
+    "project-infra-setup":          ("core", "operative"),
     "linear-scrum":                 ("core", "operative"),
     "compliance-audit":             ("core", "operative"),
     "spec-review":                  ("core", "operative"),

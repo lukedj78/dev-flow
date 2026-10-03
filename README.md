@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **50 skills (8 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **51 skills (9 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -145,7 +145,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 50. Restart Claude Code if you don't see them in /skills.
+# Should print 51. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -155,6 +155,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | **`dev-flow`** | The orchestrator — reads `.workflow/meta.json` and proposes what to do next |
 | `prd-from-idea` | Idea paragraph → `PROJECT.md` + `PRD.md` |
 | `prd-to-tasks` | `PRD.md` → `tasks.md` (importable into beads / Linear / GitHub Issues) |
+| `project-infra-setup` | GitHub repo, Vercel project, Neon / Blob / Resend connectors, DNS and secrets, set up from the CLI |
 | `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
 | `compliance-audit` | GDPR + EU AI Act audit of an existing project (10-point risk register) + safe auto-remediation; flags legal decisions. Horizontal; proposed as a pre-deploy gate |
 | `spec-review` | Review a diff on two axes — does it match `PRD.md`/`tasks.md`, and does it obey the contract it was built under? Parallel sub-agents, reported side by side, never merged |
@@ -847,7 +848,7 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ## The skills, in detail
 
-> 8 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `linear-scrum`, `compliance-audit`, `spec-review`, `product-to-agent-skill`, and `registry-intake` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 9 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `project-infra-setup`, `linear-scrum`, `compliance-audit`, `spec-review`, `product-to-agent-skill`, and `registry-intake` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -897,6 +898,10 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 - `.workflow/PRD.md` — product requirements (user stories, acceptance criteria, non-goals, open questions).
 
 **How it works**: the skill asks you 5–8 high-leverage questions, parses your answer, fills the templates. It refuses to invent: if you can't answer "who is this for", it writes `<TBD — needs user input>` rather than guess.
+
+### `project-infra-setup` — the third-party environments, from the CLI
+
+Everything outside the codebase that a project needs before `module-add` can wire it: the **GitHub repo**, the **Vercel project** and its region, the **connectors** (Neon, Blob, Resend), **DNS and domains**, **environment variables and secrets**, and the sub-processor register. Each outward step is confirmed one at a time; secrets never go through chat; the region of every service is checked before and after it is created; whatever a tool installs on its own is reviewed first. Written from the BidFlow run. See `project-infra-setup/SKILL.md`.
 
 ### `prd-to-tasks` — PRD → executable checklist
 
