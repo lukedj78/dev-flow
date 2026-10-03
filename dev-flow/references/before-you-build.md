@@ -72,6 +72,23 @@ In this order, each for a reason:
 1. **GitHub**, because code is the strongest evidence that a thing can be done. For each promising
    repo read the README and the structure, and look at **licence, last push and open issues**. Read
    it; do not clone it and do not run it — adoption, if any, is a step in the plan.
+
+   **Two things about this search that cost us an hour to learn.** Measured on 2026-10-03, looking
+   for a gauge component:
+
+   - **The star threshold hides exactly what you are looking for when the thing is new.** At
+     `--min-stars 50`, `"react gauge component"` returned one repo (`antoniolago/react-gauge-component`,
+     201 stars, MIT, alive) — a good find. At `--min-stars 0`, a bare `"gauge"` returned .NET and
+     Android charting libraries with 5,000 stars and a test runner that happens to be called Gauge.
+     High hides the new, low drowns it in the old. So run it **twice**: once with a threshold for the
+     established answer, once with the specific words and no threshold for the recent one, and read
+     the dates rather than the counts.
+   - **`gh search repos` reads names and descriptions, not code and not sites.** `gauge-ui`, the
+     registry we had just reviewed and recorded, does not come back for `"gauge ui shadcn"`, for
+     `"shadcn gauge"`, or for its own name: six days old, three stars. **GitHub is the wrong channel
+     for a shadcn registry** — those are found through their site and their `registry.json`
+     (`research.py read <url>`), through a catalogue, or because somebody handed one over. When the
+     thing you want is a registry item, say so in the plan instead of concluding it does not exist.
 2. **Reddit**, because it is where people say what did not work. The post tells the success story,
    the comments tell the rest: open the thread, never stop at the title.
 3. **X**, because it is where builders show last week's work. On these topics an eighteen-month-old
