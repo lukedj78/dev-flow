@@ -84,6 +84,24 @@ And `control.tsx` is the real differentiator: a gauge the user **turns** — a t
 trim control — is otherwise a custom build every time, and this one arrives with its slider
 semantics already right.
 
+## The alternative, and why it lost
+
+`antoniolago/react-gauge-component` is the one thing a GitHub search surfaces for this need — 201
+stars, MIT, pushed 2026-08-16, alive. It is a competent library and the wrong shape for us, on three
+counts measured on 2026-10-03:
+
+| | gauge-ui | react-gauge-component |
+|---|---|---|
+| What lands in the repo | 14 files of source you own | an npm dependency, **776 KB unpacked** |
+| Underneath it | nothing | **d3 ^7.9.0**, to draw an arc and a needle |
+| Colour | `currentColor`: inherits the page, so DESIGN.md applies untouched | its own props, configured per instance |
+| A dial the user turns | `Control`, with slider ARIA | none |
+
+The d3 line is the one that decides it. A charting grammar is the right dependency for a chart
+library; for one gauge it is a large surface, a second animation model beside Motion, and a package
+whose major we would then have to track. The rest follows: a configured component themes through its
+API, which means the gauge's colours live somewhere other than the design system.
+
 ## Standing
 
 Six days old at the time of reading (created 2026-09-27), three stars, one author, pushed once since.
