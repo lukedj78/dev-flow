@@ -79,23 +79,30 @@ No gate blocks a deploy. Report and let the user decide — that is the existing
 
 #### Also check the Next.js security floor
 
-The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-08-25 they are **16.3.x Active LTS** and **15.5.x Maintenance LTS**.
+The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.
 
 ```bash
 pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"
 ```
 
-Compare against the floor in `references/contracts.md` § `nextjs_version` (**`16.3.3`** Active LTS or **`15.5.24`** Maintenance LTS, as of 2026-08-25 — and note the Active LTS line **moved from 16.2 to 16.3**: 16.2 stopped at `16.2.12` and did not get the August patch). Below it, say so in one line naming the CVEs that apply to *this* project. The August 2026 set is two **critical, unauthenticated RCEs** — one through the Image Optimization API on attacker-supplied **AVIF** (the patch disables AVIF outright), one on **Windows** hosts mixing Pages and App Router. The July set includes a DoS reachable through **any** Server Action and an SSRF through request-derived `rewrites()` destinations, so most projects we scaffold are in scope.
+Compare against the floor in `references/contracts.md` § `nextjs_version` (**`16.3.8`** Active LTS or **`15.5.27`** Maintenance LTS, as of 2026-10-03). Below it, say so in one line naming the CVEs that apply to *this* project. The sets, newest first: **2026-09-30** is eight CVEs, of which the one to read first is the **high SSRF in Image Optimization** (conditional on `images.remotePatterns` existing at all) and the one most likely to be ours is the medium **`'use cache'` root-param cache leak** — with `cacheComponents: true` it can serve a page cached for one `[locale]` under another, has **no workaround**, and sits exactly on golden rule ② plus `next/root-params`. **2026-09-22** is a **critical RCE in `next/og` ImageResponse** (`>= 16.2.0 < 16.3.6`). The August set is two critical unauthenticated RCEs (attacker-supplied **AVIF**, which the patch disables outright; **Windows** hosts mixing Pages and App Router), and the July set includes a DoS through **any** Server Action and an SSRF through request-derived `rewrites()`, so most projects we scaffold are in scope of something.
 
 Two things not to get wrong:
 
 - **Move to the current patch of a line that is still patched — and check which line that is.** In July, `16.2.x` was Active LTS and telling someone to jump to 16.3 was wrong. In August the label moved: 16.2 stopped at `16.2.12`, the criticals were fixed in `16.3.3`, and a project still on 16.2 is now unpatched. Read the line labels in the latest release post; never carry them from memory.
 - **Hosting on Vercel is not a patch.** Vercel has deployed global WAF rules for past Next.js CVEs, and said in the same breath that they "should not be considered a complete substitute for upgrading". Report the floor for Vercel-hosted and self-hosted projects alike.
 
-Then re-check the floor itself before quoting a number — it moves monthly. **Checked 2026-08-26: the
-floor still holds.** `16.3.3` is both the newest `16.3.x` and the newest 16.x stable (it is `latest`),
-and `15.5.24` is the newest `15.5.x` — nothing has shipped past either since the 08-25 record in
-`references/contracts.md`.
+Then re-check the floor itself before quoting a number — it moves monthly. **Checked 2026-10-03: the
+floor moved.** `16.3.8` is both the newest `16.3.x` and the newest 16.x stable (it is `latest`), and
+`15.5.27` is the newest `15.5.x`. The previous record, `16.3.3`/`15.5.24`, had stood since 2026-08-25
+through five releases and nine CVEs — **which is the argument for reading the advisory database and not
+the version number**: `16.3.4` → `16.3.8` looks like ordinary patch drift and is not. The command for
+that is `gh api repos/vercel/next.js/security-advisories`, and it answers from this session where
+`nextjs.org` does not.
+
+⚠️ **Several of the September advisories give their patched version as a literal `16.3.?`.** Do not
+parse it and do not treat an unparseable range as "not affected" — take the floor from the newest
+patch on the line instead.
 
 **`npm view next versions --json` settles this in one command**, and settles it better than the blog:
 the blog tells you what was announced, the registry tells you what you can actually install today.

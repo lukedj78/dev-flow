@@ -2,6 +2,19 @@
 
 Our curated set of production micro-interactions (inspired by [transitions.dev](https://transitions.dev/), rebuilt token-driven for Next.js 16 + Tailwind v4 + `tw-animate-css` + Motion). Each entry lists its **tier** (cheapest engine that does the job — see SKILL.md ladder), the **tokens** it uses, a **snippet**, and its **`prefers-reduced-motion` fallback**. Add new entries to `lib/motion/transitions.ts` as *tokenized* variants — never inline a magic number.
 
+> **Version note, 2026-10-03: `motion@14.0.0` (2026-10-02) is a major you can take.** Its whole
+> changelog is one line — the removal of internal APIs that `13.5.1` had temporarily restored for
+> `framer-motion` 13.0–13.4 cross-compatibility — and from 14 the internal `framer-motion`,
+> `motion-dom` and `motion-utils` dependencies are **pinned**, so that class of cross-version break
+> is designed out rather than deferred. **No public API changed**: every signature in this file holds.
+> Two late-13 additions worth knowing, since they are cheaper than what we document instead:
+> `spring` accepts a **negative `bounce`** (`0` to `-1`) for overdamped springs (13.5.0), and
+> `scroll`/`useScroll` moved **all** `offset` animations back to the main thread (13.5.0) after
+> hardware-accelerating them via `ViewTimeline` in 13.4.7 — so a scroll-offset performance claim
+> read anywhere older than 13.5.0 is now wrong in both directions. Peer range is still
+> `react ^18 || ^19`, which is why `<AnimateView>`'s React 19.3 requirement below is still a
+> runtime trap and not an install-time one.
+
 ## The token → CSS-var bridge (Setup writes this)
 
 `lib/motion/tokens.ts` (see SKILL.md) is the TS source of truth. Setup also emits matching CSS variables into the global stylesheet so Tailwind arbitraries and hand-written CSS read `var(--motion-*)` instead of literals:

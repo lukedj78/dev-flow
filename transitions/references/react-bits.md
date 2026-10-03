@@ -78,7 +78,11 @@ python3 $S install <root> @react-bits/PeekRating-TS-TW
 
 Two findings the review raises on this registry, both by design:
 
-- **D7 — the Motion major.** Every micro item declares `motion@^12.23.12`; our projects are on **13.4.0**. Do not
+- **D7 — the Motion major, now two wide.** Every micro item declares `motion@^12.23.12`; our projects are on
+  **13.x**, and **`motion@14.0.0` shipped 2026-10-02** — a major whose entire changelog is the removal of
+  internal APIs that `13.5.1` had restored for `framer-motion` 13.0–13.4 cross-compatibility, with the internal
+  `framer-motion` / `motion-dom` / `motion-utils` dependencies now pinned so the same break can't recur. **No
+  public API changed**, which is why this is a safe upgrade and a wider D7 at the same time. Do not
   let the install add a second major: install the component, then run it against the project's Motion. Verified in
   `SpringCheck`: it uses `animate`, `useMotionValue`, `useMotionValueEvent` and `useReducedMotion` from
   `motion/react`, all of which exist in 13 — but `[VERIFY]` the imports of whichever item you take, and pin

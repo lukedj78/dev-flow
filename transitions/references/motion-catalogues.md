@@ -167,7 +167,8 @@ That item is also **why `registry-intake` has a C2 finding**: C1 reads an item's
 `theme` keys, Arc UI carries its palette in a file, and the review called it clean until C2 read the
 file. Verified on 2026-09-30: `review @uiarc/button` now exits 1 on C2, and reports
 `motion@13.4.6` (MIT), which is the major our projects already run — no D7 conflict, unlike React
-Bits' `motion@^12`.
+Bits' `motion@^12`. (`motion@14.0.0`, 2026-10-02, removes internal APIs only and changes no public
+surface, so a 13-declaring item stays compatible; `motion-library.md` has the note.)
 
 **What to take for free, without installing anything.** Their `motion-tokens.ts` is a published,
 second opinion on the numbers our own token layer has to pick, and it is worth comparing against
