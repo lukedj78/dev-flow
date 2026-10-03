@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-03T13:38:52Z",
+  "generated_at": "2026-10-03T13:44:27Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -92,6 +92,7 @@
       "description": "Orchestrate an end-to-end product-development workflow built on atomic skills. Reads `.workflow/meta.json` in a project directory, works out which phase the user is in (idea → PRD → tasks → design → scaffolded → pages → modules → tests → pre-deploy gates → deployed), and delegates to whichever speci...",
       "skill_file": "dev-flow/SKILL.md",
       "references": [
+        "before-you-build.md",
         "contracts.md",
         "eu-data-sovereignty.md",
         "external-skills.md",
@@ -111,7 +112,7 @@
         "test_data_residency.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 445,
+      "skill_md_lines": 447,
       "bundle": "dist/dev-flow.skill"
     },
     {
