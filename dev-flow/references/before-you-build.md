@@ -9,9 +9,8 @@ for a while there are dozens of installed skills, scripts written in March and f
 subscriptions that already do the thing behind a menu nobody opened. The second-best outcome is a
 live open-source piece to adapt. A new subscription is the last option.
 
-The method is adapted from `piano` (Martes AI), recorded in `resources.md`. We took its inventory
-stage and not its planning stages, which `prd-from-idea` and `superpowers:brainstorming` already
-own — and we rewrote it rather than installing it, because that skill ships without a licence.
+The method is adapted from `piano` (Martes AI) — see §*Provenance* at the end for what we took,
+what we left and why it is rewritten here rather than installed.
 
 This is not theory. Measured on this setup on 2026-09-30: two of shadcn's skills had been installed
 globally since March and June, months stale, and nobody knew; a resource analysed in September had
@@ -123,3 +122,39 @@ the PRD under *what exists already*.
 
 **Stopping at the title.** A thousand-star repo untouched for a year, a Reddit thread whose
 top comment dismantles the post: without opening them the verdict is wrong.
+
+---
+
+## Provenance — what we took from `piano`, and what we left
+
+`piano` is a third-party planning skill by Riccardo Belli Contarini (Martes AI), handed over on
+2026-10-03 as a zip. Its opening rule is the one above: *"«ce l'abbiamo già» è l'esito migliore e
+anche il più frequente."* Reviewed with `registry-intake skill-review`: **one finding, K8** — no
+`license:` in the frontmatter and no LICENSE file in the archive.
+
+**Taken, and rewritten here:** the inventory order (house → what is already paid for → the Claude
+ecosystem → outside), the evidence typing (*code · official source · experience*) with a Reddit
+trick entering as `to be verified`, the one-line verdict, the rule that queries stay in English and
+generic with no client name in them, the instruction to delegate the reading to a subagent past ten
+pages, and the two mistakes that cost most.
+
+**Left behind, and why:**
+
+- **its stages 1 and 3** — the one-question-at-a-time interview and the written plan — duplicate
+  `superpowers:brainstorming` and `prd-from-idea` + `superpowers:writing-plans`, which are already
+  wired into `meta.json` and the phase gates;
+- **its output location.** It writes `piani/AAAA-MM-GG-piano-{slug}.md`; ours is `.workflow/`. Two
+  places for plans is a second source of truth, which we refuse everywhere else;
+- **the skill itself is not installed.** It ships with no licence, so its text could not be
+  committed into a repo we deliver; and its last section instructs the agent to **rewrite the
+  skill's own file** whenever the user corrects a plan, without asking. Under a content hash that
+  reports drift at the first correction — an alarm that fires for the wrong reason, which teaches
+  people to ignore alarms. Rewritten here, the method lives in git, where a change to a rule shows
+  up in a diff.
+
+**Its research toolbox, read line by line** (`piano/scripts/ricerca.py`, 13.8 KB): standard library
+only, GET only, no API key, **writes nothing to disk**, and `subprocess` solely to call `gh` with an
+argument list. Its channels, which are public facts rather than its code, are the no-key endpoints
+listed in step 4 above. Run on 2026-10-03, five of its six answered and PullPush returned 429 — and
+the skill handles that correctly, writing an unreachable channel into the plan as *not covered*,
+which is the same discipline as `unmeasured` in our own QA evidence.

@@ -14,6 +14,11 @@ open. If the resource is here and it fits, the work starts at step 5 of
 anything older than a couple of months is a row to re-read before leaning on it, because prices and
 licences move — Polar's free tier went from 4% + $0.40 to 5% + $0.50 in a single release.
 
+**A row is short when a detail file exists, and carries the facts when it is the only record.**
+Most rows state the verdict and point at the file with the traps. A few — Higgsfield, Videorc,
+pdfcn — have no file of their own, so the row *is* the record and is longer on purpose. Trimming
+those would lose facts with nowhere to go.
+
 **Keep it honest.** A row states a **verdict and a date**, not a vibe. When a resource is added, read
 its licence file rather than a badge and its price as the page serves it. When a verdict changes —
 a price moves, a licence changes, we adopt something we had refused — edit the row and the date.
@@ -52,10 +57,10 @@ a price moves, a licence changes, we adopt something we had refused — edit the
 |---|---|---|---|
 | **`skills` CLI** (vercel-labs, MIT) | installing third-party skills | **the install path, and the user runs it** — the hook refuses `skills add` from the agent; `skill-review` → the user installs → `skill-approve` pins the sha256. Verified at `skills@1.7.0` (2026-09-30) | `dev-flow/references/external-skills.md`, `registry-intake/SKILL.md` |
 | **shadcn's own skills** (`shadcn`, `improve`) | component work, codebase audits | **installed globally, reviewed 2026-09-30** — `improve` clean, `shadcn` needs a human (no frontmatter licence, `--force` on presets). Both were months stale; updated. Global installs sit outside every lock | `registry-intake/SKILL.md` §limits |
-| **piano** (Martes AI, Riccardo Belli Contarini) | turning an idea or a recurring chore into a written plan, **after checking whether the thing already exists** | **stage 2 taken, rewritten as `before-you-build.md`; the skill itself not installed** — its stages 1 and 3 duplicate `prd-from-idea` and `superpowers:brainstorming`, and it writes plans to `piani/` instead of `.workflow/`, a second source of truth. **Stage 2 is a gap we genuinely have**: search in order — installed skills, commands, settings, disk and shell history → **the tools already paid for** → the Claude ecosystem → GitHub, Reddit, X and the web, each result typed as *code · official source · experience*, and a Reddit trick entering as `da provare` until an official source confirms it. its own `piano/scripts/ricerca.py` is stdlib-only, GET-only, needs no key, writes nothing, and shells out solely to `gh`. ⚠️ **no licence anywhere** (no `license:`, no LICENSE file), so it must not be committed into a repo we deliver; and `leggi <url>` routes the whole URL through `r.jina.ai`, a third party — not for a client's internal links. 5 of 6 channels live, PullPush rate-limited, checked 2026-10-03 | this file |
+| **piano** (Martes AI) | turning an idea or a recurring chore into a plan, **after checking whether the thing already exists** | **its inventory stage taken and rewritten as `before-you-build.md`; the skill itself not installed** — stages 1 and 3 duplicate `prd-from-idea` and `brainstorming`, it writes plans outside `.workflow/`, and it ships with no licence (K8), so its text cannot enter a repo we deliver (2026-10-03) | `dev-flow/references/before-you-build.md` §Provenance |
 | **Skillry** | design-led skills, paid | **do not adopt** — their own page says it is not for teams with a mature design system. $9.99/mo, $79/yr, $169 once; output sellable, package not redistributable (2026-09-30) | `dev-flow/references/external-skills.md` |
 | **motion-video-kit** | commercial films, critic loop | **reference, free MIT** — two gates taken (frozen frames, loudness); the business playbook stays theirs (2026-09-30) | `dev-flow/references/external-skills.md` |
-| **Claude Code mods** | panes, bands, tool-call hooks | **not dev-flow's work** — mods are built and reviewed in a dedicated session, not from here and not inside a project's flow. Two facts worth keeping: **no intake gate exists for them**, and a mod is the most powerful of the three third-party categories — it can deny a tool call, read `$.env` and call the network; `claude plugin validate` lists statically what a module hooks and which variables it reads, which is the handle any future review would use (2026-10-03) | the mods session |
+| **Claude Code mods** | panes, bands, tool-call hooks | **not dev-flow's work** — built and reviewed in a dedicated session, never from inside a project's flow. **No intake gate exists for them**, and they are the most powerful of the three third-party categories: see the lesson below (2026-10-03) | the mods session |
 
 ## Services and providers
 
@@ -75,4 +80,4 @@ a price moves, a licence changes, we adopt something we had refused — edit the
 | | |
 |---|---|
 | **`skills-lock.json`** (seen in Videorc and audiocn) | a lockfile pinning third-party instruction files by **content hash** — the primitive our `skill-approve` now implements. Their `computedHash` is not reproducible from outside, so we compute our own (2026-09-30 in Videorc, 2026-10-02 in audiocn) |
-| **`claude plugin validate`** | lists statically what a mod hooks, which env vars it reads and what the engine would refuse — the review handle a future `mod-review` should use (2026-10-03) |
+| **A mod outranks a registry item and a skill** | it runs inside the client: a `tool.call` hook can **deny** a call, `$.env.get` reads environment variables, `$.http.fetch` calls any host, and `$.store` persists across sessions. `registry-intake` governs the other two categories; for mods there is no gate. **`claude plugin validate`** is the handle one would use: it lists statically what a module hooks, which variables it reads and writes, and what the engine would refuse — before any session loads it (2026-10-03) |
