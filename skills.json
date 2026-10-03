@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-03T12:26:02Z",
+  "generated_at": "2026-10-03T12:35:26Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -96,6 +96,7 @@
         "eu-data-sovereignty.md",
         "external-skills.md",
         "merge-conflicts.md",
+        "resources.md",
         "stack-expo-rn.md",
         "stack-monorepo.md"
       ],
@@ -110,7 +111,7 @@
         "test_data_residency.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 393,
+      "skill_md_lines": 445,
       "bundle": "dist/dev-flow.skill"
     },
     {

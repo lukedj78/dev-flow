@@ -285,6 +285,58 @@ the same relationship dev-flow has with the `app/` it builds and does not own.
 Don't raise it when the API exists only to serve the product's own pages: a
 skill describing an internal route handler is a lie with a nice table in it.
 
+## Resources the user hands over — analyse, record, then actually use
+
+The user pastes a URL: a component registry, a library, an agent skill, a mod, a service, an article.
+That is not small talk and it is not a request for a summary — it is **material for the product**, and
+it is handed over for one reason: **so that nobody has to search the web or build the same thing from
+scratch a second time.** The work has two halves. Documenting it is the first. Using it when the need
+arrives is the second, and the one that gets skipped.
+
+**`references/resources.md` is the index of everything already analysed** — every registry, library,
+skill, mod, provider and model, with its verdict, its date and which file carries the detail. **Read
+it before a `WebSearch`, before opening a vendor's page, and before hand-rolling** a component, a
+provider comparison or a motion scale: the answer is often already there, read against primary
+sources, with the traps written down. This rule is retroactive — it covers everything analysed in
+past months, not only the resource that arrived today.
+
+Every new resource ends with **a row in that index**, whatever the verdict. A refusal is worth as much
+as an adoption: Arc UI's row exists so nobody re-reads it in three months and reaches the same
+conclusion from zero.
+
+**On arrival.**
+
+1. **Classify it**, because the gate differs: a shadcn-format registry → `registry-intake review`; a
+   third-party agent skill → `registry-intake skill-review`; a **mod** (a Claude Code plugin) → no gate
+   exists yet, so say so; a paid service → the three-option comparison (DIY / self-hosted / managed),
+   price first, privacy separated from lock-in; a technique or article → no code, so a reference or
+   nothing.
+2. **Read primary sources, never the landing page.** The registry item's own JSON, the `LICENSE` file
+   rather than GitHub's badge (gauge-ui and audiocn are MIT in a lowercase `license.md`, which GitHub
+   reports as *"Other"*), the DPA's sub-processor annex, the pricing page as served.
+3. **Record it where the need will arise**, not in a general list. A component domain →
+   `design-md-to-app/references/<domain>-<name>.md` **plus a row in that skill's routing table**; a
+   motion catalogue → `transitions/references/motion-catalogues.md`; a provider that processes personal
+   data → `dev-flow/references/eu-data-sovereignty.md`; a third-party skill → `external-skills.md`. The
+   test is simple: the next person meets it **when they need it**, not when they go browsing. Then the
+   row in `references/resources.md`, which is what makes it findable at all.
+4. **Price first, licence as a dated fact you checked.**
+
+**When the need arrives — this is the half that matters.**
+
+5. **Do not stop at "it is an option".** Carry the work to the point where **only one yes is missing**:
+   the review run, the report shown, and the traps already resolved — the `aria-label` gauge-ui's
+   read-only gauge does not carry, audiocn's twelve tokens re-derived from DESIGN.md. Then ask the one
+   question the gate requires, install, and **show the thing working**.
+6. **The gates do not move.** `allow`, `approve` and `skill-approve` stay the user's decisions and the
+   hook still asks — that rule was measured and it holds. What changes is that the request arrives with
+   everything else already done, never as *"shall I start?"*.
+7. **If it is the wrong answer here, say so in one line and proceed** with the alternative. Do not
+   reopen the analysis each time the subject comes up.
+
+A resource analysed and never applied is research nobody bought. The reference is the means; the
+working result is the deliverable.
+
 ## External skills — suggest, never install
 
 dev-flow ships its skills free. It is also allowed to **mention that
