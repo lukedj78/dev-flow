@@ -1,6 +1,6 @@
 > Bootstrap snapshot — kept in sync manually with `rn-fundamentals/references/stack-defaults.md`.
 > Update both files together when bumping a major version.
-> Snapshot date: 2026-08-26.
+> Snapshot date: 2026-10-03.
 
 # Stack defaults (opinionated)
 
@@ -13,20 +13,20 @@ operators. **Install with `npx expo install <pkg>`, never `npm install <pkg>`.**
 
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
-| `expo` | `^57.0.16` | Expo SDK | Latest stable. New Architecture ON by default. |
+| `expo` | `^57.0.26` | Expo SDK | Latest stable. New Architecture ON by default. |
 | `react-native` | `0.86.3` | RN core | Bumped by Expo SDK — DO NOT override manually. Verified 2026-09-22 against `expo-template-blank-typescript@57.0.26`'s own `dependencies` (the SDK-bundled version, not npm `latest` — Expo pins a specific RN per SDK and `expo install` resolves to that, not to whatever npm calls latest). |
 | `react` | `19.2.3` | React | Bumped by Expo SDK — DO NOT override manually. |
 | `typescript` | `^7.0.2` | TS | Template `blank-typescript` brings a compatible version. |
-| `expo-router` | `~57.0.16` | File-based routing | Mandatory for all apps in this set. |
-| `nativewind` | `^4.2.6` | Tailwind for RN | Major 4 only. |
+| `expo-router` | `~57.0.24` | File-based routing | Mandatory for all apps in this set. |
+| `nativewind` | `^4.2.7` | Tailwind for RN | Major 4 only. |
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
 | `zustand` | `^5.0.15` | Global state | Default for non-trivial global state. |
-| `@tanstack/react-query` | `^5.102.6` | Data fetching | Major 5 only. |
-| `react-native-reanimated` | `4.7.0` | Animations | Required by Expo Router for native stack animations. Bumped 2026-09-22 from `4.5.1` — peer range moved to `react-native 0.86–0.88`, still satisfied by SDK 57's pinned `0.86.3`. |
-| `react-native-worklets` | `0.13.0` | Worklets runtime | **Separate package since Reanimated 4** — `expo install` takes both. Missing it fails at runtime, not at build. Bumped with Reanimated (Reanimated 4.7.0 requires `react-native-worklets 0.13.x`). |
+| `@tanstack/react-query` | `^5.104.1` | Data fetching | Major 5 only. |
+| `react-native-reanimated` | `4.5.1` | Animations | Required by Expo Router for native stack animations. **Reverted 2026-10-03 to the SDK pin.** It was bumped to `4.7.0` on 2026-09-22 on the strength of the peer range alone — the wrong test: for a native module in an Expo-managed project the authority is the SDK's `bundledNativeModules.json`, not npm `latest` and not the peer range. Expo 57.0.26 bundles `4.5.1`, so `4.7.0` made `npx expo install --check` complain in every project scaffolded from this table. Latest on npm is `4.7.1` and stays there until an SDK bundles it. |
+| `react-native-worklets` | `0.10.1` | Worklets runtime | **Separate package since Reanimated 4** — `expo install` takes both, and the SDK pins them as a pair (57.0.26: reanimated `4.5.1` + worklets `0.10.1`). Missing it fails at runtime, not at build. Reverted with Reanimated on 2026-10-03, and now tracked by `refresh_stack_defaults.py`, which did not watch it before — which is how one half of the pair got bumped alone. |
 | `react-native-gesture-handler` | `~2.32.0` | Gestures | Required by Expo Router. |
 | `react-native-safe-area-context` | `~5.7.0` | Safe area | Required for all root screens. |
-| `expo-image` | `~57.0.3` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
+| `expo-image` | `~57.0.5` | Optimized `<Image>` | Replaces `Image` from `react-native`. |
 | `@shopify/flash-list` | `^2.0.2` | Performant lists | Replaces `FlatList` for long lists. |
 
 ## Engine / runtime defaults

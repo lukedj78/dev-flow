@@ -32,6 +32,12 @@ PACKAGES = [
     "zustand",
     "@tanstack/react-query",
     "react-native-reanimated",
+    # Reanimated 4 split the worklets runtime into its own package, and the SDK
+    # pins the two together (57.0.26: reanimated 4.5.1 + worklets 0.10.1). It was
+    # missing here, so a hand-bump of one left the other behind — which is how the
+    # table ended up asking for reanimated 4.7.0 with worklets 0.13.0 against an
+    # SDK that bundles neither.
+    "react-native-worklets",
     "react-native-gesture-handler",
     "react-native-safe-area-context",
     "expo-image",
