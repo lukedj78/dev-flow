@@ -106,6 +106,80 @@ export default defineSandbox(async ({ session }) => {  // was `onSession` — pe
 
 Three nested levels: **session** (durable, days/weeks) → **turn** (one user message + all work until the reply) → **step** (a durable checkpoint: one model call + its tool calls). **Every turn is a durable workflow on the Workflow SDK**; state serializes at each step boundary. On crash/redeploy, the run resumes from the **last completed step** — completed steps never re-run (recorded result replayed), but a **step interrupted mid-execution re-runs** → non-idempotent side effects (charge, email, external write) **must be made idempotent or approval-gated**. Work **parks** (holds no compute) while awaiting approval, OAuth, input, or a subagent, and resumes exactly where it paused. Nothing to configure — sessions are durable by default; history is append-only, turns land in order.
 
+## Tasks — which entry point you export *is* the design decision (0.71)
+
+Read against `node_modules/eve/docs/tools/tasks.md` on 2026-10-03. A **task** is a tool call that
+returns a receipt at once and keeps working while the conversation continues; its result reaches the
+model later as a `task.result` message. A workflow tool defines **exactly one** of three entry
+points, and defining none or more than one **throws at definition time**:
+
+| Body | Runs as | Result | A new message mid-call |
+|---|---|---|---|
+| `execute(input, ctx)` | tool call — **the turn waits** | the tool result | **aborts** `ctx.abortSignal` |
+| `task(input, ctx)` | a task | a receipt, then `task.result` | nothing |
+| `serve(receive, ctx)` | a **resumable** task | a receipt, then one `task.result` per reply | nothing |
+
+**The question the three answer is not "is this slow?" — it is "should the conversation continue
+while this works?"** That distinction is the whole section, because the instinct is wrong in a
+specific way: **waiting does not need a task.** A question, a `sleep` or an approval inside an
+`execute` body parks the turn *durably and holds no compute* — the same property §Execution model
+describes — and a new message stops the wait. Reach for `task` when the model should keep talking
+(a twenty-minute deploy, research it may not need yet), or when **a question must survive new
+messages**: in an `execute` call the question lapses when the conversation moves on, resolving
+`{ status: "cancelled" }`, which is what the built-in `ask_question` does and is usually right.
+
+**Agents have no choice to make**: every agent tool is a `serve` tool, so every delegation is a
+resumable task — only the model can tell from the conversation whether it needs the answer now. The
+turn rule below is what keeps that safe.
+
+**No turn ends while a task is working.** If the model stops talking with tasks outstanding, eve
+parks the turn exactly as `task_wait` does, appends the results and calls the model again *in the
+same turn*. `turn.waiting` marks each park (`on: "input"` when a person must act, else `"tasks"`); a
+`step.started` with the same `turnId` means it resumed; `turn.completed` and `session.waiting` come
+only when the turn really ends. **No result ever starts a turn on its own.** In a root session the
+text before the wait completes as an ordinary message; in **child and schedule sessions the held
+step reports `finishReason: "tool-calls"`**, which is how channels know to post only the final reply.
+An idle resumable task isn't working and doesn't hold anything.
+
+### What this changes in how we write the agent
+
+- **An instruction is not an ordering guarantee.** "Publish only after the review approves" holds
+  exactly as long as the model chooses to follow it, because the review is a task the model decides
+  when to wait for. When an order *must* hold, it is a **single workflow tool** that calls
+  `ctx.agent("reviewer")`, reads the result and only then acts — and **the side effect is not
+  exposed as a tool of its own**, with `tool: false` on the subagent so the model cannot route round
+  it. This is the same reasoning as `eve-patterns.md` §2 (gate every side effect) applied to
+  sequencing rather than permission; it is written up as a pattern there.
+- **Task output is budgeted: 50 KB and 2,000 lines shared by every result in one message**, then cut
+  and marked `[truncated]`. A task that returns a document returns an **id**, not the document —
+  which is already §7's handoff rule, now with a number behind it.
+- **32 working tasks per session** (`TOO_MANY_TASKS`), idle resumable ones excluded. **No task
+  timeout exists**: the only bound is `limits.sessionTimeoutMs`, 30 days by default, so a body that
+  needs a deadline **races `sleep` against its own work**. A cancel gives the body **30 seconds** to
+  unwind; a `serve` body that hasn't returned to `receive()` by then ends and the task finishes.
+- **Instruct the model to use `task_wait` sparingly.** Results arrive without it; it exists for the
+  case where the model deliberately withholds a message from the person while waiting. In child and
+  schedule sessions the built-in prompt tells the model to wait rather than reply, because only the
+  final reply reaches the caller.
+- `task_cancel` stops one task's current work; `session.cancel()` cancels the turn, the `execute`
+  calls it waits on and **every working task**. A steering message ends a `task_wait` and aborts the
+  `abortSignal` of an awaited `execute` call, but **never interrupts a task** — the model reads the
+  message and decides per task whether to keep, correct (call again with its `taskId`) or cancel.
+
+### ⚠️ A task has no owner — which is a tenancy hole, not a detail
+
+**eve does not check which caller started a task.** Tasks belong to the session's open turn, not to
+the caller that created them, so in a session several people share — **a Slack thread is the normal
+case** — the model working for one person can read, continue or `task_cancel` a task another person
+started. Worse for `serve`: a continued resumable task **keeps the state its body built for earlier
+calls**, and the continuing call runs with *its own* caller's auth. Anonymous callers share one
+identity.
+
+So the rule from `eve-patterns.md` §1 applies inside the task body too: **key per-caller data on the
+principal and enforce per-person access in the tool**, never on the assumption that whoever reaches
+a task is whoever created it. A shared channel plus a `serve` tool that caches per-person state is
+the concrete leak, and it is ours to close — eve states plainly that it does not.
+
 ## Sessions, runs & streaming (HTTP contract)
 
 **One handle: the `sessionId`.** ⚠️ 0.31.0 replaced the continuation-token model with fixed, ID-addressed handles — there is no token to keep current and none to go stale. Lifecycle:

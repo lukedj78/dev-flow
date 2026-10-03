@@ -88,6 +88,8 @@ async function decideTenantApproval(surface: Surface, ctx: ApprovalContext): Pro
 - Built-in approval confirms *human access*, not *role separation* — for four-eyes/segregation-of-duties, build app-owned approval requests.
 
 > **When the side effect changes data the business owns** — a price, a listing, a rota, a published page — an approval gate is the weaker form. The stronger one is that **the agent has no write**: it proposes, and a person applies. See `staged-writes.md`, which is this recipe taken to its conclusion.
+>
+> **And when what must hold is the *order* rather than the permission, this recipe has a sibling: §14.** Since eve 0.71 every agent call is a task the model decides when to wait for, so "publish only after the review approves" is a request unless the two steps live inside one tool. Same mechanism as here — make the irreversible step unreachable except through the path that checks it — different thing being checked.
 
 ## 3. Multi-tenant memory — durable, user-scoped, composed
 
@@ -823,6 +825,55 @@ and keep specialist selection on descriptions that do not overlap (§7).
   price case is real only against the model you would otherwise have called. Prices move — re-read the catalog
   (`GET https://ai-gateway.vercel.sh/v1/models`) and measure `result.usage` on your own traffic.
 
+## 14. Ordered side effects — when "only after X" has to be true, not requested
+
+**The problem, in one line: since eve 0.71 every agent call is a task, so the model decides when to
+wait for it.** An instruction like *"publish the notes only after the reviewer approves"* is
+therefore a request, not a constraint. The model can call `publish_notes` while the review is still
+working, and nothing in the framework stops it. This is new: under the old background-task model the
+delegation tool returned the child's output as its result, so the sequence was accidentally enforced
+by the shape of the call. It no longer is.
+
+**a. The guarantee is a single tool, and the side effect is not a tool.** When an order must always
+hold, the two steps live in one workflow tool that delegates, reads the result and only then acts:
+
+```ts title="agent/tools/publish_reviewed_notes.ts"
+export default defineWorkflowTool({
+  description: "Have the reviewer check the release notes, then publish them if approved.",
+  inputSchema: z.object({ notes: z.string() }),
+  async execute({ notes }, ctx) {           // `task` instead, if the chat should continue meanwhile
+    "use workflow";
+    const response = await ctx.agent("reviewer")
+      .send(`Review these release notes:\n\n${notes}`, { outputSchema: Review, signal: ctx.abortSignal });
+    const { data, status } = await response.result();
+    if (status === "failed" || data === undefined) throw new Error("The review did not finish.");
+    if (!data.approved) return { published: false, reason: data.reason };
+    return { published: true, url: await publish(notes) };   // a "use step" helper
+  },
+});
+```
+
+**b. `tool: false` on the subagent, or the model routes around the guarantee.** A `reviewer` the
+model can call directly is a reviewer it can call *and ignore*. The tool above is the only door; the
+specialist behind it is not separately reachable. Same for the side effect: if `publish_notes` also
+exists as its own tool, a. bought nothing.
+
+**c. Handle `status === "failed"` explicitly — nothing throws for you.** `response.result()` returns
+`{ message | data, status }`. A failed child whose status you do not read looks exactly like a child
+that said nothing, and the tool proceeds to publish. This is the single most likely way to implement
+this pattern and still ship the bug it exists to prevent.
+
+**Why this is #2's reasoning, not a new one.** §2 gates a side effect on *permission*; this gates it
+on *sequence*. Both work by making the irreversible step unreachable except through the path that
+checks it, and both fail the same way — by leaving a second door open. If the order matters *and* a
+person must sign off, compose them: the tool above with `approval` on it.
+
+**When not to.** If the sequence is a preference rather than a correctness property ("usually
+summarise before answering"), leave it in the instructions and let the model schedule it — that is
+what tasks are for, and wrapping every pair of steps in a workflow tool to feel safe gives up the
+parallelism you upgraded for. Reach for this when getting the order wrong is a *fact about the
+world*: money moves, something publishes, someone is emailed, a record is deleted.
+
 ## When to reach for these
 
 Any agent that serves more than one customer (`stack.agent="eve"` on a multi-tenant SaaS — most of dev-flow's real projects) needs #1 and #2 as a baseline, #3 when tools have irreversible effects, and #4 when users schedule their own automations. **#5 (audit hook)** applies to *any* agent that touches user data (it's the traceability `compliance-audit` looks for); **#6 (read-vs-egress boundary)** to any agent that calls third-party tools or writes to a sandbox/logs. **#7 (multi-agent team)** kicks in when one agent's instructions have become a pile of unrelated procedures — reach for it *before* adding a fourth unrelated capability to a single agent, and note that a **skill** is the lighter answer whenever a whole subagent would be overkill. **#9 (investigation)** is the shape to reach for when the deliverable is a *conclusion* rather than a change — and its evidence rule generalises past agents entirely. **#10 (cross-channel notification)** is the one to remember the moment someone says "just have the agent ping Slack" — `to()` is a handoff, not a notification. **#8 (autonomous pipeline)** is #7 plus unattended execution — reach for it the moment anything triggers the agent without a human in the room (a webhook, a label, a schedule), because that is when "park for approval" silently becomes "hang forever". They are the tenant-safety + governance backbone behind `eve-registry-porting`'s "tenant from session, secrets per-tenant" checklist — port/build capabilities to satisfy these, not around them.
@@ -830,5 +881,10 @@ Any agent that serves more than one customer (`stack.agent="eve"` on a multi-ten
 **#12 (backlog triage)** is #9 run over a queue instead of one incident — reach for it when the deliverable is *many* conclusions and nobody will re-check them individually: issue triage, lead qualification, document review, alert deduplication. Its rules b (a null result never raises the score) and c (ship the undo first) generalise past agents entirely, and c is the one to apply before any unattended run that acts on its own conclusions.
 
 **#13 (evaluation models)** is the cheap, typed decision in front of any of the others: a risk score inside #2's approval policy, a classifier inside #11's tools, a refusal check in an eval, a pre-filter in front of #12's investigation. Reach for it whenever code needs a *decision about text*; never let it be the only control on something irreversible.
+
+**#14 (ordered side effects)** is the one eve 0.71 created: every agent call is now a task, so the
+model chooses when to wait, and any "only after X" that matters has to stop being an instruction and
+become a single tool with the side effect inside it. Reach for it whenever the wrong order is a fact
+about the world rather than a style preference — money moved, something published, someone emailed.
 
 **#11 (untrusted content)** is the one with no threshold: an agent whose tools return anything the business did not author — a review, a ticket, a page, an MCP connection's result — needs the fence, and that is nearly every agent. It is also the recipe eve does not help with, so nothing fails loudly if you skip it.
