@@ -41,6 +41,8 @@ jobs:
         run: |
           rm -rf /tmp/phase-smoke && mkdir -p /tmp/phase-smoke
           python3 dev-flow/scripts/init_workflow.py /tmp/phase-smoke --name "Phase"
+          # leaving idea_captured needs an inventory on record; this step is about phase handling, not about that
+          python3 dev-flow/scripts/inventory.py record /tmp/phase-smoke --verdict skipped --reason "smoke test of phase handling"
           if python3 dev-flow/scripts/update_meta.py /tmp/phase-smoke \
                append-history --skill smoke --phase-after not_a_phase; then
             echo "ERROR: append-history accepted an unknown phase"
@@ -49,6 +51,25 @@ jobs:
           python3 dev-flow/scripts/update_meta.py /tmp/phase-smoke \
             append-history --skill smoke --phase-after tasks_split
           python3 -c "import json;m=json.load(open('/tmp/phase-smoke/.workflow/meta.json'));assert m['phase']=='tasks_split',m['phase'];assert all(h['phase_after'] in (None,'tasks_split') for h in m['history'])"
+
+      # The inventory gate: a project does not leave idea_captured without an inventory on record,
+      # through set-phase and through append-history --phase-after (the back door).
+      - name: The inventory gate refuses to leave idea_captured without an inventory
+        run: |
+          rm -rf /tmp/inv-smoke && mkdir -p /tmp/inv-smoke
+          python3 dev-flow/scripts/init_workflow.py /tmp/inv-smoke --name "Inv"
+          if python3 dev-flow/scripts/update_meta.py /tmp/inv-smoke set-phase prd_drafted; then
+            echo "ERROR: set-phase left idea_captured with no inventory"; exit 1
+          fi
+          if python3 dev-flow/scripts/update_meta.py /tmp/inv-smoke append-history --skill smoke --phase-after prd_drafted; then
+            echo "ERROR: append-history is a back door around the inventory gate"; exit 1
+          fi
+          if python3 dev-flow/scripts/inventory.py record /tmp/inv-smoke --verdict skipped; then
+            echo "ERROR: a skipped inventory was accepted without a reason"; exit 1
+          fi
+          python3 dev-flow/scripts/inventory.py record /tmp/inv-smoke --verdict build --searched skills projects
+          python3 dev-flow/scripts/update_meta.py /tmp/inv-smoke set-phase prd_drafted
+          python3 -c "import json;m=json.load(open('/tmp/inv-smoke/.workflow/meta.json'));assert m['phase']=='prd_drafted',m['phase'];assert m['inventory']['verdict']=='build'"
 
       - name: Smoke-test artifact hashing + drift detection
         run: |
