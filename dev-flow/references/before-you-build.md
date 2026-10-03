@@ -82,10 +82,28 @@ In this order, each for a reason:
 people's names and no internal numbers in a search**: those leave the machine. Add an Italian query
 when the subject is Italian (PA, fatturazione, normativa).
 
-Public endpoints that need no API key, when a thread or a paper has to be read whole rather than
-searched: `api.pullpush.io` (Reddit archive), `api.fxtwitter.com` (X), `hn.algolia.com/api/v1/search`
-(Hacker News), `api.openalex.org` (papers). `r.jina.ai/<url>` renders a page as clean markdown —
-**but it is a third party, so never a client's internal URL.**
+For what a `WebSearch` does badly — a whole Reddit thread, an X post, a paper, a page as clean
+markdown — **`scripts/research.py`** is ours, stdlib only and no API key:
+
+```bash
+S=dev-flow/scripts/research.py
+python3 $S status                              # which channels answer right now
+python3 $S repos  "<topic in english>" --min-stars 20
+python3 $S reddit "<problem in english>" [--sub <name>]
+python3 $S thread <url>                        # the comments, where the post's story breaks
+python3 $S hn     "<topic>" --min-points 50
+python3 $S post   <url>                        # one X post, whole
+python3 $S read   <url>                        # the page as markdown
+python3 $S papers "<topic>"
+```
+
+Two of its behaviours are the reason it exists rather than a one-liner. It **never turns "I could
+not look" into "there is nothing"**: exit `0` answered, `3` answered and empty, `4` unreachable, and
+a `4` is written into the plan as *a channel not covered* — a tool that returns an empty list on a
+429 converts ignorance into a fact, which is the same bug as a QA check reporting `pass` when the
+decode failed. And `read` renders through `r.jina.ai`, a third party, so it **refuses loopback, the
+private IPv4 ranges and the `.local` / `.internal` / `.test` suffixes outright**: a client's internal
+host never reaches it, and there is no flag that overrides that.
 
 **If the reading passes ten pages, delegate this step to a subagent** with the queries already
 written. Whole threads in the main context lower the quality of what comes after.
@@ -154,7 +172,14 @@ pages, and the two mistakes that cost most.
 
 **Its research toolbox, read line by line** (`piano/scripts/ricerca.py`, 13.8 KB): standard library
 only, GET only, no API key, **writes nothing to disk**, and `subprocess` solely to call `gh` with an
-argument list. Its channels, which are public facts rather than its code, are the no-key endpoints
-listed in step 4 above. Run on 2026-10-03, five of its six answered and PullPush returned 429 — and
-the skill handles that correctly, writing an unreachable channel into the plan as *not covered*,
-which is the same discipline as `unmeasured` in our own QA evidence.
+argument list. Run on 2026-10-03, five of its six channels answered and PullPush returned 429 — and
+it handles that correctly, writing an unreachable channel into the plan as *not covered*, the same
+discipline as `unmeasured` in our own QA evidence.
+
+**None of that code was copied.** `scripts/research.py` is ours, written against the same public
+endpoints — which are facts about those services, not that skill's work — because a skill with no
+licence cannot contribute text to a repository we deliver. Ours adds the two rules above: exit codes
+that keep *unreachable* apart from *empty*, and a refusal to hand an internal address to a reader
+proxy. Writing it also found a defect worth stating: sorting an OpenAlex `search` by citation count
+buries the topic under whatever its field cites most — a query on retrieval-augmented generation came
+back with SciPy and Quantum Espresso — so it sorts by relevance.
