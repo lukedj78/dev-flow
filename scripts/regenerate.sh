@@ -8,7 +8,10 @@
 #
 # Usage:
 #   ./scripts/regenerate.sh                # regenerate
-#   REGEN_BUNDLES=1 ./scripts/regenerate.sh # also repackage dist/*.skill (slow, binary churn — opt in)
+#   REGEN_BUNDLES=1 ./scripts/regenerate.sh # also repackage ALL of dist/*.skill — opt in, because
+#                                          # it rewrites 51 zips. Not slow: 0.4s, measured. The
+#                                          # pre-commit hook repackages only the skills a commit
+#                                          # touches, which is what keeps them from drifting.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
