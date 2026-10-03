@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-03T17:04:07Z",
+  "generated_at": "2026-10-03T17:38:43Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 50,
   "families": {
@@ -107,14 +107,17 @@
         "data_residency_gate.py",
         "design_lint_gate.py",
         "init_workflow.py",
+        "inventory.py",
+        "inventory_gate.py",
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
         "test_data_residency.py",
+        "test_inventory.py",
         "test_research.py",
         "update_meta.py"
       ],
-      "skill_md_lines": 448,
+      "skill_md_lines": 477,
       "bundle": "dist/dev-flow.skill"
     },
     {

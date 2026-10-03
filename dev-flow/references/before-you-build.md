@@ -21,6 +21,15 @@ that gave nothing, so that **"I found nothing" is never confused with "I could n
 
 ### 1. In the house
 
+Start with the command — it covers the places a person forgets, **including the other projects on this
+machine** (a project with the same idea on disk is the most common hit, and no skill search shows it):
+
+```bash
+python3 dev-flow/scripts/inventory.py scan <two or three words for the idea>
+```
+
+The searches below are what it does by hand, for when you need to go further than its keyword match:
+
 ```bash
 # installed skills — search the description, not just the name
 grep -il '<word>' ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md 2>/dev/null
