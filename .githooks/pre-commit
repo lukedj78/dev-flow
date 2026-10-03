@@ -40,7 +40,7 @@ git add skills.json docs/index.html docs/skills docs/dev-flow-skill-map.html \
 #
 # Rebuilding all 51 takes 0.4s, so speed was never the reason for the flag; the churn is — 51
 # rewritten zips per commit. So rebuild only the skills this commit touches, which is both quiet
-# and correct. A skill folder that was deleted keeps its stale bundle: remove that one by hand.
+# and correct, and drop the bundle of any skill folder the commit removed.
 # `if`, not `[ … ] && echo`: under `set -e` a final directory without a SKILL.md would make the
 # loop exit non-zero and take the whole hook down with it.
 touched="$(awk -F/ 'NF > 1 { print $1 }' <<<"$staged" | sort -u | while read -r d; do
@@ -51,6 +51,20 @@ if [ -n "$touched" ]; then
   # shellcheck disable=SC2086 — deliberate word splitting: one argument per skill name
   python3 scripts/build_skill_bundles.py $touched >/dev/null
   for d in $touched; do git add "dist/$d.skill"; done
+fi
+
+# A deleted skill folder leaves a bundle nobody will ever rebuild. The test is the pair: the
+# folder has no SKILL.md any more, and a bundle for it is still tracked. A staged path whose
+# first segment was never a skill (`scripts/`, `docs/`) fails the second half and is left alone,
+# and a rename stages both names, so the old bundle goes and the new one is built above.
+gone="$(awk -F/ 'NF > 1 { print $1 }' <<<"$staged" | sort -u | while read -r d; do
+  if [ ! -f "$d/SKILL.md" ] && git ls-files --error-unmatch "dist/$d.skill" >/dev/null 2>&1; then
+    echo "$d"
+  fi
+done)"
+if [ -n "$gone" ]; then
+  echo "[pre-commit] dropping bundle(s) of removed skill(s): $(tr '\n' ' ' <<<"$gone")"
+  for d in $gone; do git rm --quiet -f "dist/$d.skill"; done
 fi
 
 if ! python3 scripts/lint_skills.py; then
