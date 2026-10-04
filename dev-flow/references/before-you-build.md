@@ -145,13 +145,58 @@ written. Whole threads in the main context lower the quality of what comes after
 
 Every result that survives into the PRD or the plan is labelled:
 
+- **shipped source** — the installed package itself: the compiled `dist`, the emitted `.d.ts`, the
+  `exports` map, `engines`, `peerDependencies`, the `CHANGELOG` and the `docs/` the package ships;
 - **code** — a repo that does it, with stars, last push and licence;
-- **official source** — documentation that confirms a capability and its limits;
+- **official source** — documentation or a changelog that confirms a capability and its limits;
 - **experience** — a practitioner saying what worked or did not.
 
 A trick found on Reddit or X enters as **`to be verified`**, not as a fact, until an official source
 or our own test confirms it. This is the same rule `compliance-audit` applies to a vendor's claim
 about where data lives.
+
+### Shipped source outranks the prose — and for a default, read it before writing anything down
+
+**The rule.** When the claim is about *what the code does* — a default, a limit, a version floor,
+what a library sends and where — the evidence is the **shipped artefact**, not the page describing
+it. `npm pack <pkg>@<version>` costs one command and no install; the tarball carries `dist`, the
+`.d.ts`, `package.json` and usually the `CHANGELOG` and `docs/` too. For a *behavioural* default,
+read the **compiled source**: a doc page states the intent, the `dist` states the behaviour, and
+where they differ the `dist` is what ships to the customer. Documentation is the right source for
+intent, naming, the migration path and the vendor's commitments — use it for those.
+
+**Why it is a rule and not a preference.** Measured, 2026-10-04. A page said *"preview and
+production deployments export to Vercel Agent Runs by default"* and listed what a trace holds —
+prompts, documents, tool arguments, responses, reasoning. Read as prose, that is a default data
+egress, and it was written up as one across three files including a compliance checklist. The
+compiled source said something narrower: the destination is seeded on `VERCEL_ENV`, **but** content
+capture sits upstream in a process-wide ceiling whose default is
+`audience === "public" || environment === "development"`, with `public` never inferred. Metadata by
+default, content only on an explicit opt-in. Both halves were in the docs; the ceiling was a clause
+in a type comment two pages away from the sentence everyone reads. Twenty minutes of `npm pack`
+settled it — *after* the wrong version had already shipped.
+
+**Three conditions that make this mandatory rather than nice to have:**
+
+1. **The claim concerns what leaves the user's or a client's machine.** Egress, retention,
+   telemetry, a sub-processor row, a "we don't send X" assurance. A false negative here is a breach;
+   a false positive is a checklist nobody trusts. Both are expensive.
+2. **The claim is a default.** Defaults are where prose is least reliable, because a page documents
+   the knob and omits the position it rests in. Read the resolver, not the option list.
+3. **The claim is a version floor or a requirement.** `engines`, `peerDependencies` and the
+   `exports` map are facts in a file; a blog post is a recollection of them. Vitest 5's Node 22
+   requirement and stripe 23's `apiVersion` both came out of `package.json`, not a release note.
+
+**A corollary about reach.** When the question is *which versions* behave this way, `npm pack` across
+the range answers it and nothing else does. The same dig produced a four-band API map for
+`agentRuns` (0.34 / 0.34–0.49 / 0.50–0.59 / 0.60+) that no single page states, because no page is
+written about the past.
+
+**And when the vendor's own channel is unreachable, there is usually a structured one that is not.**
+`nextjs.org` has been egress-blocked from these sessions since August; `gh api
+repos/vercel/next.js/security-advisories` is authenticated, answers, and is *more* precise than the
+blog — it carries per-advisory version ranges. A blocked website is not a reason to log a claim as
+unverified until the registry, the tarball and the API have all been tried.
 
 ## Close with a verdict, in one line
 
