@@ -92,9 +92,29 @@ def save(root: Path, meta: dict) -> None:
     meta_path(root).write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
 
 
+# The region field accepts free text, and people write their uncertainty into it — "to confirm",
+# "none documented", "no EU marker found". That last shape is why this check comes FIRST: the EU
+# pattern below matches a bare "eu" anywhere, so "no EU marker found in the project" classified as
+# `eu`, and a row whose region is unknown rendered as if the data sat in Frankfurt — and `check`
+# does not flag an `eu` row, so it passed silently. The failure was in the unsafe direction, which
+# is the only kind worth a guard. (Found 2026-10-04 while building three registers by hand.)
+UNCERTAIN_REGION = re.compile(
+    # A field carrying a TODO is not a settled region, in any language — that one rule catches most
+    # of it. The rest is the vocabulary people actually type, in en + it (golden rule 2's minimum,
+    # and the languages our own registers are written in: mockly's is entirely Italian).
+    r"\btodo\b|"
+    r"\b(unknown|not set|tbd|to confirm|to verify|to be confirmed|undecided|"
+    r"none documented|not documented|no documented|unspecified)\b|"
+    r"\b(da confermare|da verificare|da decidere|da definire|sconosciut\w*|"
+    r"non documentat\w*|nessuna regione|non impostat\w*|non specificat\w*)\b|"
+    r"\bno\s+(eu|european)\b", re.I)
+
+
 def region_class(region: str) -> str:
     r = (region or "").strip()
     if not r or r.lower() in {"unknown", "not set", "default"}:
+        return "unknown"
+    if UNCERTAIN_REGION.search(r):
         return "unknown"
     if r.lower() in {"global", "worldwide", "multi-region"}:
         return "global"
@@ -201,6 +221,17 @@ def render(root: Path, meta: dict) -> None:
     text = p.read_text() if p.exists() else head
     if MARK[0] in text:
         text = re.sub(re.escape(MARK[0]) + r".*?" + re.escape(MARK[1]) + r"\n?", block, text, flags=re.S)
+    elif p.exists() and "|" in text and len(text.split()) > 40:
+        # A register document that already has a table but no markers was written by hand — mockly's
+        # is in Italian, aligned to its own registro-trattamenti.md, and lists two processors no
+        # stack-based generation would find (Figma, and Google Fonts reached from *exported* HTML).
+        # Appending here would silently put a second, English table underneath it. Refuse instead:
+        # the hand-written document is the better artefact and the author decides how to merge.
+        raise SystemExit(
+            f"refusing to render: {REGISTER_MD} already has a table and no "
+            f"`{MARK[0]}` marker, so it is hand-maintained. Appending would duplicate it in another "
+            f"language. Either add the markers around the generated block, or keep maintaining it by "
+            f"hand and add rows there — `meta.json#compliance.sub_processors` stays the machine-readable copy.")
     else:
         text = text.rstrip() + "\n\n" + block
     p.write_text(text)
