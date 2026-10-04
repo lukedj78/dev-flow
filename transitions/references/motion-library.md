@@ -15,6 +15,30 @@ Our curated set of production micro-interactions (inspired by [transitions.dev](
 > `react ^18 || ^19`, which is why `<AnimateView>`'s React 19.3 requirement below is still a
 > runtime trap and not an install-time one.
 
+> **⚠️ Motion's `x` / `y` / `scale` shorthands are not hardware-accelerated. Verified in the source,
+> not taken on trust.** The claim comes from `emilkowalski/skills`; it is strong enough, and our use of
+> Motion heavy enough, that it was checked against `motion@14.0.0`'s own `dist` per `before-you-build.md`
+> §Shipped source outranks the prose. It holds, and the source is more precise than the prose:
+>
+> ```js
+> /** A list of values that can be hardware-accelerated. */
+> const acceleratedValues = new Set(["opacity","clipPath","filter","transform","backgroundColor"]);
+> if (!name || !(acceleratedValues.has(name) || colorProperties.has(name))) return false;
+> ```
+>
+> `x`, `y`, `scale` and `rotate` are **not in that set** — only the literal `"transform"` is. So
+> `animate={{ x: 100 }}` cannot take the WAAPI path and runs on the main thread through rAF, dropping
+> frames while the page loads, scripts or paints; `animate={{ transform: "translateX(100px)" }}` can.
+> Two conditions the prose does not mention and the gate does: a **`transformTemplate` prop disables
+> acceleration for `transform`** (`name !== "transform" || !transformTemplate`), and the subject must
+> be an **`HTMLElement`** by `instanceof` — **SVG never accelerates**, whatever property you animate.
+> `backgroundColor` *is* accelerable, and a colour in a browser-only format (`oklch`, `oklab`, `lab`,
+> `lch`) is forced onto WAAPI because the JS path cannot parse it.
+>
+> So: write the full transform string on anything that animates while the page is busy. For motion on
+> an idle page the shorthand is fine and more readable — this is a load-dependent defect, not a
+> universal one, which is why it survives code review.
+
 ## The token → CSS-var bridge (Setup writes this)
 
 `lib/motion/tokens.ts` (see SKILL.md) is the TS source of truth. Setup also emits matching CSS variables into the global stylesheet so Tailwind arbitraries and hand-written CSS read `var(--motion-*)` instead of literals:

@@ -35,6 +35,19 @@ Follows the dev-flow contract — see `references/contracts.md`. Key facts:
 - **anti-slop fallbacks** (`design-md-to-app/references/anti-slop-fallbacks.md`) — the "animate only transform/opacity", hardware-acceleration, content-shaped-skeleton, CSS-stagger rules live there. This skill enforces them; it doesn't duplicate them.
 - **`rn-animations-gestures`** — the **mobile** counterpart (Reanimated + Gesture Handler). This skill is web-only.
 
+## Step 0 — should it animate at all? (run this before the ladder)
+
+The ladder's lowest rung is Tier 0, but **the cheapest answer is no animation**, and the question has
+a table: **100+ times/day — a keyboard shortcut, the command palette, core navigation — gets no
+animation, ever.** Tens of times a day gets near-imperceptible or nothing. Occasional (modals,
+drawers, toasts) is where the ladder applies. Rare and first-time moments are where the delight
+budget lives. Then name the purpose — feedback, spatial consistency, state indication, preventing a
+jarring change, explanation, or delight at the rare tier — or don't build it.
+
+The full gate, the exact curves and durations, the physicality and gesture rules, and the checks to
+name when feel cannot be judged from code are in **`references/animation-standards.md`**. Read it
+before writing a transition, and before approving one.
+
 ## The technique ladder — cheapest tier that does the job
 
 Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle size, force `"use client"`, or add JS the interaction doesn't need.
@@ -82,10 +95,11 @@ reason to reach for it sooner.
 
 1. **Tokens, not magic numbers.** Every duration/easing/spring/distance comes from `lib/motion/tokens.ts`. No inline `duration-[237ms]`, no ad-hoc `cubic-bezier(...)` in components.
 2. **`prefers-reduced-motion` always.** Every transition ships a reduced-motion fallback (opacity-only or instant). Tier 0/1 use the `motion-reduce:` Tailwind variant or a media query; Tier 3 uses `useReducedMotion()`. A transition without a reduced-motion path is incomplete. **This rule is machine-checkable**: `shadscan`'s `animations-respect-reduced-motion` verifies it against the built app — run that gate before shipping instead of trusting a grep.
-3. **Animate only `transform` and `opacity`** (+ `filter` sparingly). Never animate `width`/`height`/`top`/`left`/`box-shadow` — layout thrash. Use `transform: scale/translate` and, for layout, Tier 2/3.
-4. **Don't force `"use client"` for motion that doesn't need it.** Prefer Tiers 0–2 to keep Server Components server-rendered.
-5. **Motion has meaning.** Entrance ≠ decoration: it should clarify hierarchy, direction, or causality. If it doesn't, cut it.
-6. **Primitives keep their own motion (golden rule 3).** `Dialog`, `Sheet`, `Popover`, `Tooltip`, `Accordion`, `Sonner` already animate open/close with their state. Before writing a transition, search `components/ui/` for the primitive that owns the pattern and use it; tune its motion through tokens and `cva`/class variants, never by re-implementing the component or forking its behaviour to hang an animation on it.
+3. **Gate hover motion on capability.** Touch has no hover, so the browser fakes one: the first tap applies `:hover` and **leaves it stuck** until the user taps elsewhere — a button that scales on hover stays scaled after a tap. Tailwind v4's `hover:` variant already compiles to `@media (hover: hover)`, so utility classes are covered; **hand-written `:hover` CSS is not** and needs `@media (hover: hover) and (pointer: fine)`. Touch gets its feedback from `:active`, which needs no gating.
+4. **Animate only `transform` and `opacity`** (+ `filter` sparingly). Never animate `width`/`height`/`top`/`left`/`box-shadow` — layout thrash. Use `transform: scale/translate` and, for layout, Tier 2/3.
+5. **Don't force `"use client"` for motion that doesn't need it.** Prefer Tiers 0–2 to keep Server Components server-rendered.
+6. **Motion has meaning, and Step 0 is how you check.** Entrance ≠ decoration: it should clarify hierarchy, direction, or causality. Name the purpose in one word or cut it — and if the element is seen 100+ times a day, cut it regardless.
+7. **Primitives keep their own motion (golden rule 3).** `Dialog`, `Sheet`, `Popover`, `Tooltip`, `Accordion`, `Sonner` already animate open/close with their state. Before writing a transition, search `components/ui/` for the primitive that owns the pattern and use it; tune its motion through tokens and `cva`/class variants, never by re-implementing the component or forking its behaviour to hang an animation on it.
 
 ## `lib/motion/tokens.ts` — the token layer
 
@@ -96,10 +110,14 @@ Setup mode scaffolds this from the DESIGN.md `motion` block (or defaults). Illus
 export const duration = { instant: 0, fast: 120, base: 200, slow: 320, slower: 480 } as const;
 // Easings — named curves; components reference these, never raw beziers.
 export const ease = {
-  standard: "cubic-bezier(0.2, 0, 0, 1)",   // enter/exit, most UI
+  standard: "cubic-bezier(0.2, 0, 0, 1)",   // enter AND exit — both are ease-out
   emphasized: "cubic-bezier(0.3, 0, 0, 1)", // hero, page
-  exit: "cubic-bezier(0.4, 0, 1, 1)",       // leaving the screen
+  inOut: "cubic-bezier(0.77, 0, 0.175, 1)", // movement *on* screen: a morph, A→B
 } as const;
+// There is deliberately no `exit` curve. It used to be `cubic-bezier(0.4, 0, 1, 1)`,
+// an ease-in, and an exit on the critical path (a dialog the user closed to reach
+// what is behind it) is latency — an accelerate curve holds it at near-full opacity
+// through the half of the duration that matters. See references/animation-standards.md.
 // Distances (px) — how far things slide in.
 export const distance = { sm: 4, md: 8, lg: 16 } as const;
 // Spring presets (Tier 3 only) — mirrors module-add motion's lib/motion-config.ts if present.
