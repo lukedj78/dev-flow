@@ -295,9 +295,13 @@ bundler does not capture `execute: someFn` and it fails on replay.
 
 ## Observability — inspecting deployed runs
 
-Deployed on Vercel, every eve project gets an **Agent Runs** tab (trigger, duration, token
-usage per session) automatically. To debug from the terminal or from a coding agent, use the
-`vercel agent-runs` CLI (needs `npm i -g vercel@latest`):
+Deployed on Vercel, an eve project gets an **Agent Runs** tab (trigger, duration, token usage per
+session). Two corrections to that sentence as of eve 0.71 / 2026-10-03, both of which change what you
+tell a client: Agent Runs is in **Beta** (on Hobby, Pro and Enterprise) and **the tab requires
+enablement for the Vercel team** — it is not automatic, and if it does not appear the answer is a
+conversation with Vercel, not a config change. Usage bills at **Always-on Tracing rates** during
+beta, and **all plans get 30-day retention** during beta. To debug from the terminal or from a coding
+agent, use the `vercel agent-runs` CLI (needs `npm i -g vercel@latest`):
 
 ```bash
 vercel agent-runs projects              # projects with runs
@@ -310,6 +314,71 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 (`list_agent_run_projects`, `list_agent_runs`, `get_agent_run`, `get_agent_run_trace`) via
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
+
+### ⚠️ Agent Runs exports conversation traces **by default** — decide this, don't inherit it
+
+The single most important line on eve's own `observability/agent-runs` page: **preview and production
+deployments export to Vercel Agent Runs by default**, and omitting `agent/instrumentation/agent-runs.ts`
+*keeps* that default. On top of that, when **`eve deploy` creates a new Vercel project it configures
+100% trace sampling for all environments**. Put the two together and the out-of-the-box state of a
+freshly deployed agent is: **every turn of every conversation, traced in full, exported to Vercel.**
+
+What a trace carries is not metadata. eve names the two redaction directions by what they remove:
+**inputs** are the prompt, instruction, document and tool-argument attributes; **outputs** are the
+response, reasoning, tool-result, exception and status attributes. For an agent that handles customer
+data, that is the customer data.
+
+So this is a decision with three obligations attached, and it belongs in the same conversation as
+`stack.data_residency`:
+
+- **R8 (sub-processors).** Vercel is already in the register as a host; Agent Runs makes it a
+  processor of **conversation content**, which is a different row with a different data category.
+  `dev-flow/references/eu-data-sovereignty.md` §4 has the row.
+- **R7 (PII in logs).** A redaction helper in `lib/log.ts` does nothing here — the trace path does
+  not go through your logger.
+- **R3 (residency).** Retention during beta is 30 days and not configurable by plan.
+
+**The three positions, in order of how often they are right:**
+
+```ts
+// agent/instrumentation/agent-runs.ts  —  ① off
+import { disableInstrumentation } from "eve/instrumentation/otel";
+export default disableInstrumentation();
+
+// ② on, but content-free: keep the shape of every span, drop what it said
+import { agentRuns } from "eve/instrumentation/otel";
+export default agentRuns({
+  exportPolicy: { span: () => ({ redact: true, inputs: true, outputs: true }) },
+});
+
+// ③ on, with content, where the session is public and the rest is redacted
+export default agentRuns({
+  exportPolicy: {
+    span: ({ audience }) =>
+      audience === "public" ? { emit: true } : { redact: true, inputs: true, outputs: true },
+    attribute: ({ key }) => (key === "customer.id" ? { emit: false } : { emit: true }),
+  },
+});
+```
+
+② is the one to reach for by default on a client project: you keep the latency, token and failure
+picture — which is what the tab is actually used for — and the content never leaves. `exportPolicy`
+takes one object or an **array applied in order**, and it narrows *only* Agent Runs: spans sent to
+another destination are untouched, and it runs **after** the process-wide `otel({ tracePolicy })` has
+admitted the trace, so `tracePolicy` is still the first gate.
+
+Two behaviours of the callbacks worth knowing before relying on them. `span` returning
+`{ redact: true }` **implies emission and requires at least one direction** (`inputs`, `outputs` or
+both) — `{ redact: true }` alone is not a valid answer. And **a `span` callback that throws drops the
+span**, which is the right failure mode: a bug in your policy loses observability, it does not leak
+content. `attribute` answers `{ emit: true }`, `{ emit: false }` or `{ replace: true, value }`.
+
+**Existing Vercel projects collect nothing until a sampling rule exists** (Settings → Tracing → Add
+Sampling Rule, or `vercel traces config`; the CLI accepts 1–100% and a 0% rule has to come from the
+dashboard). **Vercel applies the first matching rule**, so a rule already matching these requests
+must be *edited* — adding a second one below it does nothing. That asymmetry is worth stating to a
+client plainly: a new project traces everything, an existing one traces nothing, and neither default
+is the one you meant.
 
 ### Reaching a cloud eve does not run on — through a tool, never through config
 

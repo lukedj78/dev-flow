@@ -684,6 +684,75 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 
 Build with `eve extension build` (scaffold with `eve extension init <name>`), publish to a registry, then consume it from agents as above. Verified at 0.45.0: `defineExtension` comes from **`eve/extension`**, the author's entrypoint is **`extension/extension.ts`** default-exporting the handle, an optional [Standard Schema](https://standardschema.dev) types consumer settings — and **config schemas must validate synchronously**. Older refs: `node_modules/eve/docs/`.
 
+### The two extensions that ship *inside* `eve` (0.71)
+
+Neither is a registry package: both are in the `eve` dependency you already have, so "install" means
+mounting or, for one of them, nothing at all.
+
+**① `eve/extensions/code` — eve-code, the coding agent.** One file mounts it, and the **filename
+prefixes everything it contributes** (`agent/extensions/code.ts` → `code__grep`):
+
+```ts
+// agent/extensions/code.ts
+import code from "eve/extensions/code";
+export default code({});            // no GitHub / Vercel auth; add the options when needed
+```
+
+It contributes file-editing and search tools, an authenticated `gh` tool, coding skills, a
+**read-only** worker subagent (`worker.model` defaults to `openai/gpt-5.6-terra-fast`,
+`worker.reasoning` to `xhigh`) and sandbox bootstrap helpers. The tooling is installed in the
+sandbox environment's `prepare`, not at mount time:
+
+```ts
+// agent/sandbox.ts
+import { installCodeTooling } from "eve/extensions/code/sandbox";
+export const environment = VercelSandbox.environment({
+  prepare: async (sandbox) => { await installCodeTooling(sandbox, { vercel: true }); },
+});
+```
+
+⚠️ **Upgrading eve does not rebuild an existing prepared environment** — the generation derives from
+the sandbox file and its environment options, *not* from the imported helpers. So a plain
+`pnpm up eve` leaves the old `gh`/`vc`/TypeScript tooling in place, and the fix is to change the
+sandbox file (the same reasoning as `revalidationKey`'s removal, §Sandbox in `eve-concepts.md`).
+
+**The part worth copying even if you never mount it: credentials stay outside the sandbox.** With the
+default `vercel.delivery: "firewall"`, Vercel tokens **never enter sandbox processes**; the `gh` tool
+requests a token scoped to **exactly one repository per invocation**, the process gets a placeholder
+`GH_TOKEN`, and the firewall exchanges it on matching GitHub requests. Your `github.broker` callback
+receives the header-transform rules and then `null` to remove the lease — **and it must preserve your
+other network rules**, which is the one way to get this wrong. Firewall delivery needs a provider
+exposing `setNetworkPolicy()` and **fails** otherwise; `delivery: "command"` is the fallback, and
+GitHub has no command option at all. This is `eve-patterns.md` §6's read-vs-egress boundary
+implemented by the framework rather than by us — read it before hand-rolling credential passing into
+a sandbox.
+
+**The benchmark, read honestly.** The page publishes 12 tasks × 3 attempts on
+`anthropic/claude-sonnet-5.5` (snapshot 2026-10-03): `pi` 72% (26/36), **`eve-code` 67% (24/36)**,
+`opencode` 50% (18/36). The 95% intervals are 50–92%, 53–81% and 28–72% — **they overlap**, and the
+page says so itself: where two intervals overlap the benchmark shows no difference between them. So
+the defensible claim is "eve-code is in the same band as pi on 12 DeepSWE-lean tasks", not that it
+beats or loses to anything. It is the vendor's own harness on the vendor's own dataset, 20-minute cap
+per attempt, crash or timeout counted as failure. Useful as a floor; not a reason to choose.
+
+**② Self-modification — already mounted, and only locally.** `eve dev` mounts the bundled
+self-modification extension **by default**: ask the agent to change its instructions, tools, skills
+or anything under `agent/`, and it delegates the source work to a `self-modification__agent`
+subagent. It is **not included in production builds**, and `eve remote connect --url <url>` does
+*not* add it to that server. `eve dev --no-default-extensions` disables the whole bundled default set
+for that server (it removes no files and does not touch extensions you mounted yourself). To change
+the model it uses, ask in words — the first request writes
+`agent/extensions/self-modification/extension.ts` with `model` and `reasoning`, and later ones edit
+that file. This is the successor to the `getLocalDevCapability()` / `eve/local-dev` that 0.64.0
+removed from the docs.
+
+⚠️ **Its output is a source change like any other, and that is the whole point.** The subagent edits
+*authored* files, so a self-modifying agent can quietly drift away from the conventions in this
+skill: a tool written without an idempotency key, a side effect with no approval, a `[VERIFY]` that
+nobody wrote. Treat the diff as a pull request — read it, run the typecheck and `eve eval`, and apply
+`eve-conventions.md` to it. The convenience is real; the risk is that nothing in the loop asks the
+questions a human reviewer would.
+
 **Extension vs. the other capabilities:** a tool/skill/connection/hook is a *single local file* in this agent; an extension is a *versioned package* that bundles several of them and is shared across agents. **Extension vs. `eve-registry-porting`:** porting *copies* a component into your repo (vendored, tenant-hardened by hand); an extension *installs* a package (a dependency you upgrade). Prefer an extension when a maintained package exists and the reuse-across-agents payoff justifies it; port when you need to own/modify the source or the source isn't packaged.
 
 ## After any add

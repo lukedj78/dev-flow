@@ -96,6 +96,10 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > serving an older caller: the caller's channel does not nest the remote agent's live tool activity under
 > the call, and `ctx.ask()` in the remote agent returns `unavailable`.
 >
+> **Update 2026-10-04: all five are now covered** — `tools/tasks` as `eve-concepts.md` §Tasks plus
+> `eve-patterns.md` §14, the other four as described in their rows below. The paragraph that follows
+> is the backlog as this pass left it, kept because it is the record of what was deferred and why.
+>
 > **Five new pages, none covered yet — the backlog this pass leaves.** `tools/tasks.md` (the model of the
 > above; the one to read next), `tools/tasks-upgrade.md` (the migration), **`code-extension.mdx`** —
 > `eve/extensions/code`, "eve-code", ships *inside* the `eve` package and turns an agent into a coding agent
@@ -438,8 +442,8 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/observability/instrumentation` (moved under a new `/docs/guides/instrumentation/` directory in eve 0.62.0) | `eve-conventions.md` §Observability — `agent/instrumentation/` is now the only supported layout (a flat `instrumentation.ts` fails the build); per-file `tracePolicy` unchanged in shape | ✅ |
 | `/docs/observability/instrumentation-migration` — **new page, eve 0.62.0** | `eve-conventions.md` §Observability (migration warning + before/after field mapping) | ✅ |
 | `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `auto` (renamed from `autoModel`/`eve/experimental/evaluate` in eve 0.60.0; now `eve/models`, experimental, eve@0.63.0) | ✅ |
-| `/docs/guides/self-modification` — **new page, eve 0.71.0** | ⛔ **not covered yet**: `eve dev` mounts a self-modification extension by default and delegates edits under `agent/` to a `self-modification__agent` subagent; local development only, never in a production build. `eve remote connect --url` does *not* mount it. Successor to the removed `getLocalDevCapability()` | ⛔ |
-| `/docs/code-extension` — **new page, eve 0.71.0** | ⛔ **not covered yet**: `eve/extensions/code` ("eve-code") ships inside the `eve` package and turns an agent into a coding agent — file-editing and search tools, an authenticated GitHub CLI tool, coding skills, a read-only worker subagent, sandbox bootstrap helpers — with the vendor's own harness benchmark on the page | ⛔ |
+| `/docs/guides/self-modification` — **new page, eve 0.71.0** | `eve-capabilities.md` §Extension → *The two extensions that ship inside `eve`* ② — mounted by `eve dev` by default, delegates to `self-modification__agent`, never in a production build, not added by `eve remote connect --url`, `--no-default-extensions` to disable the bundled set, `agent/extensions/self-modification/extension.ts` for the model. Successor to the removed `getLocalDevCapability()`. **Plus the part the page leaves to us**: its output is an authored-source change, so it can drift from this skill's own conventions — read the diff as a pull request | ✅ |
+| `/docs/code-extension` — **new page, eve 0.71.0** | `eve-capabilities.md` §Extension → *The two extensions that ship inside `eve`* ① — mounting and the filename namespace, what it contributes, `installCodeTooling` in `prepare` and the trap that **upgrading eve does not rebuild a prepared environment**, firewall-vs-command credential delivery (tokens never enter the sandbox; the `gh` token scoped per repository per invocation; the broker callback must preserve your other rules), and the benchmark read against its own overlapping 95% intervals — the defensible claim is "same band as `pi` on 12 tasks", not better or worse | ✅ |
 | `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
 
 ## Client, frontend, deployment
@@ -456,7 +460,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 |---|---|---|
 | `/docs/reference/telemetry` | `eve-conventions.md` §eve's CLI phones home — what the CLI sends, `EVE_TELEMETRY_DEBUG=1` to inspect it, `eve telemetry disable` / `EVE_TELEMETRY_DISABLED=1`, and why it is an R3 question on a client project | ✅ |
 | `/docs/guides/instrumentation-providers` | `eve-conventions.md` §What each trace records — the page that **replaced** `guides/instrumentation.md`; it finally documents `tracePolicy` (6 mentions) plus provider slots, redaction and lifecycle events | ✅ |
-| `/docs/observability/agent-runs` — **new page, eve 0.71.0** | ⛔ **not covered yet**: Vercel **Agent Runs**, Beta on Hobby/Pro/Enterprise — browse eve sessions and inspect conversation traces, plus the destination config. Belongs beside `eve-conventions.md` §Observability | ⛔ |
+| `/docs/observability/agent-runs` — **new page, eve 0.71.0** | `eve-conventions.md` §Observability — the existing paragraph corrected (Beta, and the tab needs **team enablement**, not automatic; Always-on Tracing rates; 30-day retention), plus a new subsection on the thing the page buries: **the export is ON by default and `eve deploy` sets 100% sampling on a new project**, so a fresh agent traces every turn in full. The three positions (off / content-free / public-only), the `exportPolicy` semantics (`redact` implies emission and needs a direction; a throwing `span` drops the span), and the first-matching-rule asymmetry between new and existing projects. Consequences recorded where they bind: a **sub-processor row** in `dev-flow/references/eu-data-sovereignty.md` §4.9 and an **R7/R8/R3 audit signal** in `compliance-audit` | ✅ |
 | `/docs/memory/custom-provider` | ⛔ **deliberately not covered** — building a memory *provider* is framework extension work, not product work. `eve-capabilities.md` §Memory covers using the slots (`defineMemory`, `fileMemory()` + backends); write a provider and you are maintaining infrastructure the product did not ask for. Revisit if a project actually needs a store eve does not ship | ⛔ |
 
 ## Evals, patterns, reference
