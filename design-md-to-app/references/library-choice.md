@@ -1,4 +1,6 @@
-# Suggesting shadcn/ui vs Base UI vs MUI
+# Picking libraries — the UI system, then the per-task gaps
+
+Two questions, two sections. **§1 (this one) chooses the UI system** — shadcn/ui vs Base UI vs MUI vs Coss — once per project. **§2 (*Per-task picks*, at the bottom) answers "I need a thing that does X"** after the scaffold exists: virtualization, drag and drop, animated numbers, OTP inputs.
 
 The user picks. This file is for **how to suggest** before they do.
 
@@ -99,3 +101,45 @@ Then accept whatever the user picks without arguing.
 - **Server Components everywhere**: shadcn integrates more naturally with React Server Components since most of its primitives are stateless. MUI works but needs the `AppRouterCacheProvider` setup and most components effectively become client. If the user is building a content-heavy site (docs, marketing) where SSR/RSC is critical, lean shadcn.
 - **Non-Next.js framework** (Remix, Vite + React, Tanstack Start): both work, but MUI's `@mui/material-nextjs` helper obviously doesn't apply, and shadcn's docs / generators assume Next less aggressively now. Both fine; just don't follow the Next-specific snippets blindly.
 - **No Tailwind, refuses to add it**: shadcn is off the table. MUI it is.
+
+---
+
+# Per-task picks — a different axis from the one above
+
+Everything above chooses the **UI system** (one decision, recorded in `meta.json#stack.ui`). This
+section answers the other question, which comes up repeatedly after the scaffold exists: *"I need a
+thing that does X — what do I install?"* Both are "pick a library", and conflating them is how a
+project ends up with a hand-rolled toast next to shadcn.
+
+**The rule that comes first: check `package.json`.** If the project already has one of these, use it.
+If it has a competitor (`react-window` where this table says Virtuoso), **say so and leave it** — do
+not churn a dependency nobody asked you to churn.
+
+**Where we already have a pick, it stands.** The shadcn component set covers dialogs, popovers, menus,
+selects, command (cmdk), charts (recharts) and toasts (Sonner) — reach for the primitive the project
+already owns before installing anything (golden rule 3). `cn` is our `clsx` + `tailwind-merge`
+replacement, adopted 2026-09-02 across the fleet; `cva` for variant-shaped components; `zustand` for
+global state (`state-discipline` owns when that is warranted); `next-themes` for dark mode.
+
+**These four are the gaps** — tasks that recur and where we had never made a pick, so each one got
+hand-rolled or improvised. Verified on npm 2026-10-04, all MIT:
+
+| Task | Pick | Version | Why this one |
+|---|---|---|---|
+| **Virtualization** — a long list or a large table | [`react-virtuoso`](https://virtuoso.dev) | 4.18.16 | Handles variable-height rows without measuring them yourself, which is the thing `react-window` makes you do. Reach for it **before** pagination hacks; `write-tests/references/worst-case-data.md` treats 1,000 unpaginated rows as a break. |
+| **Drag and drop** — reorder, kanban, drop zones | [`@dnd-kit/core`](https://dndkit.com) | 6.3.1 | Keyboard-accessible and screen-reader-aware out of the box, which a mouse-only implementation never is — that makes it a `shadscan` concern as well as a convenience. (`@dnd-kit/react` exists at 0.5.0; stay on core until it is 1.x.) |
+| **Animated numbers** — counters, prices, stats | [`@number-flow/react`](https://number-flow.barvian.me) | 0.6.2 | Digit-level transitions. The hand-rolled version re-renders the text, which jitters; `tabular-nums` fixes the alignment but not the change. Pre-1.0 — pin it. |
+| **OTP / verification-code inputs** | [`input-otp`](https://input-otp.dev) | 1.5.0 | The one-box-per-digit input with paste, autofill and `inputmode` handled. shadcn's own `input-otp` component wraps this package, so if the project has shadcn, `shadcn add input-otp` is the install. |
+
+Two more worth knowing by name rather than installing on sight: **Satori** (HTML/CSS → SVG/PNG, which
+is what `next/og` is built on — and the subject of a critical RCE in September 2026, see the contract's
+`nextjs_version` section) and **shiki** for syntax highlighting, which `chat-and-typeset.md` already
+reaches for through `react-shiki`.
+
+**When the task is not in this table**, say so explicitly and recommend from general knowledge — but
+say you have left the curated set, so the next person knows the pick was not vetted.
+
+*Source: the per-task half of [emilkowalski/skills](https://github.com/emilkowalski/skills)'s
+`pick-ui-library` (MIT), filtered against what we already decided. Our `cn` pick is **newer** than
+theirs, which still names `clsx` + `tailwind-merge` — a reminder that a curated list is a snapshot.
+`dev-flow/references/resources.md` has the row.*
