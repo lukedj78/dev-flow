@@ -56,7 +56,8 @@ Layout animations also work on FlashList / FlatList items via `itemLayoutAnimati
 ## Pan gesture (swipe-to-dismiss)
 
 ```tsx
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Dimensions } from "react-native";
 
@@ -73,7 +74,7 @@ export function SwipeableRow({ children, onDismiss }: { children: React.ReactNod
       const shouldDismiss = Math.abs(e.translationX) > SCREEN * 0.4;
       if (shouldDismiss) {
         translateX.value = withSpring(Math.sign(e.translationX) * SCREEN);
-        runOnJS(onDismiss)();
+        scheduleOnRN(onDismiss);
       } else {
         translateX.value = withSpring(0);
       }
@@ -91,7 +92,7 @@ export function SwipeableRow({ children, onDismiss }: { children: React.ReactNod
 }
 ```
 
-Note `runOnJS(onDismiss)()` — the callback is JS but we're inside a worklet.
+Note `scheduleOnRN(onDismiss)` — the callback lives on the React Native runtime and we are inside a worklet. **Not `runOnJS`**: it is `@deprecated` in Reanimated 4 (checked in `4.5.1`'s `workletFunctions.d.ts`) and `scheduleOnRN` from `react-native-worklets` is the replacement. It still works, so a copied snippet compiles — which is exactly why the deprecated name keeps spreading.
 
 ## Scroll-linked animation (header collapse)
 

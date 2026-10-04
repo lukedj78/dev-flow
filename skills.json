@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-04T18:15:13Z",
+  "generated_at": "2026-10-04T18:16:55Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 51,
   "families": {
@@ -611,10 +611,11 @@
       "skill_file": "rn-animations-gestures/SKILL.md",
       "references": [
         "decision-tree.md",
+        "mobile-standards.md",
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 38,
+      "skill_md_lines": 52,
       "bundle": "dist/rn-animations-gestures.skill"
     },
     {
