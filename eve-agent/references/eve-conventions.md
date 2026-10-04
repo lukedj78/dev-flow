@@ -315,70 +315,80 @@ Add `--json` for programmatic output. The same four operations exist as Vercel M
 `npx add-mcp https://mcp.vercel.com` — so an autonomous loop can debug a failed run without a
 human. ([VERIFY] against current Vercel CLI/MCP.)
 
-### ⚠️ Agent Runs exports conversation traces **by default** — decide this, don't inherit it
+### Agent Runs: the destination is on by default, the **content is not** — and the trigger is `audience`
 
-The single most important line on eve's own `observability/agent-runs` page: **preview and production
-deployments export to Vercel Agent Runs by default**, and omitting `agent/instrumentation/agent-runs.ts`
-*keeps* that default. On top of that, when **`eve deploy` creates a new Vercel project it configures
-100% trace sampling for all environments**. Put the two together and the out-of-the-box state of a
-freshly deployed agent is: **every turn of every conversation, traced in full, exported to Vercel.**
+**Corrected 2026-10-04, after reading the compiled source rather than the prose.** The first version of
+this section said a freshly deployed agent traces every conversation *in full*. That is wrong, and it
+was wrong in the direction that matters — a compliance note that cries wolf is worse than no note.
+Here is what each half actually does, verified in `dist` at 0.62.0 and 0.71.0 (identical):
 
-What a trace carries is not metadata. eve names the two redaction directions by what they remove:
-**inputs** are the prompt, instruction, document and tool-argument attributes; **outputs** are the
-response, reasoning, tool-result, exception and status attributes. For an agent that handles customer
-data, that is the customer data.
+**True: the destination is seeded for you.** `seedInstrumentationProviders()` sets the `agent-runs`
+slot whenever `VERCEL_ENV` is `preview` or `production` — so on Vercel the export exists without any
+file, and only there (never locally). `eve deploy` on a **new** Vercel project also configures 100%
+trace sampling for all environments. A file at `agent/instrumentation/agent-runs.ts` takes over that
+same slot; `disableInstrumentation()` deletes it.
 
-So this is a decision with three obligations attached, and it belongs in the same conversation as
-`stack.data_residency`:
-
-- **R8 (sub-processors).** Vercel is already in the register as a host; Agent Runs makes it a
-  processor of **conversation content**, which is a different row with a different data category.
-  `dev-flow/references/eu-data-sovereignty.md` §4 has the row.
-- **R7 (PII in logs).** A redaction helper in `lib/log.ts` does nothing here — the trace path does
-  not go through your logger.
-- **R3 (residency).** Retention during beta is 30 days and not configurable by plan.
-
-**The three positions, in order of how often they are right:**
+**False: that it carries conversation content.** Content capture is decided *upstream* of any
+destination, by the process-wide `tracePolicy`, whose default is literally:
 
 ```ts
-// agent/instrumentation/agent-runs.ts  —  ① off
-import { disableInstrumentation } from "eve/instrumentation/otel";
-export default disableInstrumentation();
+recordInputs:  audience === "public" || environment === "development",
+recordOutputs: audience === "public" || environment === "development",
+```
 
-// ② on, but content-free: keep the shape of every span, drop what it said
+and the eve channel classifies **anonymous → `unknown`, `user`/`service`/`runtime` → `private`,
+anything else → `unknown`**. `public` is never inferred: eve's own words are *"trace consumers record
+metadata but omit content by default in preview and production. Set an explicit `audience: "public"`
+only for intentionally public traffic."* So the out-of-the-box export is **metadata** — spans,
+timings, token usage, failures — which is the content-free position worth having, already applied.
+The policy is a **ceiling**: a destination can only narrow it, never widen it.
+
+**So the thing to check is one line in the channel, not the instrumentation directory.** The moment a
+project declares `audience: "public"`, it has also decided to send prompts, instructions, documents,
+tool arguments, responses, reasoning and tool results to Vercel — because that is what then lands on
+the span and nothing downstream is filtering it. Two corollaries: `environment === "development"`
+captures content too, which is about the local `eve dev` spool rather than Vercel; and on a
+**remote-agent** hop the receiver evaluates its policy against the *immutable origin audience* and
+intersects it with the parent's ceiling, so a hop can only narrow capture.
+
+**When you do want to write the file**, these are the two reasons left — not self-protection, which
+the default already gives you:
+
+```ts
+// agent/instrumentation/agent-runs.ts
+
+// ① the channel is `audience: "public"` and you still don't want content in Agent Runs
 import { agentRuns } from "eve/instrumentation/otel";
 export default agentRuns({
   exportPolicy: { span: () => ({ redact: true, inputs: true, outputs: true }) },
 });
 
-// ③ on, with content, where the session is public and the rest is redacted
+// ② narrow the metadata itself — an id you would rather not ship
 export default agentRuns({
-  exportPolicy: {
-    span: ({ audience }) =>
-      audience === "public" ? { emit: true } : { redact: true, inputs: true, outputs: true },
-    attribute: ({ key }) => (key === "customer.id" ? { emit: false } : { emit: true }),
-  },
+  exportPolicy: { attribute: ({ key }) => (key === "customer.id" ? { emit: false } : { emit: true }) },
 });
+
+// ③ or off entirely
+import { disableInstrumentation } from "eve/instrumentation/otel";
+export default disableInstrumentation();
 ```
 
-② is the one to reach for by default on a client project: you keep the latency, token and failure
-picture — which is what the tab is actually used for — and the content never leaves. `exportPolicy`
-takes one object or an **array applied in order**, and it narrows *only* Agent Runs: spans sent to
-another destination are untouched, and it runs **after** the process-wide `otel({ tracePolicy })` has
-admitted the trace, so `tracePolicy` is still the first gate.
+Two behaviours of the callbacks, before relying on them. `span` returning `{ redact: true }`
+**implies emission and requires at least one direction** (`inputs`, `outputs` or both) — `{ redact:
+true }` alone is not valid. And **a `span` callback that throws drops the span**, which is the right
+failure mode: a bug in your policy costs observability, not confidentiality. `attribute` answers
+`{ emit: true }`, `{ emit: false }` or `{ replace: true, value }`. `exportPolicy` takes one object or
+an **array applied in order**, and narrows *only* Agent Runs — spans to another destination are
+untouched.
 
-Two behaviours of the callbacks worth knowing before relying on them. `span` returning
-`{ redact: true }` **implies emission and requires at least one direction** (`inputs`, `outputs` or
-both) — `{ redact: true }` alone is not a valid answer. And **a `span` callback that throws drops the
-span**, which is the right failure mode: a bug in your policy loses observability, it does not leak
-content. `attribute` answers `{ emit: true }`, `{ emit: false }` or `{ replace: true, value }`.
-
-**Existing Vercel projects collect nothing until a sampling rule exists** (Settings → Tracing → Add
-Sampling Rule, or `vercel traces config`; the CLI accepts 1–100% and a 0% rule has to come from the
-dashboard). **Vercel applies the first matching rule**, so a rule already matching these requests
-must be *edited* — adding a second one below it does nothing. That asymmetry is worth stating to a
-client plainly: a new project traces everything, an existing one traces nothing, and neither default
-is the one you meant.
+⚠️ **The API differs by eve version, so read the installed one before writing this file.** Verified
+by `npm pack` across the range on 2026-10-04: the `agent-runs` slot and `eve/instrumentation/otel`
+appear at **0.34.0** (0.29.x and earlier have neither — those projects export nothing at all);
+**0.34–0.49** take `agentRuns({ recordInputs, recordOutputs })`, both defaulting to `false`;
+**0.50–0.59** add `exportPolicy` with `redactSpanInputs()` / `redactSpanOutputs()` /
+`composeSpanExportPolicies()` and a boolean-predicate `span`; **0.60+** is the shape above, and the
+0.50-era helpers were removed and now throw. 0.62 also replaced the process-wide `capture` with
+`tracePolicy` and *throws* if a provider still has `capture`.
 
 ### Reaching a cloud eve does not run on — through a tool, never through config
 
