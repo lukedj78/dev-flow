@@ -304,7 +304,8 @@ it is a different question, and it has its own gate now.
 
 - **Not a legal/privacy audit** — that's `compliance-audit`. **Not a cost audit** — that's `vercel-doctor`.
 - **Doesn't design the UI** — it checks that the built UI has its fundamentals; `design-md-to-app` designs.
-- **Doesn't cover mobile** — the rules are DOM/React-web; Expo/RN has no equivalent here.
+- **Doesn't cover mobile** — the rules are DOM/React-web; Expo/RN has no equivalent here. And the *web-on-a-phone* layer (sticky hover, the tap-highlight flash, `100dvh` vs `100svh`, `touch-action`, safe areas) is not in its 62 rules either — that is `design-md-to-app/references/mobile-web.md`.
+- **Doesn't feed the UI bad data.** Every rule reads the built output against whatever data was there. A component that passes all 62 can still break on a hyphenated surname or a count of exactly 1 — that is `write-tests/references/worst-case-data.md`, and it is a different operation, not a stricter setting.
 - **Doesn't use `--apply`** — the routing to owning skills is the whole point.
 - **Doesn't bump `phase`**, and never blocks deploy by itself.
 

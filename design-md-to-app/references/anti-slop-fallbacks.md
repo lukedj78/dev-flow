@@ -28,11 +28,19 @@ Adapted from `taste-skill` (Leonxlnx/taste-skill), reduced to rules that are **C
 
 When DESIGN.md says "primary text on light background" without a hex, use off-black, not pure black. When it says "the deepest shadow color", same.
 
-### 2. Mobile viewport — `min-h-[100dvh]`, never `h-screen`
+### 2. Mobile viewport — never `h-screen`, and `dvh` vs `svh` is not interchangeable
 
-`h-screen` (which resolves to `100vh`) is broken on iOS Safari: the browser chrome (URL bar, bottom toolbar) is included in `100vh` but visible on screen, causing layout shift when the chrome retracts on scroll. Use `min-h-[100dvh]` (`100dvh` = dynamic viewport height) for hero sections, full-page modals, and any "this should fill the screen" intent.
+`h-screen` (which resolves to `100vh`) is broken on iOS Safari: `100vh` is the *largest* viewport — the height with the browser chrome collapsed — so on load, with the URL bar visible, a `100vh` element overflows by the height of that bar and a bottom-pinned button sits underneath it.
 
-This rule is **universal** — it applies even when Figma shows a full-viewport hero. The Figma value "full screen" in CSS means `100dvh`, not `100vh`.
+**Corrected 2026-10-04: which unit replaces it depends on what the element is.**
+
+- **`100dvh` for an app shell, a drawer, a full-page modal** — anything that should track the visible area as the chrome shows and hides.
+- **`100svh` for a hero or a first screen** — the *smallest* the viewport gets, so nothing is ever cut off. `dvh` resizes as the URL bar collapses, which is correct for an app shell and **causes a layout shift on marketing content mid-scroll**. This file used to prescribe `dvh` for heroes specifically; that was the one case where it is the wrong unit.
+- `lvh` is the old `vh` — you almost never want it.
+
+The rule against `h-screen` is still **universal**: it applies even when Figma shows a full-viewport hero. "Full screen" in CSS means `dvh` or `svh`, never `vh`.
+
+The rest of the web-on-a-phone layer — the hover state that sticks after a tap, the grey flash, inputs that zoom the page, the 300 ms tap delay, pull-to-refresh, the notch, long-press selecting a button's label, a carousel that scrolls the page instead — is **`references/mobile-web.md`**, including the four-line baseline to ship before the first component.
 
 ### 3. Realistic placeholder data
 

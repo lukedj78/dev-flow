@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-04T18:16:55Z",
+  "generated_at": "2026-10-04T18:19:46Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 51,
   "families": {
@@ -293,6 +293,7 @@
         "illustrations.md",
         "library-choice.md",
         "maps-mapcn.md",
+        "mobile-web.md",
         "mui-mapping.md",
         "react-flow.md",
         "shadcn-mapping.md",
@@ -451,7 +452,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 319,
+      "skill_md_lines": 320,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -545,10 +546,11 @@
         "test-component.md",
         "test-page-e2e.md",
         "test-query.md",
-        "test-server-action.md"
+        "test-server-action.md",
+        "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 160,
+      "skill_md_lines": 168,
       "bundle": "dist/write-tests.skill"
     },
     {

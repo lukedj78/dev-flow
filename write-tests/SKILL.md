@@ -143,6 +143,14 @@ Tell the user:
 - **Don't introduce new test deps.** If the project has Vitest + Playwright, work with those. Don't suggest `jest`, `mocha`, `cypress`, `vitest-mock-extended`, etc.
 - **Don't fix the source code.** If a test reveals a bug, surface it. Don't silently rewrite the source to make the test pass.
 - **Real assertions, not snapshots by default.** Snapshot tests rot. Prefer specific assertions (`expect(result.ok).toBe(false)`, `expect(page.locator("h1")).toContainText("...")`). Snapshots only when the user explicitly asks.
+- **A passing unit test does not mean the component survives real data.** Asserting the logic and
+  rendering a component against *kind* data are different tests, and the second one is the one users
+  hit: a hyphenated surname, an unbreakable email, a count of exactly 1, an empty list, a label 30%
+  longer in translation. **`references/worst-case-data.md`** is that operation — the catalog of
+  plausible values, the failure-signature table (symptom → cause → fix), and the dev-only
+  Demo/Worst-case toggle. Reach for it when the user says "stress test this", "find the edge cases",
+  or when a component renders anything a person typed. The fixture it produces **stays in the repo as
+  a regression test**.
 - **Skip what's not testable cheaply.** Pages with WebGL canvases, third-party iframes, or external API calls without a mock surface — write a `test.skip` with a comment explaining why instead of writing a brittle test. Honesty over coverage theater.
 
 ## Cross-skill dependencies

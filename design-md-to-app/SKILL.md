@@ -531,7 +531,7 @@ faithful to the source.
 
 Step 4.5c pins the verbatim-Figma rule for content the **source actually shows**. This step covers the inverse: surfaces where DESIGN.md is **silent** and Figma is **absent** (TBD pages, stub data, invented copy, body-only DESIGN.md without YAML tokens). Without explicit defaults, the LLM tilts to recognizable "AI generic" choices — pure black `#000000`, `h-screen` (broken on iOS), "John Doe" placeholders, "Acme" brand names, "Elevate / Seamless" filler words, three equal cards in a row.
 
-`references/anti-slop-fallbacks.md` enumerates 10 portable rules (off-black, `min-h-[100dvh]`, realistic placeholder data, banned filler vocabulary, Picsum over Unsplash, no 3-equal-card default, hardware-accelerated motion, tactile `:active` feedback, skeleton loaders, CSS-cascade stagger).
+`references/anti-slop-fallbacks.md` enumerates 10 portable rules (off-black, `min-h-[100dvh]`, realistic placeholder data, banned filler vocabulary, Picsum over Unsplash, no 3-equal-card default, hardware-accelerated motion, tactile `:active` feedback, skeleton loaders, CSS-cascade stagger). **`references/mobile-web.md`** is the platform layer next to it — the tells that say "this is a website" on a phone (sticky hover, the tap-highlight flash, inputs that zoom, the 300 ms tap delay, the notch, `touch-action`), with a four-line baseline to ship before the first component.
 
 **Read it before writing any of these surfaces:**
 - Stub data in `lib/queries/<domain>.ts` for routes not in Figma.
