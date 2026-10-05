@@ -16,6 +16,20 @@ description: >-
 
 Scaffold and manage an eve agent — Vercel's filesystem-first agent framework, built on the open-source Workflow SDK — as the engine of a product. This skill is part of the dev-flow family and shares the same `.workflow/` filesystem contract. Where dev-flow's `design-md-to-app` builds the Next.js app, this skill builds and grows the `apps/agent` (eve) that the app uses as its engine.
 
+## Before inventing a shape, read the one that exists
+
+Thirteen reference implementations are published at <https://eve.dev/templates>, and
+**`references/eve-templates.md`** is the need → template lookup: a multi-agent team, a station
+pipeline that ends in a draft PR, an investigator that is read-only by default, a corpus-grounded
+answerer, a publishing queue a human releases, the best-specified memory slot in the set. Consult it
+before designing a channel, a memory slot, a multi-agent split or an approval flow from scratch.
+
+⚠️ **Read the shape, not the API.** Every standalone template pins an eve older than ours — from four
+minors behind to **forty-four** — and `references/eve-docs-coverage.md` records exactly what 0.71
+broke in between (`task()` for `execution: "background"`, `taskId` for `agentId`, the `subagent.*`
+events gone, `ctx.agent()` returning a session, `getSkill` removed). Only the four templates inside
+`vercel/eve/apps/templates` track eve itself, so only their call sites are current.
+
 ## The one rule that matters most
 
 **Never guess the eve API.** The source of truth is the bundled docs. Once eve is installed, its full documentation lives at `node_modules/eve/docs/`, and the live docs are at <https://eve.dev/docs>. Read the relevant doc there and run `npx eve --help` (or `eve info`) BEFORE scaffolding or before adding any capability. (Vercel's own official `eve` skill — `npx skills add vercel/eve --skill eve` — consists of exactly this rule and nothing else: read `node_modules/eve/docs/README.md` first.) eve is young and its surface can change between versions; this skill encodes the workflow and conventions, not a frozen copy of the API. If anything in this skill disagrees with the installed docs, the installed docs win.
