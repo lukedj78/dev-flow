@@ -136,7 +136,7 @@ python3 $S skill-approve <root> <name> --by <name> [--accept CODE="why"] [--sour
 | K5 | review | contradicts a dev-flow rule — cost discipline, `git add -A`, `--apply`/`--fix` on a gate |
 | K6 | review | declares a third-party endpoint it will send data to (one host is one finding, however often it appears) |
 | K7 | review | the source is an unversioned URL — the text changes with no tag and no diff |
-| K8 | review | no `license:` — redistribution terms unknown, so it must never be committed into a repo we deliver |
+| K8 | **block** / review | no `license:` in the frontmatter. **Block** when no LICENSE is found upstream either, or the source is a URL with nothing local to read: with no licence the default is **all rights reserved**, so only the *idea* travels, rewritten in our own words — never the text, into a repo we deliver. **Review** when a LICENSE does exist upstream: read it and record the terms. Split 2026-10-05 on `jnsahaj/skills` (102★, no LICENSE), where one message sent the reader to a file that does not exist |
 
 **The agent never installs one.** The hook denies `npx skills add`, `skills update` and `gh skill
 install` with the reason; `skill-review` is read-only and runs without asking; the **user** installs;

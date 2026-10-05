@@ -554,6 +554,41 @@ class Skills(Base):
         k5 = next(f for f in rep.findings if f.code == "K5")
         self.assertIn("optimize for cheaper models", k5.where)
 
+    def test_no_licence_anywhere_blocks_while_a_licence_upstream_only_asks(self) -> None:
+        """The two halves of K8 are not the same finding.
+
+        A licence declared upstream but absent from the frontmatter is bookkeeping: read the file,
+        record the terms. **No licence anywhere** means all rights reserved, so the text must never
+        be vendored into a repo we deliver — only the idea travels, rewritten. Found on
+        jnsahaj/skills (2026-10-05, 102 stars, no LICENSE), where the old message sent the reader
+        to a file that does not exist and let the review pass as an ordinary approval.
+        """
+        body = "---\nname: d\ndescription: una skill senza campo license\n---\n\n# D\n\nFa una cosa.\n"
+        here = self.root / "vendored" / "skills" / "d"
+        here.mkdir(parents=True, exist_ok=True)
+        (here / "SKILL.md").write_text(body)
+
+        bare = ri.review_skill("d", body, str(here))
+        k8 = next(f for f in bare.findings if f.code == "K8")
+        self.assertEqual(k8.level, "block")
+        self.assertIn("all rights reserved", k8.message)
+        self.assertEqual(bare.exit_code, 1)
+
+        (self.root / "vendored" / "LICENSE").write_text("MIT License\n")
+        licensed = ri.review_skill("d", body, str(here))
+        k8 = next(f for f in licensed.findings if f.code == "K8")
+        self.assertEqual(k8.level, "review")
+        self.assertIn("LICENSE", k8.message)
+        self.assertEqual(licensed.exit_code, 3)  # a human still records the terms
+
+    def test_a_url_source_cannot_be_checked_for_a_licence_so_it_blocks(self) -> None:
+        """Nothing local to look at, so the terms are unknown — which is the honest answer, and the
+        same one as no licence at all. It must not become a silent pass."""
+        body = "---\nname: d\ndescription: una skill servita da una URL\n---\n\n# D\n\nFa una cosa.\n"
+        rep = ri.review_skill("d", body, "https://example.com/SKILL.md")
+        k8 = next(f for f in rep.findings if f.code == "K8")
+        self.assertEqual(k8.level, "block")
+
     def test_one_host_is_one_finding_however_many_times_it_appears(self) -> None:
         rep = self.review("seller", SKILL_SELLER)
         self.assertEqual(len([f for f in rep.findings if f.code == "K6"]), 1)

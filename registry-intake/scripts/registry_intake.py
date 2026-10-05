@@ -1006,6 +1006,32 @@ class SkillReport:
         return 3 if any(f.level == "review" for f in self.findings) else 0
 
 
+LICENCE_NAMES = ("LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "COPYING", "COPYING.md")
+
+
+def find_upstream_licence(source: str) -> str | None:
+    """Where the licence of the skill's source lives, or None.
+
+    A skill is reviewed from a directory, so the licence sits above it — `skills/<name>/SKILL.md`
+    puts it two levels up. Walk up to four, which covers a repo root and a monorepo package, and
+    stop at the filesystem root. For a URL source there is nothing local to look at, so the caller
+    gets None and the finding says the terms are unknown, which is the honest answer.
+    """
+    if skill_source_kind(source) == "url":
+        return None
+    here = Path(source).resolve()
+    if here.is_file():
+        here = here.parent
+    for d in (here, *list(here.parents)[:4]):
+        for n in LICENCE_NAMES:
+            if (d / n).is_file():
+                try:
+                    return str((d / n).relative_to(Path.cwd()))
+                except ValueError:
+                    return str(d / n)
+    return None
+
+
 def review_skill(name: str, text: str, source: str) -> SkillReport:
     fm, body = split_frontmatter(text)
     findings: list[Finding] = []
@@ -1013,7 +1039,25 @@ def review_skill(name: str, text: str, source: str) -> SkillReport:
     if tools and re.search(r"(?:^|,\s*)(?:Bash|\*)\s*(?:,|$)", tools):
         findings.append(Finding("K1", "review", name, f"allowed-tools: {tools}", "frontmatter"))
     if "license" not in fm:
-        findings.append(Finding("K8", "review", name, "no `license:` in the frontmatter — read the source repo's LICENSE", "frontmatter"))
+        # K8 used to say "read the source repo's LICENSE" and stop there. On jnsahaj/skills
+        # (2026-10-05) that file does not exist, and the two cases are not the same finding:
+        # a licence declared upstream but missing from the frontmatter is bookkeeping, while no
+        # licence anywhere means all rights reserved, so the text must not be vendored into a repo
+        # we deliver. Only the idea travels, rewritten in our own words.
+        upstream = find_upstream_licence(source)
+        if upstream is None:
+            findings.append(Finding(
+                "K8", "block", name,
+                "no `license:` in the frontmatter AND no LICENSE found upstream — with no licence "
+                "the default is all rights reserved: read it for ideas, never copy its text into a "
+                "repo we deliver. Clear it only after the author states the terms",
+                "frontmatter"))
+        else:
+            findings.append(Finding(
+                "K8", "review", name,
+                f"no `license:` in the frontmatter; upstream LICENSE found at {upstream} — read it "
+                f"and record the terms before vendoring anything",
+                "frontmatter"))
     if skill_source_kind(source) == "url":
         findings.append(Finding("K7", "review", name, f"served from {source} — no tag, no commit, no diff", "source"))
     seen: set[tuple[str, str]] = set()
