@@ -647,11 +647,38 @@ The DESIGN.md will list font families. Sort them into three buckets:
 
 **B. System fallbacks** (`system-ui`, `ui-sans-serif`, `-apple-system`): no loading — pass through directly in the font-family chain.
 
+**B-bis. On npm but not on Google Fonts** — **Fontsource** (`@fontsource-variable/<family>`) packages
+a large set of open faces, including many Google Fonts and plenty that are not. It is **self-hosted by
+construction** (the files ship in the package), so it has the same privacy property as
+`next/font/google` and none of the runtime fetch. Prefer `next/font/google` when the face *is* on
+Google Fonts — it subsets and handles `font-display` for you — and reach for Fontsource when it is
+not. **Import every face you reference**, at the top of the CSS file:
+
+```bash
+npm install @fontsource-variable/inter @fontsource-variable/cormorant-garamond
+```
+
+```css
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/cormorant-garamond";
+```
+
+A face referenced in `--font-*` but never imported does not error — it falls through to the next
+entry in the chain, so the page renders in the system font and looks merely *slightly* wrong. Check
+the chain against the imports before declaring the fonts done.
+
 **C. Custom / proprietary / non-Google fonts** (Airbnb Cereal VF, Circular Std, Söhne, F37 Glare, brand-licensed fonts): **STOP and ASK THE USER** before substituting. See "Missing font policy" below.
 
 ### Missing font policy — ASK, don't silently substitute
 
-When the DESIGN.md specifies a custom or proprietary font that isn't a Google Font:
+**First: does the DESIGN.md already name its substitute?** A well-written one does — brand faces are
+licensed and their authors know it, so the spec says what to use instead. **If it does, that is the
+answer and there is nothing to ask**: install the named substitute (Google Fonts or Fontsource), and
+say in the report which brand face was replaced by which substitute, citing the DESIGN.md. Asking a
+user to decide something their own spec already decided is noise.
+
+When the DESIGN.md specifies a custom or proprietary font that isn't a Google Font **and names no
+substitute**:
 
 1. **Check the project for `.woff2` files** under `public/fonts/<family>/` or any sibling location. If present, use them via `next/font/local` (Next) or `@font-face` (Vite/Remix). Done.
 
@@ -689,6 +716,21 @@ const cereal = Inter({
 Loading every weight "just in case" doubles or triples the font payload and silently allows code to render in 400-regular when the design system explicitly forbids it. The DESIGN.md is your contract.
 
 ### Step 3 — Wire fonts in `@theme inline {}`
+
+> #### ⚠️ `--font-heading` is read by small component titles, not by page headings
+>
+> Verified 2026-10-09 against the `base-nova` registry: **`card`, `dialog` and `sheet` write
+> `font-heading` in their source** — so `CardTitle`, `DialogTitle` and `SheetTitle` take that token,
+> at roughly 16px.
+>
+> **So pointing `--font-heading` at the display face is a trap**: a serif cut for 48px, set at 16px
+> inside every card, is the kind of wrongness nobody can locate — the page looks off and the tokens
+> all check out. **Keep `--font-heading` on the sans unless the display face genuinely reads at
+> 16px**, and give page headings the display face through the type tokens instead
+> (`type-display-lg` and friends, §Step 4). When the DESIGN.md's display face does read small — many
+> grotesques do — point it there and say so in the report, because it is a deliberate choice either
+> way.
+
 
 In `globals.css`:
 

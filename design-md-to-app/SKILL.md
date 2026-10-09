@@ -74,6 +74,22 @@ A scaffolded (or augmented) **React + TypeScript** project where:
 - Run `python scripts/parse_design_md.py <path>` to get a normalized JSON dump of `{ frontmatter, body_sections, resolved_components }` where token references like `{colors.primary}` are resolved to literal values.
 - If parsing fails (malformed YAML, duplicate sections), surface the error and stop. The user must fix the source.
 
+> **⚠️ If the file cannot be *read* at all, stop and ask for it. Never reconstruct it.**
+> A path that exists and still fails to open is the dangerous case, because the obvious recovery —
+> inferring what the DESIGN.md "probably" says from the brand name, the project, or what a design
+> system usually contains — produces something DESIGN.md-shaped and entirely invented. And then
+> everything downstream looks correct: real tokens, a real theme, a real showcase, `phase` bumped to
+> `scaffolded`, and not one of them traceable to a decision the user made. **Ask the user to copy the
+> file into the working directory and wait.** This is the same rule as `research.py`'s exit codes —
+> *"I could not look" and "there is nothing" are different facts* — applied to the one input the whole
+> skill is downstream of.
+>
+> The common cause on macOS is **TCC** (the Files-and-Folders privacy layer), which blocks
+> `~/Downloads` and `~/Desktop` for a host that has not been granted access — shadcn's own skill
+> warns about it. **It is host-dependent, not universal**: checked on this setup on 2026-10-09, both
+> directories read fine (587 and 82 entries), so a failure here means something else and the message
+> is worth reading rather than assumed. Either way the rule above does not change.
+
 **A third shape exists, and it is not an input.** `design.md` now names two unrelated
 artefacts. Ours is the Google spec below: token blocks in the frontmatter. The other is an
 **Agent Skill** — frontmatter of exactly `name` + `description`, body in prose, zero tokens.
