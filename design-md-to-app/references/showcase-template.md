@@ -87,8 +87,11 @@ system's signature artifact. One screenful that answers "what is this supposed t
   `accent`/`accent-foreground`, `destructive` on `background`, and every extra text token on
   `background` that the DESIGN.md defines.
 - **Palette** — the raw swatches behind the roles.
-- **Typography** — the ladder as a table: token · spec (size / line-height / weight / tracking) ·
-  **use** (taken from the DESIGN.md, e.g. "section heads") · specimen in real product copy.
+- **Typography** — the ladder as token · spec (size / line-height / weight / tracking) · **use**
+  (taken from the DESIGN.md, e.g. "section heads") · specimen in real product copy. Build it as a
+  description list, **not a table**: four columns of type specs are ~420px wide, so on a phone the
+  ladder scrolls sideways and the specimen — the only part worth looking at — is the column that
+  gets cut off. Stack them below `lg`, with the specimen on its own full-width line.
 - **Spacing, radius, elevation** ladders — visual, each step labelled with its token.
 - **Motion** when the DESIGN.md specifies it (`transitions` owns the tokens), and **icons**: the set
   actually installed, which the shadcn style decides (`shadcn-styles.md`).
