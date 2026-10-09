@@ -710,6 +710,31 @@ Tailwind v4 reads `--font-X` directly to generate `font-X` utilities. **Always i
 `--text-body` / `--text-headline-xl` compiles, renders, and never reaches a single `<Button>`, which
 keeps Tailwind's default line-height while the design system talks to nobody.
 
+> **And there is a second reason, mechanical and worse: `cn()` silently drops one of the two classes.**
+> Verified on 2026-10-09 by running `cn@0.4.0`, after shadcn's own skill flagged it:
+>
+> ```
+> cn("text-display-lg text-muted-foreground")  →  "text-muted-foreground"   // the size vanishes
+> cn("text-muted-foreground text-display-lg")  →  "text-display-lg"         // the colour vanishes
+> cn("text-2xl text-muted-foreground")         →  both survive              // a KNOWN key is fine
+> cn("type-display-lg text-muted-foreground")  →  both survive              // a different prefix is fine
+> ```
+>
+> `tailwind-merge` cannot classify a custom `text-*` key, so it files it with the **colours** and
+> keeps only the last of the group — **and which one dies depends on the order they were written in**.
+> So a parallel semantic scale does not merely fail to reach the primitives: wherever a size and a
+> text colour meet on one element, one of them disappears, silently, order-dependently, and only in
+> the places where both happen to be present. That is the worst shape a styling bug can have, and we
+> adopted `cn` across the fleet on 2026-09-02, so it applies to every project.
+>
+> **If a DESIGN.md genuinely demands named type tokens** — some do, and forcing them onto `text-sm`
+> loses the author's intent — the escape hatch is a **different prefix**, not a `--text-*` key:
+> declare each level as `@utility type-<name>` with the family, size, weight, line-height and
+> tracking inside it. `type-*` is unknown to `tailwind-merge` in a way that costs nothing, because it
+> collides with no group. Convert pixel tracking to `em` so the ratio survives a `clamp()`
+> (`-1px / 48px = -0.021em`), which is the same size-specific-tracking rule
+> `transitions/references/animation-standards.md` records from Apple's typography guidance.
+
 Map each DESIGN.md level onto its **nearest** slot, so every name keeps the sense it has in any
 shadcn block, and carry DESIGN.md's line-height, tracking and weight as modifiers:
 
