@@ -449,6 +449,16 @@ export default defineSchedule({
 });
 ```
 
+**Two changes from 0.74.0–0.75.0.** **Creation no longer accepts an initial state**: a schedule is
+created *active* by default (or *completed* if a one-time schedule is already in the past), and you
+change it afterwards with the existing enable and disable operations — so code that created a
+schedule disabled must now create it and disable it. And **subscriptions default to Vercel Schedules
+in production and process-local storage under `eve dev`**, so an explicit `provider` is no longer
+required; pass one to override the backend, or `vercelScheduleProvider` from
+`eve/experimental/schedules/vercel` to customise the Vercel endpoint. For the *dynamic*,
+tenant-created case there is now an experimental first-party primitive — `defineDynamicSchedules`,
+see `eve-patterns.md` §4, which weighs it against the hand-rolled dispatcher.
+
 `eve dev` does **not** fire schedules on cadence; trigger manually in dev via
 `POST /eve/v1/dev/schedules/<name>`. On Vercel they become Cron Jobs; self-hosted needs the
 Nitro task runner under `eve start`.
@@ -745,6 +755,14 @@ the model it uses, ask in words — the first request writes
 `agent/extensions/self-modification/extension.ts` with `model` and `reasoning`, and later ones edit
 that file. This is the successor to the `getLocalDevCapability()` / `eve/local-dev` that 0.64.0
 removed from the docs.
+
+⚠️ **Split in 0.73.0.** The mount is now two: **`eve/self-modification/local`** and
+**`eve/self-modification/remote`**, so `eve dev` no longer loads the deployed sandbox dependencies it
+never needed. **`eve/self-modification` remains an alias for the *local* mount and now rejects the
+`deployed` option** — that configuration moves to its own mount, e.g.
+`agent/extensions/self-modification-remote/extension.ts`, with the former `deployed` fields at the
+top level. Verified against 0.75.1's `exports`, which lists `./self-modification`, `./local`,
+`./remote`, plus `./agent`, `./config` and `./sandbox`.
 
 ⚠️ **Its output is a source change like any other, and that is the whole point.** The subagent edits
 *authored* files, so a self-modifying agent can quietly drift away from the conventions in this

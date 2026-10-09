@@ -1,5 +1,19 @@
 # DESIGN.md → shadcn/ui mapping
 
+> **`shadcn` CLI 4.21.1 → 4.21.4 (2026-10-01 → 10-07): all internal, with one behaviour worth knowing.**
+> The patches drop `ts-morph` and replace `cosmiconfig` with a smaller reader, fix `ERR_REQUIRE_CYCLE_MODULE`
+> under `pnpm dlx` on Windows, accept a UTF-8 BOM in `components.json` / `package.json`, and skip
+> `npm audit` and the funding check on npm installs. Nothing about `add`, `init`, registries or the
+> item format changed, so every claim in this file still holds (checked 2026-10-09).
+>
+> **The one behaviour to know: for a font item's Next.js layout edit and for `tailwind.config`, the
+> CLI now skips with a warning instead of writing a broken file.** A skip reads like a no-op in the
+> output, so **read the warning** — the config the item expected was not written, and that is on you
+> to finish. Companion packages at the same date: `@shadcn/react` 0.3.1, `@shadcn/registry` 0.1.3,
+> `@shadcn/helpers` 0.2.0, `@shadcn/lint` 0.2.0. `registry-intake`'s lock stays deliberately on
+> `4.21.0`; the two dropped dependencies are a reason to review a bump, not to take one silently.
+
+
 shadcn/ui is not a runtime library — it's a CLI that copies component source into your repo. The theme lives in:
 
 1. **CSS variables** in `app/globals.css` under `:root` (and `.dark` if you wire dark mode).

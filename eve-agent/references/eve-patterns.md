@@ -151,6 +151,23 @@ export interface MemoryStore {
 
 ## 4. Dynamic scheduling — tenant-owned schedules created at runtime
 
+> **⚠️ 0.74.0 added a first-party primitive for exactly this, and it is experimental.**
+> **`defineDynamicSchedules`** gives direct operation tools, an optional `preparePayload` preparation
+> step, **top-level per-operation approval**, and **creator-bound execution**; the create approval
+> receives the *prepared* data and **rejects a changed result before writing**, which is the
+> check this recipe's hand-rolled dispatcher has to implement itself. `ctx.session.schedule` exposes
+> scheduled-turn provenance **without auth attributes**. Also from 0.74.0: schedule subscriptions
+> **default to Vercel Schedules in production and process-local storage under `eve dev`**, so an
+> explicit `provider` is no longer required — pass one to override, or
+> `vercelScheduleProvider` from `eve/experimental/schedules/vercel` to customise the endpoint.
+>
+> **Read the recipe below anyway, and then decide.** It is the version that works on any eve and owes
+> nothing to an experimental API, and its invariants — tenant+user on every operation, key unique
+> within scope, scope as part of the *query* — are what you must verify `defineDynamicSchedules`
+> gives you before trusting it with a tenant's data. `[VERIFY]` against
+> `node_modules/eve/docs/` before adopting: experimental means the surface can move between minors,
+> and this one is three weeks old.
+
 Static `defineSchedule` files are discovered at build time. For schedules the *agent/tenant* creates at runtime, use: **one authored dispatcher** + **CRUD tools** + **a store with atomic leases**.
 
 ```ts
@@ -553,7 +570,7 @@ Three quarters of a backlog is **bookkeeping, not open bugs**. An agent aimed at
 ## 13. Evaluation models — a typed answer where a model turn would be waste
 
 AI Gateway serves **evaluation models** (TypeSafe AI's Jev, `typesafe-ai/jev`, changelog 2026-09-16): given a `state`
-(string, object or array) and named questions, `experimental_evaluate` from `ai` (≥ 7.0.105) returns **typed answers
+(string, object or array) and named questions, `experimental_decide` from `ai` (≥ 7.0.128 — it was `experimental_evaluate` until the AI SDK renamed evaluation to **decisions**; that name survives as a `@deprecated` alias) returns **typed answers
 with probabilities** — `boolean` → `probability`; `choice` → `choice` + `probabilities`; `score` → interpolated
 `score` + per-rung `probabilities` — and no prose. API, limits and pricing: `eve-scaffold.md` §Evaluation models.
 Signature read off `ai@7.0.105`'s `index.d.ts`: `{ model, state, questions, maxRetries (default 2), abortSignal,
@@ -578,7 +595,7 @@ return `"user-approval"`, `"not-applicable"`, `"approved"`, `"denied"` or `{ typ
 
 ```ts title="agent/tools/send_customer_email.ts"
 import { defineTool } from "eve/tools";
-import { experimental_evaluate as evaluate } from "ai";
+import { experimental_decide as decide } from "ai";
 import { z } from "zod";
 
 export default defineTool({
@@ -635,7 +652,7 @@ the failure a structural defence exists for. The `specialCategory` question is t
 not stored.
 
 **d. Evals: inside `test(t)`, graded with `t.check` — not as the judge.** As of eve 0.62.0, `t.judge(...)` itself
-calls `evaluate` from `eve/ai` and defaults to `typesafe-ai/jev` (`docs/evals/judge.mdx`), replacing the old
+calls `decide` from `eve/ai` (named `evaluate` until 0.72.0) and defaults to `typesafe-ai/jev` (`docs/evals/judge.mdx`), replacing the old
 `t.judge.autoevals.*` graders — so an evaluation-model judgment can now go through `t.judge` directly. This
 section's original point still holds for a **hand-rolled** classification you want graded as a local rather than
 routed through the judge's default state (`{ input, output }`): grade it with `t.check`
@@ -645,7 +662,7 @@ turn:
 ```ts title="evals/refund-refusal.eval.ts"
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
-import { experimental_evaluate as evaluate } from "ai";
+import { experimental_decide as decide } from "ai";
 
 export default defineEval({
   async test(t) {
@@ -663,7 +680,7 @@ export default defineEval({
 
 Keep the judge for open criteria ("is the explanation factually right?"); use evaluation for questions with a small
 answer set ("did it refuse", "which department", "is it formal"). Two differences from the judge to know: a judge
-eval with no credentials **skips visibly**, while an `evaluate` call without Gateway credentials **throws** — keep
+eval with no credentials **skips visibly**, while a `decide` call without Gateway credentials **throws** — keep
 `AI_GATEWAY_API_KEY` in CI or tag these evals out of the default run; and `satisfies` is a **gate**, so add `.soft()`
 while you are still calibrating the threshold.
 
@@ -804,7 +821,7 @@ and keep specialist selection on descriptions that do not overlap (§7).
   your domain; write the eval (d) before trusting the gate (b, c).
 - **Design the questions like a form.** One decision per question, `instructions` phrased as a yes/no or a pick,
   and `criteria` that define the ends of the scale — the Gateway docs' own examples all do this.
-- **It is experimental on both sides** (`experimental_evaluate` in `ai`; `auto`/`evaluate` from eve's `eve/models`
+- **It is experimental on both sides** (`experimental_decide` in `ai`; `auto`/`decide` from eve's `eve/models`
   and `eve/ai`, renamed from `eve/experimental/evaluate` in eve 0.60.0): pin `ai` and `eve`, and re-read both pages
   on upgrade — this rename is exactly why.
 - **Know what the price actually buys.** Jev is **$0.042 per million input tokens, output free** (AI Gateway catalog,

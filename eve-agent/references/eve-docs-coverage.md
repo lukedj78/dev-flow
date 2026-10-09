@@ -30,6 +30,81 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > from it. The Linear §Channel subsection this branch predates was kept in place rather than
 > dropped by the merge.
 >
+> **Verification pass 2026-10-09 against eve@0.75.1 — ten releases, and one rename with no alias.**
+> `npm pack eve@0.75.1`, its `CHANGELOG` from 0.71.0 forward, and the shipped `.d.ts` for every
+> identifier below. Ten stable releases in six days (0.71.1 → 0.75.1). **The method earned its keep
+> twice**, in both directions:
+>
+> **① `evaluate` is `decide`, and in eve there is no alias** (0.72.0). eve follows the AI SDK's rename
+> of *evaluation* to **decisions** and moves to `ai@7.0.128`: `evaluate` from `eve/ai` is now
+> **`decide`**, and `auto` and `t.judge(...)` take an `Experimental_DecisionModel` such as
+> `provider.decisionModel(...)`. The difference that matters is one the changelog does not state:
+> **the AI SDK keeps `@deprecated` aliases** (`experimental_evaluate` → `experimental_decide`,
+> `Experimental_EvaluationModel` → `Experimental_DecisionModel`, and the whole event family), while
+> **`eve/ai` exports no `evaluate` at all** — zero occurrences in 0.75.1's `index.d.ts`. So AI SDK
+> code keeps compiling with a warning and eve code **fails to resolve**. This is the *third* move of
+> this surface (`autoModel` → `auto` at 0.60.0, the subpath to `eve/ai`, now the name), and it was
+> documented in nine of our files. Corrected in `eve-patterns.md` §13, `eve-scaffold.md`,
+> `eve-concepts.md`, `eve-evals.md`, `eu-data-sovereignty.md` §4.10 and `resources.md`. Extensions
+> built against the older `tool`/`dynamicTool` capability must be rebuilt against this release.
+>
+> **② The changelog would have made us break a correct page.** It says `defineInstrumentation` no
+> longer supports **`action.*` handlers** (use `tool.call.started` / `.completed` / `.failed`,
+> `InstrumentationToolCall*`, `InstrumentationToolOutput`, and read `event.toolName` rather than
+> `event.name`; one `execute_tool` span replaces the `agent.action` wrapper plus its tool child,
+> trace schema still version 4). Read as prose that looks like "the `action.*` events are gone" — and
+> **`action.result` and `action.partial` are still there**, 56 and 34 occurrences in `dist`, because
+> those are *stream* events and the removal is about *instrumentation handlers*. Two different
+> surfaces, one prefix. Our hook list in `eve-capabilities.md` §Hook and the stream list in
+> `eve-concepts.md` cite the stream events and were **correctly left alone**. We document no
+> `action.*` instrumentation handler, so nothing needed fixing — which is only knowable by looking.
+>
+> **③ 0.72.0 closed half of the task-ownership hole this file recorded on 2026-10-03.** An approval
+> with no `response` policy can now be approved or cancelled **only by the principal whose turn
+> requested the call**, so a shared thread no longer lets someone else run a tool under the
+> requester's turn; a tool needing other approvers declares `approval.response`. 0.75.0 extends it to
+> subagents — a subagent's approval stays open on the parent until the subagent settles it, and a
+> typed `approve` answers it on text-only channels (Linq, Twilio, Linear). **The half still open** is
+> reading and continuing: ownership landed on *approvals*, not on tasks, so `task_wait`,
+> `task_cancel`, the `[Tasks]` note and a continued `serve` task keeping an earlier caller's state
+> are unchanged. Noted in `eve-concepts.md` §Tasks rather than deleted.
+>
+> **④ Trace sampling is wider than we wrote, and has an opt-out we missed** (0.75.1). eve configures
+> 100% sampling whenever **it** creates the Vercel project — `eve link`, `eve deploy`, *and*
+> integration setup, not `eve deploy` alone as our §Observability said — for all environments;
+> existing projects keep their settings, and **`eve deploy --no-trace-sampling` skips it**. Corrected
+> in `eve-conventions.md`.
+>
+> **⑤ Renames and splits, each verified in `dist` or `exports`:** custom sandbox provider handles
+> `onSessionStop()` → **`onSandboxStop()`** and `onSessionDelete()` → **`onSandboxDelete()`**, plus a
+> new **`onSessionEnd()`** called when a durable session completes, expires or fails (0.75.0; only
+> `defineSandboxProvider()` implementations are affected) → `eve-concepts.md` §Sandbox.
+> **Self-modification split** into `eve/self-modification/local` and `/remote`, with the bare
+> subpath an alias for *local* that now **rejects `deployed`** (0.73.0) → `eve-capabilities.md`.
+> **Schedule creation no longer accepts an initial state** (active by default; enable/disable after),
+> and subscriptions **default to Vercel Schedules in production, process-local under `eve dev`**
+> (0.74.0–0.75.0) → `eve-capabilities.md` §Schedule.
+>
+> **⑥ New and experimental: `defineDynamicSchedules`** (0.74.0) — direct operation tools, optional
+> `preparePayload`, **top-level per-operation approval**, **creator-bound execution**, and a create
+> approval that receives the *prepared* data and **rejects a changed result before writing**;
+> `ctx.session.schedule` exposes scheduled-turn provenance without auth attributes. That is a
+> first-party primitive for `eve-patterns.md` §4, which until now was a hand-rolled dispatcher.
+> Recorded there **beside** the recipe rather than replacing it: the recipe owes nothing to an
+> experimental API and its invariants are the checklist for trusting this one.
+>
+> **⑦ Noted, not yet written up.** `mcpChannel({ skills: true })` serves the agent's skills as
+> **SEP-2640** under `skill://` with per-file size and SHA-256, and `{ tools: true }` publishes the
+> agent's own tools next to `agent_*`; `trustedForwarders` + the `eve-forwarded-principal` header and
+> `forwardPrincipal` let one agent run a tool as the user another forwards; `invokeTool` gained
+> `key` (same key ⇒ one session id and a kept sandbox, expiring a day after last use) and
+> `initiator`. Session-scoped **JSON tool stubs** for evals with argument matching and outcome
+> sequences (0.75.0), and **deployment handoffs use a new checkpoint version**, so a session cannot
+> hand off to a deployment running an older one. `eve add`/`eve registry` now use `@shadcn/registry`
+> instead of the full `shadcn` CLI (9.7 MB → 3.8 MB). Web Chat renders `ask_question` with shadcn's
+> `Questionnaire` — which `forms` already owns, so the two should be reconciled when that page is
+> next touched.
+
 > **Verification pass 2026-10-03 against eve@0.71.0 — tasks replace background tasks.** Same technique:
 > `npm pack` of both 0.64.0 and 0.71.0, a file-by-file diff of the two `docs/` trees and the CHANGELOG
 > between them — **16 stable releases, 67 doc files changed, 5 pages new**. This pass is different from the

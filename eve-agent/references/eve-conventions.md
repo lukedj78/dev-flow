@@ -324,9 +324,13 @@ Here is what each half actually does, verified in `dist` at 0.62.0 and 0.71.0 (i
 
 **True: the destination is seeded for you.** `seedInstrumentationProviders()` sets the `agent-runs`
 slot whenever `VERCEL_ENV` is `preview` or `production` — so on Vercel the export exists without any
-file, and only there (never locally). `eve deploy` on a **new** Vercel project also configures 100%
-trace sampling for all environments. A file at `agent/instrumentation/agent-runs.ts` takes over that
-same slot; `disableInstrumentation()` deletes it.
+file, and only there (never locally). **eve configures 100% trace sampling whenever it creates the Vercel project** — on `eve link`, on `eve deploy`, and during
+integration setup (0.75.1 widened this from `eve deploy` alone, which is what this paragraph used to
+say), and it sets 100% for **all environments**. **Existing projects keep their own sampling
+settings**, and **`eve deploy --no-trace-sampling` skips the configuration** — the opt-out to reach
+for when a client's project must not be sampled at 100% by a deploy command. A file at
+`agent/instrumentation/agent-runs.ts` takes over the destination slot; `disableInstrumentation()`
+deletes it.
 
 **False: that it carries conversation content.** Content capture is decided *upstream* of any
 destination, by the process-wide `tracePolicy`, whose default is literally:

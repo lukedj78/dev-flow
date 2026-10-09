@@ -1,6 +1,6 @@
 > Bootstrap snapshot — kept in sync manually with `rn-fundamentals/references/stack-defaults.md`.
 > Update both files together when bumping a major version.
-> Snapshot date: 2026-10-03.
+> Snapshot date: 2026-10-09.
 
 # Stack defaults (opinionated)
 
@@ -13,11 +13,11 @@ operators. **Install with `npx expo install <pkg>`, never `npm install <pkg>`.**
 
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
-| `expo` | `^57.0.26` | Expo SDK | Latest stable. New Architecture ON by default. |
+| `expo` | `^57.0.27` | Expo SDK | Latest stable. New Architecture ON by default. |
 | `react-native` | `0.86.3` | RN core | Bumped by Expo SDK — DO NOT override manually. Verified 2026-09-22 against `expo-template-blank-typescript@57.0.26`'s own `dependencies` (the SDK-bundled version, not npm `latest` — Expo pins a specific RN per SDK and `expo install` resolves to that, not to whatever npm calls latest). |
 | `react` | `19.2.3` | React | Bumped by Expo SDK — DO NOT override manually. |
 | `typescript` | `^7.0.2` | TS | Template `blank-typescript` brings a compatible version. |
-| `expo-router` | `~57.0.24` | File-based routing | Mandatory for all apps in this set. |
+| `expo-router` | `~57.0.25` | File-based routing | Mandatory for all apps in this set. |
 | `nativewind` | `^4.2.7` | Tailwind for RN | Major 4 only. |
 | `tailwindcss` | `^3.4` | Required by NativeWind v4 | ⚠️ DO NOT install Tailwind 4.x yet — NativeWind v4 is not yet compatible. Pin to 3.4.x until NativeWind confirms support. |
 | `zustand` | `^5.0.15` | Global state | Default for non-trivial global state. |

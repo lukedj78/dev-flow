@@ -6,7 +6,7 @@ The cross-cutting concepts behind every capability. This complements `eve-conven
 
 Root-only. Fields:
 - `model` — gateway id (this skill pins `"anthropic/claude-sonnet-5"`; **eve's own scaffold default is now `spacexai/grok-4.7`** — `DEFAULT_AGENT_MODEL_ID` read off `eve@0.64.0`'s `dist`, changed in 0.63.0 from the `openai/gpt-5.6-luna-fast` of 0.47.2, itself from the `zai/glm-5.2` of 0.36.0, and used for all three of `eve init`, a config-less agent, and the setup picker's pre-selection. **Three moves in twenty-seven minor versions**, so pin explicitly and never inherit it
-  - **Or `auto()` — a model picked per turn by an evaluation model** (`import { auto } from "eve/models"`; renamed from `autoModel`/`eve/experimental/evaluate` in **eve 0.60.0** — the old import path is gone, not deprecated, as of eve@0.63.0. Depends on `ai@^7.0.105`; the bundled `docs/guides/evaluate.md` is the source). The standalone question-asking function moved too: `evaluate` now imports from `eve/ai`, not `eve/experimental/evaluate`. *Still experimental: its API can change between eve releases, and the AI SDK evaluation-model spec can change in patch releases* — pin eve and re-read the page on upgrade.
+  - **Or `auto()` — a model picked per turn by an evaluation model** (`import { auto } from "eve/models"`; renamed from `autoModel`/`eve/experimental/evaluate` in **eve 0.60.0** — the old import path is gone, not deprecated, as of eve@0.63.0. Depends on `ai@^7.0.105`; the bundled `docs/guides/evaluate.md` is the source). ⚠️ **Renamed again in 0.72.0, and this one has no alias.** The standalone question-asking function is **`decide` from `eve/ai`**: `eve/ai` exports no `evaluate` whatsoever — verified in 0.75.1's own `.d.ts` — so unlike the AI SDK, which keeps `@deprecated` aliases for the same rename, an import of `evaluate` **fails to resolve**. *Still experimental: its API can change between eve releases, and the AI SDK evaluation-model spec can change in patch releases* — pin eve and re-read the page on upgrade.
     ```ts
     import { defineAgent } from "eve";
     import { auto } from "eve/models";
@@ -14,7 +14,7 @@ Root-only. Fields:
     export default defineAgent({
       reasoning: "medium",
       model: auto({
-        // model: typeSafeAi.evaluationModel("jev-latest"),   // optional; default evaluator is "typesafe-ai/jev" via AI Gateway
+        // model: typeSafeAi.decisionModel("jev-latest"),   // optional; default evaluator is "typesafe-ai/jev" via AI Gateway
         options: {
           "openai/gpt-5.6-sol": "Difficult reasoning and engineering tasks",   // key = Gateway id, value = description
           routine: { model: anthropic("sonnet-5"), description: "Routine work", reasoning: "low" },  // object form: provider instance / alias / reasoning override
@@ -97,6 +97,13 @@ export default defineSandbox(async ({ session }) => {  // was `onSession` — pe
 - **`prepare` builds an artifact, runtime never rebuilds it**: Vercel captures a snapshot, Docker an image, microsandbox a VM snapshot, just-bash a filesystem template. A missing artifact fails with rebuild/redeploy guidance instead of being repaired at runtime — which is why `eve build --skip-sandbox-prewarm` output is explicitly *not deployable*.
 - **Seeding:** files under `agent/sandbox/workspace/` seed writable `/workspace` when eve prepares a new environment generation; existing live state is **not** overwritten by later seed changes. Skills are a separate read-only tree at `$HOME/.agents/skills`. Refer to those two paths only — `/eve/resources` is provider-internal staging.
 - **Network policy** goes to `open()` (`"allow-all"` · `"deny-all"` · `{ allow: { "api.example.com": [...] } }`) and applies to the live sandbox, not the environment; Docker supports only the two coarse forms. `sandbox.setNetworkPolicy(...)` updates it afterwards (the Vercel environment returns a session where it is always available).
+- **⚠️ Custom-provider handle hooks were renamed in 0.75.0**, because the old names said *session*
+  about something that is a *sandbox*: **`onSessionStop()` → `onSandboxStop()`** and
+  **`onSessionDelete()` → `onSandboxDelete()`** (verified in 0.75.1's `dist`). And 0.75.0 **adds
+  `onSessionEnd()`**, which is genuinely about the session: eve calls it when a durable session
+  completes, expires or fails, so a provider can release session-owned resources straight from
+  persisted state. Only `defineSandboxProvider()` implementations are affected — a project that uses
+  `VercelSandbox` / `DockerSandbox` / `JustBashSandbox` / `MicrosandboxSandbox` has nothing to change.
 - **Lifecycle:** `sandbox.stop()` stops compute and keeps state; `sandbox.delete()` clears provider state so the next `ctx.getSandbox()` reruns the selector on a fresh sandbox (`ctx.reset()` retires the whole session instead).
 - **Credential brokering:** secrets **never enter the sandbox** — a per-domain `transform` injects an auth header at the firewall, so egress authenticates while the secret stays out of the sandbox process.
 - **Sharing:** a declared subagent can inherit its dispatching parent's sandbox with `defineParentSandbox()` — and then cannot declare its own workspace or skill files. Built-in environments do **not** share resources across sessions; a session-specific path is not an isolation boundary.
@@ -166,7 +173,22 @@ An idle resumable task isn't working and doesn't hold anything.
   `abortSignal` of an awaited `execute` call, but **never interrupts a task** — the model reads the
   message and decides per task whether to keep, correct (call again with its `taskId`) or cancel.
 
-### ⚠️ A task has no owner — which is a tenancy hole, not a detail
+### ⚠️ A task has no owner — a tenancy hole, of which 0.72.0 closed half
+
+> **Update 2026-10-09 (eve 0.72.0).** Half of what follows was fixed upstream, and the half that
+> remains is the half that matters to us. **Approvals without a `response` policy can now be
+> approved or cancelled only by the principal whose turn requested the call** — so a shared thread
+> no longer lets another person run a tool under the requester's turn, which is exactly the leak
+> this section was written about. Calls from unauthenticated or anonymous callers are unchanged, and
+> a tool that genuinely needs other approvers declares `approval.response`, which replaces the
+> default. 0.75.0 extends the same reasoning to subagents: a subagent's approval stays open on the
+> parent until the subagent settles it, and a typed `approve` answers it on text-only channels.
+>
+> **What is not fixed: reading and continuing.** The ownership check landed on *approvals*, not on
+> the tasks themselves — eve still does not check which caller started a task, so the paragraphs
+> below stand for `task_wait`, `task_cancel`, the `[Tasks]` note, and a continued `serve` task that
+> keeps the state its body built for an earlier caller. Approving under someone else's turn is now
+> refused; *resuming their work* is not.
 
 **eve does not check which caller started a task.** Tasks belong to the session's open turn, not to
 the caller that created them, so in a session several people share — **a Slack thread is the normal

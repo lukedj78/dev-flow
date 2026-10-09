@@ -44,7 +44,7 @@ Follows the dev-flow contract — see `references/contracts.md`. Key facts:
    ```
 3. **Add the icon** — `pnpm dlx shadcn@latest add @heroicons-animated/<name>` (e.g. `bell`, `heart`, `bars-3`) or `@hugeicons-animated/<name>` (e.g. `add-circle`, `alarm-clock`, `arrow-right-02`). It writes one `.tsx` to your components dir and installs `motion` (the item's only dependency).
 
-**Flags confirmed at `shadcn@4.19.0`** from the CLI's own `add` definition: `-o, --overwrite`
+**Flags confirmed at `shadcn@4.19.0`, re-checked in `4.21.4`'s own bundle on 2026-10-09** — all four are still there — from the CLI's own `add` definition: `-o, --overwrite`
 (*"overwrite existing files"*), plus three worth knowing for a copy-in registry —
 **`--view [path]`** (*"show file contents"*), **`--diff [path]`** (*"show diff for a file"*) and
 **`--dry-run`** (*"preview changes without writing files"*). Since the component becomes *your* file

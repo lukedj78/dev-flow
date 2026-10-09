@@ -127,7 +127,7 @@ content this defends against is `eve-patterns.md` §11.)
 ## LLM judge
 
 ⚠️ **`t.judge.autoevals.*` was removed in eve 0.62.0.** The `factuality`/`summarizes`/`closedQA`/`sql` graders and
-the `autoevals` namespace are gone; `t.judge(...)` is now called directly, calls `evaluate` from `eve/ai` under
+the `autoevals` namespace are gone; `t.judge(...)` is now called directly, calls `decide` from `eve/ai` (`evaluate` until 0.72.0; it takes an `Experimental_DecisionModel` such as `provider.decisionModel(...)`) under
 the hood, and defaults to `typesafe-ai/jev` (`docs/evals/judge.mdx`).
 
 Soft by default (tracked, never fails unless gated). `t.judge` accepts a criteria string (becomes a `boolean`
