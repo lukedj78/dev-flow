@@ -1,3 +1,20 @@
+/**
+ * SECTION STYLING REFERENCE — not a page skeleton.
+ *
+ * Rescoped 2026-10-09. This file encodes the earlier nine-section layout; the structural authority
+ * is `showcase-template.md`, which now follows shadcn's own `design-system-page.md` (MIT) and covers
+ * the whole installed set across seven tiers — actions, inputs, navigation, data display, feedback,
+ * overlays, conversation — with variant × state matrices, contrast-checked colour pairs, rendered
+ * do/don't pairs and a coverage check.
+ *
+ * What is still worth taking from here: the `Eyebrow`, the section rules, the ladder layouts, and
+ * the data shapes behind the colour / type / radius / spacing tables. Read it for how a section
+ * should look in our voice; take what goes in the page from the .md.
+ *
+ * Do NOT copy this file to `app/showcase/page.tsx` any more. A generic skeleton rendering every
+ * component with placeholder labels is exactly what makes a showcase read as generated.
+ */
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {

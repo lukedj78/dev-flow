@@ -2,7 +2,7 @@
 
 This is the **load-bearing structural template** for the `/showcase` page that `design-md-to-app` produces in full-scaffold mode. The pattern was distilled from three independently-shipped projects (airbnb-clone, aetherfield, devops-graphite, notarius-crm) that converged on the same skeleton — only the brand-specific contents inside the bands change.
 
-A reference TypeScript file with all 9 sections wired up lives at `references/showcase-template.tsx` (vendored from the Notarius implementation). When generating a new `/showcase` for a fresh project, copy that file and replace the contents — do not improvise the structure.
+**This file is the structural authority, and it tracks shadcn's own `skills/shadcn/design-system-page.md` (MIT) deliberately — when they change it, we diff and follow.** `references/showcase-template.tsx` is **not** a page skeleton any more: it encodes the earlier nine-section layout, and it is kept as a **styling reference** for how one of our sections looks — the `Eyebrow`, the section rules, and the data shapes behind the colour, type, radius and spacing ladders. Take the look from there and the structure from here. The three helpers the state matrix and the contrast pairs need are vendored at `assets/showcase/` (see its README).
 
 ## Design intent
 
@@ -60,17 +60,124 @@ So it must read as a magazine, not as a Storybook gallery. Every section starts 
 </main>
 ```
 
-## The 9 sections (fixed order)
+## The sections (fixed order)
 
-1. **Header** — h1 72px, brand tagline, source attribution, back-link.
-2. **Colors** — color-as-card grid, 3 lines per card (hex / name / role-note).
-3. **Typography** — ladder `[name][spec mono][sample]`, samples are real product copy.
-4. **Buttons** — single `flex-wrap` with domain-specific copy (NOT one card per variant).
-5. **Cards & containers** — 3 cards demonstrating different surface levels with real product blocks.
-6. **Inputs & forms** — uppercase mono labels, one input in error state.
-7. **Badges** — status pills mapping 1:1 to product statuses.
-8. **Radius + Spacing scales** — visual demos of both.
-9. **Do's and Don'ts** — verbatim from DESIGN.md `## Do's and Don'ts` section.
+> **Widened 2026-10-09, because the page was demonstrating a fraction of what the scaffold installs.**
+> We run `shadcn add --all` — sixty-odd components — and the old nine sections showed about nine of
+> them. A design system page that omits every overlay, every feedback component and all of navigation
+> is a colour-and-type page with a misleading name. The tier list below is adapted from shadcn's own
+> `design-system-page.md` (MIT, 2026-10-09); the **brand voice, the real-product copy and the
+> taglines stay ours** — their section headings are labels, and labels are what make a showcase read
+> as a template.
+
+**1. Header** — h1 72px, brand tagline, source attribution, back-link, **section anchors** and a
+**light/dark toggle**. The toggle is not decoration: it is how anyone checks the `.dark` tokens
+without editing code.
+
+**2. Overview** — the DESIGN.md's hero recipe: the display face, the one-line personality, and the
+system's signature artifact. One screenful that answers "what is this supposed to feel like".
+
+**3. Foundations** — in one section, not scattered:
+
+- **Colour roles as contrast-checked pairs.** Every pair below is rendered with its measured ratio,
+  and **a pair under 4.5:1 is reported, including when the DESIGN.md itself specifies it** — that is
+  a finding about the design, not a licence to silently fix it. Required pairs:
+  `background`/`foreground`, `card`/`card-foreground`, `popover`/`popover-foreground`,
+  `primary`/`primary-foreground`, `secondary`/`secondary-foreground`, `muted`/`muted-foreground`,
+  `accent`/`accent-foreground`, `destructive` on `background`, and every extra text token on
+  `background` that the DESIGN.md defines.
+- **Palette** — the raw swatches behind the roles.
+- **Typography** — the ladder as a table: token · spec (size / line-height / weight / tracking) ·
+  **use** (taken from the DESIGN.md, e.g. "section heads") · specimen in real product copy.
+- **Spacing, radius, elevation** ladders — visual, each step labelled with its token.
+- **Motion** when the DESIGN.md specifies it (`transitions` owns the tokens), and **icons**: the set
+  actually installed, which the shadcn style decides (`shadcn-styles.md`).
+
+**4. Actions** — Button, ButtonGroup, Toggle, ToggleGroup, Badge, Kbd.
+**5. Inputs** — Field, Input, InputGroup, Textarea, Select, NativeSelect, Combobox, Checkbox,
+RadioGroup, Switch, Slider, InputOTP, Calendar, Label.
+**6. Navigation** — Tabs, Breadcrumb, Pagination, NavigationMenu, Menubar, Sidebar.
+**7. Data display** — Card, Table, Chart, Item, Avatar, Accordion, Collapsible, Carousel, ScrollArea,
+Resizable, AspectRatio, Separator.
+**8. Feedback** — Alert, toast (and Sonner in Base UI projects, which `add --all` installs too),
+Progress, Spinner, Skeleton, Empty.
+**9. Overlays** — Dialog, AlertDialog, Sheet, Drawer, Popover, HoverCard, Tooltip, DropdownMenu,
+ContextMenu, Command. **Each gets a real trigger, labelled with what it opens** — a screenshot of a
+closed dialog proves nothing.
+**10. Conversation** — when the project has a chat surface: MessageScroller, Message, Bubble,
+Attachment, Marker, Questionnaire. `references/chat-and-typeset.md` owns these.
+**11. Do's and Don'ts** — **rendered pairs**, not quoted prose. Each "Don't" from the DESIGN.md built
+as a component beside the version that obeys the rule. A rule you can see broken is a rule people keep.
+**12. Recipes and one example screen** — the DESIGN.md's named components rebuilt from the installed
+primitives, then one realistic screen that uses them together.
+**13. Footer** — the DESIGN.md's footer recipe.
+
+Skip a section only when the project installed none of its components, and say which you skipped.
+
+### How to show each tier
+
+| Tier | How |
+|---|---|
+| **Primitives** (Button, Badge, Toggle, Input, Select, Checkbox, Radio, Switch, Slider, Tabs…) | Variant × state matrix, size ladder smallest to largest, icon row (leading, trailing, icon-only) |
+| **Fields** (Field, InputGroup, Combobox, InputOTP, Calendar, Label) | The typical field, then description, error, disabled, required |
+| **Composed** (Card, Table, Item, Avatar, Alert, Empty, Accordion, Progress, Chart…) | Typical example, then one element added at a time, then the edge cases |
+| **Overlays** | One real trigger each, labelled with what it opens |
+| **Shell** (Sidebar) | Inline in a framed preview — `<SidebarProvider className="min-h-0">` + `<Sidebar collapsible="none">`, or the default `fixed` sidebar escapes the frame |
+| **Conversation** | One realistic thread, then the variant rows |
+
+Each block, in this order, skipping what does not apply: **name + one line on when to use it**
+(take the wording from the DESIGN.md recipe when there is one) · typical example in real content ·
+variants in priority order, each with a one-line "when" · sizes as a ladder · with icon · states ·
+edge cases. Wide components (Table, NavigationMenu, Menubar, Sidebar, Chart, MessageScroller) span
+the full row.
+
+### Pin the interaction states — `data-preview`
+
+A static page cannot hover itself, so a state matrix needs the states to be *addressable*. Redefine
+the Tailwind variants so each also matches an attribute, in `tailwindCssFile`:
+
+```css
+@custom-variant hover {
+  @media (hover: hover) { &:hover { @slot; } }
+  &[data-preview~="hover"] { @slot; }
+}
+@custom-variant focus-visible (&:focus-visible, &[data-preview~="focus"]);
+@custom-variant active (&:active, &[data-preview~="active"]);
+```
+
+Then a row of `<Button data-preview="hover">` renders the hover state at rest. ⚠️ **If the theme added
+an unlayered focus rule** (the solid-outline treatment in `shadcn-mapping.md` §Focus), add
+`[data-preview~="focus"]` to that selector too, or the focus column shows nothing.
+
+Note the `hover` variant keeps its `@media (hover: hover)` guard — which is the same capability gate
+`transitions` requires, so the matrix does not reintroduce a sticky hover on touch.
+
+### Coverage: the page must demonstrate what the scaffold installed
+
+Because we install **everything**, "which components are missing from the showcase" is a question
+with a mechanical answer. List the component files that no showcase file imports, and work the list
+to zero:
+
+```bash
+comm -23 \
+  <(ls components/ui/*.tsx | xargs -n1 basename | sed 's/\.tsx$//' | sort) \
+  <(grep -rhoE 'from "@/components/ui/[a-z-]+"' app/showcase components 2>/dev/null \
+      | sed 's|.*/||; s|"||' | sort -u)
+```
+
+`add --all` installs both `toast` and `sonner` on Base UI projects, so show `sonner` in Feedback
+beside `toast` rather than leaving it as a permanent orphan on the list.
+
+### Before declaring it done
+
+Beyond the visual comparison in `SKILL.md` §Visual verification:
+
+1. The page **loads at `scrollY === 0`**. Anything else means a component is stealing scroll on mount
+   — cmdk does exactly this, pulling its first item into view; control it with
+   `value` + `onValueChange` and an initial `"none"`.
+2. **No horizontal overflow** at 375px and 1280px: `document.documentElement.scrollWidth <= innerWidth`.
+3. **Toggle dark once** and look at it.
+4. No console errors.
 
 ## Brand-voice taglines — examples
 
@@ -109,7 +216,8 @@ If after reading PRD.md and screenshots you still don't have enough candidates, 
 
 ## How to use this template
 
-1. Copy `showcase-template.tsx` into `<project-root>/app/showcase/page.tsx`.
+1. **Build the page from the sections above, against the components the project actually installed** — not by copying a skeleton. Route: `app/showcase/page.tsx` (or `app/design-system/`), one file per section under it once the page passes a screenful. Copy `assets/showcase/preview-states.css` into `tailwindCssFile` and the two helpers beside the components, then read `showcase-template.tsx` for how a section should *look* in our voice.
+   ⚠️ **Do not ship a generic sixty-component skeleton.** The page is built from this project's set and this project's copy; a template that renders every component with lorem labels is the thing that makes a showcase read as generated, which is what `anti-slop-fallbacks.md` exists to prevent.
 2. Replace each constant array (`COLORS`, `TYPES`, `RADII`, `SPACING`) with values from the project's DESIGN.md.
 3. Replace every domain-contextual sample with copy extracted from PRD.md, screenshots, or asked from the user.
 4. Replace the brand-voice taglines (h1 + each h2) with brand-specific wording.
