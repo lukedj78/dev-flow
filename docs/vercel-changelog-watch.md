@@ -44,6 +44,7 @@ scheduled task only fires while the app is open** — this file is the record th
 
 | Due | Task id | What to diff | Why it is booked |
 |---|---|---|---|
+| **ogni lunedì 09:00** | `eve-version-sweep-weekly` | eve: baseline letta dalla nota di passata più recente in `eve-agent/references/eve-docs-coverage.md`, contro `npm view eve dist-tags.latest`, col metodo già documentato lì (`npm pack` dei due, diff dei `docs/`, `CHANGELOG` in mezzo) | **eve pubblica un minor ogni uno o due giorni** — dieci release fra 0.71.0 e 0.75.1 in sei giorni, `0.76.0` lo stesso giorno della passata — e ogni nostra passata ha trovato 4-7 minor con due o tre **rotture**. A tre settimane non è un diff, è una riscrittura; settimanale è ciò che lo tiene a dieci minuti. La baseline **si legge, non si assume**, così la nota di ogni passata la fa avanzare da sé. |
 | **2026-10-30** | `shadcn-design-system-page-diff` | `shadcn-ui/ui` `skills/shadcn/design-system-page.md` + `design-system.md` + the three vendored `assets/showcase/` helpers, against `design-md-to-app/references/showcase-template.md`, `shadcn-mapping.md` and `shadcn-styles.md` | Our showcase spec **deliberately follows theirs** as of 2026-10-09 (their PR #12252), so their next change is a ten-minute diff instead of a rewrite — but only if someone looks. Baseline for the `gh api` commit query is **2026-10-09**. A clean result is a result: log it and move the date. |
 
 ## Log
