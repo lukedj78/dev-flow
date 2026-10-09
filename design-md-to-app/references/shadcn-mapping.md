@@ -800,6 +800,50 @@ extend: {
 
 ## Rounded → @theme radius scale
 
+> ### ⚠️ Corrected 2026-10-09 — this section was making the mistake §Step 4 forbids
+>
+> Step 4 says a parallel set of semantic type names *"compiles, renders, and never reaches a single
+> `<Button>`"*. **The same is true of semantic radius names, and this section used to prescribe
+> them.** Verified by reading the real component sources from the `base-nova` registry:
+>
+> | Component | What its source actually writes |
+> |---|---|
+> | `button` | `rounded-lg`, plus the cap `rounded-[min(var(--radius-md),10px)]` / `…,12px)]` |
+> | `input` | `rounded-lg` |
+> | `card`, `dialog` | `rounded-xl` (`rounded-t-xl` / `rounded-b-xl` on card parts) |
+> | `badge` | `rounded-4xl` (the pill) |
+>
+> So `--radius-button: 8px` reaches nothing: `button.tsx` asks for `rounded-lg`, which reads
+> `--radius-lg`. **Pin the Tailwind steps the components use**, with the DESIGN.md's step written in
+> the comment so the mapping stays readable:
+>
+> ```css
+> @theme inline {
+>   --radius-sm:  4px;    /* DESIGN.md xs — small accents */
+>   --radius-md:  6px;    /* sm — menu, select and command items */
+>   --radius-lg:  8px;    /* md — buttons, inputs, selects, tabs, popovers, menus */
+>   --radius-xl:  12px;   /* lg — cards, dialogs, command */
+>   --radius-2xl: 16px;   /* xl — toasts, large containers */
+>   --radius-4xl: 9999px; /* pill — badges */
+> }
+> ```
+>
+> **Replace the existing `--radius-*` lines rather than adding a second block**, and confirm the
+> classes for the style you actually installed, because the eight differ
+> (`references/shadcn-styles.md`):
+>
+> ```bash
+> grep -ohE "rounded-(\[[^ \"]+\]|[a-z0-9]+)" components/ui/*.tsx | sort | uniq -c
+> ```
+>
+> **The cap is deliberate**: `rounded-[min(var(--radius-md),10px)]` keeps small buttons and select
+> triggers from going rounder than their height allows. When the DESIGN.md wants rounder small
+> controls, **edit the cap** — raising `--radius-md` alone will not move them.
+>
+> A semantic name still earns its place for something with **no** Tailwind step behind it — a
+> `--radius-search` on a bespoke search field you wrote yourself. The rule is the same as Step 4's:
+> redefine the slot the primitives read; add a name only for what the primitives never see.
+
 In Tailwind v4, write radius tokens directly into `@theme inline {}`:
 
 ```css
@@ -849,6 +893,82 @@ extend: {
   },
 }
 ```
+
+## Elevation, control heights, dark bands and focus
+
+Four alignments taken from shadcn's own `design-system` skill (MIT, 2026-10-09) and kept because each
+one is a mechanical fact rather than a preference.
+
+### Elevation goes in `@theme`, not `@theme inline`
+
+`@theme inline` is for variables that point at other variables; a shadow is a literal value, so it
+belongs in `@theme`. Copy multi-layer shadows **verbatim** from the DESIGN.md — flattening two layers
+into one is the difference between a surface that floats and one that looks printed on.
+
+```css
+@theme {
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 1px 3px rgb(20 20 19 / 0.08);
+  --shadow-lg: 0 1px 3px rgb(20 20 19 / 0.08), 0 8px 24px rgb(20 20 19 / 0.06);
+}
+```
+
+**Set `--shadow-xs` to `0 0 #0000` when the DESIGN.md is hairline-only**, because inputs and outline
+buttons use that step — leave it at the default and a system that specified borders instead of
+shadows gets a faint shadow on every field anyway.
+
+### Control heights move together, or forms misalign
+
+Changing a button's height is never one edit. In `base-nova` the 32px default lives in **eleven**
+places, and a form with a 40px button beside a 32px input reads as broken without anyone being able
+to say why:
+
+`button.tsx` (`h-8`, `size-8` icon) · `input.tsx` (`h-8`) · `input-group.tsx` (`h-8`) · `select.tsx`
+(`data-[size=default]:h-8`) · `native-select.tsx` (`h-8`) · `combobox.tsx` (`min-h-8` chips) ·
+`toggle.tsx` (`h-8 min-w-8`) · `input-otp.tsx` (`size-8` slot) · `tabs.tsx`
+(`group-data-horizontal/tabs:h-8`) · `menubar.tsx` (`h-8`) · `command.tsx` (`h-8!` input group).
+
+**Re-grep before editing, because the eight styles use different values:**
+
+```bash
+grep -n "\bh-8\b\|\bsize-8\b" components/ui/*.tsx
+```
+
+### A dark band is free — `className="dark"` on the section
+
+shadcn's dark variant is `@custom-variant dark (&:is(.dark *))`, which scopes to **descendants**. So
+`className="dark"` on any wrapper renders everything inside it with the dark tokens: a dark footer, a
+featured pricing card, a product mockup band, with no duplicated styles and no second theme.
+
+- **The DESIGN.md defines dark surfaces** (mockups, footers) → put them in `.dark` and use the
+  wrapper for the bands that want them.
+- **The DESIGN.md is light-only** → derive `.dark` from the brand's known dark surfaces, **and tell
+  the user it is derived**. A derived dark mode presented as specified is the kind of silent
+  invention `anti-slop-fallbacks.md` exists to prevent.
+
+### Focus: match the treatment, do not default to the ring
+
+Two shapes, and the DESIGN.md names one:
+
+- **Ring with alpha** ("3px coral at 15%") → replace `ring-ring/50` with the documented alpha on the
+  field components: `input`, `textarea`, `input-group`, `select`, `native-select`, `combobox`,
+  `input-otp`.
+- **Solid outline with offset** → an **unlayered** rule, so it beats the components' `outline-none`,
+  and cancel the ring shadow it would otherwise sit on top of:
+
+```css
+:is(button, a[href], [role="button"], [role="tab"], [role="checkbox"],
+    [role="radio"], [role="switch"], [role="slider"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  --tw-ring-shadow: 0 0 #0000;
+}
+```
+
+That selector covers **actions only**; field controls keep their ring. Add
+`input, textarea, select, [role="combobox"]` only when the DESIGN.md puts the outline on fields too.
+Either way `shadscan`'s a11y rules still apply — a focus style that matches the brand and fails
+contrast is a finding, not a win.
 
 ## Components → variant overrides
 
