@@ -13,8 +13,38 @@ on **2026-10-09**, MIT (shadcn-ui/ui), at the commit that added the DESIGN.md de
 
 **Vendored rather than reimplemented**, deliberately: together they are about 5.5 KB, and a
 hand-written `StateMatrix` would be 5.5 KB of divergence from the upstream that the rest of the
-showcase spec tracks. Copy them into the project (`tailwindCssFile` for the CSS, the component
-directory for the two `.tsx`) and keep them as they are.
+showcase spec tracks. Keep them as they are.
+
+## Where they go, and how they are called
+
+Put the CSS in `tailwindCssFile`, and the two `.tsx` **under the showcase route**
+(`app/<locale>/showcase/_components/`), *not* in the project's shared component directory. The
+design-system lint's exception for literal values is scoped by path to the showcase folder, so a
+helper that lives in `components/shared/` is linted as product code and `color-pair.tsx` fails
+`shadcn/no-inline-styles` — which it cannot avoid, since painting a pair is its whole job.
+
+`ColorPair` takes **bare token names**, not CSS expressions: it builds `var(--<token>)` itself.
+
+```tsx
+<ColorPair name="primary / primary-foreground" background="primary" foreground="primary-foreground" />
+```
+
+Pass `background="var(--primary)"` and it renders `var(--var(--primary))` — no colour, and the
+label underneath reads `--var(--primary)`, which is how you spot it.
+
+## ⚠️ One adaptation every Next project needs
+
+These were written for a **Vite** app, where there is no server/client split. In the App Router,
+**`color-pair.tsx` needs `"use client"` as its first line**: it resolves a colour by painting a pixel
+and reading it back, so it uses `useRef`, `useState` and `useEffect`, and the showcase page itself is
+a server component (`async` + `getTranslations`). Without the directive the page fails to build.
+
+`state-matrix.tsx` needs nothing — it only renders, and a server component may pass it a `render`
+function. `preview-states.css` goes into the app's global stylesheet **after the `@custom-variant
+dark` line**.
+
+Add the directive when you copy the file, and leave the rest byte-identical, so the next upstream
+read still diffs cleanly. Found on 2026-10-09 installing these into `fit-room`.
 
 **Upstream is tracked, not forked.** `references/showcase-template.md` follows
 `skills/shadcn/design-system-page.md`; when that file changes, diff it and follow. If one of these

@@ -168,16 +168,53 @@ comm -23 \
 `add --all` installs both `toast` and `sonner` on Base UI projects, so show `sonner` in Feedback
 beside `toast` rather than leaving it as a permanent orphan on the list.
 
+### The page is a server component — four things need a client wrapper
+
+The sections are `async` server components, which is what lets them read copy with
+`getTranslations`. Four kinds of demo cannot live there, and each is one small `"use client"` file
+under the route, not a reason to make the section a client component:
+
+| What | Why it cannot be rendered from the section |
+|---|---|
+| **Chart** | the chart elements come from recharts, which is client-only; a server file cannot import them |
+| **Calendar** | a react-day-picker locale object carries functions, and functions cannot cross the server→client boundary. Without the locale the day cells hydrate with two different date formats (measured: `data-day="27/09/2026"` server, `9/27/2026` client) |
+| **toast** | there is nothing to show until something calls `toast.add` — it needs a trigger, and the `Toaster` has to be mounted in the app's own layout |
+| **Command** | see the scroll item below: it needs `open` state |
+
+Everything else — dialogs, sheets, popovers, menus, accordions, carousels, the questionnaire — renders
+straight from the server section as long as no handler is passed, because the primitive's own file
+carries `"use client"`.
+
+### Compose the primitives, do not restyle them
+
+The design-system lint (`design-system-lint.md`) runs on the showcase too, and `shadcn/no-restyle`
+is where a showcase gets caught: a frame around a primitive is layout, a border or a padding **on**
+it is a restyle. Put the border, the radius and the padding on a wrapping `div`
+(`ScrollArea`, `ResizablePanelGroup`, `Empty`, `Command`, `MessageScrollerViewport`, `TabsContent`,
+`Skeleton`, `TableCell`, `AvatarFallback` all trip the rule otherwise). If a demo needs a treatment
+no variant provides, that is the signal to add a variant to the primitive — which is the rule's
+whole point.
+
 ### Before declaring it done
 
 Beyond the visual comparison in `SKILL.md` §Visual verification:
 
-1. The page **loads at `scrollY === 0`**. Anything else means a component is stealing scroll on mount
-   — cmdk does exactly this, pulling its first item into view; control it with
-   `value` + `onValueChange` and an initial `"none"`.
+1. The page **loads at `scrollY === 0`**, checked on a **cold tab** — a reload restores the previous
+   position and hides the defect. Anything else means a component is stealing scroll on mount. An
+   inline command palette does exactly this: measured on fit-room, 2026-10-09, the page landed
+   **12 458px down**, at the top of the section holding it. Don't fight it with a sentinel
+   `value` — give Command the `CommandDialog` and a real ⌘K trigger, which is where a product puts
+   it anyway, and the overlay tier gets its trigger for free.
 2. **No horizontal overflow** at 375px and 1280px: `document.documentElement.scrollWidth <= innerWidth`.
-3. **Toggle dark once** and look at it.
-4. No console errors.
+   Check it in a browser that really is 375 wide — an emulated viewport clamped to the pane width
+   (577px, in the Claude browser pane) reports no overflow when there is some. Two recurring
+   offenders: **the carousel arrows**, positioned `-left-12 / -right-12` *outside* the frame, so the
+   carousel needs `mx-12` on a phone; and **any wide table**, which needs its own
+   `overflow-x-auto` wrapper (shadcn's `Table` already has one, a hand-written `<table>` does not).
+3. **Toggle dark once** and look at it. The contrast pairs re-measure themselves on the theme
+   change — if a pair shows the same ratio in both themes, its tokens are not theme-aware.
+4. No console errors. `MISSING_MESSAGE` counts: a key that only the showcase uses is a key nobody
+   else will notice is absent.
 
 ## Brand-voice taglines — examples
 
@@ -216,7 +253,7 @@ If after reading PRD.md and screenshots you still don't have enough candidates, 
 
 ## How to use this template
 
-1. **Build the page from the sections above, against the components the project actually installed** — not by copying a skeleton. Route: `app/showcase/page.tsx` (or `app/design-system/`), one file per section under it once the page passes a screenful. Copy `assets/showcase/preview-states.css` into `tailwindCssFile` and the two helpers beside the components, then read `showcase-template.tsx` for how a section should *look* in our voice.
+1. **Build the page from the sections above, against the components the project actually installed** — not by copying a skeleton. Route: `app/showcase/page.tsx` (or `app/design-system/`), one file per section under it (`_sections/`) from the start — thirteen sections do not fit in one readable file. Copy `assets/showcase/preview-states.css` into `tailwindCssFile` and the two helpers into `_components/` beside them (**its README says why that folder and not the shared one**), then read `showcase-template.tsx` for how a section should *look* in our voice.
    ⚠️ **Do not ship a generic sixty-component skeleton.** The page is built from this project's set and this project's copy; a template that renders every component with lorem labels is the thing that makes a showcase read as generated, which is what `anti-slop-fallbacks.md` exists to prevent.
 2. Replace each constant array (`COLORS`, `TYPES`, `RADII`, `SPACING`) with values from the project's DESIGN.md.
 3. Replace every domain-contextual sample with copy extracted from PRD.md, screenshots, or asked from the user.
