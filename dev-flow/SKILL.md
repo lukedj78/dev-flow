@@ -244,7 +244,7 @@ shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the 
 | Parameter | Stack key | Ask? | Values / default |
 |---|---|---|---|
 | **Primitive base** | `ui_base` | **ASK** | `base` (default — Base UI, shadcn's default since 2026-07) \| `radix` \| `aria` (React Aria). DESIGN.md does NOT override it. |
-| Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler \| hugeicons |
+| Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler \| hugeicons \| phosphor — and note the shadcn **style** sets it: `maia`/`mira` → hugeicons, `lyra` → phosphor |
 | RTL | `rtl` | **ASK only if i18n/RTL relevant** | `false` (default) |
 | Template / framework | (uses `stack.framework`) | already chosen | next \| vite \| start \| react-router \| laravel \| astro |
 | Base color | `base_color` | **don't ask** — DESIGN.md owns it | scaffold default `neutral`; DESIGN.md tokens are the real palette |

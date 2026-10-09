@@ -45,13 +45,18 @@ So:
 - **Record the style's library in `stack.icon_library`** after `init`, read from `info --json` rather
   than assumed. A style silently deciding a stack key and nobody writing it down is how `meta.json`
   stops describing the project.
-- **`lyra` is usable** — the enum's trailing `string` admits `"phosphor"`, and
-  `@phosphor-icons/react` is MIT and live (2.1.10, checked 2026-10-09) — **but say so out loud when
-  you pick it**, because `animated-icons` has registries for heroicons and hugeicons and none for
-  phosphor, so an animated-icon request on a `lyra` project needs a different answer.
-- If `lyra` is chosen more than once, promote `"phosphor"` into the enum properly, for the same
-  reason `hugeicons` was promoted: a contract that cannot express our own default is the thing that
-  is wrong.
+- **`"phosphor"` is in the enum as of 2026-10-09**, promoted for the same reason as `"hugeicons"`:
+  a contract that cannot name a value the toolchain itself chooses is the thing that is wrong. Facts
+  read from the package: `@phosphor-icons/react` **2.1.10**, MIT, **1,512 icons**, **six weights per
+  icon** (thin, light, regular, bold, fill, duotone), **31.5 MB** installed — between `lucide`
+  (34.0) and `@tabler/icons-react` (16.7), and well under `@hugeicons/core-free-icons` (76.7) —
+  tree-shakeable (`sideEffects: false`, real `exports`), peer `react >= 16.8`.
+- **The six weights are why `lyra` picks it.** No other library in our enum offers a weight axis:
+  `lucide` has one stroke, `@tabler/icons-react` has outline and filled. A technical, mono-typed
+  design system gets a real `thin`/`regular`/`bold` ladder here, which is exactly `lyra`'s character.
+- ⚠️ **But `animated-icons` has registries for heroicons and hugeicons only.** An animated-icon
+  request on a `phosphor` project needs a different answer — hand-rolled on the `motion` runtime,
+  per that skill's own rules, or a deliberate second library for the one animated case.
 
 ## Picking one from a DESIGN.md
 
