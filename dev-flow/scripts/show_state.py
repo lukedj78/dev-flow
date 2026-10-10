@@ -64,6 +64,33 @@ PHASE_ALIASES = {"module-added": "module_added", "page-generated": "page_generat
 
 # dev-flow/references/contracts.md §stack — keep the two in step.
 TEST_VALUES = {'vitest', 'vitest+playwright', 'jest-expo+rntl', 'jest-expo+rntl+maestro'}
+LINT_VALUES = {'eslint', 'biome', 'eslint+biome'}
+
+
+def linters_present(root: Path) -> set[str]:
+    """What the repository actually runs, read from dependencies and config files.
+
+    ⚠️ Looks in `apps/*` and `packages/*` as well as the root: in a monorepo the toolchain lives in
+    the workspaces, and a root-only scan reported six healthy projects as having no linter at all."""
+    found: set[str] = set()
+    roots = [root, *sorted(root.glob('apps/*')), *sorted(root.glob('packages/*'))]
+    for d in roots:
+        pkg = d / 'package.json'
+        if pkg.exists():
+            try:
+                data = json.loads(pkg.read_text())
+            except json.JSONDecodeError:
+                data = {}
+            deps = {**(data.get('devDependencies') or {}), **(data.get('dependencies') or {})}
+            if 'eslint' in deps:
+                found.add('eslint')
+            if any('biome' in k for k in deps):
+                found.add('biome')
+        if any((d / f).exists() for f in ('eslint.config.mjs', 'eslint.config.js', 'eslint.config.ts', '.eslintrc.json')):
+            found.add('eslint')
+        if any((d / f).exists() for f in ('biome.json', 'biome.jsonc')):
+            found.add('biome')
+    return found
 
 
 def next_step(phase: str | None, framework: str | None) -> str:
@@ -173,6 +200,24 @@ def main() -> int:
         print(f"⚠ stack.test is {shape} — not one of {', '.join(sorted(TEST_VALUES))}")
         print("  write-tests reads this as a framework name; an unknown value picks no patterns.")
         print("  The enum is dev-flow/references/contracts.md §stack.")
+        print()
+
+    # `stack.lint` is a cache of what the repository runs, and a cache nothing checks goes stale:
+    # surveyed 2026-10-10, it was declared in two projects out of 36 and wrong in both.
+    lint = stack.get('lint')
+    if lint is not None:
+        if not (isinstance(lint, str) and lint in LINT_VALUES):
+            print(f"⚠ stack.lint is {lint!r} — not one of {', '.join(sorted(LINT_VALUES))}")
+            print()
+        elif (present := linters_present(root)) and set(lint.split('+')) != present:
+            print(f"⚠ stack.lint says {lint}, the repository runs {'+'.join(sorted(present))}")
+            print("  The repository is the truth; the key is a cache of it (contracts.md §stack).")
+            print()
+    # @shadcn/lint is an ESLint plugin, so a biome-only project cannot run the design lint.
+    if stack.get('design_lint') == 'shadcn-lint' and (present := linters_present(root)) and 'eslint' not in present:
+        print("⚠ design_lint is shadcn-lint but the project has no ESLint — @shadcn/lint is an ESLint")
+        print("  plugin, so the declared design lint cannot run. Add ESLint, or record design_lint")
+        print("  \"none\" with stack_config.design_lint_reason.")
         print()
 
     framework = stack.get('framework')
