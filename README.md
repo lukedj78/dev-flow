@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **51 skills (9 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **52 skills (10 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -145,7 +145,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 51. Restart Claude Code if you don't see them in /skills.
+# Should print 52. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -155,6 +155,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | **`dev-flow`** | The orchestrator — reads `.workflow/meta.json` and proposes what to do next |
 | `prd-from-idea` | Idea paragraph → `PROJECT.md` + `PRD.md` |
 | `prd-to-tasks` | `PRD.md` → `tasks.md` (importable into beads / Linear / GitHub Issues) |
+| `wireframe-canvas` | Screen inventory → every screen as a desktop + phone artboard on a Design canvas, approved before any scaffold; then the PNGs on the issues |
 | `project-infra-setup` | GitHub repo, Vercel project, Neon / Blob / Resend connectors, DNS and secrets, set up from the CLI |
 | `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
 | `compliance-audit` | GDPR + EU AI Act audit of an existing project (10-point risk register) + safe auto-remediation; flags legal decisions. Horizontal; proposed as a pre-deploy gate |
@@ -218,7 +219,8 @@ The orchestrator routes through phases:
 3. prd-to-tasks        → tasks.md  (phase=tasks_split)
 4. image-to-design-md  → DESIGN.md  (asks for reference screenshots)
    OR figma-to-design-md if you have a Figma URL
-5. design-md-to-app    → full scaffold + /showcase  (phase=scaffolded)
+5. wireframe-canvas    → screen inventory + every screen on a Design canvas (desktop 1440 + phone 390), approved
+   design-md-to-app    → full scaffold + /showcase  (phase=scaffolded; refused before the approval)
 6. screenshot-to-page  → /clients, /appointments, …  (phase=page_generated)
 7. module-add db       → Drizzle + Neon
 8. module-add auth     → better-auth
@@ -909,6 +911,10 @@ Everything outside the codebase that a project needs before `module-add` can wir
 **Output**: `.workflow/tasks.md` with 1 task per `- [ ]` checkbox. Compatible with **beads**, **GitHub Issues import**, **Linear CSV**, **ralph-tui**.
 
 **Sizing**: each task ≈ 2–8 hours of focused work. If a task is bigger, the skill splits it. If smaller, it merges with a sibling. Output ≤ ~15 tasks for an MVP.
+
+### `wireframe-canvas` — every screen, drawn and approved, before any code
+
+The step between `design_extracted` and the scaffold, on every project with a UI. First `docs/wireframes/screen-inventory.md`: every route and screen of every epic, mapped to the PRD's `US-N` stories, with roles and loading/empty/error/success states, checked so that every story maps to at least one screen. Then one **desktop (1440)** and one **phone (390)** artboard per screen on a claude.ai **Design** canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, reviewed area by area. `update_meta.py set-phase` refuses the scaffold until the user approves it (or a skip is recorded with its reason). After approval every artboard becomes a PNG in `docs/wireframes/png/`, commented on each GitHub or Linear issue whose story maps to the screen. Records `meta.json#wireframes`. See `wireframe-canvas/SKILL.md`.
 
 ### `product-to-agent-skill` — your product → an agent-skill its users install
 

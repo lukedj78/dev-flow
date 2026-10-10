@@ -24,7 +24,7 @@ PHASE_NEXT_BY_STACK = {
     "next": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
         "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
-        "design_extracted": "design-md-to-app (scaffold the app)",
+        "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app",
         "scaffolded":       "screenshot-to-page  OR  module-add",
         "page_generated":   "spec-review on the diff  THEN  module-add  OR  more screenshot-to-page",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
@@ -33,7 +33,7 @@ PHASE_NEXT_BY_STACK = {
     "expo-rn": {
         "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  OR  rn-bootstrap",
         "tasks_split":      "linear-scrum (Setup)  THEN  image-to-design-md  OR  rn-bootstrap",
-        "design_extracted": "rn-bootstrap (scaffold the Expo app)",
+        "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  rn-bootstrap",
         "scaffolded":       "rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)",
         "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen",
         "module_added":     "spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done",
@@ -42,7 +42,7 @@ PHASE_NEXT_BY_STACK = {
     "monorepo": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  monorepo-bootstrap",
         "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  monorepo-bootstrap",
-        "design_extracted": "monorepo-bootstrap (turborepo + apps)",
+        "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap",
         "monorepo_initialized": "monorepo-bootstrap continues (apps/web, apps/mobile, apps/agent)",
         "scaffolded":       "web: screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent",
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
@@ -135,6 +135,7 @@ def main() -> int:
         import data_residency_gate
         import design_lint_gate
         import registry_intake_gate
+        import wireframes_gate
 
         passed, why = data_residency_gate.verify(root, meta)
         if passed and ("⚠" in why or "⚑" in why):
@@ -143,7 +144,8 @@ def main() -> int:
                 print(f"  {line}")
             print()
         for gate, what in ((data_residency_gate, "Data-residency decision"),
-                           (design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake")):
+                           (design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake"),
+                           (wireframes_gate, "Wireframe canvas approval")):
             passed, why = gate.verify(root, meta)
             if not passed:
                 print(f"⚠ {what} missing on a scaffolded project:")
@@ -151,6 +153,14 @@ def main() -> int:
                     print(f"  {line}")
                 print(gate.remedy(root))
                 print()
+
+    # Approved but not yet on the tracker: the second half of the wireframe step. Informs, never blocks.
+    wf = meta.get('wireframes') or {}
+    if wf.get('approved_by_user') is True and not wf.get('screenshots_posted_at'):
+        print("⚑ Wireframes approved but the screenshots are not on the issues yet:")
+        print("  render every artboard to docs/wireframes/png/, comment them on each issue whose story maps")
+        print("  to the screen (wireframe-canvas §After approval), then: wireframes.py posted <root>")
+        print()
 
     # `stack.test` was free text until 2026-10-10 and drifted into four spellings across eleven
     # projects, one of them an array. `write-tests` reads it as the NAME of a framework, so a

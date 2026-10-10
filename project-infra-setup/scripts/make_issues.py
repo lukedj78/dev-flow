@@ -42,6 +42,7 @@ def parse(text):
 def area_label(epics_in_order, epic):
     name = re.sub(r"^Epic:\s*", "", epic)
     name = re.split(r" \(|·", name)[0].strip().lower()
+    name = name.replace(",", "")  # GitHub rejects commas in label names (HTTP 422)
     return f"area: {name}"[:50], PALETTE[epics_in_order.index(epic) % len(PALETTE)]
 
 

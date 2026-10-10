@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-10T15:01:55Z",
+  "generated_at": "2026-10-10T15:46:32Z",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 51,
+  "skill_count": 52,
   "families": {
     "core": [
       "compliance-audit",
@@ -13,7 +13,8 @@
       "product-to-agent-skill",
       "project-infra-setup",
       "registry-intake",
-      "spec-review"
+      "spec-review",
+      "wireframe-canvas"
     ],
     "web": [
       "animated-icons",
@@ -116,9 +117,11 @@
         "test_data_residency.py",
         "test_inventory.py",
         "test_research.py",
-        "update_meta.py"
+        "test_wireframes_gate.py",
+        "update_meta.py",
+        "wireframes_gate.py"
       ],
-      "skill_md_lines": 479,
+      "skill_md_lines": 485,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -225,6 +228,22 @@
       "scripts": [],
       "skill_md_lines": 201,
       "bundle": "dist/spec-review.skill"
+    },
+    {
+      "name": "wireframe-canvas",
+      "family": "core",
+      "role": "discovery",
+      "description": "The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD's user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, revi...",
+      "skill_file": "wireframe-canvas/SKILL.md",
+      "references": [
+        "contracts.md"
+      ],
+      "scripts": [
+        "test_wireframes.py",
+        "wireframes.py"
+      ],
+      "skill_md_lines": 127,
+      "bundle": "dist/wireframe-canvas.skill"
     },
     {
       "name": "animated-icons",

@@ -63,6 +63,7 @@ a price moves, a licence changes, we adopt something we had refused — edit the
 | **evex** | eve registry | **option through `registry-intake`**; porting eve code by hand is `eve-registry-porting`. Live at `www.evex.sh/r/registry.json` with 23 items; ⚠️ **`evex.dev` is a different, parked domain** — a typo lands on a lander, not the registry (2026-10-03) | `registry-intake/SKILL.md` |
 | **AI Elements** | chat UI for eve | **option** — the default stays shadcn chat primitives (2026-09-01) | `eve-agent/references/ai-elements.md` |
 | **nuqs** | URL state | **adopted** where filter state belongs in the URL (2026-08-26) | `data-fetching/references/nuqs.md` |
+| **Refero Styles** (styles.refero.design) | ready-made DESIGN.md files of 2,000+ real sites (palette, type, components) to seed `design-md-to-app` | **option, free path for design** · copy a style's DESIGN.md as a *starting point*, then de-brand it (name, accent, logo) — the styles are real brands' identities. Many specify proprietary fonts (Airbnb Cereal, GT Alpina, Proxima Nova): substitute Google Fonts. Search is client-rendered (no server-side `?q=` results). No tour operators in the library (WeRoad, Intrepid absent) — use `image-to-design-md` on screenshots for those. The pampam.city DESIGN.md used lavender #9894a8 for link text (2.66:1 on cream, fails WCAG) and contradicted itself on the primary CTA — check contrast before adopting (2026-10-10) | `external-skills.md` (sleek row) · `~/projects/smart-travel` |
 
 ## Mobile
 
@@ -96,6 +97,7 @@ a price moves, a licence changes, we adopt something we had refused — edit the
 | **rizzo-pii + osiria** | Italian legal PII | **adopted in Annotix** — three lessons in `eve-patterns` §6, `compliance-audit` R4 (2026-08-26) | memory `reference_rizzo_pii` |
 | **Higgsfield** | AI image and video, 29 models | **not for a pipeline, option as a second adapter** — real API (`api.higgsfield.ai`, async + webhook), per-second pricing, but our Seedance 1.5 Pro 480p at $0.0121/s on the zero-markup Vercel gateway is cheaper than anything listed. Its unique value is Wan, LTX, MiniMax H3 and Genjutsu motion transfer (2026-09-30) | this file; `~/projects/video` carries the numbers |
 | **Videorc** | screen recording, multistream | **tool, not a dependency** — AGPL-3.0 desktop app, free local 4K recording; Premium $39/mo or $32.50/mo yearly for cloud AI. Where our faceless-first rule says "screen recordings first", this is the recorder. Its `skills-lock.json` is where we got the hashed-skill idea (2026-09-30) | this file |
+| **Travel supply APIs** (LiteAPI, Duffel Flights/Stays, Hotelbeds, Viator, Bókun/OCTO, Booking Demand, Expedia Rapid, Discover Cars, Hoppa) | hotels, flights, cars, transfers, experiences for a tour operator | **researched** · Amadeus Self-Service shut down 2026-07-17. Self-serve with real booking: LiteAPI, Duffel. Booking/Expedia need contracts; cars/transfers affiliate-only. EU Directive 2026/1024 removes linked travel arrangements (2026-10-10) | `~/projects/smart-travel/docs/research/2026-10-10-outside-research.md` |
 
 ## Not a resource, a lesson
 

@@ -63,9 +63,10 @@ def write(root: Path, rel: str, content: str | dict) -> Path:
 
 
 def meta(root: Path, phase: str, **stack) -> None:
-    # data residency is decided at the same crossing; not under test here
+    # data residency and the wireframe canvas are decided at the same crossing; not under test here
     write(root, ".workflow/meta.json", {"project_slug": "t", "phase": phase,
-                                        "stack": {"data_residency": "none", **stack}})
+                                        "stack": {"data_residency": "none", **stack},
+                                        "wireframes": {"skipped": True, "reason": "not under test here"}})
 
 
 def single_app(root: Path) -> None:
@@ -426,7 +427,8 @@ class PhaseGate(unittest.TestCase):
                 "framework": "next", "ui": "shadcn", "design_lint": "none", "registry_intake": "none",
                 "data_residency": "none"},
                 "stack_config": {"design_lint_reason": "prototype, thrown away",
-                                 "registry_intake_reason": "the same crossing gates registry intake; not under test here"}})
+                                 "registry_intake_reason": "the same crossing gates registry intake; not under test here"},
+                "wireframes": {"skipped": True, "reason": "not under test here"}})
             self.assertEqual(self.set_phase(root, "scaffolded").returncode, 0)
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

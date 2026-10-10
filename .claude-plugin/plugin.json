@@ -33,6 +33,7 @@
     "./project-infra-setup",
     "./registry-intake",
     "./spec-review",
+    "./wireframe-canvas",
     "./animated-icons",
     "./coss-ui",
     "./data-fetching",

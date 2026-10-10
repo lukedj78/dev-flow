@@ -74,6 +74,7 @@ A "dev-flow project" is a **standard codebase root** (the directory that contain
 │   │   └── *.{png,jpg}
 │   └── decisions/                # ADR-style decisions, one per file (optional)
 │       └── 0001-stack.md
+├── docs/wireframes/              # ← screen-inventory.md + png/<ID>-{desktop,phone}.png (wireframe-canvas)
 ├── package.json                  # ← codebase lives at the root
 ├── app/, components/, lib/       # ← framework conventions, untouched
 ├── registry.json                 # ← shadcn registry (when applicable), at root
@@ -180,6 +181,21 @@ Present once a project is taken into Linear. Written only by the `linear-scrum` 
 
 `issue_map` keys are `task_key()` digests of `tasks.md` lines (see `linear-scrum/scripts/task_key.py`) so re-syncing never duplicates issues. Linear is the source of truth for status/ordering/estimates after Setup; `tasks.md` stays the append-only intake for new work.
 
+### `wireframes` field (optional, owned by `wireframe-canvas`)
+
+Every project with a UI draws all its screens before any code is scaffolded (the user's standing rule, 2026-10-10): a screen inventory mapped to the PRD's `US-N` stories, then one desktop (1440) and one phone (390) artboard per screen on a claude.ai Design canvas, reviewed area by area and approved by the user. Written only through `wireframe-canvas/scripts/wireframes.py`:
+
+```json
+"wireframes": {
+  "canvas_url": "https://claude.ai/…", "inventory": "docs/wireframes/screen-inventory.md",
+  "screens": 24, "artboards": 48,
+  "approved_at": "<ISO-8601 UTC>", "approved_by_user": true, "approval_quote": "<the user's words>",
+  "screenshots_posted_at": "<ISO-8601 UTC>" | null
+}
+```
+
+The opt-out is `{ "skipped": true, "reason": "<sentence>" }`; a skip without a reason does not count. **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `monorepo_initialized` or `scaffolded` while the block is missing, unapproved, short of two artboards per screen, or pointing at an inventory that is not on disk** (`dev-flow/scripts/wireframes_gate.py`). Projects already past that point are not blocked; `show_state.py` flags them, and flags an approved canvas whose screenshots are not yet on the issues. Agent-only projects (`framework: "agent"`) are not affected. After approval the PNGs live in `docs/wireframes/png/<ID>-desktop.png` / `<ID>-phone.png` and are commented on every tracker issue whose story maps to the screen.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.
@@ -192,7 +208,7 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 | `idea_captured` | all | `PROJECT.md` exists | `prd-from-idea` (to expand into PRD) or scaffold (skip if simple) |
 | `prd_drafted` | all | `PRD.md` exists | `prd-to-tasks`, `figma-to-design-md`, `image-to-design-md`, or scaffold |
 | `tasks_split` | all | `tasks.md` exists | `figma-to-design-md`, `image-to-design-md`, or scaffold |
-| `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile, `monorepo-bootstrap` for monorepo) |
+| `design_extracted` | all | `DESIGN.md` + (optional) `screenshots/` exist | `wireframe-canvas` (every screen on a Design canvas, approved by the user — the gate into the scaffold), then scaffold (`design-md-to-app` for web, `rn-bootstrap` for mobile, `monorepo-bootstrap` for monorepo) |
 | `monorepo_initialized` | **monorepo only** | turborepo root exists (`pnpm-workspace.yaml` + `turbo.json`), before the apps are scaffolded | `monorepo-bootstrap` continues — scaffolds `apps/web` (`design-md-to-app`), `apps/mobile` (`rn-bootstrap`), and/or `apps/agent` (`eve-agent`) |
 | `scaffolded` | all | `app/` exists with framework + UI library installed — **every primitive of it** (`shadcn add --all`), so golden rule 3 always has something to compose | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
 | `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |

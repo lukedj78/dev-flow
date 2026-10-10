@@ -65,6 +65,10 @@ class Issues(unittest.TestCase):
         self.assertEqual(a[0], "area: auth")
         self.assertEqual(a, mi.area_label(epics, "Epic: Auth (US-8) · S0"))
 
+    def test_area_label_drops_commas_github_rejects(self):
+        epic = "Epic: Search, filters (US-3)"
+        self.assertEqual(mi.area_label([epic], epic)[0], "area: search filters")
+
     def test_body_keeps_the_acceptance_and_names_the_source(self):
         t = next(t for t in self.tasks if t["title"] == "Build the sign-in page")
         b = mi.body_of(t, "tasks.md", "Design: https://example.test")

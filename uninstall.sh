@@ -36,6 +36,7 @@ SKILLS=(
   dev-flow
   prd-from-idea
   prd-to-tasks
+  wireframe-canvas
   project-infra-setup
   linear-scrum
   compliance-audit

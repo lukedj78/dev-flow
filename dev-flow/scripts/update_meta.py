@@ -175,6 +175,25 @@ def inventory_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curren
     )
 
 
+def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """No scaffold before the screens are drawn and approved. The threshold is the first phase where code
+    exists — `monorepo_initialized` for a monorepo, `scaffolded` for everything else — so it is checked
+    when a project crosses into the monorepo checkpoint or later, through both doors, like the inventory."""
+    if not cur_idx < PHASES.index("monorepo_initialized") <= new_idx:
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import wireframes_gate
+
+    passed, why = wireframes_gate.verify(root, meta)
+    if passed:
+        return None
+    return (
+        f"Phase change refused: {current!r} → {requested!r} needs an approved wireframe canvas (every screen, desktop + phone).\n"
+        + "".join(f"  {line}\n" for line in why.splitlines())
+        + wireframes_gate.remedy(root) + "\n"
+    )
+
+
 def cmd_set_phase(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     meta_path, meta = load_meta(root)
@@ -226,6 +245,11 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
                 )
                 return 1
 
+    refusal = wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+    if refusal:
+        sys.stderr.write(refusal)
+        return 1
+
     meta["phase"] = requested
     save_meta(meta_path, meta)
     print(f"phase: {current_raw} → {requested}")
@@ -264,9 +288,9 @@ def cmd_append_history(args: argparse.Namespace) -> int:
     if phase_after:
         cur_raw = meta.get("phase", "empty")
         cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-        refusal = inventory_refusal(
-            root, meta, PHASES.index(cur) if cur in PHASES else -1, PHASES.index(phase_after), cur, phase_after
-        )
+        cur_idx = PHASES.index(cur) if cur in PHASES else -1
+        refusal = (inventory_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after)
+                   or wireframes_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after))
         if refusal:
             sys.stderr.write(refusal)
             return 1

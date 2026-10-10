@@ -27,8 +27,9 @@ def write(root: Path, rel: str, data) -> Path:
 
 
 def project(root: Path, phase: str = "design_extracted", **stack) -> None:
-    # the other two scaffold gates are opted out: this file tests the residency gate only
-    write(root, ".workflow/meta.json", {"phase": phase, "stack": {"framework": "expo-rn", **stack}})
+    # the other scaffold gates are opted out: this file tests the residency gate only
+    write(root, ".workflow/meta.json", {"phase": phase, "stack": {"framework": "expo-rn", **stack},
+                                        "wireframes": {"skipped": True, "reason": "not under test here"}})
 
 
 def run(*argv: str) -> tuple[int, str]:
