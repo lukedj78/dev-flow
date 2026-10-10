@@ -62,6 +62,10 @@ PHASE_NEXT_BY_STACK = {
 PHASE_ALIASES = {"module-added": "module_added", "page-generated": "page_generated", "design-extracted": "design_extracted"}
 
 
+# dev-flow/references/contracts.md §stack — keep the two in step.
+TEST_VALUES = {'vitest', 'vitest+playwright', 'jest-expo+rntl', 'jest-expo+rntl+maestro'}
+
+
 def next_step(phase: str | None, framework: str | None) -> str:
     phase = PHASE_ALIASES.get(phase or "", phase or "")
     if phase in COMMON_NEXT:
@@ -147,6 +151,19 @@ def main() -> int:
                     print(f"  {line}")
                 print(gate.remedy(root))
                 print()
+
+    # `stack.test` was free text until 2026-10-10 and drifted into four spellings across eleven
+    # projects, one of them an array. `write-tests` reads it as the NAME of a framework, so a
+    # value outside the enum fails silently: no error, just tests written in whatever style the
+    # sibling files happen to use. Reported, never blocking — a project may ship untested.
+    test = stack.get('test')
+    # `in` against a set raises on a list, which is the very value this check is here to catch.
+    if test is not None and not (isinstance(test, str) and test in TEST_VALUES):
+        shape = 'an array' if isinstance(test, list) else f'{type(test).__name__} {test!r}'
+        print(f"⚠ stack.test is {shape} — not one of {', '.join(sorted(TEST_VALUES))}")
+        print("  write-tests reads this as a framework name; an unknown value picks no patterns.")
+        print("  The enum is dev-flow/references/contracts.md §stack.")
+        print()
 
     framework = stack.get('framework')
     nxt = next_step(meta.get('phase'), framework)
