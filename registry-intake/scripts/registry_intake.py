@@ -863,6 +863,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
             if f.relative_to(root).as_posix() not in snapshots:
                 problems.append(f"{f.relative_to(root)} is in {VENDOR}/ but not in the lock")
     problems += check_skills(root, lock)
+    problems += check_mcp(root, lock)
     for unit, cap in lint_caps(root).items():
         base = (lock.get("design_lint_caps") or {}).get(unit)
         if base is not None and cap > base:
@@ -1198,6 +1199,184 @@ def check_skills(root: Path, lock: dict) -> list[str]:
     return problems
 
 
+
+# ## MCP servers — the third surface, and the one nothing was watching
+#
+# A component is code we copy and own. A skill is instructions the agent obeys. An **MCP server is a
+# running process whose tools the agent may call**, registered by one object in a JSON file that any
+# package's `init` can write — `e2e init` writes `.mcp.json` and `.cursor/mcp.json`, and nothing in
+# this script saw it before 2026-10-10. Its tool *descriptions* are instructions too, and this review
+# cannot read them: they exist only once the server runs. So **every server needs a human**, findings
+# or not, exactly like the high tier for components.
+MCP_FILES = (".mcp.json", ".cursor/mcp.json")
+
+MCP_CODES = {
+    "M1": "the command is a shell, or chains commands — arbitrary execution hidden in a config entry",
+    "M2": "remote server — every tool call and its arguments leave the machine to that host",
+    "M3": "fetches its package at call time with no pinned version — the tools can change with no diff",
+    "M4": "declares environment variables it will read",
+    "M5": "ships a value for a secret-looking environment variable",
+}
+
+SECRETISH = re.compile(r"(?:token|secret|key|password|passwd|credential|auth)", re.I)
+# `npx pkg`, `bunx pkg`, `pnpm dlx pkg` with no `@version` — K7's problem in another shape.
+PKG_RUNNERS = re.compile(r"^(?:npx|bunx|pnpm|yarn|npm)$")
+ENV_REF = re.compile(r"^\$\{?\w+\}?$")
+
+
+def mcp_servers(root: Path) -> dict[str, tuple[dict, str]]:
+    """Every server registered in the project, by name, with the file that registers it."""
+    out: dict[str, tuple[dict, str]] = {}
+    for rel in MCP_FILES:
+        p = root / rel
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8", errors="replace")) or {}
+        except json.JSONDecodeError:
+            continue
+        for name, entry in (data.get("mcpServers") or data.get("servers") or {}).items():
+            if isinstance(entry, dict):
+                out.setdefault(name, (entry, rel))
+    return out
+
+
+def mcp_entry_hash(entry: dict) -> str:
+    """What we can actually pin: the registration. Sorted keys, so reformatting is not a change."""
+    return hashlib.sha256(json.dumps(entry, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+@dataclass
+class McpReport:
+    name: str
+    source: str
+    findings: list[Finding]
+
+    @property
+    def exit_code(self) -> int:
+        if any(f.level == "block" for f in self.findings):
+            return 1
+        return 3  # never 0: the tools are described by the server, not by the file this read
+
+
+def review_mcp(name: str, entry: dict, source: str) -> McpReport:
+    f: list[Finding] = []
+    command = str(entry.get("command") or "")
+    args = [str(a) for a in (entry.get("args") or [])]
+    line = " ".join([command, *args]).strip()
+
+    if re.fullmatch(r"(?:/usr/bin/|/bin/)?(?:sh|bash|zsh|fish)", command) or re.search(r"[|;]|&&", line):
+        f.append(Finding("M1", "block", name, MCP_CODES["M1"], line))
+
+    url = entry.get("url") or entry.get("endpoint")
+    if url or str(entry.get("type") or "").lower() in {"http", "sse", "streamable-http"}:
+        host = urllib.parse.urlparse(str(url)).netloc if url else ""
+        f.append(Finding("M2", "review", name, MCP_CODES["M2"], host or str(url or entry.get("type"))))
+
+    if PKG_RUNNERS.match(command):
+        pkg = next((a for a in args if not a.startswith("-") and a not in {"dlx", "exec", "run"}), "")
+        # `@scope/name` carries one leading @; a pin adds a second. `name@1.2.3` carries one.
+        body = pkg[1:] if pkg.startswith("@") else pkg
+        if pkg and "@" not in body:
+            f.append(Finding("M3", "review", name, MCP_CODES["M3"], line))
+
+    env = entry.get("env") or {}
+    if isinstance(env, dict) and env:
+        f.append(Finding("M4", "review", name, MCP_CODES["M4"], ", ".join(sorted(env))))
+        for k, v in sorted(env.items()):
+            # `${VAR}` is a reference to the environment; a literal is the secret itself.
+            if SECRETISH.search(str(k)) and str(v).strip() and not ENV_REF.match(str(v).strip()):
+                f.append(Finding("M5", "block", name, MCP_CODES["M5"], k))
+    return McpReport(name, source, f)
+
+
+def print_mcp_report(rep: McpReport) -> None:
+    verdict = {3: "needs a human approval", 1: "BLOCKED"}[rep.exit_code]
+    print(f"mcp {rep.name} · {rep.source} · {verdict}")
+    for f in rep.findings:
+        mark = {"block": "✗", "review": "!", "info": "·"}[f.level]
+        print(f"  {mark} {f.code} {f.message}" + (f"\n      {f.where}" if f.where else ""))
+    print("  · a server's tools and their descriptions exist only once it runs — this reads the "
+          "registration, not the tools. Read them in the session before approving.")
+
+
+def cmd_mcp_review(args) -> int:
+    root = args.root.resolve()
+    servers = mcp_servers(root)
+    if not servers:
+        print(f"no MCP server registered in {' or '.join(MCP_FILES)}")
+        return 0
+    if args.name and args.name not in servers:
+        print(f"{args.name}: not registered in {' or '.join(MCP_FILES)}", file=sys.stderr)
+        return 1
+    reps = [review_mcp(n, *servers[n]) for n in ([args.name] if args.name else sorted(servers))]
+    if args.json:
+        print(json.dumps([{**asdict(r), "exit": r.exit_code} for r in reps], indent=2))
+    else:
+        approved = (load_lock(root) or {}).get("mcp") or {}
+        for r in reps:
+            print_mcp_report(r)
+            was = approved.get(r.name)
+            if was and was["sha256"] != mcp_entry_hash(servers[r.name][0]):
+                print(f"  ✗ the registration changed since {was['approved_by']} approved it on {was['approved_at']}")
+            print()
+    return max(r.exit_code for r in reps)
+
+
+def cmd_mcp_approve(args) -> int:
+    root = args.root.resolve()
+    lock = load_lock(root)
+    if lock is None:
+        print(f"no {LOCK} — run `registry_intake.py setup {root}` first", file=sys.stderr)
+        return 1
+    servers = mcp_servers(root)
+    if args.name not in servers:
+        print(f"refused: {args.name} is not registered in {' or '.join(MCP_FILES)} — a server is "
+              "approved after it lands, and the user registers it", file=sys.stderr)
+        return 1
+    entry, rel = servers[args.name]
+    rep = review_mcp(args.name, entry, rel)
+    print_mcp_report(rep)
+    accepted = dict(a.split("=", 1) for a in args.accept or [] if "=" in a)
+    if any("=" not in a or not a.split("=", 1)[1].strip() for a in args.accept or []):
+        print("\nrefused: every --accept needs a reason, CODE=why", file=sys.stderr)
+        return 1
+    missing = [c for c in sorted({f.code for f in rep.findings if f.level == "block"}) if c not in accepted]
+    if missing:
+        print(f"\nrefused: blocking findings {', '.join(missing)} — fix the registration, or accept "
+              "each with `--accept CODE=reason`", file=sys.stderr)
+        return 1
+    lock.setdefault("mcp", {})[args.name] = {
+        "file": rel,
+        "sha256": mcp_entry_hash(entry),
+        "findings": [f"{f.level}:{f.code}" for f in rep.findings],
+        "accepted": {c: accepted[c] for c in sorted({f.code for f in rep.findings}) if c in accepted},
+        "approved_by": args.by,
+        "approved_at": now(),
+        "note": args.note or "",
+    }
+    save_lock(root, lock)
+    print(f"\napproved mcp {args.name} · {LOCK} updated")
+    return 0
+
+
+def check_mcp(root: Path, lock: dict) -> list[str]:
+    problems = []
+    ours = lock.get("mcp") or {}
+    servers = mcp_servers(root)
+    for name, entry in ours.items():
+        if name not in servers:
+            problems.append(f"mcp {name}: no longer registered, but the lock approves it")
+        elif mcp_entry_hash(servers[name][0]) != entry["sha256"]:
+            problems.append(f"mcp {name}: its registration changed since {entry['approved_by']} approved it "
+                            f"on {entry['approved_at']} — `mcp-review` shows what, then re-approve")
+    for name, (_, rel) in servers.items():
+        if name not in ours:
+            problems.append(f"mcp {name} is registered in {rel} but was never reviewed — "
+                            f"`registry_intake.py mcp-review {root} {name}`")
+    return problems
+
+
 HOOK_COPY = ".claude/hooks/registry_intake.py"
 HOOK_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook'
 
@@ -1420,11 +1599,33 @@ def skill_installs(command: str) -> list[str]:
     return out
 
 
+def mcp_installs(command: str) -> list[str]:
+    """`claude mcp add` and its variants. An MCP server is a set of tools the agent may call, and
+    their descriptions are instructions it reads — the same reason a skill install is the user's."""
+    out = []
+    for seg in re.split(r"&&|\|\||;|\n", command):
+        try:
+            toks = shlex.split(seg)
+        except ValueError:
+            toks = seg.split()
+        for i, t in enumerate(toks):
+            if t.split("/")[-1] == "claude" and toks[i + 1:i + 2] == ["mcp"] and \
+                    toks[i + 2:i + 3] and toks[i + 2] in ("add", "add-json"):
+                out.append(" ".join(toks[i:i + 4]))
+                break
+    return out
+
+
 def hook_decision(payload: dict) -> str | None:
     """None to allow, or the reason to deny."""
     if payload.get("tool_name") != "Bash":
         return None
     command = (payload.get("tool_input") or {}).get("command") or ""
+    for inv in mcp_installs(command):
+        return (f"`{inv}` registers an MCP server — a process whose tools this agent may call, and "
+                "whose tool descriptions it reads as instructions. The user registers it; then "
+                "`registry_intake.py mcp-review <root>` reports it and `mcp-approve` pins the "
+                "registration.")
     for inv in skill_installs(command):
         return (f"`{inv}` installs a third-party agent skill — instructions this agent would then obey, "
                 "with no review and no hash. Read it first with `registry_intake.py skill-review <root> "
@@ -1477,7 +1678,7 @@ def hook_decision(payload: dict) -> str | None:
 
 
 # `registry_intake.py allow|approve`, called by path or through a variable holding it (`python3 $S approve`)
-DECISION_CALL = re.compile(r"""(?:\S*registry_intake\.py["']?|["']?\$\{?\w+\}?["']?)\s+(skill-approve|allow|approve)\s+(?:\S+\s+)?(\S+)""")
+DECISION_CALL = re.compile(r"""(?:\S*registry_intake\.py["']?|["']?\$\{?\w+\}?["']?)\s+(skill-approve|mcp-approve|allow|approve)\s+(?:\S+\s+)?(\S+)""")
 
 
 def hook_ask(payload: dict) -> str | None:
@@ -1490,7 +1691,7 @@ def hook_ask(payload: dict) -> str | None:
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
     # the script's name. A python interpreter plus one of the three verbs is that form.
-    if "registry_intake" not in command and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|allow|approve)\b", command):
+    if "registry_intake" not in command and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", command):
         return None
     asks = []
     for verb, target in DECISION_CALL.findall(command):
@@ -1498,6 +1699,7 @@ def hook_ask(payload: dict) -> str | None:
         who = by.group(1).strip("\"'") if by else "nobody named"
         what = (f"allowlist the registry {target}" if verb == "allow" else
                 f"record the third-party skill {target} as reviewed" if verb == "skill-approve" else
+                f"record the MCP server {target} as reviewed" if verb == "mcp-approve" else
                 f"approve {target} into a snapshot")
         asks.append(f"{what}, recorded as decided by {who}")
     if not asks:
@@ -1545,6 +1747,10 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("skill-approve"); s.add_argument("root", type=Path); s.add_argument("skill")
     s.add_argument("--by", required=True); s.add_argument("--accept", action="append")
     s.add_argument("--source"); s.add_argument("--note")
+    s = sub.add_parser("mcp-review"); s.add_argument("root", type=Path); s.add_argument("name", nargs="?")
+    s.add_argument("--json", action="store_true")
+    s = sub.add_parser("mcp-approve"); s.add_argument("root", type=Path); s.add_argument("name")
+    s.add_argument("--by", required=True); s.add_argument("--accept", action="append"); s.add_argument("--note")
     s = sub.add_parser("install"); s.add_argument("root", type=Path); s.add_argument("item"); s.add_argument("--cwd")
     s.add_argument("shadcn_args", nargs=argparse.REMAINDER)
     s = sub.add_parser("check"); s.add_argument("root", type=Path)
@@ -1570,7 +1776,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if ok else 1
     return {"setup": cmd_setup, "allow": cmd_allow, "deny": cmd_deny, "approve": cmd_approve,
             "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook,
-            "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve}[args.cmd](args)
+            "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve,
+            "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve}[args.cmd](args)
 
 
 if __name__ == "__main__":

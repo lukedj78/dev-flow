@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-10T14:50:31Z",
+  "generated_at": "2026-10-10T14:56:36Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 51,
   "families": {
@@ -201,7 +201,7 @@
       "name": "registry-intake",
       "family": "core",
       "role": "operative",
-      "description": "Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with a per-project allowlist, a static review of the item and its whole dependency closure, a hashed snapshot installed instead of the live URL, a Claude Code PreToolUse hook that ...",
+      "description": "Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with an allowlist, a static review of the item and its dependency closure, a hashed snapshot installed instead of the live URL, a PreToolUse hook that refuses installs around it, a...",
       "skill_file": "registry-intake/SKILL.md",
       "references": [
         "contracts.md"
@@ -210,7 +210,7 @@
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 208,
+      "skill_md_lines": 239,
       "bundle": "dist/registry-intake.skill"
     },
     {

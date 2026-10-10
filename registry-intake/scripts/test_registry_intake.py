@@ -741,5 +741,82 @@ class PhaseGate(unittest.TestCase):
             self.assertEqual(self.set_phase(root).returncode, 0)
 
 
+class McpServers(unittest.TestCase):
+    """`.mcp.json` registers tools the agent may call. Nothing watched it until 2026-10-10."""
+
+    def servers(self, **entries) -> Path:
+        d = tempfile.mkdtemp()
+        root = Path(d)
+        project(root)
+        write(root, ".mcp.json", {"mcpServers": entries})
+        return root
+
+    def codes(self, entry: dict) -> set[str]:
+        return {f.code for f in ri.review_mcp("s", entry, ".mcp.json").findings}
+
+    def test_a_shell_command_blocks(self) -> None:
+        self.assertIn("M1", self.codes({"command": "sh", "args": ["-c", "node s.js"]}))
+        self.assertIn("M1", self.codes({"command": "node", "args": ["s.js", "&&", "curl", "x"]}))
+        self.assertNotIn("M1", self.codes({"command": "node", "args": ["server.js"]}))
+
+    def test_a_remote_server_names_its_host(self) -> None:
+        rep = ri.review_mcp("r", {"type": "http", "url": "https://mcp.example.com/sse"}, ".mcp.json")
+        m2 = [f for f in rep.findings if f.code == "M2"]
+        self.assertEqual(len(m2), 1)
+        self.assertEqual(m2[0].where, "mcp.example.com")
+
+    def test_an_unpinned_runner_is_a_finding_and_a_pinned_one_is_not(self) -> None:
+        self.assertIn("M3", self.codes({"command": "npx", "args": ["e2e", "mcp"]}))
+        self.assertNotIn("M3", self.codes({"command": "npx", "args": ["-y", "some-server@1.4.0"]}))
+        self.assertIn("M3", self.codes({"command": "npx", "args": ["@scope/server"]}))
+        self.assertNotIn("M3", self.codes({"command": "npx", "args": ["@scope/server@2.0.0"]}))
+        self.assertNotIn("M3", self.codes({"command": "node", "args": ["server.js"]}))
+
+    def test_a_literal_secret_blocks_but_a_reference_does_not(self) -> None:
+        literal = self.codes({"command": "node", "env": {"API_TOKEN": "sk-live-abc"}})
+        self.assertEqual({"M4", "M5"}, literal)
+        self.assertEqual({"M4"}, self.codes({"command": "node", "env": {"API_TOKEN": "${API_TOKEN}"}}))
+        self.assertEqual({"M4"}, self.codes({"command": "node", "env": {"REGION": "eu"}}))
+
+    def test_a_clean_server_still_needs_a_human(self) -> None:
+        """The tools and their descriptions exist only once the server runs, so there is no exit 0."""
+        rep = ri.review_mcp("s", {"command": "node", "args": ["server.js"]}, ".mcp.json")
+        self.assertEqual(rep.findings, [])
+        self.assertEqual(rep.exit_code, 3)
+
+    def test_check_reports_an_unreviewed_server_then_drift_after_approval(self) -> None:
+        root = self.servers(pinned={"command": "npx", "args": ["-y", "some-server@1.4.0"]})
+        quiet(ri.main, ["setup", str(root)])
+        ok, problems = ri.check(root)
+        self.assertFalse(ok)
+        self.assertTrue(any("never reviewed" in p for p in problems), problems)
+
+        quiet(ri.main, ["mcp-approve", str(root), "pinned", "--by", "Luca"])
+        self.assertTrue(ri.check(root)[0], ri.check(root)[1])
+
+        write(root, ".mcp.json", {"mcpServers": {"pinned": {"command": "npx", "args": ["-y", "some-server@9.9.9"]}}})
+        ok, problems = ri.check(root)
+        self.assertFalse(ok)
+        self.assertTrue(any("registration changed" in p for p in problems), problems)
+
+    def test_approve_refuses_a_blocking_finding_without_a_reason(self) -> None:
+        root = self.servers(shelly={"command": "sh", "args": ["-c", "node s.js"]})
+        quiet(ri.main, ["setup", str(root)])
+        rc, out = quiet(ri.main, ["mcp-approve", str(root), "shelly", "--by", "Luca"])
+        self.assertEqual(rc, 1)
+        self.assertIn("M1", out)
+        rc, _ = quiet(ri.main, ["mcp-approve", str(root), "shelly", "--by", "Luca",
+                                "--accept", "M1=vendored wrapper, read line by line"])
+        self.assertEqual(rc, 0)
+
+    def test_the_hook_denies_an_agent_run_claude_mcp_add(self) -> None:
+        for cmd in ("claude mcp add e2e -- npx e2e mcp", "claude mcp add-json x '{}'"):
+            with self.subTest(cmd=cmd):
+                why = ri.hook_decision({"tool_name": "Bash", "tool_input": {"command": cmd}})
+                self.assertIsNotNone(why)
+                self.assertIn("registers an MCP server", why)
+        self.assertIsNone(ri.hook_decision({"tool_name": "Bash", "tool_input": {"command": "claude mcp list"}}))
+
+
 if __name__ == "__main__":
     unittest.main()
