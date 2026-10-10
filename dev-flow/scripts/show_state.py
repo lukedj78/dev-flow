@@ -63,7 +63,21 @@ PHASE_ALIASES = {"module-added": "module_added", "page-generated": "page_generat
 
 
 # dev-flow/references/contracts.md §stack — keep the two in step.
-TEST_VALUES = {'vitest', 'vitest+playwright', 'jest-expo+rntl', 'jest-expo+rntl+maestro'}
+# The canonical order of the test layers. A fixed list of whole strings was the first shape and it
+# was wrong: the first project to add a layer would have been told its honest value was invalid.
+TEST_LAYERS = ('vitest', 'jest-expo', 'rntl', 'playwright', 'maestro', 'e2e')
+
+
+def test_layers_ok(value) -> bool:
+    """Known layers, in canonical order, no repeats — an array or a typo fails, a legitimate
+    combination does not."""
+    if not isinstance(value, str) or not value:
+        return False
+    parts = value.split('+')
+    if len(set(parts)) != len(parts) or any(p not in TEST_LAYERS for p in parts):
+        return False
+    order = [TEST_LAYERS.index(p) for p in parts]
+    return order == sorted(order)
 LINT_VALUES = {'eslint', 'biome', 'eslint+biome'}
 
 
@@ -194,10 +208,10 @@ def main() -> int:
     # value outside the enum fails silently: no error, just tests written in whatever style the
     # sibling files happen to use. Reported, never blocking — a project may ship untested.
     test = stack.get('test')
-    # `in` against a set raises on a list, which is the very value this check is here to catch.
-    if test is not None and not (isinstance(test, str) and test in TEST_VALUES):
+    if test is not None and not test_layers_ok(test):
         shape = 'an array' if isinstance(test, list) else f'{type(test).__name__} {test!r}'
-        print(f"⚠ stack.test is {shape} — not one of {', '.join(sorted(TEST_VALUES))}")
+        print(f"⚠ stack.test is {shape} — expected the layers {' · '.join(TEST_LAYERS)} "
+              "joined by `+`, in that order, no repeats")
         print("  write-tests reads this as a framework name; an unknown value picks no patterns.")
         print("  The enum is dev-flow/references/contracts.md §stack.")
         print()

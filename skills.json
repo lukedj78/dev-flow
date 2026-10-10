@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-10T16:06:46Z",
+  "generated_at": "2026-10-10T19:02:29Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -563,6 +563,7 @@
       "skill_file": "write-tests/SKILL.md",
       "references": [
         "contracts.md",
+        "e2e-agentic.md",
         "test-component.md",
         "test-page-e2e.md",
         "test-query.md",
@@ -570,7 +571,7 @@
         "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 168,
+      "skill_md_lines": 171,
       "bundle": "dist/write-tests.skill"
     },
     {
@@ -872,7 +873,7 @@
         "rntl-patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 128,
+      "skill_md_lines": 135,
       "bundle": "dist/rn-write-tests.skill"
     },
     {

@@ -64,6 +64,13 @@ Ask the user (one round-trip) what to test:
 - **e2e flow** (sign-in, navigation, form submit) → Maestro.
 - **Shared-state / two-user flow** (user A takes a seat, a slot, an invite; user B must see it taken) → Maestro, two `runFlow` sign-ins in one file with `clearState` between them, against a real test backend — `references/maestro.md` §Two-user flows. Jest cannot express this; it is the check that finds authorization bugs between identities.
 
+**On a project whose `stack.test` carries the `e2e` layer**, the agentic runner (`@e2e-dev/mobile`,
+built on agent-device) is the other way to write an e2e flow — a native accessibility tree the agent
+drives, on simulators, emulators and connected phones. There is **one copy of that text**, in
+`write-tests/references/e2e-agentic.md`: one technique, one authority, whichever platform asks.
+Read it before writing one, for the cost rule and for the gates. ⚠️ **It does not take the two-user
+flow from Maestro**: e2e on mobile has no session save/restore, so that check stays where it is.
+
 If the file under test is `lib/api.ts`, write a Jest test of the function with `fetch` mocked.
 If the file under test is `app/(auth)/sign-in.tsx`, write an RNTL test of the screen + a Maestro flow of the user journey.
 

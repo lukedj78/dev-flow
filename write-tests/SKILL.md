@@ -45,6 +45,7 @@ The user names a file. Classify it by path + content:
 | `lib/server/<domain>.ts` (contains `"use server"` or exported async functions returning `ActionResult`) | **Server action** | `references/test-server-action.md` |
 | `lib/queries/<domain>.ts` (async functions reading from `@/lib/db`) | **Query** | `references/test-query.md` |
 | `app/<route>/page.tsx` or `app/<route>/[...slug]/page.tsx` | **Page (e2e)** | `references/test-page-e2e.md` |
+| the same, on a project whose `stack.test` carries the `e2e` layer | **Page (agentic e2e)** | `references/e2e-agentic.md` |
 | `components/**/*.tsx` containing `"use client"` and interactive logic | **Component (RTL)** | `references/test-component.md` |
 | `components/ui/*.tsx` (shadcn primitives) | **Skip** — primitives are tested upstream | — |
 | Anything else | **Ask the user** what kind of test they want | — |
@@ -57,7 +58,9 @@ Before writing anything, read **at least one existing test file of the same type
 
 If no test of that type exists yet:
 - For server actions: read `references/test-server-action.md` for the canonical pattern.
-- For pages e2e: read `references/test-page-e2e.md`.
+- For pages e2e: read `references/test-page-e2e.md` — **unless** `stack.test` carries `e2e`, the
+  agentic runner, which is `references/e2e-agentic.md`. That file is also where `rn-write-tests`
+  reads the mobile half from: one technique, one copy.
 - For components: read `references/test-component.md`.
 - For queries: read `references/test-query.md`.
 
