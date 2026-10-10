@@ -173,15 +173,21 @@ the same reason: what the review cannot see is the part that matters. `mcp-revie
 
 | Code | Level | Finding |
 |---|---|---|
-| M1 | block | the command is a shell (`sh -c`), or chains commands (`\|`, `;`, `&&`) — arbitrary execution hidden in a config entry |
+| M1 | block | arbitrary execution hidden in a config entry: the command is a shell — matched on the **basename**, so `/opt/homebrew/bin/bash` counts — or an interpreter handed inline code (`node -e`, `python3 -c`, `ruby -e`), or it chains commands (`\|`, `;`, `&&`) |
 | M2 | review | remote server (`url`, or `type: http`/`sse`) — every tool call and its arguments leave the machine to that host, which the finding names |
-| M3 | review | fetches its package at call time with no pinned version (`npx e2e mcp`) — the tools can change with no tag and no diff. K7's problem in another shape |
+| M3 | review | fetches its package at call time without an **immutable** spec (`npx e2e mcp`, `srv@latest`, `srv@^0.19.0`) — the tools change with no diff. Only an exact version or a digest is a pin; a tag is not. K7's problem in another shape |
 | M4 | review | declares environment variables it will read |
 | M5 | block | ships a **value** for a secret-looking variable. `${API_TOKEN}` is a reference to the environment and is not a finding; `sk-live-…` is the secret itself |
 
 What gets pinned is the **registration** — a sha256 over the entry with sorted keys, so reformatting
 is not a change but a new argument, a new host or a new env var is. `check` reports a registered
 server nobody reviewed, and an approved one whose entry moved.
+
+**A registration is identified by (file, name), never by name alone.** `e2e init` writes both files
+and nothing makes them agree, so a name keyed on its own would let an approval of the `.mcp.json`
+entry cover whatever `.cursor/mcp.json` actually runs. `mcp-review <name>` reports every file the
+name appears in, and `mcp-approve` refuses an ambiguous name until `--file` says which one — an
+approval pins one registration, not a name.
 
 **The agent never registers one.** The hook denies `claude mcp add` and `claude mcp add-json` with
 the reason; `mcp-review` is read-only and runs without asking; the **user** registers it; then
@@ -233,7 +239,7 @@ the reason; `mcp-review` is read-only and runs without asking; the **user** regi
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 60 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 63 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

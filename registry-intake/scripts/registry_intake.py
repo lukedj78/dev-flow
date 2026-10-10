@@ -1219,14 +1219,38 @@ MCP_CODES = {
 }
 
 SECRETISH = re.compile(r"(?:token|secret|key|password|passwd|credential|auth)", re.I)
+# Matched on the BASENAME, so a path prefix cannot hide them: /opt/homebrew/bin/bash is a shell.
+SHELLS = {"sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "env"}
+# An interpreter handed code on the command line is a shell by another name.
+INLINE_CODE = {"node": ("-e", "--eval", "-p", "--print"), "deno": ("eval",), "bun": ("-e",),
+               "python": ("-c",), "python3": ("-c",), "ruby": ("-e",), "perl": ("-e",), "php": ("-r",)}
 # `npx pkg`, `bunx pkg`, `pnpm dlx pkg` with no `@version` — K7's problem in another shape.
 PKG_RUNNERS = re.compile(r"^(?:npx|bunx|pnpm|yarn|npm)$")
 ENV_REF = re.compile(r"^\$\{?\w+\}?$")
 
 
-def mcp_servers(root: Path) -> dict[str, tuple[dict, str]]:
-    """Every server registered in the project, by name, with the file that registers it."""
-    out: dict[str, tuple[dict, str]] = {}
+EXACT_VERSION = re.compile(r"\d+\.\d+\.\d+[\w.+-]*")
+DIGEST = re.compile(r"(?:sha\d{3}:)?[0-9a-f]{40,71}")
+
+
+def pinned_spec(pkg: str) -> bool:
+    """True only for an immutable spec. `e2e@latest`, `e2e@next` and `e2e@^0.19.0` all resolve to
+    something different tomorrow, which is the whole of M3 — a tag is not a pin."""
+    body = pkg[1:] if pkg.startswith("@") else pkg   # `@scope/name` carries one leading @
+    if "@" not in body:
+        return False
+    version = body.rsplit("@", 1)[1].strip()
+    return bool(EXACT_VERSION.fullmatch(version) or DIGEST.fullmatch(version))
+
+
+def mcp_servers(root: Path) -> dict[tuple[str, str], dict]:
+    """Every registration, keyed by (file, name).
+
+    Keyed by the PAIR, not the name. `e2e init` writes both `.mcp.json` and `.cursor/mcp.json`, and
+    nothing makes two files agree: keeping only the first occurrence of a name would pin and
+    drift-check one registration while a different one, under the same name, ran from the other
+    file. Each registration is reviewed, hashed and watched on its own."""
+    out: dict[tuple[str, str], dict] = {}
     for rel in MCP_FILES:
         p = root / rel
         if not p.exists():
@@ -1237,8 +1261,13 @@ def mcp_servers(root: Path) -> dict[str, tuple[dict, str]]:
             continue
         for name, entry in (data.get("mcpServers") or data.get("servers") or {}).items():
             if isinstance(entry, dict):
-                out.setdefault(name, (entry, rel))
+                out[(rel, name)] = entry
     return out
+
+
+def mcp_key(rel: str, name: str) -> str:
+    """The lock key. The file is part of the identity, so the two files cannot shadow each other."""
+    return f"{rel}#{name}"
 
 
 def mcp_entry_hash(entry: dict) -> str:
@@ -1265,7 +1294,9 @@ def review_mcp(name: str, entry: dict, source: str) -> McpReport:
     args = [str(a) for a in (entry.get("args") or [])]
     line = " ".join([command, *args]).strip()
 
-    if re.fullmatch(r"(?:/usr/bin/|/bin/)?(?:sh|bash|zsh|fish)", command) or re.search(r"[|;]|&&", line):
+    base = command.rsplit("/", 1)[-1]
+    inline = [a for a in args if a in INLINE_CODE.get(base, ())]
+    if base in SHELLS or inline or re.search(r"[|;]|&&", line):
         f.append(Finding("M1", "block", name, MCP_CODES["M1"], line))
 
     url = entry.get("url") or entry.get("endpoint")
@@ -1273,11 +1304,9 @@ def review_mcp(name: str, entry: dict, source: str) -> McpReport:
         host = urllib.parse.urlparse(str(url)).netloc if url else ""
         f.append(Finding("M2", "review", name, MCP_CODES["M2"], host or str(url or entry.get("type"))))
 
-    if PKG_RUNNERS.match(command):
+    if PKG_RUNNERS.match(base):
         pkg = next((a for a in args if not a.startswith("-") and a not in {"dlx", "exec", "run"}), "")
-        # `@scope/name` carries one leading @; a pin adds a second. `name@1.2.3` carries one.
-        body = pkg[1:] if pkg.startswith("@") else pkg
-        if pkg and "@" not in body:
+        if pkg and not pinned_spec(pkg):
             f.append(Finding("M3", "review", name, MCP_CODES["M3"], line))
 
     env = entry.get("env") or {}
@@ -1306,21 +1335,24 @@ def cmd_mcp_review(args) -> int:
     if not servers:
         print(f"no MCP server registered in {' or '.join(MCP_FILES)}")
         return 0
-    if args.name and args.name not in servers:
+    # A name may be registered in both files. Reviewing one of them is the hole this avoids.
+    pairs = sorted(k for k in servers if not args.name or k[1] == args.name)
+    if not pairs:
         print(f"{args.name}: not registered in {' or '.join(MCP_FILES)}", file=sys.stderr)
         return 1
-    reps = [review_mcp(n, *servers[n]) for n in ([args.name] if args.name else sorted(servers))]
+    reps = [review_mcp(name, servers[(rel, name)], rel) for rel, name in pairs]
     if args.json:
         print(json.dumps([{**asdict(r), "exit": r.exit_code} for r in reps], indent=2))
     else:
         approved = (load_lock(root) or {}).get("mcp") or {}
-        for r in reps:
+        for (rel, name), r in zip(pairs, reps):
             print_mcp_report(r)
-            was = approved.get(r.name)
-            if was and was["sha256"] != mcp_entry_hash(servers[r.name][0]):
+            was = approved.get(mcp_key(rel, name))
+            if was and was["sha256"] != mcp_entry_hash(servers[(rel, name)]):
                 print(f"  ✗ the registration changed since {was['approved_by']} approved it on {was['approved_at']}")
             print()
-    return max(r.exit_code for r in reps)
+    # 1 (blocked) is more severe than 3 (needs a human), so the worst code is not the largest.
+    return 1 if any(r.exit_code == 1 for r in reps) else 3
 
 
 def cmd_mcp_approve(args) -> int:
@@ -1330,11 +1362,18 @@ def cmd_mcp_approve(args) -> int:
         print(f"no {LOCK} — run `registry_intake.py setup {root}` first", file=sys.stderr)
         return 1
     servers = mcp_servers(root)
-    if args.name not in servers:
-        print(f"refused: {args.name} is not registered in {' or '.join(MCP_FILES)} — a server is "
-              "approved after it lands, and the user registers it", file=sys.stderr)
+    pairs = [k for k in sorted(servers) if k[1] == args.name and (not args.file or k[0] == args.file)]
+    if not pairs:
+        print(f"refused: {args.name} is not registered in {args.file or ' or '.join(MCP_FILES)} — a "
+              "server is approved after it lands, and the user registers it", file=sys.stderr)
         return 1
-    entry, rel = servers[args.name]
+    if len(pairs) > 1:
+        # Two files, two registrations, one approval would cover the wrong one. Fail closed.
+        print(f"refused: {args.name} is registered in {', '.join(r for r, _ in pairs)} — approve each "
+              f"with `--file <path>`; an approval pins one registration, not a name", file=sys.stderr)
+        return 1
+    rel, _ = pairs[0]
+    entry = servers[(rel, args.name)]
     rep = review_mcp(args.name, entry, rel)
     print_mcp_report(rep)
     accepted = dict(a.split("=", 1) for a in args.accept or [] if "=" in a)
@@ -1346,8 +1385,9 @@ def cmd_mcp_approve(args) -> int:
         print(f"\nrefused: blocking findings {', '.join(missing)} — fix the registration, or accept "
               "each with `--accept CODE=reason`", file=sys.stderr)
         return 1
-    lock.setdefault("mcp", {})[args.name] = {
+    lock.setdefault("mcp", {})[mcp_key(rel, args.name)] = {
         "file": rel,
+        "name": args.name,
         "sha256": mcp_entry_hash(entry),
         "findings": [f"{f.level}:{f.code}" for f in rep.findings],
         "accepted": {c: accepted[c] for c in sorted({f.code for f in rep.findings}) if c in accepted},
@@ -1356,7 +1396,7 @@ def cmd_mcp_approve(args) -> int:
         "note": args.note or "",
     }
     save_lock(root, lock)
-    print(f"\napproved mcp {args.name} · {LOCK} updated")
+    print(f"\napproved mcp {args.name} in {rel} · {LOCK} updated")
     return 0
 
 
@@ -1364,14 +1404,15 @@ def check_mcp(root: Path, lock: dict) -> list[str]:
     problems = []
     ours = lock.get("mcp") or {}
     servers = mcp_servers(root)
-    for name, entry in ours.items():
-        if name not in servers:
-            problems.append(f"mcp {name}: no longer registered, but the lock approves it")
-        elif mcp_entry_hash(servers[name][0]) != entry["sha256"]:
-            problems.append(f"mcp {name}: its registration changed since {entry['approved_by']} approved it "
-                            f"on {entry['approved_at']} — `mcp-review` shows what, then re-approve")
-    for name, (_, rel) in servers.items():
-        if name not in ours:
+    for key, entry in ours.items():
+        rel, name = entry.get("file", ""), entry.get("name") or key.split("#", 1)[-1]
+        if (rel, name) not in servers:
+            problems.append(f"mcp {name}: no longer registered in {rel}, but the lock approves it")
+        elif mcp_entry_hash(servers[(rel, name)]) != entry["sha256"]:
+            problems.append(f"mcp {name} ({rel}): its registration changed since {entry['approved_by']} "
+                            f"approved it on {entry['approved_at']} — `mcp-review` shows what, then re-approve")
+    for rel, name in sorted(servers):
+        if mcp_key(rel, name) not in ours:
             problems.append(f"mcp {name} is registered in {rel} but was never reviewed — "
                             f"`registry_intake.py mcp-review {root} {name}`")
     return problems
@@ -1751,6 +1792,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--json", action="store_true")
     s = sub.add_parser("mcp-approve"); s.add_argument("root", type=Path); s.add_argument("name")
     s.add_argument("--by", required=True); s.add_argument("--accept", action="append"); s.add_argument("--note")
+    s.add_argument("--file", help=f"which registration, when the name is in more than one of {', '.join(MCP_FILES)}")
     s = sub.add_parser("install"); s.add_argument("root", type=Path); s.add_argument("item"); s.add_argument("--cwd")
     s.add_argument("shadcn_args", nargs=argparse.REMAINDER)
     s = sub.add_parser("check"); s.add_argument("root", type=Path)

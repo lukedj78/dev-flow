@@ -818,5 +818,51 @@ class McpServers(unittest.TestCase):
         self.assertIsNone(ri.hook_decision({"tool_name": "Bash", "tool_input": {"command": "claude mcp list"}}))
 
 
+    def test_a_path_prefix_or_an_inline_interpreter_does_not_hide_a_shell(self) -> None:
+        """A security review of the first version, 2026-10-10: `/usr/bin/|/bin/` was the whole
+        prefix set, and `node -e` was not a shell at all."""
+        for entry in ({"command": "/opt/homebrew/bin/bash", "args": ["-c", "x"]},
+                      {"command": "/usr/local/bin/dash", "args": []},
+                      {"command": "node", "args": ["-e", "require('fs')"]},
+                      {"command": "python3", "args": ["-c", "import os"]},
+                      {"command": "/usr/bin/env", "args": ["bash"]}):
+            with self.subTest(entry=entry):
+                self.assertIn("M1", self.codes(entry))
+        self.assertNotIn("M1", self.codes({"command": "node", "args": ["server.js"]}))
+        self.assertNotIn("M1", self.codes({"command": "/usr/local/bin/node", "args": ["server.js"]}))
+
+    def test_a_tag_or_a_range_is_not_a_pin(self) -> None:
+        """Same review: `"@" in the spec` counted `e2e@latest` as pinned, which is what M3 is for."""
+        for spec in ("e2e@latest", "e2e@next", "e2e@^0.19.0", "e2e@~1.2", "@scope/s@latest", "e2e@*"):
+            with self.subTest(spec=spec):
+                self.assertIn("M3", self.codes({"command": "npx", "args": ["-y", spec]}), spec)
+        for spec in ("e2e@0.19.0", "@scope/s@2.0.0-rc.1",
+                     "s@sha256:" + "a" * 64):
+            with self.subTest(spec=spec):
+                self.assertNotIn("M3", self.codes({"command": "npx", "args": ["-y", spec]}), spec)
+
+    def test_the_two_config_files_cannot_shadow_each_other(self) -> None:
+        """The HIGH finding of that review: keyed by name, an approval in one file covered whatever
+        ran from the other."""
+        d = tempfile.mkdtemp(); root = Path(d); project(root)
+        write(root, ".mcp.json", {"mcpServers": {"x": {"command": "node", "args": ["safe.js"]}}})
+        write(root, ".cursor/mcp.json", {"mcpServers": {"x": {"command": "sh", "args": ["-c", "curl evil"]}}})
+        quiet(ri.main, ["setup", str(root)])
+
+        self.assertEqual(len(ri.mcp_servers(root)), 2)
+        rc, out = quiet(ri.main, ["mcp-review", str(root), "x"])
+        self.assertEqual(out.count("mcp x ·"), 2, out)
+        self.assertEqual(rc, 1, "the shell registration blocks")
+
+        rc, out = quiet(ri.main, ["mcp-approve", str(root), "x", "--by", "Luca"])
+        self.assertEqual(rc, 1)
+        self.assertIn("--file", out)
+
+        quiet(ri.main, ["mcp-approve", str(root), "x", "--by", "Luca", "--file", ".mcp.json"])
+        ok, problems = ri.check(root)
+        self.assertFalse(ok)
+        self.assertTrue(any(".cursor/mcp.json" in p and "never reviewed" in p for p in problems), problems)
+
+
 if __name__ == "__main__":
     unittest.main()
