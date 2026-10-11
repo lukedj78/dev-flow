@@ -314,5 +314,40 @@ with tempfile.TemporaryDirectory() as d:
     check("no app/ directory → unknown, and nothing else asserted",
           len(f) == 1 and f[0].status == "unknown")
 
+print("== somebody else's brand on our page ==")
+VISA = "export function VisaLogo() { return <svg/> }\n"
+VISA_ATTRIB = "/* Artwork: Simple Icons (CC0-1.0). Visa is a trademark of its respective owner. */\n" + VISA
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": "{}",
+                 "components/logos/visa.tsx": VISA, "components/logos/mastercard.tsx": VISA})
+    f = scan(root)
+    check("marks with no provenance → unknown, for a human",
+          status(f, "third-party-marks") == "unknown")
+    check("it names them", "2 of 2" in detail(f, "third-party-marks"))
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": "{}",
+                 "components/logos/visa.tsx": VISA_ATTRIB})
+    f = scan(root)
+    check("a mark that records its source → ok", status(f, "third-party-marks") == "ok")
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    # `brand/` is OUR mark. Reporting it as a trademark risk is the false positive that would
+    # teach people to stop reading this report.
+    build(root, {"app/page.tsx": PAGE_META, "package.json": "{}",
+                 "components/shared/brand/fitroom-logo.tsx": "export const Lockup = () => <svg/>\n"})
+    f = scan(root)
+    check("our own logo under brand/ is never a finding", status(f, "third-party-marks") == "ok")
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": "{}",
+                 "node_modules/pkg/logos/stripe.tsx": VISA,
+                 ".claude/worktrees/copy/components/logos/visa.tsx": VISA})
+    f = scan(root)
+    check("a dependency's logos and a worktree copy are not ours to audit",
+          status(f, "third-party-marks") == "ok")
+
+
 print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -215,6 +216,46 @@ def has_metadata(page: Path, app: Path, key: str) -> bool:
     return False
 
 
+
+# `brand/` is the project's own mark; `logos/` is somebody else's. The convention already holds
+# across the corpus (fit-room, ldglab, voicepass, skill-lint keep their lockup in a `brand/`
+# directory; smart-travel's card networks sit in `components/logos/`), so the check reads the
+# directory rather than guessing at file names — guessing would report our own logo as a trademark
+# risk, which is the finding that teaches people to stop reading findings.
+ATTRIBUTION = re.compile(r"trademark|CC0|simple icons|public domain|property of|respective owner",
+                         re.I)
+
+
+SKIP_DIRS = {"node_modules", ".next", ".output", ".git", "dist", "build", ".turbo", ".vercel"}
+
+
+def walk(root: Path):
+    """Like rglob, pruning the directories a source scan has no business entering.
+
+    `rglob` descends into node_modules, which on a real project is most of the disk: the first
+    version of this helper took the whole scan past two minutes."""
+    for parent, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        here = Path(parent)
+        yield here, [here / f for f in files]
+
+
+def third_party_marks(root: Path) -> tuple[list[str], list[str]]:
+    """(marks found, those carrying no provenance line). A mark is a file under a `logos/` dir."""
+    marks, bare = [], []
+    for d, files in walk(root):
+        if d.name != "logos":
+            continue
+        for f in sorted(files):
+            if f.suffix.lower() not in {".tsx", ".ts", ".jsx", ".js", ".svg"}:
+                continue
+            rel = f.relative_to(root).as_posix()
+            marks.append(rel)
+            if not ATTRIBUTION.search(f.read_text(encoding="utf-8", errors="ignore")):
+                bare.append(rel)
+    return sorted(marks), sorted(bare)
+
+
 def scan(root: Path) -> list[Finding]:
     app = app_dir(root)
     if app is None:
@@ -348,9 +389,9 @@ def scan(root: Path) -> list[Finding]:
     has_success = re.compile(r"toast|redirect\(|router\.(push|replace|refresh)\(|"
                              r"success|thank|confirm", re.I)
     forms, silent = [], []
-    for p in src.rglob("*.tsx"):
-        if "node_modules" in str(p):
-            continue
+    # `walk` prunes node_modules during traversal; the previous `rglob` + a `str(p)` test walked
+    # it first and then threw the results away, which is where the scan's 30 seconds went.
+    for p in (f for _, files in walk(src) for f in files if f.suffix == ".tsx"):
         text = p.read_text(encoding="utf-8", errors="ignore")
         if not is_form.search(text):
             continue
@@ -361,6 +402,17 @@ def scan(root: Path) -> list[Finding]:
                          f"{len(silent)} of {len(forms)} form file(s) show no success path"
                          if silent else f"all {len(forms)} form file(s) show a success path",
                          silent[:10], "forms" if silent else None))
+
+    # --- trustworthy: somebody else's brand on our page ------------------
+    marks, bare = third_party_marks(src)
+    if not marks:
+        found.append(Finding("third-party-marks", OK, "no third-party brand marks under a logos/ directory"))
+    else:
+        found.append(Finding(
+            "third-party-marks", UNKNOWN if bare else OK,
+            f"{len(bare)} of {len(marks)} third-party mark(s) record no source or trademark line"
+            if bare else f"all {len(marks)} third-party mark(s) record their source",
+            bare[:10] or marks[:10], "the user" if bare else None))
 
     pkg = src / "package.json"
     deps = ""

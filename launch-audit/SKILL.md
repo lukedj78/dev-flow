@@ -55,6 +55,11 @@ This is where a marketing checklist turns out to be law. See `references/identit
   number. In the EU this is **Article 5 of Directive 2000/31/EC**, and it must be *"easily, directly
   and permanently accessible"*. Buried in a PDF is not compliant. The verbatim text is in the
   reference, because the enumerated list is what makes this checkable rather than a matter of taste.
+- **Somebody else's brand on our page** — the card networks at checkout, an airline or supplier
+  mark, a "built with" strip. Each one must record where the artwork came from and under what
+  terms, because **a free source licence covers the file, not the brand**: official artwork is a
+  trademark, used for identification only, under that brand's own guidelines. The convention the
+  check reads is the one the codebase already follows — `brand/` is our mark, `logos/` is theirs.
 
 ### 3. Convertible — can they act?
 

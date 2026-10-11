@@ -112,6 +112,26 @@ into it. Establishment is the test, not where the server is.
 
 **Routes to**: **the user**, always. This skill never writes a registration number.
 
+### `third-party-marks`
+**Looks for**: files under a `logos/` directory that carry no provenance line — a source, a licence,
+or the word trademark. The directory is the signal, and it is a convention the corpus already holds:
+fit-room, ldglab, voicepass and skill-lint keep their own lockup in `brand/`, while smart-travel's
+card networks sit in `components/logos/`. Reading file names instead would report our own logo as a
+trademark risk, which is the false positive that teaches people to stop reading the report.
+
+**Why it is a trust check and not a licence check**: the file's licence is usually settled (CC0,
+public domain, MIT tooling). **The brand is not.** Logoforge states it the way to remember it — *a
+free source licence covers the file, not the brand* — and official artwork comes with no grant
+beyond referring to the product. So the question at launch is whether each mark says where it came
+from, and whether its use is identification only.
+
+**Legitimately fine when**: the marks are the project's own sub-brands, or the provenance lives in a
+`CREDITS` file beside them rather than in each header. Say which, once, and dismiss it.
+
+**Routes to**: **the user**. Adding an attribution line is one comment; deciding that a commercial
+checkout may show a card network's mark is a reading of that network's guidelines, and this skill
+does not make it.
+
 ---
 
 ## Convertible
