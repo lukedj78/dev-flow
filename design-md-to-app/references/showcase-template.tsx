@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Brand-specific Eyebrow component (the small uppercase mono label that
@@ -381,9 +382,9 @@ export default function Showcase() {
           </div>
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium tracking-wide uppercase text-on-surface-variant">
+              <Label className="text-[12px] font-medium tracking-wide uppercase text-on-surface-variant">
                 Cliente
-              </label>
+              </Label>
               <Input
                 className="rounded-sm h-11 px-4 border-outline"
                 defaultValue="Bianchi srl"
@@ -391,9 +392,9 @@ export default function Showcase() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium tracking-wide uppercase text-on-surface-variant">
+              <Label className="text-[12px] font-medium tracking-wide uppercase text-on-surface-variant">
                 Data prevista atto
-              </label>
+              </Label>
               <Input
                 type="date"
                 className="rounded-sm h-11 px-4 border-outline"
@@ -402,9 +403,9 @@ export default function Showcase() {
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[12px] font-medium tracking-wide uppercase text-error">
+              <Label className="text-[12px] font-medium tracking-wide uppercase text-error">
                 Codice fiscale (con errore)
-              </label>
+              </Label>
               <Input
                 className="rounded-sm h-11 px-4 border-error focus-visible:ring-error/30"
                 defaultValue="VRDMRA80"

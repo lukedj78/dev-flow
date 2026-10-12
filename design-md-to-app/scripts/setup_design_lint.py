@@ -26,6 +26,12 @@ references/design-system-lint.md for the evidence behind each rule:
   - eslint-plugin-only-warn (shadcn's monorepo template) reports every rule as a warning,
     so the gate is --max-warnings in the lint script, not the rule severity
 
+Golden rule 3, the half no import shows (R90, smart-travel 2026-10-12 — 238 hand-made elements behind a
+green lint): the preset also defines `designPlugin` with design/no-handmade-ui (always "error") and
+design/no-card-in-card, then setup calls setup_primitives_guard.py, which installs the write-time guard
+(Claude Code hooks). --check fails without either. A preset the project has edited is not replaced: the
+two rules are injected into it (the fingerprint line says whether it is still this script's output).
+
 A fresh scaffold (phase before `scaffolded`) gets rules at "error" and must come out at 0
 design-lint findings — the script fails and lists them rather than capping them away. An
 existing app gets "warn" and a cap at today's measured count, which only ever goes down.
@@ -287,7 +293,346 @@ def primitives_rule(topo: dict, severity: str) -> str:
     return out
 
 
-def preset_source(topo: dict, severity: str) -> str:
+# ---------------------------------------------------------------------------------------
+# Golden rule 3, the half no import ban can see — design/no-handmade-ui (R90) and
+# design/no-card-in-card (R38). smart-travel, 2026-10-12: after three days of agents building
+# against a green lint, an audit found 238 hand-made elements where a primitive existed — 84
+# div-cards, 62 <button>, 34 <label>, 22 alert boxes, 14 <a>, 11 span-badges. A raw element with
+# Tailwind classes imports nothing, so the import bans above could not see one of them; and
+# shadcn/no-restyle punishes restyling a primitive, which made writing the element by hand the
+# path of least resistance whenever a board did not match a variant. The rule below is the one
+# smart-travel's eslint.design-system.mjs runs (238 findings, no false positive among the
+# allowed cases), generalised: the primitive names come from the library's mapping.
+# ---------------------------------------------------------------------------------------
+
+def ui_base_of(meta: dict, topo: dict) -> str:
+    """base | radix | aria — how a primitive composes a foreign element (render vs asChild)."""
+    ui = topo.get("ui")
+    if ui in {"coss", "base-ui"}:
+        return "base"
+    base = (meta.get("stack") or {}).get("ui_base")
+    if base:
+        return base
+    try:
+        style = json.loads((topo["targets"][0] / "components.json").read_text()).get("style", "")
+    except (OSError, IndexError, json.JSONDecodeError):
+        style = ""
+    return "radix" if style and not style.startswith("base-") else "base"
+
+
+def ui_import_path(topo: dict) -> str:
+    """Where the primitives are imported from, as the messages should say it."""
+    for t in topo["targets"]:
+        try:
+            return json.loads((t / "components.json").read_text())["aliases"]["ui"]
+        except (OSError, KeyError, json.JSONDecodeError):
+            continue
+    return "components/ui"
+
+
+def library_primitives(ui: str | None, base: str) -> dict:
+    """The primitive each hand-made pattern should have been, per library.
+
+    shadcn (any base) and coss share most names; coss calls the card body CardPanel, the menu Menu
+    and the tab TabsTab, and has Meter. Standalone Base UI has no Card, Badge, Alert or Table: the
+    project wraps them in components/ui itself, so the message names the wrapper to use or add."""
+    c = "asChild" if base == "radix" else "render={<…/>}"
+    if ui == "coss":
+        raw = {
+            "button": f"Button (variant link for a link in a sentence), Toggle/ToggleGroup for a chip, or a primitive's {c} for a clickable row",
+            "label": "Label, or the label part of Field (a choice tile is a Label around a Radio/Checkbox)",
+            "input": "Input, InputGroup, NumberField, Checkbox, Switch or RadioGroup",
+            "select": "Select or Combobox", "textarea": "Textarea", "hr": "Separator",
+            "details": "Collapsible or Accordion", "summary": "CollapsibleTrigger or AccordionTrigger",
+            "dialog": "Dialog, Sheet or AlertDialog", "progress": "Progress", "meter": "Meter", "table": "Table",
+            "img": "next/image (Image), or Avatar for a person or an organisation",
+            "a": f"next/link (Link), Button with {c} for a link styled as a button, buttonVariants on the <a> (a download, tel:, mailto:)",
+        }
+        roles = {"menu": "Menu", "menuitem": "Menu", "tab": "Tabs (TabsTab)", "tablist": "Tabs (TabsList)",
+                 "tabpanel": "Tabs (TabsPanel)", "listbox": "Select, Combobox or Autocomplete",
+                 "option": "Select, Combobox or Autocomplete", "meter": "Meter"}
+        card = "Card (CardPanel), or Frame / Empty"
+    elif ui == "base-ui":
+        raw = {
+            "button": "the Button wrapper (Toggle/ToggleGroup for a chip)", "label": "Field.Label inside a Field wrapper",
+            "input": "the Input / Checkbox / Switch / Radio / NumberField wrappers", "select": "the Select or Combobox wrapper",
+            "textarea": "Field.Control render={<textarea/>} in the Field wrapper", "hr": "the Separator wrapper",
+            "details": "the Collapsible or Accordion wrapper", "summary": "the Collapsible / Accordion trigger",
+            "dialog": "the Dialog or AlertDialog wrapper", "progress": "the Progress wrapper", "meter": "the Meter wrapper",
+            "table": "the Table wrapper (add it to components/ui if missing)",
+            "img": "next/image (Image), or the Avatar wrapper",
+            "a": "next/link (Link), or a wrapper's render={<a/>} for a link styled as a control",
+        }
+        roles = {"menu": "the Menu wrapper", "menuitem": "the Menu wrapper", "tab": "the Tabs wrapper",
+                 "tablist": "the Tabs wrapper", "tabpanel": "the Tabs wrapper", "listbox": "the Select or Combobox wrapper",
+                 "option": "the Select or Combobox wrapper", "meter": "the Meter wrapper"}
+        card = "the Card wrapper in components/ui (add it there, from DESIGN.md, if it does not exist)"
+    else:  # shadcn, on base / radix / aria
+        raw = {
+            "button": f"Button (variant link for a link in a sentence), Toggle/ToggleGroup for a chip, Item {c} for a clickable row or tile",
+            "label": "Label, or FieldLabel inside a Field (a choice tile is FieldLabel around Field orientation=\"horizontal\" with RadioGroupItem/Checkbox)",
+            "input": "Input, InputGroup, Checkbox, Switch, RadioGroup or InputOTP",
+            "select": "Select or NativeSelect", "textarea": "Textarea", "hr": "Separator",
+            "details": "Collapsible or Accordion", "summary": "CollapsibleTrigger or AccordionTrigger",
+            "dialog": "Dialog, Sheet, Drawer or AlertDialog", "progress": "Progress", "meter": "Progress", "table": "Table",
+            "img": "next/image (Image), or Avatar for a person or an organisation",
+            "a": f"next/link (Link) or Button {c} (internal), Button variant link with {c} (a link in a sentence), buttonVariants on the <a> (a download, tel:, mailto:)",
+        }
+        roles = {"menu": "DropdownMenu", "menuitem": "DropdownMenu", "tab": "Tabs", "tablist": "Tabs", "tabpanel": "Tabs",
+                 "listbox": "Select or Combobox", "option": "Select or Combobox", "meter": "Progress"}
+        card = "Card (CardContent, size sm), Item for a row, or Empty for a dashed placeholder"
+    w = "" if ui == "base-ui" else " "
+    shared_roles = {"radio": "RadioGroup or ToggleGroup", "radiogroup": "RadioGroup or ToggleGroup",
+                    "checkbox": "Checkbox or Toggle", "switch": "Switch", "dialog": "Dialog", "tooltip": "Tooltip",
+                    "progressbar": "Progress", "separator": "Separator"}
+    if ui == "base-ui":
+        shared_roles = {k: f"the {v.split(' or ')[0]} wrapper" for k, v in shared_roles.items()}
+    return {
+        "raw": raw,
+        "roles": {**shared_roles, **roles},
+        "card": card + " — the primitive's radius and ring or border, not a copy.",
+        "badge": ("the Badge wrapper" if ui == "base-ui" else "Badge") + f"{w}with one of the variants declared in badge.tsx",
+        "alert": ("the Alert wrapper" if ui == "base-ui" else "Alert") + " (its variants), or the field's error part for a field's message",
+        "separator": ("the Separator wrapper" if ui == "base-ui" else "Separator") + " (orientation vertical for a column rule)",
+    }
+
+
+# The overlay parts that render in a portal (not inside the card they are written in) and the boxes,
+# across shadcn's and coss's names.
+BOX_COMPONENTS = ["Card", "Alert", "Frame", "PopoverContent", "DialogContent", "SheetContent", "DrawerContent",
+                  "AlertDialogContent", "PopoverPopup", "DialogPopup", "SheetPopup", "AlertDialogPopup", "ResponsiveDialog"]
+OVERLAYS = [b for b in BOX_COMPONENTS if b not in {"Card", "Alert", "Frame"}]
+CHOICE_COMPONENTS = ["RadioGroupItem", "Radio", "Checkbox", "Switch", "Toggle", "ToggleGroupItem"]
+
+RULES_BEGIN = "// BEGIN:design-rules — written by setup_design_lint.py (R38, R90)"
+RULES_END = "// END:design-rules"
+
+DESIGN_RULES_JS = r'''// BEGIN:design-rules — written by setup_design_lint.py (R38, R90)
+// R38 «No card inside a card»: a box — a Card, or an element whose static className draws a full border or a
+// shadow with a rounded corner — never sits inside another box written in the same component. Inside a card,
+// groups are rows with dividers, titled sections, or a soft background with neither border nor shadow.
+// Choice tiles (a <label>, role radio/checkbox, a RadioGroupItem/Checkbox inside, or a checked-state class)
+// are controls and allowed. Only unprefixed classes count: `md:border` is the page's frame at a breakpoint.
+const BOX_COMPONENTS = new Set(__BOXES__)
+const OVERLAYS = new Set(__OVERLAYS__)
+const CHOICE_COMPONENTS = new Set(__CHOICES__)
+function staticClass(node) {
+  const attr = node.openingElement.attributes.find((a) => a.type === "JSXAttribute" && a.name?.name === "className")
+  if (!attr?.value) return ""
+  const parts = []
+  const visit = (n) => {
+    if (!n) return
+    if (n.type === "Literal" && typeof n.value === "string") parts.push(n.value)
+    else if (n.type === "TemplateLiteral") n.quasis.forEach((q) => parts.push(q.value.cooked ?? ""))
+    else if (n.type === "JSXExpressionContainer") visit(n.expression)
+    else if (n.type === "CallExpression") n.arguments.forEach(visit)
+    else if (n.type === "ConditionalExpression") { visit(n.consequent); visit(n.alternate) }
+    else if (n.type === "LogicalExpression") visit(n.right)
+  }
+  visit(attr.value)
+  return parts.join(" ")
+}
+const nameOf = (node) => (node.openingElement.name.type === "JSXIdentifier" ? node.openingElement.name.name : node.openingElement.name.type === "JSXMemberExpression" ? node.openingElement.name.property.name : "")
+const attrOf = (node, name) => node.openingElement.attributes.find((a) => a.type === "JSXAttribute" && a.name?.name === name)
+const literalAttr = (node, name) => {
+  const v = attrOf(node, name)?.value
+  return v?.type === "Literal" ? v.value : v?.type === "JSXExpressionContainer" && v.expression.type === "Literal" ? v.expression.value : undefined
+}
+function isChoice(node) {
+  const name = nameOf(node)
+  if (name === "label" || CHOICE_COMPONENTS.has(name)) return true
+  const role = literalAttr(node, "role")
+  if (["radio", "checkbox", "option", "switch", "tab"].includes(role)) return true
+  return /has-\[[^\]]*:checked\]|has-data-checked|has-aria-checked|aria-pressed:|data-checked:|aria-checked:/.test(staticClass(node))
+}
+function isBox(node) {
+  const name = nameOf(node)
+  // a project Alert that drops its border inside a card (an `inset` variant)
+  if (name === "Alert" && attrOf(node, "inset")) return false
+  if (BOX_COMPONENTS.has(name)) return true
+  if (!/^[a-z]/.test(name) && name !== "Link") return false
+  const tokens = staticClass(node).split(/\s+/)
+  const rounded = tokens.some((c) => /^rounded(-(md|lg|xl|2xl|3xl|4xl))?$/.test(c))
+  const border = tokens.some((c) => /^border(-[0-9])?$/.test(c)) && !tokens.includes("border-dashed") && !tokens.includes("border-transparent")
+  const shadow = tokens.some((c) => /^shadow(-(xs|sm|md|lg|xl|2xl|card|float))?$/.test(c))
+  return rounded && (border || shadow)
+}
+const cardInCard = {
+  meta: { type: "suggestion", messages: { nested: "R38 «No card inside a card»: this {{child}} sits inside the {{parent}} box above it. Inside a card, use rows with dividers, a titled section, or a soft background (bg-muted, no border or shadow). Choice tiles are allowed." } },
+  create(context) {
+    return {
+      JSXElement(node) {
+        // an overlay (dialog, sheet, popover) renders in a portal: not inside the card it is written in
+        if (!isBox(node) || isChoice(node) || OVERLAYS.has(nameOf(node))) return
+        for (let p = node.parent; p; p = p.parent) {
+          if (p.type === "JSXAttribute") return // a render prop or slot: another tree
+          if (p.type !== "JSXElement") continue
+          if (isChoice(p)) return
+          if (isBox(p)) {
+            context.report({ node: node.openingElement, messageId: "nested", data: { child: nameOf(node), parent: nameOf(p) } })
+            return
+          }
+        }
+      },
+    }
+  },
+}
+
+// R90 «The primitive wins» (golden rule 3, dev-flow contracts.md): every piece of UI is a primitive from
+// __WHERE__, used as it is. A raw element, a hand-written ARIA role, or a <div>/<span> whose classes redraw a
+// primitive (a card, a badge, an alert, a separator) is reported with the primitive to use. When a board
+// differs from the primitive, the primitive wins and the board is corrected; a missing variant STOPS the
+// work — it is proposed in DESIGN.md and the user decides — it never licenses an element by hand.
+// Allowed: an element passed as a primitive's `render` (or the child of an `asChild`), an <a> styled by
+// buttonVariants (downloads, tel:, mailto:), a hidden or file input, an sr-only data table, a file that
+// renders no DOM (next/og, react-email, react-pdf), and an exception recorded below with its reason.
+// A tinted box counts as an alert only with padding or role status/alert: a size-16 icon medallion on
+// bg-success-soft, or a swipe action's uncovered strip, is not one.
+const RAW = __RAW__
+const ROLE_PRIMITIVE = __ROLES__
+const NON_DOM = /^(next\/og|@vercel\/og|satori|@react-email\/|react-email|@react-pdf\/|@formepdf\/|react-native|@react-three\/fiber)/
+/** Passed as a primitive's `render` (or any other prop), or the child an `asChild` primitive renders as. */
+function isComposed(node) {
+  const parent = node.parent
+  if (parent?.type === "JSXElement" && /^[A-Z]/.test(nameOf(parent)) && attrOf(parent, "asChild")) return true
+  for (let p = parent; p; p = p.parent) {
+    if (p.type === "JSXAttribute") return true
+    if (p.type === "JSXElement" || p.type === "JSXFragment") return false
+  }
+  return false
+}
+function callsVariants(node) {
+  const v = attrOf(node, "className")?.value
+  let found = false
+  const visit = (n) => {
+    if (!n || found) return
+    if (n.type === "CallExpression") {
+      if (n.callee.type === "Identifier" && /Variants$/.test(n.callee.name)) found = true
+      else n.arguments.forEach(visit)
+    } else if (n.type === "JSXExpressionContainer") visit(n.expression)
+    else if (n.type === "ConditionalExpression") { visit(n.consequent); visit(n.alternate) }
+    else if (n.type === "LogicalExpression") { visit(n.left); visit(n.right) }
+  }
+  visit(v)
+  return found
+}
+/** The classes without breakpoint/state prefixes: `md:rounded-xl md:border` still draws a card. */
+const bareTokens = (node) => staticClass(node).split(/\s+/).filter(Boolean).map((c) => c.split(":").pop())
+const handmade = {
+  meta: {
+    type: "problem",
+    messages: __MESSAGES__,
+  },
+  create(context) {
+    let nonDom = false
+    return {
+      ImportDeclaration(node) {
+        if (NON_DOM.test(String(node.source.value))) nonDom = true
+      },
+      JSXElement(node) {
+        const el = nameOf(node)
+        if (nonDom || !/^[a-z]/.test(el) || isComposed(node)) return
+        if (RAW[el]) {
+          if (el === "a" && callsVariants(node)) return
+          if (el === "input" && ["file", "hidden"].includes(literalAttr(node, "type"))) return
+          if (el === "table" && /\bsr-only\b/.test(staticClass(node))) return
+          context.report({ node: node.openingElement, messageId: "raw", data: { el, use: RAW[el] } })
+          return
+        }
+        const role = literalAttr(node, "role")
+        if (typeof role === "string" && ROLE_PRIMITIVE[role]) {
+          context.report({ node: node.openingElement, messageId: "role", data: { role, use: ROLE_PRIMITIVE[role] } })
+          return
+        }
+        const t = bareTokens(node)
+        const has = (re) => t.some((c) => re.test(c))
+        if (has(/^(h-px|w-px)$/) && has(/^bg-/)) return context.report({ node: node.openingElement, messageId: "separator" })
+        if (has(/^bg-(destructive|danger|error|warning|success|info)(-(soft|subtle|muted)(\/\d+)?|\/\d+)$/) && (has(/^p[xy]?-/) || role === "status" || role === "alert") && !has(/^rounded-full$/) && el !== "span") return context.report({ node: node.openingElement, messageId: "alert" })
+        if (el === "span" && has(/^rounded(-(sm|md|full))?$/) && has(/^px-/) && has(/^text-(2xs|xs)$/) && has(/^bg-/)) return context.report({ node: node.openingElement, messageId: "badge" })
+        if (has(/^rounded-(lg|xl|2xl|3xl)$/) && has(/^(border|border-[0-9]|ring-1)$/)) context.report({ node: node.openingElement, messageId: "card" })
+      },
+    }
+  },
+}
+export const designPlugin = { rules: { "no-card-in-card": cardInCard, "no-handmade-ui": handmade } }
+
+// Recorded exceptions: a file that legitimately draws outside the primitives (map marks inside MapLibre,
+// a canvas), each with its reason. Kept verbatim when the script re-runs. Never for a missing variant.
+// BEGIN:recorded-exceptions
+export const designExceptions = [
+  // { files: ["components/map/map-marks.tsx"], rules: { "design/no-handmade-ui": "off" } }, // reason
+]
+// END:recorded-exceptions
+// END:design-rules
+'''
+
+# the DESIGN.md specimen (app/showcase) renders swatches and state matrices on purpose, with helpers vendored
+# from shadcn's own skill (assets/showcase/, kept diffable against upstream): a specimen, not product UI
+HANDMADE_IGNORES = ["**/*.test.{tsx,jsx}", "**/*.spec.{tsx,jsx}", "**/*.stories.{tsx,jsx}", "**/emails/**",
+                    "app/**/showcase/**", "src/app/**/showcase/**"]
+CARD_IN_CARD_OPT_OUT = re.compile(
+    r"cards?\s+(may|can)\s+nest|nested\s+cards?\s+(are\s+)?allowed|design-lint:\s*allow\s+card-in-card", re.I)
+
+
+def card_in_card_applies(root: Path) -> bool:
+    """R38 is on unless DESIGN.md says cards may nest. Nesting boxes is the most common way a generated
+    screen reads as generated (a border inside a border inside a border), and smart-travel's DESIGN.md
+    made it a rule after the first review; a design that wants nested cards says so in one line."""
+    for p in (root / ".workflow" / "DESIGN.md", root / "DESIGN.md"):
+        if p.exists() and CARD_IN_CARD_OPT_OUT.search(p.read_text(errors="ignore")):
+            return False
+    return True
+
+
+def design_rules_source(topo: dict, base: str = "base", exceptions: str | None = None) -> str:
+    lib = library_primitives(topo.get("ui"), base)
+    where = ui_import_path(topo)
+    messages = {
+        "raw": f"R90 «The primitive wins»: a hand-written <{{{{el}}}}>. Use {{{{use}}}} from {where}. No primitive or variant fits: stop and ask — propose the variant in DESIGN.md, never draw it by hand.",
+        "role": f"R90 «The primitive wins»: role=\"{{{{role}}}}\" written by hand. Use {{{{use}}}} from {where}.",
+        "card": f"R90 «The primitive wins»: these classes redraw a card. Use {lib['card']}",
+        "badge": f"R90 «The primitive wins»: these classes redraw a badge. Use {lib['badge']} — a missing one is proposed in DESIGN.md, never drawn by hand.",
+        "alert": f"R90 «The primitive wins»: these classes redraw an alert. Use {lib['alert']}.",
+        "separator": f"R90 «The primitive wins»: these classes redraw a separator. Use {lib['separator']}.",
+    }
+    src = (DESIGN_RULES_JS
+           .replace("__BOXES__", json.dumps(BOX_COMPONENTS))
+           .replace("__OVERLAYS__", json.dumps(OVERLAYS))
+           .replace("__CHOICES__", json.dumps(CHOICE_COMPONENTS))
+           .replace("__WHERE__", where)
+           .replace("__RAW__", json.dumps(lib["raw"], ensure_ascii=False))
+           .replace("__ROLES__", json.dumps(lib["roles"], ensure_ascii=False))
+           .replace("__MESSAGES__", json.dumps(messages, ensure_ascii=False)))
+    if exceptions is not None:
+        src = re.sub(r"// BEGIN:recorded-exceptions\n.*?// END:recorded-exceptions\n",
+                     lambda _: exceptions, src, flags=re.S)
+    return src
+
+
+def recorded_exceptions(preset_text: str) -> str | None:
+    m = re.search(r"// BEGIN:recorded-exceptions\n.*?// END:recorded-exceptions\n", preset_text, re.S)
+    return m.group(0) if m else None
+
+
+def design_rules_config(topo: dict, card_severity: str, card_in_card: bool) -> str:
+    comp_globs = sorted({f"{component_dir(t)}/**" for t in topo["targets"]})
+    rules = {"design/no-handmade-ui": "error"}
+    if card_in_card:
+        rules["design/no-card-in-card"] = card_severity
+    return f'''  // Golden rule 3, the half no import shows: a hand-made element where a primitive exists (R90, always
+  // "error"), and no card inside a card (R38{"" if card_in_card else " — off: DESIGN.md lets cards nest"}).
+  {{
+    files: ["**/*.{{tsx,jsx}}"],
+    ignores: {json.dumps(comp_globs + HANDMADE_IGNORES)},
+    plugins: {{ design: designPlugin }},
+    rules: {json.dumps(rules)},
+  }},
+  ...designExceptions,
+'''
+
+
+def preset_source(topo: dict, severity: str, *, base: str = "base", card_in_card: bool = True,
+                  exceptions: str | None = None) -> str:
     theme = topo["theme"]
     theme_rel = Path(os_relpath(theme, topo["preset"].parent)).as_posix() if theme else ""
     comp_globs = sorted({f"{component_dir(t)}/**" for t in topo["targets"]})
@@ -312,9 +657,10 @@ function declaredShadows() {{
   }}
 }}
 
+{design_rules_source(topo, base, exceptions)}
 /** @type {{import("eslint").Linter.Config[]}} */
 export const designSystemConfig = [
-  {{
+{design_rules_config(topo, s, card_in_card)}  {{
     files: ["**/*.{{ts,tsx}}"],
     plugins: {{ shadcn }},
     rules: {{
@@ -357,6 +703,43 @@ export const designSystemConfig = [
   }},
 ]
 '''
+
+
+FINGERPRINT = re.compile(r"^// fingerprint: ([0-9a-f]{16})\n", re.M)
+HANDMADE_ERROR = re.compile(r'"design/no-handmade-ui"\s*:\s*(\[\s*)?"error"')
+
+
+def _fingerprint_of(text: str) -> str:
+    import hashlib
+    body = FINGERPRINT.sub("", text)
+    body = re.sub(r"// BEGIN:recorded-exceptions\n.*?// END:recorded-exceptions\n", "", body, flags=re.S)
+    return hashlib.sha256(body.encode()).hexdigest()[:16]
+
+
+def stamp(src: str) -> str:
+    """Mark the preset as this script's output: a re-run may replace it only while the mark still matches."""
+    first, second, rest = src.split("\n", 2)
+    return f"{first}\n{second}\n// fingerprint: {_fingerprint_of(src)}\n{rest}"
+
+
+def untouched(text: str) -> bool:
+    """Written by this script and not edited since — the recorded-exceptions block aside, which is kept."""
+    m = FINGERPRINT.search(text)
+    return bool(m) and m.group(1) == _fingerprint_of(text)
+
+
+def inject_design_rules(text: str, topo: dict, severity: str, base: str, card_in_card: bool) -> str | None:
+    """Add R90/R38 to a preset this script may not replace (edited by the project, or older than the
+    fingerprint): the plugin before designSystemConfig, its block first inside the array. Everything the
+    project wrote stays. None when there is no `export const designSystemConfig = [` to anchor on."""
+    if "no-handmade-ui" in text:
+        return text
+    m = re.search(r"^(?:/\*\*[^\n]*\*/\n)?export const designSystemConfig\s*=\s*\[\n", text, re.M)
+    if not m:
+        return None
+    head = text[:m.start()] + design_rules_source(topo, base) + "\n"
+    decl = m.group(0)
+    return head + decl + design_rules_config(topo, severity, card_in_card) + text[m.end():]
 
 
 def os_relpath(target: Path, start: Path) -> str:
@@ -514,6 +897,17 @@ def check(root: Path) -> tuple[bool, list[str]]:
             if only_warn(root, topo) and "--max-warnings" not in lint:
                 problems.append(f"{(t / 'package.json').relative_to(root)}: eslint-plugin-only-warn is on, so "
                                 "the lint script needs --max-warnings to gate anything")
+        # golden rule 3's other half: a raw element imports nothing, so without this rule a green lint says
+        # nothing about primitives (smart-travel, 238 hand-made elements behind a green lint)
+        if topo["preset"].exists():
+            text = topo["preset"].read_text()
+            if not HANDMADE_ERROR.search(text) or "export const designPlugin" not in text:
+                problems.append(f"{topo['preset'].relative_to(root)} has no design/no-handmade-ui at \"error\" "
+                                "(golden rule 3, R90) — re-run setup_design_lint.py to add it")
+    import setup_primitives_guard
+    g_ok, g_lines = setup_primitives_guard.check(root)
+    if not g_ok:
+        problems += [f"write-time guard: {line}" for line in g_lines]
     return not problems, problems or [f"design lint wired ({len(units)} unit{'s' if len(units) > 1 else ''})"]
 
 
@@ -550,7 +944,9 @@ def setup(root: Path) -> int:
     write_agents(root, gate)
     record(root)
     print("  AGENTS.md updated · meta.json stack.design_lint = shadcn-lint")
-    return 0
+    # the same rule at write time: hooks that refuse hand-made UI while the agent writes it
+    import setup_primitives_guard
+    return setup_primitives_guard.install(root, units)
 
 
 def export_preset(config_pkg: Path, preset: Path) -> str:
@@ -609,8 +1005,28 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             print(r.stdout[-1500:], r.stderr[-1500:], file=sys.stderr)
             return 1, warn_only
 
-    # 2. the preset, and the export in a monorepo
-    topo["preset"].write_text(preset_source(topo, severity))
+    # 2. the preset, and the export in a monorepo. Replaced only while it is this script's untouched
+    # output; a preset the project edited (or one older than the fingerprint) keeps its own policy and
+    # gets the R90/R38 rules injected — smart-travel's carries i18n and brand-logo blocks a rewrite would drop.
+    meta = load_meta(root)
+    base, card = ui_base_of(meta, topo), card_in_card_applies(root)
+    existing = topo["preset"].read_text() if topo["preset"].exists() else None
+    if existing is None or untouched(existing):
+        exceptions = recorded_exceptions(existing) if existing else None
+        new = stamp(preset_source(topo, severity, base=base, card_in_card=card, exceptions=exceptions))
+        if new != existing:
+            topo["preset"].write_text(new)
+    else:
+        injected = inject_design_rules(existing, topo, severity, base, card)
+        if injected is None:
+            print(f"  {topo['preset'].relative_to(root)}: edited by the project and no `export const "
+                  "designSystemConfig = [` to add design/no-handmade-ui to — add it by hand "
+                  "(references/design-system-lint.md §Hand-made UI)", file=sys.stderr)
+            return 1, warn_only
+        if injected != existing:
+            topo["preset"].write_text(injected)
+            print(f"  {topo['preset'].relative_to(root)}: edited by the project — kept, design/no-handmade-ui "
+                  "and design/no-card-in-card injected")
     if topo["kind"] == "monorepo":
         import_from = export_preset(topo["config_pkg"], topo["preset"])
     else:
@@ -625,7 +1041,8 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     failed = False
     for t in topo["targets"]:
         msgs = run_eslint(t)
-        design = [m for m in msgs if (m.get("ruleId") or "").startswith("shadcn/")]
+        design = [m for m in msgs if (m.get("ruleId") or "").startswith(("shadcn/", "design/"))]
+        handmade = [m for m in msgs if (m.get("ruleId") or "").startswith("design/") and m.get("severity") == 2]
         fatal = [m for m in msgs if m.get("fatal")]
         name = t.relative_to(root).as_posix() or "."
         if fatal:
@@ -650,7 +1067,14 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             print(f"  {name_}: {cap} warning(s) measured, cap stays at {previous} — the lint fails until "
                   f"{cap - previous} are fixed (never raise the cap to make it pass)")
             cap = previous
-        errors = [m for m in msgs if m.get("severity") == 2]
+        if handmade:
+            # an existing app: the rule is "error" from the day it lands, so the lint stays red until they are
+            # replaced by primitives — the retrofit's work list, never an eslint-disable and never a cap
+            print(f"  {name}: {len(handmade)} hand-made UI finding(s) (design/no-handmade-ui, design/no-card-in-card) "
+                  "— the lint fails until each is a primitive; a missing variant is proposed in DESIGN.md:")
+            for m in handmade[:15]:
+                print(f"    {m['file']}:{m['line']}  {m['ruleId']}  {m['message'][:110]}")
+        errors = [m for m in msgs if m.get("severity") == 2 and not (m.get("ruleId") or "").startswith("design/")]
         if errors:
             lines = [f"    {m['file']}:{m['line']}  {m.get('ruleId')}  {m['message'].splitlines()[0][:100]}"
                      for m in errors[:10]]

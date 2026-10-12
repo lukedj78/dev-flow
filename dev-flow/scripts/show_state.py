@@ -25,8 +25,8 @@ PHASE_NEXT_BY_STACK = {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
         "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app",
-        "scaffolded":       "screenshot-to-page  OR  module-add",
-        "page_generated":   "spec-review on the diff  THEN  module-add  OR  more screenshot-to-page",
+        "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add",
+        "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit  THEN  vercel-deploy",
     },
@@ -44,7 +44,7 @@ PHASE_NEXT_BY_STACK = {
         "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  monorepo-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap",
         "monorepo_initialized": "monorepo-bootstrap continues (apps/web, apps/mobile, apps/agent)",
-        "scaffolded":       "web: screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent",
+        "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent",
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy",
@@ -105,6 +105,44 @@ def linters_present(root: Path) -> set[str]:
         if any((d / f).exists() for f in ('biome.json', 'biome.jsonc')):
             found.add('biome')
     return found
+
+
+PRE_CODE_PHASES = {'empty', 'idea_captured', 'prd_drafted', 'tasks_split', 'design_extracted',
+                   'monorepo_initialized', ''}
+SKIP_DIRS = {'node_modules', '.next', '.git', '.turbo', 'dist', 'build', '.expo'}
+
+
+def app_code(root: Path) -> tuple[int, int]:
+    """(routes, components) already written: page/layout files under an `app/` dir, and .tsx/.jsx under a
+    `components/` dir outside the vendored primitives. Root, src/ and apps/* (monorepo) are all looked at."""
+    bases = [root, root / 'src', *sorted(root.glob('apps/*')), *sorted(root.glob('apps/*/src'))]
+    routes = components = 0
+    for b in bases:
+        for kind in ('app', 'components'):
+            d = b / kind
+            if not d.is_dir():
+                continue
+            for f in d.rglob('*'):
+                if f.suffix not in {'.tsx', '.jsx'} or SKIP_DIRS & set(f.relative_to(root).parts):
+                    continue
+                if kind == 'app' and f.stem in {'page', 'layout'}:
+                    routes += 1
+                elif kind == 'components' and 'ui' not in f.relative_to(d).parts[:1]:
+                    components += 1
+    return routes, components
+
+
+def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
+    """The phase says nothing is built yet, but the app has routes or components. dev-flow proposes
+    spec-review, shadscan and the gates only from `page_generated` on, so a phase left behind silently
+    switches every check off — smart-travel was at `design_extracted` through three days of building and
+    238 hand-made elements. Returns the counts when that is the case."""
+    phase = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    fw = (meta.get('stack') or {}).get('framework')
+    if phase not in PRE_CODE_PHASES or fw == 'agent':
+        return None
+    routes, components = app_code(root)
+    return (routes, components) if routes or components else None
 
 
 def next_step(phase: str | None, framework: str | None) -> str:
@@ -170,11 +208,20 @@ def main() -> int:
     # A project already at or past `scaffolded` without the design lint — it predates the gate,
     # or its phase was edited by hand. Not blocking here; set-phase blocks the transition.
     phase_norm = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
-    if phase_norm not in {'empty', 'idea_captured', 'prd_drafted', 'tasks_split',
-                          'design_extracted', 'monorepo_initialized', ''}:
+    behind = phase_behind_code(meta, root)
+    if behind:
+        routes, components = behind
+        print(f"⚠⚠ PHASE BEHIND THE CODE: phase is {phase_norm or '(none)'!r}, but the app already has "
+              f"{routes} route file(s) and {components} component(s).")
+        print("  No check is being proposed: spec-review, shadscan and the phase gates (design lint, primitives")
+        print("  guard) start from page_generated. Nothing has verified the code written so far.")
+        print("  Realign before building more (see the proposal at the bottom).")
+        print()
+    if phase_norm not in PRE_CODE_PHASES or behind:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import data_residency_gate
         import design_lint_gate
+        import primitives_guard_gate
         import registry_intake_gate
         import wireframes_gate
 
@@ -185,11 +232,14 @@ def main() -> int:
                 print(f"  {line}")
             print()
         for gate, what in ((data_residency_gate, "Data-residency decision"),
-                           (design_lint_gate, "Design lint"), (registry_intake_gate, "Registry intake"),
+                           (design_lint_gate, "Design lint"),
+                           (primitives_guard_gate, "PRIMITIVES GUARD (golden rule 3 — hand-made UI is not blocked)"),
+                           (registry_intake_gate, "Registry intake"),
                            (wireframes_gate, "Wireframe canvas approval")):
             passed, why = gate.verify(root, meta)
             if not passed:
-                print(f"⚠ {what} missing on a scaffolded project:")
+                print(f"⚠ {what} missing on a project with code:" if behind else
+                      f"⚠ {what} missing on a scaffolded project:")
                 for line in why.splitlines():
                     print(f"  {line}")
                 print(gate.remedy(root))
@@ -236,6 +286,13 @@ def main() -> int:
 
     framework = stack.get('framework')
     nxt = next_step(meta.get('phase'), framework)
+    if behind:
+        here = Path(__file__).resolve().parent
+        dmta = here.parents[1] / 'design-md-to-app' / 'scripts' / 'setup_design_lint.py'
+        nxt = ("REALIGN THE PHASE before anything else —\n"
+               f"  1. retrofit golden rule 3 (lint rule + write-time guard + AGENTS.md, one command): python3 {dmta} {root}\n"
+               f"  2. python3 {here / 'update_meta.py'} {root} set-phase page_generated   (module_added if modules are wired)\n"
+               "  3. spec-review on everything built so far (Standards axis: golden rule 3) + shadscan, then resume")
     print(f"Next step proposal ({framework or 'next, default'}): {nxt}")
     return 0
 

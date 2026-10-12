@@ -85,11 +85,13 @@ A dev-flow project's documented standards are not a `CONTRIBUTING.md` someone ma
 long report that says nothing new. If the project has a lint gate, a review finding about formatting is
 noise.
 
-#### Golden rule 3 on the diff — three checks
+#### Golden rule 3 on the diff — four checks
 
-The design-system lint already refuses the mechanical half (imports of an undeclared component library,
+The design-system lint already refuses the import half (imports of an undeclared component library,
 imports of `radix-ui` / `@base-ui/react` / `cmdk` / `vaul`… outside `components/ui/`) — don't repeat it.
-The Standards sub-agent checks what a lint cannot see:
+**A green lint is not evidence for the rest**: a raw element imports nothing, and on smart-travel
+(2026-10-12) 238 hand-made elements sat behind a green lint and screenshots that matched the boards.
+The Standards sub-agent checks:
 
 1. **A file outside `components/ui/` that re-implements a pattern an installed primitive covers.** List
    `components/ui/` (shadcn monorepo: `packages/ui/src/components/`) first, then read each new or changed
@@ -100,6 +102,34 @@ The Standards sub-agent checks what a lint cannot see:
    not know about yet (the lint list is finite; the rule is not).
 3. **Behaviour changes inside `components/ui/`** beyond `cva` variants and token classes — new props that
    change markup, handlers, state, focus or ARIA wiring. That is a fork of the primitive.
+4. **Hand-made UI: raw elements and classes that redraw a primitive** («the primitive wins»). A violation
+   with no import at all. Run the lint rule on the files of the diff — it reports raw `<button>`, `<label>`,
+   `<input>`, `<select>`, `<textarea>`, `<hr>`, `<details>`, `<summary>`, `<dialog>`, `<progress>`,
+   `<meter>`, `<table>`, `<img>`, `<a>`, hand-written roles (`tab`, `radio`, `menu`, `switch`…), and
+   `div`/`span` classes that redraw a Card, Badge, Alert or Separator, each with the primitive to use:
+
+   ```bash
+   git diff --name-only --diff-filter=AM <base>... -- '*.tsx' '*.jsx' \
+     | xargs pnpm exec eslint --no-warn-ignored --rule '{"design/no-handmade-ui":"error"}' 2>&1 \
+     | grep -E 'design/no-(handmade-ui|card-in-card)'
+   ```
+
+   Without the rule in the project (a preset older than 2026-10-12 — itself a finding: the retrofit is
+   `design-md-to-app/scripts/setup_design_lint.py <root>`), fall back to a grep on the **added lines**:
+
+   ```bash
+   git diff <base>... -U0 -- '*.tsx' '*.jsx' | grep -nE \
+     '^\+.*(<(button|label|input|select|textarea|hr|details|summary|dialog|progress|meter|table|img|a)[ >/]|role="(tab|tablist|radio|radiogroup|checkbox|switch|menu|menuitem|listbox|option|dialog|tooltip|progressbar|separator)"|className="[^"]*rounded-(lg|xl|2xl|3xl)[^"]*\b(border|ring-1)\b)'
+   ```
+
+   Then drop the allowed cases by reading each hit: an element passed as a primitive's `render` (or under
+   `asChild`), an `<a>` styled by `buttonVariants` (download, `tel:`, `mailto:`), a hidden or file input,
+   an `sr-only` table, a file that renders no DOM (`next/og`, react-email, react-pdf), a file in the
+   preset's `designExceptions`. **"The board looked different" and "the primitive has no variant for it"
+   are not exceptions** — the first is fixed on the board, the second is a DESIGN.md decision for the user;
+   report the second as a finding *and* a question. Also read the diff and the agent's report for the words
+   that give it away («no variant», «wrong on hover», «custom because») — the smart-travel evidence was
+   in exactly such a comment and such a report.
 
 Each is a finding **unless** `meta.json#stack_config.primitive_exceptions` (or an ADR in `docs/adr/`)
 records that component with a reason — then it is not a finding, and say that you checked.
@@ -111,6 +141,14 @@ Example finding, in the report's shape:
 > arrow-key navigation. `components/ui/combobox.tsx` is installed and covers this pattern (filtering,
 > keyboard navigation, portal, ARIA). No entry in `stack_config.primitive_exceptions`. → Replace with
 > `Combobox`; the guest-specific row becomes the item renderer.
+
+> **Standards · golden rule 3 · high** — `components/checkout/review-form.tsx:41` writes
+> `<button className="text-sm font-medium underline">Modifica</button>` and `:58`
+> `<span className="rounded-full bg-success-soft px-2 text-xs">Pagato</span>`; `design/no-handmade-ui`
+> reports both (hand-written `<button>`; classes that redraw a badge). Neither is passed as a `render`, and
+> no exception is recorded. The comment at `:40` says the ghost Button «turns grey on hover, wrong here» —
+> the primitive wins, the board is corrected. → `Button variant="link"` and `Badge variant="success"`; if
+> `badge.tsx` has no success variant, that is a DESIGN.md question for the user, not a span.
 
 #### The smell baseline — twelve smells, selected (Fowler, *Refactoring* 2nd ed., ch. 3)
 
@@ -178,8 +216,11 @@ report that is right.
 
 ## dev-flow hook
 
-Horizontal capability — run it on any diff. dev-flow proposes it **when a chunk of work lands**
-(`page_generated`, `module_added`) rather than only before shipping: a spec finding is cheapest while
+Horizontal capability — run it on any diff. dev-flow proposes it **when a chunk of work lands — a page,
+a module, a PR, a batch of parallel agent branches — whatever phase `meta.json` records** (a phase left
+behind the code must not switch the review off; smart-travel built for three days at `design_extracted`
+and this skill was never proposed), rather than only before shipping. In a parallel build the orchestrator
+runs the Standards axis on **every** agent diff before accepting it: a spec finding is cheapest while
 the branch is still open. It is *not* a fourth pre-deploy gate — `compliance-audit`, `vercel-doctor` and
 `shadscan` read the finished artefact, this reads the **change**. Records `meta.json#spec_review` +
 `history`; **never bumps `phase`**; never blocks anything.

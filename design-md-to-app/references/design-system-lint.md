@@ -19,6 +19,13 @@ phase** until it passes or `stack.design_lint = "none"` is recorded with
 `stack_config.design_lint_reason`; `show_state.py` flags projects that are already past it. The rest
 of this file is the evidence each rule in the script was written from.
 
+**Since 2026-10-12 the same script also writes golden rule 3's second half** — `design/no-handmade-ui`
+(always `error`) and `design/no-card-in-card` (§Hand-made UI below) — and then calls
+`setup_primitives_guard.py`, which installs the **write-time guard** (Claude Code hooks that refuse a write
+adding hand-made UI). `--check` fails when the rule or the guard is missing, and `set-phase` refuses
+`scaffolded` **and every later phase** without them. On a project already started, the same command is the
+retrofit: it does not replace a preset the project has edited, it injects the two rules into it.
+
 What the script was run against before it was committed, from scratch each time:
 
 | Project | Topology | Result |
@@ -35,7 +42,8 @@ and the first version installed and wired the plugin **before** discovering pre-
 exited — leaving a project wired but uncapped and unrecorded. Pre-existing errors on an existing app
 are now reported and the run continues; only a fresh scaffold is refused, and only after reporting.
 
-`design-md-to-app/scripts/test_setup_design_lint.py` (18 tests, no network, run in CI) covers the
+`design-md-to-app/scripts/test_setup_design_lint.py` (35 tests, no network; the rule tests run ESLint from a
+local project's `node_modules`, `DESIGN_LINT_NODE_PROJECT`, and skip without one) covers the
 decisions: topology detection, where the spread lands and that it lands once, that the cap is
 replaced not appended, that the policy never allows `shadow-*` or turns raw colours off in the
 component directory, and that `set-phase` refuses an unwired app — including a jump straight past
@@ -341,6 +349,98 @@ project's merge config: the same class-dropping bug the config exists to prevent
 The rule is core ESLint, so a project's own `no-restricted-imports` later in its config **replaces** this
 one (flat config does not merge rule options). If the project needs its own list, extend the preset's
 patterns there instead of redefining the rule.
+
+## Hand-made UI — `design/no-handmade-ui` (R90) and `design/no-card-in-card` (R38)
+
+The import bans above see a second library or a headless base; **a raw element with Tailwind classes imports
+nothing**, so they cannot see it, and neither can `@shadcn/lint`, which checks how a primitive is styled, not
+whether one was used. smart-travel, 2026-10-12: three days of agents building behind a green lint, then an
+audit found **238 hand-made elements** where a primitive existed — 84 div-cards, 62 `<button>`, 34 `<label>`,
+22 alert boxes, 14 `<a>`, 11 span-badges, plus hand-written tab/radio roles, `<hr>`, `<img>`, `<details>`.
+Worse, `shadcn/no-restyle` pushed agents toward it: restyling a primitive is reported, writing the element by
+hand was not, so whenever a board did not match a variant the element got written by hand (a code comment
+said «the Button's ghost turns light grey on hover, wrong here»; an agent's report said the badge was a span
+«because Badge has no variant», and the orchestrator read it and did nothing). The lint was green
+throughout and was taken for conformity.
+
+The preset now defines a local plugin, `designPlugin`, between `// BEGIN:design-rules` and
+`// END:design-rules`, and applies it to every `.tsx`/`.jsx` except the component directory, tests, stories,
+`emails/` and the DESIGN.md specimen (`app/**/showcase/**`, whose helpers are vendored from shadcn's skill):
+
+| Reported | Message names |
+|---|---|
+| a raw `<button>`, `<label>`, `<input>`, `<select>`, `<textarea>`, `<hr>`, `<details>`, `<summary>`, `<dialog>`, `<progress>`, `<meter>`, `<table>`, `<img>`, `<a>` | the primitive(s) for it, from the library's mapping (`library_primitives()` in the script: shadcn on base/radix/aria, coss, standalone Base UI) and the import path from `components.json` |
+| a hand-written role: `tab`, `tablist`, `tabpanel`, `radio`, `radiogroup`, `checkbox`, `switch`, `menu`, `menuitem`, `listbox`, `option`, `dialog`, `tooltip`, `progressbar`, `separator` | Tabs, RadioGroup/ToggleGroup, DropdownMenu (coss: Menu)… |
+| classes that redraw a **card**: `rounded-lg…3xl` with `border`/`border-N`/`ring-1` (prefixes stripped: `md:rounded-xl md:border` counts) | Card / Item / Empty (coss: CardPanel, Frame) |
+| a **badge**: a `<span>` with `rounded`/`-sm`/`-md`/`-full`, `px-*`, `text-xs`/`text-2xs`, `bg-*` | Badge with a variant from `badge.tsx` |
+| an **alert**: a tone background — `bg-{destructive,danger,error,warning,success,info}` as `-soft`/`-subtle`/`-muted` or `/N` — with padding or `role="status"`/`"alert"` | Alert, or the field's error |
+| a **separator**: `h-px`/`w-px` with a `bg-*` | Separator |
+| R38: a box inside a box written in the same component (choice tiles and portalled overlays excepted) | rows with dividers, a titled section, or a soft background |
+
+**Allowed** (never reported): an element passed as a primitive's `render` or any other prop, or the child of
+an `asChild` primitive (Radix base); an `<a>` whose className calls `*Variants(…)` (`buttonVariants` for a
+download, `tel:`, `mailto:`); `<input type="file">` and `<input type="hidden">`; a `<table className="sr-only">`;
+a file importing `next/og`, `@vercel/og`, `satori`, `@react-email/*`, `@react-pdf/*`, `@formepdf/*`,
+`react-native`, `@react-three/fiber` (no DOM to compose primitives into); and a file listed in the
+**recorded exceptions** block —
+
+```js
+// BEGIN:recorded-exceptions
+export const designExceptions = [
+  { files: ["components/map/map-marks.tsx"], rules: { "design/no-handmade-ui": "off" } }, // drawn inside MapLibre's markers
+]
+// END:recorded-exceptions
+```
+
+— kept verbatim when the script re-runs and read by the write-time guard too. A Satori file that builds its
+JSX without importing `next/og` itself (smart-travel's `lib/pwa/generated.tsx`) goes there. **A missing
+variant is never an exception**: the work stops, the variant is proposed in DESIGN.md, the user decides, and
+no `eslint-disable` is written. A finding that keeps coming back for the same pattern is a variant DESIGN.md
+is missing — raise it.
+
+**Severity.** `no-handmade-ui` is `error` on every project, fresh or retrofitted: on an existing app the lint
+goes red until each finding is a primitive, which is the retrofit's work list (the script prints it), never a
+cap. `no-card-in-card` follows the preset's severity (`error` on a scaffold, `warn` on a retrofit) and is on
+unless DESIGN.md says cards may nest (a line matching «cards may nest», «nested cards are allowed» or
+`design-lint: allow card-in-card`): boxes inside boxes are the most common way a generated screen reads as
+generated, so the default is on and a design that wants nesting says so in one line.
+
+**Measured** on smart-travel at the audit commit (`1212961`, read-only, rules extracted from the generated
+preset and run with the project's ESLint 9.39 and TypeScript parser): **235 of the 238** findings of the
+project's own rule, no finding the project's rule did not have. The three not reported are deliberate: two
+`size-16` icon medallions on `bg-success-soft` and a swipe action's uncovered strip — tinted, but not alerts
+(no padding, no status role). Outside `app/` and `components/` the generated globs found one more: an `<img>`
+in a Satori file under `lib/` (a recorded exception there).
+
+**Retrofit and edited presets.** A generated preset carries `// fingerprint: <hash>`. A re-run replaces the
+file only while the fingerprint still matches (the recorded-exceptions block aside); a preset the project has
+edited — or one written before the fingerprint — is kept, and the two rules are **injected** before
+`export const designSystemConfig = [` and as its first block. smart-travel's preset carries i18n and
+brand-logo blocks a rewrite would drop. `--check` fails on a preset without `design/no-handmade-ui` at `error`
+or without `export const designPlugin`.
+
+### The write-time guard — `setup_primitives_guard.py`
+
+A lint run after the fact is the second line; the first is refusing the write. The script copies
+`assets/guard/primitives-guard.mjs` and `assets/guard/eslint.guard.mjs` to `scripts/guard/`, writes
+`scripts/guard/guard.json` (one unit per UI package: its dir, the preset, the primitives directory, ignores,
+rules — `apps/web` and `packages/ui` in a shadcn monorepo), merges three hooks into `.claude/settings.json`
+without removing anything (PreToolUse `Write|Edit|MultiEdit` → `pre`; `Stop` and `SubagentStop` → `stop`),
+adds the «UI: only the primitives» section to `AGENTS.md` (and to `CLAUDE.md` when it does not import
+`@AGENTS.md`), and records `stack.primitives_guard = "installed"`.
+
+- `pre` lints the file **as it would be after the write** and exits 2 — the write is refused and the message
+  reaches the agent — when it **adds** a finding; only added findings count, so converting a legacy file is
+  never blocked. The message names the primitive and says: no primitive fits → stop and ask the user.
+- `stop` runs the same comparison on every `.tsx`/`.jsx` changed since `HEAD` (and untracked), catching what
+  was written through the shell; it does not loop (`stop_hook_active`).
+- `eslint.guard.mjs` loads only the two rules from the preset, so a check takes about a second. ESLint and
+  `@typescript-eslint/parser` are resolved from the app, the preset's package and the root, directly or
+  through `eslint-config-next` / `typescript-eslint` (pnpm does not hoist the parser).
+
+First run on smart-travel (commit `6127a7c`, hand-written there); generalised here. Tested in
+`test_setup_primitives_guard.py` against a fixture with a real `node_modules`: refused writes, allowed
+writes, a legacy file not blocked, the Stop check through git.
 
 ## Agents
 

@@ -3,7 +3,12 @@
 
 Web (Next.js — app/ supports private `_components/` folders): walks the
 codebase, finds every component under app/**/_components/, counts imports
-across the codebase, and reports a table of promotion candidates.
+across the codebase, and reports a table of promotion candidates. It ALSO
+walks components/<area>/ (excluding components/{ui,theme,shared}): many web
+projects keep their feature components there instead of in _components/ —
+smart-travel has 200+ under components/<area>/ and none in _components/, and
+a scan of _components/ alone reported nothing at all. A component in
+components/<area>/ imported from 3+ places in other areas is an L2 candidate.
 
 Mobile (Expo Router — app/ is routes-only, NO `_components/` convention:
 every file under app/ becomes a real route, so app/<route>/_components/
@@ -29,6 +34,8 @@ import sys
 from pathlib import Path
 
 MOBILE_EXCLUDED_TOP_LEVEL = {"ui", "theme", "shared"}
+# web: brand marks and third-party logos are app-wide by design, like ui/theme — not promotion candidates
+WEB_EXCLUDED_TOP_LEVEL = MOBILE_EXCLUDED_TOP_LEVEL | {"brand", "logos"}
 
 
 def read_meta(root: Path) -> dict:
@@ -92,7 +99,7 @@ def suggest_promotion_web(comp_name: str, importers: set, scan_root: Path) -> st
 # ---------------------------------------------------------------------------
 
 
-def find_components_mobile(scan_root: Path) -> list[tuple[str, Path]]:
+def find_components_mobile(scan_root: Path, excluded: set[str] = MOBILE_EXCLUDED_TOP_LEVEL) -> list[tuple[str, Path]]:
     """Candidates are files directly under components/<feature>/, one level
     deep. components/ui, components/theme, components/shared are excluded:
     the first two are special (never promoted), the last is already L2."""
@@ -101,7 +108,7 @@ def find_components_mobile(scan_root: Path) -> list[tuple[str, Path]]:
     if not comp_root.exists():
         return results
     for feature_dir in sorted(p for p in comp_root.iterdir() if p.is_dir()):
-        if feature_dir.name in MOBILE_EXCLUDED_TOP_LEVEL:
+        if feature_dir.name in excluded:
             continue
         for tsx in feature_dir.rglob("*.tsx"):
             results.append((tsx.stem, tsx))
@@ -140,14 +147,91 @@ def count_imports(component_name: str, scan_root: Path) -> set:
 # ---------------------------------------------------------------------------
 
 
+def area_of(file_path: Path, scan_root: Path) -> str:
+    """Where an importer lives: components/<area>, a route group, or app."""
+    parts = file_path.relative_to(scan_root).parts
+    if len(parts) >= 2 and parts[0] == "components":
+        return "components/" + parts[1]
+    return detect_route_group(file_path, scan_root) or "app"
+
+
+def suggest_promotion_web_area(comp_name: str, own_area: str, importers: set, scan_root: Path) -> str:
+    # pages are a components/<area>'s natural consumers: one route group importing it is not spread,
+    # two route groups are; any other components/<area> importing it is
+    areas = {area_of(i, scan_root) for i in importers} - {own_area}
+    foreign = {a for a in areas if a.startswith("components/")}
+    groups = areas - foreign
+    outside = foreign | (groups if len(groups) >= 2 else set())
+    n = len(importers)
+    if n <= 1:
+        return "OK — stays"
+    if not outside:
+        return "OK — stays (used only inside " + own_area + ")"
+    if n == 2:
+        return "Wait the 3rd use (tolerated duplicate)"
+    return ("Promote to L2 - components/shared/<dominio>/" + comp_name + ".tsx (used from "
+            + ", ".join(sorted(outside)) + ")")
+
+
+IMPORT_SPEC = re.compile(r'from\s+["\']([^"\']+)["\']')
+
+
+def importers_of_path(path: Path, scan_root: Path) -> set:
+    """Files whose imports resolve to `path` — by `@/` alias or relative path, so two files with the same
+    name in different areas (components/trips/parts.tsx, components/traveller/parts.tsx) are not mixed up."""
+    target = path.with_suffix("").resolve()
+    out = set()
+    for tsx in list(scan_root.glob("app/**/*.tsx")) + list(scan_root.glob("components/**/*.tsx")):
+        if tsx == path:
+            continue
+        try:
+            text = tsx.read_text()
+        except Exception:
+            continue
+        for spec in IMPORT_SPEC.findall(text):
+            if spec.startswith("@/"):
+                resolved = (scan_root / spec[2:]).resolve()
+            elif spec.startswith("."):
+                resolved = (tsx.parent / spec).resolve()
+            else:
+                continue
+            if resolved == target or resolved == target.parent / target.name / "index":
+                out.add(tsx)
+                break
+    return out
+
+
+def scan_web_areas(scan_root: Path) -> list[tuple[str, int, str, str]]:
+    rows = []
+    for name, path in sorted(find_components_mobile(scan_root, WEB_EXCLUDED_TOP_LEVEL), key=lambda x: (x[0], str(x[1]))):
+        own = area_of(path, scan_root)
+        importers = importers_of_path(path, scan_root)
+        rows.append((name, len(importers), "L1 (" + own + ")", suggest_promotion_web_area(name, own, importers, scan_root)))
+    return rows
+
+
 def scan_one_root_web(scan_root: Path, label: str) -> None:
     print()
     print("## Promotion candidates in " + label)
     print()
+    area_rows = scan_web_areas(scan_root)
     components = find_components_web(scan_root)
+    if not components and not area_rows:
+        print("(no _components/ folders and no components/<area>/ files found)")
+        return
+    if area_rows:
+        print("### components/<area>/ (excluding ui, theme, shared, brand, logos)")
+        print()
+        print("| Component | Usages | Current level | Suggestion |")
+        print("|---|---|---|---|")
+        for row in area_rows:
+            print("| `" + row[0] + "` | " + str(row[1]) + " | " + row[2] + " | " + row[3] + " |")
+        print()
     if not components:
         print("(no _components/ folders found)")
         return
+    print("### app/**/_components/")
+    print()
 
     by_name: dict[str, list[Path]] = {}
     for name, path in components:

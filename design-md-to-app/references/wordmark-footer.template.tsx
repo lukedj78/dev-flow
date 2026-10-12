@@ -47,9 +47,9 @@ export function WordmarkFooter() {
               <Link href="/sign-in" className="block hover:text-primary">
                 Accedi
               </Link>
-              <a href="#" className="block hover:text-primary">
+              <Link href="/legal/privacy" className="block hover:text-primary">
                 GDPR · Segreto professionale
-              </a>
+              </Link>
             </div>
           </div>
         </div>

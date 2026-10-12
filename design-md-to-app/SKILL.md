@@ -227,6 +227,13 @@ After writing the theme files, also write `_design-md-mapping.json` at the proje
 
 **Rule**: when the chosen UI library (shadcn or MUI) ships a primitive for the pattern, **use it**. Don't roll custom.
 
+> **Mandatory before writing ANY component — here and in every later skill: read
+> `references/primitives-first.md`** (the pattern → primitive table, the complete list of allowed raw
+> elements, «the primitive wins», and «no primitive or variant fits → stop and ask the user»). A raw
+> `<button>`, `<label>`, `<a>`, `<hr>`, `<img>`, a hand-written ARIA role, or a `div`/`span` whose classes
+> redraw a Card, Badge, Alert or Separator is a golden-rule-3 violation even though it imports nothing. It is
+> reported by `design/no-handmade-ui` and **refused at write time** by the guard Step 4.10 installs.
+
 > This step is where **golden rule 3** (`references/contracts.md` §Golden rules) is applied first, and the rule does not end here: every skill that writes UI after the scaffold repeats the same "search `components/ui/` before writing" step, the design-system lint bans imports of undeclared component libraries and of the primitives' headless bases outside `components/ui/`, and `spec-review` checks it on every diff. The `add --all` below is what makes the rule always applicable. A primitive that genuinely does not exist is a recorded exception (`meta.json#stack_config.primitive_exceptions`), not a quiet custom component.
 
 This is the single most-violated rule in scaffolders. The skill installs `shadcn add --all` (or MUI's full theme), giving the project access to dozens of pre-built, accessible, mobile-aware, theme-integrated primitives — and then the skill writes a custom 100-line `<Sidebar>` from scratch using `<aside>` + flex + lucide icons. The custom version is worse on every axis: less accessible, no mobile drawer, no collapsed state, no tooltip support, no keyboard shortcuts, no persistent state.
@@ -270,7 +277,7 @@ The same logic applies to MUI: prefer `Drawer`, `AppBar`, `Modal`, `Autocomplete
 #### When custom IS appropriate
 
 - The pattern doesn't exist in the library (e.g., a brand-specific WordmarkFooter, a project-specific KpiCard with a particular icon-badge + progress-bar shape).
-- The library's primitive is too rigid for what the DESIGN.md describes (rare — usually you compose primitives, not replace them).
+- ~~The library's primitive is too rigid for what the DESIGN.md describes~~ — **no longer a reason (2026-10-12).** The primitive wins: when the design differs slightly, use the primitive unchanged and correct the board; when no variant fits a role that truly does not exist, stop and ask the user, propose the variant in DESIGN.md, and add it to the primitive's `cva` only after their yes. Never an element by hand.
 - The component is so trivial it'd be 5 lines either way (Eyebrow, simple section wrappers).
 
 In all other cases: **default to the primitive**. The custom version is technical debt the user has to maintain forever.
@@ -287,7 +294,7 @@ In all other cases: **default to the primitive**. The custom version is technica
 1. Read the DESIGN.md / screenshot to identify the pattern (sidebar, modal, picker, etc).
 2. **Grep `components/ui/` for a matching primitive** (`grep -l Sidebar components/ui/*.tsx`).
 3. Check the primitive's exports + usage docs at https://ui.shadcn.com (or the primitive's source).
-4. Compose with the primitive. Style overrides via `className` + the design tokens already in `globals.css` make it brand-faithful without re-implementing the behavior.
+4. Compose with the primitive **as it is** — its variants and sizes, layout classes only (`shadcn/no-restyle` allows `layout`). Brand faithfulness comes from the DESIGN.md tokens in `globals.css` and the `cva` variants in `components/ui/`, not from classes on the call site or an element rebuilt by hand.
 
 When in doubt: open `components/ui/<primitive>.tsx` and read its API. If the API supports your pattern, use it.
 
@@ -784,7 +791,18 @@ It detects the topology (single app at the root; a web+mobile app in `apps/*`; t
 with `packages/eslint-config` + `packages/ui`), installs `@shadcn/lint` in the package that owns the
 lint config, writes the preset, spreads it into the existing config without replacing it, sets the
 lint cap, appends a block to `AGENTS.md`, and records `stack.design_lint = "shadcn-lint"`. Re-running
-changes nothing. Every rule it encodes was hit on a real project first
+changes nothing.
+
+**Golden rule 3 is in the preset and at write time.** The preset carries `design/no-handmade-ui` (always
+`error`: raw elements, hand-written roles, classes that redraw a card/badge/alert/separator, each message
+naming the primitive from the library's mapping) and `design/no-card-in-card` (on unless DESIGN.md lets
+cards nest). Then the script calls `scripts/setup_primitives_guard.py`, which installs the **write-time
+guard**: `scripts/guard/primitives-guard.mjs` + `eslint.guard.mjs` (copied from `assets/guard/`),
+`scripts/guard/guard.json`, three hooks merged into `.claude/settings.json` (PreToolUse on
+`Write|Edit|MultiEdit`, `Stop`, `SubagentStop`), the «UI: only the primitives» section in `AGENTS.md`, and
+`stack.primitives_guard = "installed"`. A write that adds hand-made UI is refused with the primitive to use;
+only added findings count, so converting a legacy file is never blocked. `--check` fails if the rule or the
+guard is missing. Details and evidence: `references/design-system-lint.md` §Hand-made UI. Every rule it encodes was hit on a real project first
 (`references/design-system-lint.md`): shadows allowed by exact name from `@theme` (never `shadow-*`),
 the vendored component directory exempt except for raw colours and inline styles, `chart.tsx` and the
 showcase specimen exempt, `carousel.tsx` / `hooks/use-mobile.ts` / `sidebar.tsx` overridden as shadcn

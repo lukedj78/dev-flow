@@ -96,6 +96,20 @@ For each component you identified in Step 2, decide:
 - **Compose primitives** if no exact match (e.g., a "stat card" = `Card` + headline typography + body). A domain component (`PricingTier`, `BookingSummary`) is always such a composition, living in `_components/` — never a new primitive.
 - **Never hand-roll a primitive.** If the screenshot shows a pattern no primitive or composition covers, stop and surface it: a truly new primitive needs a recorded exception with its reason (`meta.json#stack_config.primitive_exceptions` or an ADR). Layout-only JSX for a unique section (a grid, a hero arrangement of primitives) is not a primitive and stays in the page.
 
+**Read `design-md-to-app/references/primitives-first.md` before writing any component** — the pattern →
+primitive table (a link in a sentence → `Button variant="link"`, a clickable row → `Item render`, a chip →
+`ToggleGroup`, a choice tile → `FieldLabel` + `Field` + `RadioGroupItem`, a section → `Card`, a notice →
+`Alert`, a tag → `Badge`…) and the complete list of allowed raw elements.
+
+**From board to code, the primitive wins.** A screenshot or a wireframe artboard that differs slightly from
+the primitive — a 16 px radius against the Card's 12, a border where the Card has a ring, a different hover
+tint, a pill where the Badge is square — is rendered with the primitive **unchanged**, and the difference is
+reported so the board gets corrected. A visual difference never justifies a `<button>`, `<label>`, `<a>`,
+`<hr>`, `<img>`, a hand-written role, or a `div`/`span` whose classes redraw a Card, Badge, Alert or
+Separator — that is a golden-rule-3 violation even with no import, `design/no-handmade-ui` reports it, and
+the write-time guard refuses the write. **No primitive or variant fits → stop and ask the user** (propose the
+variant for DESIGN.md); never write it by hand, never `eslint-disable` it.
+
 **Golden rule 3 — primitives first** (`references/contracts.md` §Golden rules). Before writing a component, search `components/ui/` (shadcn monorepo: `packages/ui/src/components/`) for a primitive that covers the pattern; if it is there, use it, and if two together cover it, compose them. Never hand-roll one the library ships, never import a second component library, never change a primitive beyond its `cva` variants and tokens. A truly new primitive needs a recorded exception with its reason (ADR or `meta.json#stack_config.primitive_exceptions`).
 
 **Chat / conversation / rendered-markdown surfaces are NOT hand-rolled.** If the screenshot shows a chat, an AI console, a support inbox, a comment thread — or any surface rendering markdown/AI output — compose the official shadcn chat primitives (`MessageScroller` / `Message` / `Bubble` / `Marker`, Jun 2026) + `.typeset` (Jul 2026) + `streamdown`. Follow `design-md-to-app/references/chat-and-typeset.md`. Never build chat with `div` bubbles + manual autoscroll, and never render model markdown as `whitespace-pre-wrap` (bold/lists/code leak as literal syntax).
@@ -196,7 +210,10 @@ State the chosen mode in your hand-off message: "Iterated in `structure-first` m
    - **Spacing wrong** (padding / margin / gap off by a step) → adjust the Tailwind `p-N` / `gap-N` to the next token.
    - **Color drift** (you used `bg-muted` but the screenshot shows `bg-surface-soft`) → fix the token name.
    - **Typography weight or size** off → change `text-display-lg` → `text-display-xl` or `font-medium` → `font-semibold`.
-   - **Component mis-pick** (used a `Card` but the original is just a div with a border) → swap.
+   - **Component mis-pick** (used a `Card` where the board shows a `Item` row, or a `Badge` where it shows a
+     `ToggleGroup` chip) → swap **to the other primitive**. Never "swap" a primitive for a `div` with a
+     border because the board draws the box slightly differently: that delta is **expected — the primitive
+     wins** — and is reported as a board correction, not chased (see below).
    - **Layout structure** (you stacked vertically, the original is side-by-side) → restructure the JSX section.
 
    Make **one targeted fix per iteration**. Don't try to fix everything at once — you lose the ability to attribute progress.
@@ -218,6 +235,11 @@ Don't claim convergence you didn't measure.
 - **Photography content** — if the source has a hero photo of someone holding a coffee, the placeholder div will always diff. Mark this as "expected delta — imagery placeholder" in the report.
 - **Custom fonts not loaded** — if DESIGN.md references a font that isn't on Google Fonts and the user hasn't supplied a local file, the rendered font is a fallback and will diff. Flag and stop chasing.
 - **Animations / hover states / scroll behavior** — static screenshots can't show motion. Don't hallucinate state.
+- **A primitive's own measures** — radius, ring vs border, the height of a size, the hover tint. When the
+  render differs from the board only because the board drew the primitive with other measures, the delta
+  is expected: list it under "board corrections" in the report and leave the primitive as it is. A
+  matching screenshot is not proof of conformity anyway — a hand-made button identical to the board
+  passes it; `design/no-handmade-ui` at zero on the files you wrote is.
 
 ### Step 7 — Update state and report
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-12T11:44:17Z",
+  "generated_at": "2026-10-12T12:43:39Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -111,17 +111,19 @@
         "init_workflow.py",
         "inventory.py",
         "inventory_gate.py",
+        "primitives_guard_gate.py",
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
         "test_data_residency.py",
         "test_inventory.py",
+        "test_primitives_guard_gate.py",
         "test_research.py",
         "test_wireframes_gate.py",
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 485,
+      "skill_md_lines": 496,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -226,7 +228,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 201,
+      "skill_md_lines": 242,
       "bundle": "dist/spec-review.skill"
     },
     {
@@ -242,7 +244,7 @@
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 127,
+      "skill_md_lines": 137,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {
@@ -314,6 +316,7 @@
         "maps-mapcn.md",
         "mobile-web.md",
         "mui-mapping.md",
+        "primitives-first.md",
         "react-flow.md",
         "shadcn-mapping.md",
         "shadcn-styles.md",
@@ -324,9 +327,11 @@
         "build_registry.py",
         "parse_design_md.py",
         "setup_design_lint.py",
-        "test_setup_design_lint.py"
+        "setup_primitives_guard.py",
+        "test_setup_design_lint.py",
+        "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1254,
+      "skill_md_lines": 1272,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -459,7 +464,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 264,
+      "skill_md_lines": 286,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
@@ -472,7 +477,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 320,
+      "skill_md_lines": 342,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -961,7 +966,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 231,
+      "skill_md_lines": 233,
       "bundle": "dist/composition-patterns-guide.skill"
     },
     {
@@ -976,9 +981,10 @@
       ],
       "scripts": [
         "promote.py",
-        "scan_promotion.py"
+        "scan_promotion.py",
+        "test_scan_promotion.py"
       ],
-      "skill_md_lines": 226,
+      "skill_md_lines": 228,
       "bundle": "dist/promote-component.skill"
     }
   ]

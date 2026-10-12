@@ -114,7 +114,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">promote-component</h1>
-  <ul class="meta"><li class="chip">Refactor</li><li class="chip">operative — changes the codebase</li><li class="chip">226 lines</li><li class="chip">2 references</li><li class="chip">2 scripts</li></ul>
+  <ul class="meta"><li class="chip">Refactor</li><li class="chip">operative — changes the codebase</li><li class="chip">228 lines</li><li class="chip">2 references</li><li class="chip">3 scripts</li></ul>
   <p class="lede">Use to refactor a React/RN component up the colocation hierarchy (L0 → L1 → L2) when its usage spreads across pages. Two modes: &quot;scan candidates&quot; counts every component&#x27;s usages across the codebase and reports the promotion candidates against the Rule of Three; &quot;promote &lt;Component&gt;&quot; moves the file to the right level, updates all imports. Reads <code>.workflow/meta.json#stack.framework</code> to honor next / expo-rn / monorepo conventions. Triggers on: &quot;promote PostCard&quot;, &quot;scan promotion candidates&quot;, &quot;this component is used everywhere, lift it up&quot;, &quot;questo componente è usato in più pagine, promuovilo&quot;, &quot;refactor components/shared/&quot;. Not for: creating new components (use design-md-to-app or screenshot-to-page or rn-add-screen), splitting compound components into a folder, or moving files across different concerns — this is purely vertical promotion.</p>
 </div>
 <section><div class="wrap prose">

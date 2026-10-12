@@ -91,6 +91,21 @@ the first thing in dev-flow that can *prove* those landed.
    `score`, `grade`, `categories[]`, and — critically — **`coverage.source`**. If coverage is not
    `"complete"`, the scan saw only part of the source and the score is not comparable to a previous run;
    say so instead of reporting a number.
+2b. **Count hand-made UI beside the score — golden rule 3, `design/no-handmade-ui`.** shadscan audits
+   what the UI is missing; it does not see a raw `<button>` that looks right and works, and neither did
+   anything else on smart-travel, where 238 hand-made elements sat behind a green lint (2026-10-12). Run
+   the project's rule on the app and report its count in the gate summary and in
+   `meta.json#shadscan.handmade_ui` (with `card_in_card` beside it):
+
+   ```bash
+   pnpm exec eslint . -f json 2>/dev/null | node -e 'let r=JSON.parse(require("fs").readFileSync(0,"utf8")),c={};for(const f of r)for(const m of f.messages)if(/^design\//.test(m.ruleId||""))c[m.ruleId]=(c[m.ruleId]||0)+1;console.log(JSON.stringify(c))'
+   ```
+
+   A non-zero `design/no-handmade-ui` is a gate finding of its own, whatever the score: route each hit
+   as golden rule 3 below (replace it with the primitive, never patch the copy, never `eslint-disable` it;
+   a missing variant goes to the user as a DESIGN.md decision). No `design/no-handmade-ui` in the
+   project at all is a finding too — the preset predates the rule and the write-time guard is missing:
+   the retrofit is `design-md-to-app/scripts/setup_design_lint.py <root>`.
 3. **Triage from `agentHandoff.actionables`, not from the human output.** Every actionable carries a
    `disposition`, a `confidence`, and the `file:line` it was found at. Act on the pair, never on the score:
 
@@ -205,6 +220,10 @@ narrower of the two — follow the user's interest, not the score.
   "rules_left_red": {
     "mobile-nav-present": "links kept visible at <sm; detector wants a trigger+panel pair"
   },
+  // golden rule 3, counted beside the score (step 2b): design/no-handmade-ui, design/no-card-in-card.
+  // null = the rule is not in the project (itself a finding: retrofit with setup_design_lint.py)
+  "handmade_ui": 0,
+  "card_in_card": 0,
   "routed": { "forms": ["field-errors-rendered"],
               "data-fetching": ["route-loading-boundary-present"],
               "design-md-to-app": ["theme-hydration-safe"] }
@@ -259,6 +278,9 @@ Consistent with rule zero: when the tool ships the knowledge, use the tool's cop
   `screenshot-to-page`; a form control → `forms`; a module's screen → `module-add`; the shell or a
   primitive missing from `components/ui/` → `design-md-to-app` (`shadcn add <name>`; Coss/UI → `coss-ui`).
   Adding the missing ARIA to the hand-rolled copy makes the rule go green and keeps the violation.
+  **The same routing applies to every `design/no-handmade-ui` hit** counted at step 2b (raw elements,
+  hand-written roles, classes that redraw a Card/Badge/Alert/Separator): the message names the primitive;
+  the fix is that primitive used as it is — «the primitive wins», the board is corrected if it differs.
 
   Example, from an actionable to the route:
 

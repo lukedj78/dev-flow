@@ -35,7 +35,7 @@ Consequently this skill uses **different scan/target paths per platform** — se
 
 | | Web (`stack.framework == "next"`, or `apps/web` in a monorepo) | Mobile (`stack.framework == "expo-rn"`, or `apps/mobile` in a monorepo) |
 |---|---|---|
-| Candidate scan root | `app/**/_components/*.tsx` | `components/<feature>/*.tsx` (excludes `components/{ui,theme,shared}`) |
+| Candidate scan root | `app/**/_components/*.tsx` **and** `components/<area>/**/*.tsx` (excludes `components/{ui,theme,shared,brand,logos}`) | `components/<feature>/*.tsx` (excludes `components/{ui,theme,shared}`) |
 | L0 target | `app/<route>/_components/<Component>.tsx` | `components/<feature>/<Component>.tsx` |
 | L1 target | `app/(group)/_components/<Component>.tsx` | same folder as L0 (no separate L1 path on mobile — see colocation-rules.md) |
 | L2 target | `components/shared/<dominio>/<Component>.tsx` | `components/shared/<dominio>/<Component>.tsx` (identical) |
@@ -47,7 +47,7 @@ Everything below is written generically ("the platform's `_components/`-or-`comp
 ### Step 1 — Detect framework + cwd
 
 Read `meta.json#stack.framework`:
-- `"next"` → cwd = project root, scan `app/**/_components/`.
+- `"next"` → cwd = project root, scan `app/**/_components/` **and `components/<area>/`** (excluding `components/{ui,theme,shared,brand,logos}`). Many web projects keep feature components in `components/<area>/` and have no `_components/` at all — smart-travel has 200+ there, and a scan of `_components/` alone reported nothing (2026-10-12).
 - `"expo-rn"` → cwd = project root, scan `components/<feature>/` (excluding `components/{ui,theme,shared}`).
 - `"monorepo"` → scan `apps/web/` with the web rules and `apps/mobile/` with the mobile rules, separately. Print two tables.
 
@@ -58,6 +58,8 @@ Read `meta.json#stack.framework`:
 find app -type d -name "_components" -exec ls -1 {} \;
 ```
 For each `.tsx` file in `_components/`, record component name, source path (e.g., `app/(app)/posts/_components/PostCard.tsx`), and current level (L0: under a leaf route, L1: under `app/(group)/_components/`).
+
+Then, still on web, every `.tsx` under `components/<area>/` (not `ui`, `theme`, `shared`, `brand`, `logos`). Count its importers **by resolved path** (`@/components/<area>/x` or a relative `./x`), not by file name — two `parts.tsx` in different areas are different components. The pages of one route group are an area's natural consumers; it becomes an **L2 candidate** (`components/shared/<dominio>/`) when, with 3+ importers, another `components/<area>` imports it or two or more route groups do. `scripts/scan_promotion.py` prints this as a second table.
 
 **Mobile**:
 ```bash

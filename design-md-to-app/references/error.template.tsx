@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+
 /**
  * Root error boundary for the App Router. Triggered by any uncaught error in
  * a server component or server action that bubbles up.
@@ -47,18 +50,13 @@ export default function GlobalError({
           </p>
         ) : null}
         <div className="pt-4 flex gap-3 justify-center">
-          <button
-            onClick={reset}
-            className="inline-flex items-center justify-center rounded-full bg-primary text-on-primary px-6 h-11 text-[14px] font-semibold hover:scale-[1.05] active:scale-[0.95] transition-transform"
-          >
+          {/* golden rule 3: the primitives as they are — never a <button>/<a> redrawn by hand */}
+          <Button size="lg" onClick={reset}>
             Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-full border border-on-surface/15 px-6 h-11 text-[14px] font-semibold text-on-surface hover:bg-hover transition-colors"
-          >
+          </Button>
+          <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
             Back to home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

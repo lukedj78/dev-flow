@@ -245,6 +245,28 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
                 )
                 return 1
 
+    # Golden rule 3 at every phase from `scaffolded` on, not only at the crossing: the design lint must
+    # carry design/no-handmade-ui and the write-time guard must be installed (or each opted out with a
+    # reason). smart-travel built 238 hand-made elements while its phase still said `design_extracted`;
+    # a project already past `scaffolded` without them is refused here too — the retrofit is one command.
+    if new_idx >= scaffold_idx:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import design_lint_gate
+        import primitives_guard_gate
+
+        gates = [(primitives_guard_gate, "the primitives guard (golden rule 3)")]
+        if cur_idx >= scaffold_idx:  # at the crossing the design lint was checked above
+            gates.insert(0, (design_lint_gate, "the design lint"))
+        for gate, what in gates:
+            passed, why = gate.verify(root, meta)
+            if not passed:
+                sys.stderr.write(
+                    f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
+                    + "".join(f"  {line}\n" for line in why.splitlines())
+                    + gate.remedy(root) + "\n"
+                )
+                return 1
+
     refusal = wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
     if refusal:
         sys.stderr.write(refusal)
