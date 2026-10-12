@@ -394,13 +394,22 @@ export const designExceptions = [
 
 — kept verbatim when the script re-runs and read by the write-time guard too. A Satori file that builds its
 JSX without importing `next/og` itself (smart-travel's `lib/pwa/generated.tsx`) goes there. **A missing
-variant is never an exception**: the work stops, the variant is proposed in DESIGN.md, the user decides, and
-no `eslint-disable` is written. A finding that keeps coming back for the same pattern is a variant DESIGN.md
-is missing — raise it.
+variant is never an exception**: the variant is added — first in DESIGN.md, then in the primitive's `cva` —
+and no `eslint-disable` is written. A finding that keeps coming back for the same pattern is a variant DESIGN.md
+is missing — add it there.
+
+**The fix is a primitive that renders the design, not the primitive as it ships** (golden rule 3, «the
+primitive renders the design»). When the board or the screen being converted differs from the primitive — a
+radius, a ring against a border, a selected background, a weight, a padding — tune the primitive's `cva`
+variants and the DESIGN.md tokens it reads until it matches, and prove it with a before/after screenshot and a
+pixel diff (`primitives-first.md` §Converting existing screens). `shadcn/no-restyle` stays on: classes at the
+call site that rebuild the look are the wrong place for the fix, the variant is the right one. smart-travel,
+2026-10-12: the 238 findings were first converted to primitives used as they ship, the screens drifted from
+the approved boards, and the user rejected them.
 
 **Severity.** `no-handmade-ui` is `error` on every project, fresh or retrofitted: on an existing app the lint
 goes red until each finding is a primitive, which is the retrofit's work list (the script prints it), never a
-cap. `no-card-in-card` follows the preset's severity (`error` on a scaffold, `warn` on a retrofit) and is on
+cap — and each converted screen passes the pixel-parity check before the next one starts. `no-card-in-card` follows the preset's severity (`error` on a scaffold, `warn` on a retrofit) and is on
 unless DESIGN.md says cards may nest (a line matching «cards may nest», «nested cards are allowed» or
 `design-lint: allow card-in-card`): boxes inside boxes are the most common way a generated screen reads as
 generated, so the default is on and a design that wants nesting says so in one line.
@@ -431,7 +440,8 @@ adds the «UI: only the primitives» section to `AGENTS.md` (and to `CLAUDE.md` 
 
 - `pre` lints the file **as it would be after the write** and exits 2 — the write is refused and the message
   reaches the agent — when it **adds** a finding; only added findings count, so converting a legacy file is
-  never blocked. The message names the primitive and says: no primitive fits → stop and ask the user.
+  never blocked. The message names the primitive and says: tune its variant to the design (DESIGN.md first);
+  no primitive can render it → stop and ask the user.
 - `stop` runs the same comparison on every `.tsx`/`.jsx` changed since `HEAD` (and untracked), catching what
   was written through the shell; it does not loop (`stop_hook_active`).
 - `eslint.guard.mjs` loads only the two rules from the preset, so a check takes about a second. ESLint and

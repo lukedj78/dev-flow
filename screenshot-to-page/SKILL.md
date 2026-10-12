@@ -101,14 +101,27 @@ primitive table (a link in a sentence → `Button variant="link"`, a clickable r
 `ToggleGroup`, a choice tile → `FieldLabel` + `Field` + `RadioGroupItem`, a section → `Card`, a notice →
 `Alert`, a tag → `Badge`…) and the complete list of allowed raw elements.
 
-**From board to code, the primitive wins.** A screenshot or a wireframe artboard that differs slightly from
-the primitive — a 16 px radius against the Card's 12, a border where the Card has a ring, a different hover
-tint, a pill where the Badge is square — is rendered with the primitive **unchanged**, and the difference is
-reported so the board gets corrected. A visual difference never justifies a `<button>`, `<label>`, `<a>`,
-`<hr>`, `<img>`, a hand-written role, or a `div`/`span` whose classes redraw a Card, Badge, Alert or
-Separator — that is a golden-rule-3 violation even with no import, `design/no-handmade-ui` reports it, and
-the write-time guard refuses the write. **No primitive or variant fits → stop and ask the user** (propose the
-variant for DESIGN.md); never write it by hand, never `eslint-disable` it.
+**From board to code, the primitive renders the design.** When a screenshot or a wireframe artboard differs
+from the primitive — a 16 px radius against the Card's 12, a border where the Card has a ring, a different
+hover tint, the background of a selected item, a weight, a padding, a pill where the Badge is square — the
+screen is still built from the primitive, and **the primitive is tuned** until it renders the board: its
+`cva` variants and the DESIGN.md tokens it reads (`components/ui/<name>.tsx` changes in its variants and token
+classes only). A difference the whole board shares is a token or a default variant; one a single role has is
+a new variant — first in DESIGN.md, then in the `cva`, named in the hand-off. Never accept the drift, never
+rebuild the look with classes at the call site, and never touch the board: it changes only when the user
+decides to change the design. A visual difference never justifies a `<button>`, `<label>`, `<a>`, `<hr>`,
+`<img>`, a hand-written role, or a `div`/`span` whose classes redraw a Card, Badge, Alert or Separator — that is
+a golden-rule-3 violation even with no import, `design/no-handmade-ui` reports it, and the write-time guard
+refuses the write. **No primitive can render it without a fork → stop and ask the user**; never write it by
+hand, never `eslint-disable` it.
+
+**Verify the page against the board pixel by pixel.** Screenshot the route at the board's widths (1440 and
+390) and diff it against the artboard PNG with `scripts/visual_diff.py` (Step 6); every red area of the diff
+PNG that comes from a primitive's measures is a token or a variant still to tune. **Converting a page that
+already exists** (hand-made elements replaced, a retrofit): screenshot it *before* the change, convert,
+screenshot *after*, and diff the pair (`python3 scripts/visual_diff.py before.png after.png --threshold 0.1`)
+— the target is zero changed pixels; a diff left on purpose is a design change and needs the user's yes. Procedure: `design-md-to-app/references/primitives-first.md` §Converting
+existing screens.
 
 **Golden rule 3 — primitives first** (`references/contracts.md` §Golden rules). Before writing a component, search `components/ui/` (shadcn monorepo: `packages/ui/src/components/`) for a primitive that covers the pattern; if it is there, use it, and if two together cover it, compose them. Never hand-roll one the library ships, never import a second component library, never change a primitive beyond its `cva` variants and tokens. A truly new primitive needs a recorded exception with its reason (ADR or `meta.json#stack_config.primitive_exceptions`).
 
@@ -212,8 +225,10 @@ State the chosen mode in your hand-off message: "Iterated in `structure-first` m
    - **Typography weight or size** off → change `text-display-lg` → `text-display-xl` or `font-medium` → `font-semibold`.
    - **Component mis-pick** (used a `Card` where the board shows a `Item` row, or a `Badge` where it shows a
      `ToggleGroup` chip) → swap **to the other primitive**. Never "swap" a primitive for a `div` with a
-     border because the board draws the box slightly differently: that delta is **expected — the primitive
-     wins** — and is reported as a board correction, not chased (see below).
+     border because the board draws the box slightly differently: **tune the primitive** (see below).
+   - **Primitive measures** (radius, ring vs border, a size's height, the selected or hover background, a
+     weight, a padding inside the primitive) → change the primitive's `cva` variant and the DESIGN.md token
+     it reads — a new variant in DESIGN.md first — never classes at the call site.
    - **Layout structure** (you stacked vertically, the original is side-by-side) → restructure the JSX section.
 
    Make **one targeted fix per iteration**. Don't try to fix everything at once — you lose the ability to attribute progress.
@@ -235,11 +250,12 @@ Don't claim convergence you didn't measure.
 - **Photography content** — if the source has a hero photo of someone holding a coffee, the placeholder div will always diff. Mark this as "expected delta — imagery placeholder" in the report.
 - **Custom fonts not loaded** — if DESIGN.md references a font that isn't on Google Fonts and the user hasn't supplied a local file, the rendered font is a fallback and will diff. Flag and stop chasing.
 - **Animations / hover states / scroll behavior** — static screenshots can't show motion. Don't hallucinate state.
-- **A primitive's own measures** — radius, ring vs border, the height of a size, the hover tint. When the
-  render differs from the board only because the board drew the primitive with other measures, the delta
-  is expected: list it under "board corrections" in the report and leave the primitive as it is. A
-  matching screenshot is not proof of conformity anyway — a hand-made button identical to the board
-  passes it; `design/no-handmade-ui` at zero on the files you wrote is.
+- **Never "tolerated": a primitive's own measures** — radius, ring vs border, the height of a size, the
+  selected or hover background, a weight, a padding. In either mode they are not part of the allowed delta:
+  the primitive is tuned until they match the board (list each variant or token changed under "primitives
+  tuned" in the report), and the board is never corrected to match the primitive. A matching screenshot is
+  still not proof of conformity on its own — a hand-made button identical to the board passes it;
+  `design/no-handmade-ui` at zero on the files you wrote is the other half.
 
 ### Step 7 — Update state and report
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Golden rule 3 «The primitive wins» (R90) — the guard at write time, for every agent and subagent working in
+// Golden rule 3 «The primitive renders the design» (R90) — the guard at write time, for every agent and subagent working in
 // this repo, wired in .claude/settings.json. The lint finds hand-made UI after the fact; this refuses it while
 // it is being written, so an agent cannot build a screen out of raw <button>s, <label>s and div-cards and find
 // out at review.
@@ -42,9 +42,10 @@ function primitives(unit) {
 }
 
 const stopAndAsk = (unit) =>
-  `Use the primitive from ${unit.components} as it is (golden rule 3, «The primitive wins»). If no primitive or ` +
-  "existing variant fits, do NOT write the element by hand, do NOT add classes that redraw it and do NOT " +
-  "eslint-disable it: stop and ask the user, proposing the variant to add to DESIGN.md. Read " +
+  `Use the primitive from ${unit.components} (golden rule 3, «The primitive renders the design»). If it looks ` +
+  "different from the board, tune its cva variant and the DESIGN.md tokens (a new variant goes into DESIGN.md " +
+  "first) until it matches pixel by pixel. Do NOT write the element by hand, do NOT add classes that redraw " +
+  "it and do NOT eslint-disable it; if no primitive can render it without a fork, stop and ask the user. Read " +
   "design-md-to-app/references/primitives-first.md for the pattern → primitive table. Primitives: " +
   primitives(unit)
 

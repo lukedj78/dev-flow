@@ -1,22 +1,50 @@
 # Primitives first — read this before writing any component
 
-> Golden rule 3 (`dev-flow/references/contracts.md`), **«the primitive wins»**. Mandatory reading for
-> `design-md-to-app`, `screenshot-to-page` and any agent about to write a `.tsx` that renders UI. Written
-> 2026-10-12 after smart-travel's audit (§Why).
+> Golden rule 3 (`dev-flow/references/contracts.md`), **«the primitive renders the design»**. Mandatory
+> reading for `design-md-to-app`, `screenshot-to-page` and any agent about to write a `.tsx` that renders UI.
+> Written 2026-10-12 after smart-travel's audit (§Why), and corrected the same day (§Why the primitive is
+> tuned).
 
 ## The rule
 
-1. **Every piece of UI is a primitive from `components/ui/`, used as it is.** List the directory first
+1. **Every piece of UI is a primitive from `components/ui/`.** List the directory first
    (`ls components/ui` — in a shadcn monorepo `packages/ui/src/components`). Domain components are
    compositions of primitives, nothing else.
-2. **The primitive wins.** When the board (wireframe canvas, screenshot, Figma) differs slightly from the
-   primitive — 16 px radius against the Card's 12, a border against its ring, a hover tint — use the
-   primitive unchanged and **correct the board**. A visual difference never justifies an element by hand,
-   and never a set of classes that redraws the primitive.
-3. **No primitive or variant fits → stop and ask the user.** Name the pattern, the closest primitive and
-   the variant you would add, and propose it for DESIGN.md. A new variant is added only for a role that
-   truly does not exist, first in DESIGN.md, with the user's yes, then in the primitive's `cva`. Until then
-   the work on that piece **stops**. Never an element by hand, never `eslint-disable`, never "for now".
+2. **The primitive renders the design.** When the board (wireframe canvas, screenshot, Figma) or a screen
+   the user already approved differs from the primitive — 16 px radius against the Card's 12, a border
+   against its ring, a hover tint, the background of a selected item, a weight, a padding — **tune the
+   primitive**: change its `cva` variants and the DESIGN.md tokens it reads until it renders the board,
+   and verify it pixel by pixel. Never accept the drift, never write the element by hand, never rebuild the
+   look with classes at the call site.
+   - **A difference the whole design shares** (every card on the board is 16 px) is a **token or a default
+     variant**: record it in DESIGN.md (`rounded`, `components`), then change the default in the `cva`.
+   - **A difference one role has** (the selected chip of a filter bar) is a **new variant**: first in
+     DESIGN.md's `components` block, then in the `cva`, then used by name. Say in the report which variant
+     was added.
+   - **The board changes only when the user decides to change the design.** Never "correct" a board to
+     match what a primitive happens to render.
+3. **Stop and ask the user only when the primitive cannot be tuned**: no primitive covers the pattern at
+   all, or rendering the board would change the primitive's markup, handlers, state or ARIA wiring (a fork).
+   Name the pattern, the closest primitive and what it would take. Never an element by hand, never
+   `eslint-disable`, never "for now".
+
+## Converting existing screens — pixel parity
+
+A screen already built (hand-made elements, a retrofit, a screen the user approved) is converted with a
+before/after proof, so the conversion cannot change what the user sees:
+
+1. **Before** touching the file, screenshot the route at every width and state the board has (1440 and 390,
+   plus empty/error/selected/hover where it matters), with fixed data, fonts loaded and motion reduced:
+   Playwright `page.screenshot({ fullPage: true, animations: "disabled" })`.
+2. Convert to primitives. Where a primitive renders differently, tune it (rule 2) — not the call site.
+3. **After**, the same screenshots, then a pixel diff of each pair:
+   `npx pixelmatch before.png after.png diff.png 0.1`, or ImageMagick
+   `compare -metric AE before.png after.png diff.png`. **The target is zero changed pixels**
+   (anti-aliasing tolerance only). Read `diff.png`: every red area is a token or a variant still to tune.
+4. A diff left on purpose is a design change: it needs the user's yes, and the board changes with it.
+
+Tuning a default variant changes every screen that uses it: re-run the parity check on the other routes
+that render that primitive before calling the conversion done.
 
 ## Pattern → primitive
 
@@ -71,9 +99,11 @@ guard (`scripts/guard/primitives-guard.mjs`, a PreToolUse hook): the message nam
 ## What not to take as proof
 
 A green lint before 2026-10-12 said nothing about primitives: a raw element imports nothing. A screenshot
-that matches the board says nothing either: a hand-made button identical to the board passes it. The proof is
-`design/no-handmade-ui` at zero on the files you touched, and no raw element in the diff
-(`spec-review`, Standards axis, check 4).
+that matches the board says nothing about primitives either: a hand-made button identical to the board passes
+it. And a lint at zero says nothing about the design: primitives used as they ship pass it while the screen
+drifts from the board. The proof is both halves — `design/no-handmade-ui` at zero on the files you touched
+with no raw element in the diff (`spec-review`, Standards axis, check 4), **and** the pixel diff at zero
+against the board or the screen before the change.
 
 ## Why
 
@@ -84,6 +114,14 @@ only; the lint banned imports, which a raw element does not make; `shadcn/no-res
 primitive, so when a board did not match a variant the agent wrote the element by hand — one left the
 comment «the Button's ghost turns light grey on hover, wrong here», another reported «the badge is a span…
 because Badge has no variant», and the orchestrator read it and moved on. 57 of the 71 buttons came in one
-night of 24 parallel PRs, each copying the neighbouring file. The boards themselves were drawn with radii and
-borders the primitives do not have. Each of those is now closed: the rule in the lint, the guard at write
-time, this table before writing, the boards drawn with the primitives' real measures, and «stop and ask».
+night of 24 parallel PRs, each copying the neighbouring file. The boards were drawn with radii and borders the
+primitives did not have, and nobody tuned the primitives to them. Each of those is now closed: the rule in the lint, the guard at write
+time, this table before writing, and tuning the primitive instead of writing around it.
+
+## Why the primitive is tuned
+
+The first version of this rule (same day) said «the primitive wins, the board is corrected». smart-travel
+then converted the 238 elements to primitives **used as they ship**, and the screens changed — radii,
+selected backgrounds, font weights, padding. The user rejected them: the boards were the approved design.
+So the direction is the other way: the design is the target, the primitive is how it is rendered, and every
+difference is closed in the primitive's `cva` and DESIGN.md's tokens — checked by a pixel diff, not by eye.

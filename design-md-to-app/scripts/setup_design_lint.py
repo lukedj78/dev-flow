@@ -478,11 +478,12 @@ const cardInCard = {
   },
 }
 
-// R90 «The primitive wins» (golden rule 3, dev-flow contracts.md): every piece of UI is a primitive from
-// __WHERE__, used as it is. A raw element, a hand-written ARIA role, or a <div>/<span> whose classes redraw a
+// R90 «The primitive renders the design» (golden rule 3, dev-flow contracts.md): every piece of UI is a
+// primitive from __WHERE__. A raw element, a hand-written ARIA role, or a <div>/<span> whose classes redraw a
 // primitive (a card, a badge, an alert, a separator) is reported with the primitive to use. When a board
-// differs from the primitive, the primitive wins and the board is corrected; a missing variant STOPS the
-// work — it is proposed in DESIGN.md and the user decides — it never licenses an element by hand.
+// differs from the primitive, the primitive is tuned (its cva variants and the DESIGN.md tokens) until it
+// renders the board pixel by pixel — the board is never corrected, the look is never rebuilt with classes at
+// the call site. A missing variant is added, DESIGN.md first; it never licenses an element by hand.
 // Allowed: an element passed as a primitive's `render` (or the child of an `asChild`), an <a> styled by
 // buttonVariants (downloads, tel:, mailto:), a hidden or file input, an sr-only data table, a file that
 // renders no DOM (next/og, react-email, react-pdf), and an exception recorded below with its reason.
@@ -588,12 +589,12 @@ def design_rules_source(topo: dict, base: str = "base", exceptions: str | None =
     lib = library_primitives(topo.get("ui"), base)
     where = ui_import_path(topo)
     messages = {
-        "raw": f"R90 «The primitive wins»: a hand-written <{{{{el}}}}>. Use {{{{use}}}} from {where}. No primitive or variant fits: stop and ask — propose the variant in DESIGN.md, never draw it by hand.",
-        "role": f"R90 «The primitive wins»: role=\"{{{{role}}}}\" written by hand. Use {{{{use}}}} from {where}.",
-        "card": f"R90 «The primitive wins»: these classes redraw a card. Use {lib['card']}",
-        "badge": f"R90 «The primitive wins»: these classes redraw a badge. Use {lib['badge']} — a missing one is proposed in DESIGN.md, never drawn by hand.",
-        "alert": f"R90 «The primitive wins»: these classes redraw an alert. Use {lib['alert']}.",
-        "separator": f"R90 «The primitive wins»: these classes redraw a separator. Use {lib['separator']}.",
+        "raw": f"R90 «The primitive renders the design»: a hand-written <{{{{el}}}}>. Use {{{{use}}}} from {where}. Looks different from the board: tune its variant (DESIGN.md first), never draw it by hand.",
+        "role": f"R90 «The primitive renders the design»: role=\"{{{{role}}}}\" written by hand. Use {{{{use}}}} from {where}.",
+        "card": f"R90 «The primitive renders the design»: these classes redraw a card. Use {lib['card']}",
+        "badge": f"R90 «The primitive renders the design»: these classes redraw a badge. Use {lib['badge']} — a missing variant is added (DESIGN.md first), never drawn by hand.",
+        "alert": f"R90 «The primitive renders the design»: these classes redraw an alert. Use {lib['alert']}.",
+        "separator": f"R90 «The primitive renders the design»: these classes redraw a separator. Use {lib['separator']}.",
     }
     src = (DESIGN_RULES_JS
            .replace("__BOXES__", json.dumps(BOX_COMPONENTS))
@@ -1071,7 +1072,8 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             # an existing app: the rule is "error" from the day it lands, so the lint stays red until they are
             # replaced by primitives — the retrofit's work list, never an eslint-disable and never a cap
             print(f"  {name}: {len(handmade)} hand-made UI finding(s) (design/no-handmade-ui, design/no-card-in-card) "
-                  "— the lint fails until each is a primitive; a missing variant is proposed in DESIGN.md:")
+                  "— the lint fails until each is a primitive tuned to the screen it replaces (variant in DESIGN.md "
+                  "first; screenshot before/after, pixel diff at zero):")
             for m in handmade[:15]:
                 print(f"    {m['file']}:{m['line']}  {m['ruleId']}  {m['message'][:110]}")
         errors = [m for m in msgs if m.get("severity") == 2 and not (m.get("ruleId") or "").startswith("design/")]

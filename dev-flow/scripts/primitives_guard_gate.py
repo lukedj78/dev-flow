@@ -1,7 +1,7 @@
 """The primitives-guard gate, shared by update_meta.py (blocks) and show_state.py (warns).
 
-Golden rule 3 (contracts.md), «the primitive wins»: on a dev-flow Next web app with a Tailwind UI (shadcn,
-base-ui, coss) every piece of UI is a primitive from components/ui. Two things enforce it, and this gate
+Golden rule 3 (contracts.md), «the primitive renders the design»: on a dev-flow Next web app with a
+Tailwind UI (shadcn, base-ui, coss) every piece of UI is a primitive from components/ui. Two things enforce it, and this gate
 wants both:
 
   - the lint rule `design/no-handmade-ui` at "error" in the design-system preset (the whole tree, in CI)

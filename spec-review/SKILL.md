@@ -102,7 +102,7 @@ The Standards sub-agent checks:
    not know about yet (the lint list is finite; the rule is not).
 3. **Behaviour changes inside `components/ui/`** beyond `cva` variants and token classes — new props that
    change markup, handlers, state, focus or ARIA wiring. That is a fork of the primitive.
-4. **Hand-made UI: raw elements and classes that redraw a primitive** («the primitive wins»). A violation
+4. **Hand-made UI: raw elements and classes that redraw a primitive** («the primitive renders the design»). A violation
    with no import at all. Run the lint rule on the files of the diff — it reports raw `<button>`, `<label>`,
    `<input>`, `<select>`, `<textarea>`, `<hr>`, `<details>`, `<summary>`, `<dialog>`, `<progress>`,
    `<meter>`, `<table>`, `<img>`, `<a>`, hand-written roles (`tab`, `radio`, `menu`, `switch`…), and
@@ -126,8 +126,13 @@ The Standards sub-agent checks:
    `asChild`), an `<a>` styled by `buttonVariants` (download, `tel:`, `mailto:`), a hidden or file input,
    an `sr-only` table, a file that renders no DOM (`next/og`, react-email, react-pdf), a file in the
    preset's `designExceptions`. **"The board looked different" and "the primitive has no variant for it"
-   are not exceptions** — the first is fixed on the board, the second is a DESIGN.md decision for the user;
-   report the second as a finding *and* a question. Also read the diff and the agent's report for the words
+   are not exceptions** — both are fixed in the primitive: its `cva` variant tuned to the board, a new
+   variant recorded first in DESIGN.md. Never by correcting the board, never by classes at the call site.
+   Report a missing variant as a finding *and* name the variant to add. Also report, under the same check,
+   call-site classes that override a primitive's own look (radius, ring/border, selected or hover
+   background, weight, padding) — the look belongs in the variant — and, when the diff converts an existing
+   screen, the absence of a before/after pixel diff (`design-md-to-app/references/primitives-first.md`
+   §Converting existing screens). Also read the diff and the agent's report for the words
    that give it away («no variant», «wrong on hover», «custom because») — the smart-travel evidence was
    in exactly such a comment and such a report.
 
@@ -147,8 +152,9 @@ Example finding, in the report's shape:
 > `<span className="rounded-full bg-success-soft px-2 text-xs">Pagato</span>`; `design/no-handmade-ui`
 > reports both (hand-written `<button>`; classes that redraw a badge). Neither is passed as a `render`, and
 > no exception is recorded. The comment at `:40` says the ghost Button «turns grey on hover, wrong here» —
-> the primitive wins, the board is corrected. → `Button variant="link"` and `Badge variant="success"`; if
-> `badge.tsx` has no success variant, that is a DESIGN.md question for the user, not a span.
+> the primitive renders the design: tune it, not the call site. → `Button variant="link"` (its hover tuned in
+> `button.tsx` if the board wants it) and `Badge variant="success"`; if `badge.tsx` has no success variant,
+> add it — DESIGN.md first, then the `cva` — not a span.
 
 #### The smell baseline — twelve smells, selected (Fowler, *Refactoring* 2nd ed., ch. 3)
 

@@ -229,7 +229,9 @@ After writing the theme files, also write `_design-md-mapping.json` at the proje
 
 > **Mandatory before writing ANY component — here and in every later skill: read
 > `references/primitives-first.md`** (the pattern → primitive table, the complete list of allowed raw
-> elements, «the primitive wins», and «no primitive or variant fits → stop and ask the user»). A raw
+> elements, «the primitive renders the design» — when the board differs, tune the primitive's `cva`
+> variants and DESIGN.md tokens until it matches, pixel by pixel — and the pixel-parity check for screens
+> already built; «no primitive can render it → stop and ask the user»). A raw
 > `<button>`, `<label>`, `<a>`, `<hr>`, `<img>`, a hand-written ARIA role, or a `div`/`span` whose classes
 > redraw a Card, Badge, Alert or Separator is a golden-rule-3 violation even though it imports nothing. It is
 > reported by `design/no-handmade-ui` and **refused at write time** by the guard Step 4.10 installs.
@@ -277,7 +279,7 @@ The same logic applies to MUI: prefer `Drawer`, `AppBar`, `Modal`, `Autocomplete
 #### When custom IS appropriate
 
 - The pattern doesn't exist in the library (e.g., a brand-specific WordmarkFooter, a project-specific KpiCard with a particular icon-badge + progress-bar shape).
-- ~~The library's primitive is too rigid for what the DESIGN.md describes~~ — **no longer a reason (2026-10-12).** The primitive wins: when the design differs slightly, use the primitive unchanged and correct the board; when no variant fits a role that truly does not exist, stop and ask the user, propose the variant in DESIGN.md, and add it to the primitive's `cva` only after their yes. Never an element by hand.
+- ~~The library's primitive is too rigid for what the DESIGN.md describes~~ — **no longer a reason (2026-10-12).** The primitive renders the design: when the design differs, tune the primitive — its `cva` variants and the DESIGN.md tokens it reads — until it matches the board pixel by pixel; a new variant goes into DESIGN.md first, then into the `cva`. Never accept the drift, never rebuild the look with classes at the call site, never an element by hand. Only when no primitive can render it without a fork: stop and ask the user.
 - The component is so trivial it'd be 5 lines either way (Eyebrow, simple section wrappers).
 
 In all other cases: **default to the primitive**. The custom version is technical debt the user has to maintain forever.

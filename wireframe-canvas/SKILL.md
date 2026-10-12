@@ -65,18 +65,20 @@ Show the user the inventory (counts per area, any story you were unsure about) b
    `<ID> · <Screen> · desktop` / `· phone`. The States column is drawn as well — extra artboards beside the
    pair (`A2 · empty · phone`). The pair is the minimum the gate counts.
 4. **High fidelity in DESIGN.md**: its colours, type scale, radius and spacing, and the primitives the
-   project will compose (golden rule 3) — a canvas that draws a component the library does not have is a
+   project will compose (golden rule 3) — a canvas that draws a component no primitive can become is a
    promise the scaffold cannot keep. **Real copy in the user's language**, no lorem ipsum, realistic data.
-   **Draw every primitive with its real measures**, read from `components/ui/<name>.tsx` when the project
-   is scaffolded (the `cva` strings: radius, `ring-1` vs `border`, padding, the height of each size, the
-   variants that exist), otherwise from DESIGN.md's `components` / `rounded` blocks and the library's
-   defaults (shadcn: Card `rounded-xl` + `ring-1`, Button `h-9`/`h-8`/`h-10`, Badge `h-5`…). Name the
-   primitive and variant in the layer (`Card · sm`, `Button · outline`, `Badge · success`). Only variants
-   that exist, or that DESIGN.md is about to get with the user's yes. **Why:** smart-travel's boards drew
-   cards at 16 px with a border against the Card's 12 px and ring; from board to code the primitive wins
-   (golden rule 3), so every such difference either became a board correction or — worse — pushed agents
-   to rebuild the look by hand: 84 hand-made div-cards (2026-10-12). Drift that starts on the board ends in
-   the code. When a primitive changes, the boards that draw it are corrected (§When the screens change later).
+   **The board is the design; the primitive is tuned to it** (golden rule 3, «the primitive renders the
+   design»). Draw every component as the primitive it will be and name it in the layer (`Card · sm`,
+   `Button · outline`, `Badge · success`), but with the measures **the design** wants — and write every
+   measure that is not already in DESIGN.md into it (`rounded`, `components`: the card's radius, ring or
+   border, the selected chip's background, a button's weight and padding). A variant the board needs and
+   the library lacks goes into DESIGN.md's `components` block as it is drawn. That record is what the build
+   tunes the primitives' `cva` to, and verifies pixel by pixel against these artboards. **Why:**
+   smart-travel's boards drew cards at 16 px with a border against the Card's 12 px and ring and nobody
+   recorded it; first agents rebuilt the look by hand (84 hand-made div-cards), then a conversion to the
+   primitives used as they ship changed radii, selected backgrounds, weights and padding, and the user
+   rejected the screens (2026-10-12). After approval **the board changes only when the user decides to
+   change the design** — never to match what a primitive happens to render (§When the screens change later).
 5. **Work one area at a time.** Finish an area, give the user the canvas link and the page, and stop for
    their review. Apply the changes; move on only when they say the area is right. Append a `history`
    entry per reviewed area (`--skill wireframe-canvas --inputs '{"area": "A", "artboards": 26}'`).
@@ -128,7 +130,10 @@ Then hand back to dev-flow: `design-md-to-app` (web), `rn-bootstrap` (mobile), `
 
 A new screen after approval is a new inventory row and a new artboard pair first, then code. Re-run
 `approve` (same URL) so the counts are current, and comment the new PNGs on the issues they touch.
-`screenshot-to-page` and `rn-add-screen` take the approved artboard PNG as their input.
+`screenshot-to-page` and `rn-add-screen` take the approved artboard PNG as their input, and verify the page
+against it pixel by pixel; a difference is closed by tuning the primitive, not by editing the artboard. An
+artboard changes only when the user decides to change the design — then re-render its PNG, re-run `approve`,
+and update DESIGN.md if a measure changed.
 
 ## Bundled
 

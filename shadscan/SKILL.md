@@ -280,7 +280,9 @@ Consistent with rule zero: when the tool ships the knowledge, use the tool's cop
   Adding the missing ARIA to the hand-rolled copy makes the rule go green and keeps the violation.
   **The same routing applies to every `design/no-handmade-ui` hit** counted at step 2b (raw elements,
   hand-written roles, classes that redraw a Card/Badge/Alert/Separator): the message names the primitive;
-  the fix is that primitive used as it is — «the primitive wins», the board is corrected if it differs.
+  the fix is that primitive — «the primitive renders the design»: if it looks different from the board or
+  the screen it replaces, tune its `cva` variant and DESIGN.md tokens until a before/after pixel diff is
+  zero; never correct the board, never rebuild the look with classes at the call site.
 
   Example, from an actionable to the route:
 

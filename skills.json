@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-12T12:43:39Z",
+  "generated_at": "2026-10-12T12:44:32Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -228,7 +228,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 242,
+      "skill_md_lines": 248,
       "bundle": "dist/spec-review.skill"
     },
     {
@@ -244,7 +244,7 @@
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 137,
+      "skill_md_lines": 142,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {
@@ -331,7 +331,7 @@
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1272,
+      "skill_md_lines": 1274,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -464,7 +464,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 286,
+      "skill_md_lines": 302,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {
@@ -477,7 +477,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 342,
+      "skill_md_lines": 344,
       "bundle": "dist/shadscan.skill"
     },
     {

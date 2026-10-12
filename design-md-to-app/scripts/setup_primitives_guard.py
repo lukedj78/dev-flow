@@ -4,8 +4,8 @@
     setup_primitives_guard.py <project-root>            install + wire + record (idempotent)
     setup_primitives_guard.py <project-root> --check    verify only, change nothing (exit 1 if not)
 
-Golden rule 3 (dev-flow contracts.md), «the primitive wins»: every piece of UI is a primitive from the
-declared library, used as it is. The lint rule design/no-handmade-ui (written by setup_design_lint.py)
+Golden rule 3 (dev-flow contracts.md), «the primitive renders the design»: every piece of UI is a primitive
+from the declared library, tuned through its cva variants and DESIGN.md tokens until it renders the board. The lint rule design/no-handmade-ui (written by setup_design_lint.py)
 finds hand-made UI after the fact; this guard refuses it **while the agent writes**:
 
   scripts/guard/primitives-guard.mjs   PreToolUse on Write|Edit|MultiEdit — refuses (exit 2) a write that
@@ -54,15 +54,18 @@ END = "<!-- END:primitives-first -->"
 
 def agents_section(components: str) -> str:
     return f"""{BEGIN}
-# UI: only the primitives (golden rule 3, «the primitive wins»)
+# UI: only the primitives (golden rule 3, «the primitive renders the design»)
 
-Every piece of UI is a primitive from `{components}/`, used as it is: list that directory and read
+Every piece of UI is a primitive from `{components}/`: list that directory and read
 design-md-to-app's `references/primitives-first.md` (pattern → primitive) before writing any component. No
 hand-written `<button>`, `<label>`, `<input>`, `<a>`, `<hr>`, `<img>`, `<details>`, no hand-written ARIA role
 (tab, radio, menu…), and no `div`/`span` whose classes redraw a Card, Badge, Alert or Separator. When a board
-looks slightly different from the primitive, the primitive wins and the board is corrected. **When no
-primitive or existing variant fits, stop and ask the user** — propose the variant for DESIGN.md; never write
-the element by hand, never `eslint-disable`. Allowed raw: an element passed as a primitive's `render` (or
+(or a screen already approved) looks different from the primitive, **tune the primitive** — its `cva`
+variants and the DESIGN.md tokens it reads, a new variant in DESIGN.md first — until it matches pixel by pixel
+(converting an existing screen: screenshot before and after, pixel diff at zero). Never accept the drift,
+never rebuild the look with classes at the call site; the board changes only when the user changes the
+design. **When no primitive can render it without a fork, stop and ask the user**; never write the element
+by hand, never `eslint-disable`. Allowed raw: an element passed as a primitive's `render` (or
 under `asChild`), an `<a>` styled by `buttonVariants` (download, `tel:`, `mailto:`), a hidden or file input,
 an sr-only table, an exception recorded in the preset's `designExceptions` with its reason.
 
