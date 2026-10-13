@@ -160,6 +160,14 @@ Three consequences worth stating because they are the recurring bugs:
 3. **The frame does not know the zoom.** `visualViewport.scale` returns `1` inside an iframe
    in every browser. If the rendered content must react to zoom, the parent has to tell it.
 
+Those are the decisions. **`references/pointer-and-lifecycle.md` is the layer under them** — the
+seven places a pan/zoom surface actually breaks in a browser: `touch-action` taken too broadly, a
+transform applied more than once a frame or interleaved with layout reads, a pointer stream that
+ends in `pointercancel` or a lost capture instead of `pointerup`, portals laid out in screen space
+outside your transform, a camera with no bounds, focus that scrolls the page instead of moving the
+world, and fitting measured before layout settles. None of it changes the architecture; all of it
+decides whether the canvas feels broken.
+
 ## Documented traps
 
 Real, reported, and not your bug to fix:
@@ -219,6 +227,10 @@ in the incubator, no standard. Track it; ship nothing on it. `[VERIFY]` on every
 - **Does not cover React Native.** No iframes there.
 
 ## Sources
+
+`references/pointer-and-lifecycle.md` is merged from **ibelick/ui-skills** `component-canvas`
+(MIT, read 2026-10-13) — the knowledge in our words, inside the skill that owns the subject,
+rather than a second skill installed beside it (`dev-flow/references/resources.md`).
 
 Every claim above traces to `references/production-survey.md`, which carries the URLs and
 what each source actually says. Re-check it on a cadence: three of the sources describe
