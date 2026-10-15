@@ -223,14 +223,26 @@ here where we carried none.
 | H7 | review | detaches a background process that outlives the call |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
-Blocking findings fail `check`. Two limits are deliberate, and both come from building it:
+Blocking findings fail `check`, and **there is no acceptance path** — not an omission. The first
+version read an `accepted` map from the lock, a key nothing wrote, with no `--by` and outside the
+`ask` prompt that covers `allow`, `approve`, `skill-approve` and `mcp-approve`. On the one surface
+that runs without the agent choosing to, that was a hand edit away from silence. A blocking hook
+finding is fixed, not waved through.
+
+Two limits are deliberate, and both come from building it:
 
 - **A pattern in a script's *body* is reported at `review`, never `block`.** A regex over source
   cannot tell a call from a comment about one — which this script proved by reporting
   `curl … | sh` on **itself**, from inside the rule that blocks it.
-- **Our own vendored hook is exempt by path**, not by content: the copy is written from the
-  *installed* skill, so comparing it to the file running right now differs whenever the repo is
-  ahead. `check` already reports that drift, with a better message.
+- **Our own vendored hook is trusted by content, never by name.** Exempting
+  `.claude/hooks/registry_intake.py` by path made the one file this scanner refuses to read the
+  best place to put something. It is skipped only while it still *is* this script, byte for byte;
+  a copy that has drifted is scanned like anything else and says so, and `check` fails on the
+  drift separately.
+
+Both of those, and the fact that **every** script in a chained command is read rather than the
+first, came from a security review of the commit that added this section — `python3 ok.py &&
+python3 evil.py` was once reviewed by reading `ok.py`.
 
 ## Where it runs
 
@@ -278,7 +290,7 @@ Blocking findings fail `check`. Two limits are deliberate, and both come from bu
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 76 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 79 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.
