@@ -340,6 +340,46 @@ runs on the team's AI Gateway credits. Locally you either `vercel env pull` an O
 `AI_GATEWAY_API_KEY`. Nothing to wire, which is worth knowing before someone builds a key-management
 story that Vercel already handles.
 
+## 1-bis. Trace and Code Block (shadcn, October 2026) — for what the agent DID
+
+Section 1 covers the conversation: who said what. It says nothing about the **steps** — the
+reasoning, the tool calls, the sources, the plan, the subagent runs. Until 2026-10-14 there was
+nothing to say, and every project that needed it wrote its own; fit-room's assistant still draws
+tool parts through a hand-written `ToolPartView`.
+
+**`trace`** is that component. Each step is a line with an icon, a title, an optional description and
+a status — `running` (with a shimmer), `error`, `pending`. Lines expand, link, open a dialog or a
+sheet, and **nest**, so a summary opens into steps and a step opens into its output.
+
+**`code-block`** is what a step's output goes in: code, terminal output, logs, diffs, with line
+numbers, wrapping, highlighted and diff lines, and a **small size meant for tool output inside a
+Trace**.
+
+```bash
+pnpm dlx shadcn@latest add trace code-block --yes
+```
+
+Three facts worth knowing before you reach for them, all verified against the registry on 2026-10-17
+rather than read off the changelog:
+
+- ⚠️ **`shadcn add --all` does not install them.** The index `--all` works from lists 61
+  `registry:ui` items and these are not among them, though `shadcn add trace` resolves fine. The
+  scaffold tops this up (`design-md-to-app/SKILL.md`); an **existing** project needs the line above
+  run once.
+- ⚠️ **They do not exist on the legacy styles.** 200 under every `base-*`, `radix-*` and `aria-*`
+  namespace; **404** under `new-york` and `new-york-v4`. A project on the old style cannot add them
+  by any command — `references/shadcn-styles.md`.
+- Dependencies are small and ours already: `trace` needs `collapsible`; `code-block` needs `button`
+  and `use-highlighted-code` (which is also unindexed, and comes along as a registry dependency).
+
+**Where the compositions live.** The 21 **AI Elements** patterns — Chat, Prompt Input, Reasoning,
+Tool, Plan, Subagent, Terminal, Test Results, Confirmation and the rest — are shadcn's own as of
+2026-10-14, built on these blocks, with **no package and no registry item**. Take one by handing the
+agent its markdown page: `https://ui.shadcn.com/docs/ai-elements/<base>/<pattern>.md`, with `<base>`
+matching `stack.ui_base` (`base`, `radix`, `aria`). The verdict and what is still unresolved — the
+adapter between eve's event stream and whatever shape these patterns expect — are in
+`eve-agent/references/ai-elements.md`.
+
 ## 2. typeset (shadcn, July 2026) — for RENDERED markdown/HTML
 
 `shadcn/typeset` is a **single CSS file that lives in your project** (no package, no

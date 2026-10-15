@@ -7,7 +7,9 @@ description: >-
   react-hook-form. Bumps phase to `scaffolded`. Use when the user has a DESIGN.md and wants to scaffold an
   app, set up a theme, or customize shadcn / Base UI / MUI from its tokens: "use this DESIGN.md to start
   an app", "DESIGN.md → app", "scaffold from design.md", "applica il DESIGN.md a shadcn / Base UI / MUI",
-  "crea l'app dal DESIGN.md", "init shadcn con questo DESIGN.md". Not for: mobile apps (use rn-bootstrap),
+  "crea l'app dal DESIGN.md", "init shadcn con questo DESIGN.md". Owns the chat surface too: shadcn
+  chat components, `typeset`, and the blocks for what an agent *did* — **`trace`**, **`code-block`** —
+  which `add --all` misses. Not for: mobile apps (use rn-bootstrap),
   writing PRDs (use prd-from-idea), or generating pages after the scaffold exists (use
   screenshot-to-page).
 ---
@@ -208,6 +210,13 @@ Read the relevant mapping reference and follow it:
   - **A) Preset path** (when `stack.shadcn_preset` is set): the preset owns the visual layer. Scaffold with `pnpm dlx shadcn@latest init --preset ${stack.shadcn_preset} --template ${framework} --base ${stack.ui_base ?? "base"} --yes`, then `pnpm dlx shadcn@latest add --all --yes`. **Skip `build_registry.py` / the `registry.json` token install** — the preset already encodes colors/theme/fonts/icons/radius. (Helpers: `preset decode` to inspect, `preset url`/`preset open` to view in browser.)
   - **Pick a style first, in both paths — it is the layer the tokens cannot reach.** `references/shadcn-styles.md` has the eight (`vega`, `nova`, `maia`, `lyra`, `mira`, `luma`, `rhea`, `sera`) with what each one *actually* sets, read from the CLI's own bundle: the icon library, the body font and the heading font. CSS variables carry colour, radius, shadows and type; **the style carries control padding, density, how rounded and how raised**, baked into the component source — so the wrong one means fighting `button.tsx` for the rest of the project. Read the DESIGN.md's radius scale, control heights, shadow treatment and density, match the character column, and **state the choice and the reason in one line** before writing code. ⚠️ **The style sets the icon library**: `maia` and `mira` are `hugeicons`, **`lyra` is `phosphor`** — which `icon_library`'s enum does not name — so record what `info --json` reports in `stack.icon_library` rather than assuming `lucide`.
   - **B) DESIGN.md-first path** (default, no preset): the recommended **token-first install via `registry.json`** (see the dedicated section in that reference). Three steps: scaffold framework → emit `registry.json` from DESIGN.md tokens (use `scripts/build_registry.py`) → run `pnpm dlx shadcn@latest init ./registry.json --yes` followed by `pnpm dlx shadcn@latest add --all --yes`. **`add --all` stays** — every primitive lands in `components/ui/*` and gets customized in the next step per the DESIGN.md `components` block (`cva` edits).
+  - ⚠️ **`add --all` is not "all" — top it up.** Verified 2026-10-17: the search index that `--all` works from carries **61** `registry:ui` items, and shadcn ships components that are **installable by name but absent from it**. Today that is **`trace`**, **`code-block`** and **`use-highlighted-code`** (released 2026-10-14; `shadcn add trace` resolves inside a project, `--all` never reaches it). So the scaffold finishes with one more line, and it is not optional — the agent-UI work later assumes they exist:
+
+    ```bash
+    pnpm dlx shadcn@latest add trace code-block --yes
+    ```
+
+    They only resolve under a **new style namespace** (`base-*`, `radix-*`, `aria-*`); on `new-york`/`new-york-v4` the registry answers 404 and the command cannot work — see `references/shadcn-styles.md`. When a future release adds more unindexed items, this list grows: the check is `curl -s -o /dev/null -w '%{http_code}' https://ui.shadcn.com/r/styles/<style>/<name>.json` against the project's own style.
   - **Pass the create parameters from `meta.json#stack`** (shadcn CLI v4): `--base ${stack.ui_base ?? "base"}` (Base UI / Radix / React Aria primitives), `--base-color ${stack.base_color ?? "neutral"}`, `${stack.css_variables === false ? "--no-css-variables" : "--css-variables"}`, and `--rtl` when `stack.rtl`. The DESIGN.md tokens (via `registry.json`) override base color / theme / fonts, so those flags are only the starting scaffold. **`--base` is NOT overridden by DESIGN.md** — it picks the primitive engine, so honor `stack.ui_base` exactly. If `stack.ui_base` is unset, ask before scaffolding (don't silently pick a base on a fresh project).
   - Every shadcn block/component exists in both Radix and Base UI variants; once `--base` is set, `shadcn add` pulls the matching variant automatically.
 - MUI → `references/mui-mapping.md`

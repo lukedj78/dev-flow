@@ -1,23 +1,57 @@
-# AI Elements — the opt-in chat kit, bound to `useEveAgent()`
+# AI Elements — shadcn's own patterns for an agent interface
 
-> ⚠️ **Read this first — the ground moved on 2026-10-14, and the rest of this file has not caught up.**
-> AI Elements is now **shadcn's own**: 21 patterns (Chat, Prompt Input, Reasoning, Tool, Plan,
-> Subagent) composed from shadcn components, documented at `ui.shadcn.com`, **with no package to
-> install**. It *replaces* **AI SDK Elements** — the `elements.ai-sdk.dev` kit this file is written
-> against — which shadcn says will be **deprecated**. Components already installed keep working, and
-> each pattern page carries a migration prompt that rebuilds the wrapper on the new **Trace** and
-> **Code Block** components, keeping export names and props.
->
-> **What that does to the verdict below.** The objection was *a second kit, with its own conventions,
-> beside ours* — and that objection dissolves when the kit is shadcn's composition layer over the
-> components and tokens we already install. The old framing is kept below because the **how-to** is
-> still accurate for a project that installed the AI SDK kit; the **recommendation** is stale.
-> Re-decide before quoting it, and see `docs/vercel-changelog-watch.md` §shadcn, pass 2026-10-17.
+**Re-decided 2026-10-17**, against the registry rather than the page. The file below this section is
+the how-to for the **old** AI SDK kit (`elements.ai-sdk.dev`), kept because projects that installed
+it still run on it. For anything new, read this section instead.
 
-> **The previous verdict, now under review.** The repo's best practice for an eve chat UI stays the
-> **official shadcn chat components + `shadcn/typeset`** (`design-md-to-app/references/chat-and-typeset.md`)
-> — they inherit the project's DESIGN.md tokens and stay consistent with the rest of the app. Reach for
-> AI Elements **only when the user explicitly asks for that kit**. This file is the how-to for that case.
+## What changed, and why the old verdict fell
+
+AI Elements used to be Vercel's kit at `elements.ai-sdk.dev` — a second component library beside
+shadcn, with its own home and its own update path. We made it an **option** and kept *shadcn chat +
+`shadcn/typeset`* as the default, because a second kit beside ours is a second authority.
+
+On **2026-10-14 it became shadcn's own**: 21 patterns documented at `ui.shadcn.com/docs/ai-elements`,
+composed from the shadcn components a dev-flow project already installs, **with no package and no
+registry item of their own**. AI SDK Elements is the one being deprecated. Installed components keep
+working, and each pattern page carries a migration prompt that rebuilds the wrapper on the new
+building blocks.
+
+So the objection is gone: there is no second library to adopt. **AI Elements is how you compose the
+chat components we already have**, and `shadcn/typeset` keeps its job — rendering the prose *inside*
+a message. They were never alternatives; the old file read them as if they were.
+
+## How you actually get one — three different things, three different paths
+
+| What | Where it lives | How to take it |
+|---|---|---|
+| **Building blocks** — `trace`, `code-block`, `use-highlighted-code`, `message-scroller`, `message`, `bubble` | the registry, as ordinary `registry:ui` items | `pnpm dlx shadcn@latest add trace code-block`. ⚠️ **`add --all` does not reach the first three** — see `design-md-to-app/SKILL.md` §scaffold |
+| **The 21 patterns** — Chat, Prompt Input, Reasoning, Tool, Plan, Subagent, Chain of Thought, Confirmation, Context, File Tree, Inline Citation, Message, Model Selector, Queue, Sources, Stack Trace, Suggestion, Task, Terminal, Test Results | documentation pages | copy from the page, or hand the agent the **markdown** version: `https://ui.shadcn.com/docs/ai-elements/<base>/<pattern>.md`, where `<base>` is `base`, `radix` or `aria` — match `stack.ui_base`. Verified 2026-10-17 |
+| **Prose inside a message** | `shadcn/typeset` | unchanged — `design-md-to-app/references/chat-and-typeset.md` |
+
+## The two that matter most for an eve agent
+
+**`trace`** renders what the agent *did*: reasoning, tool calls, sources, plans and subagent runs,
+each a line with an icon, a title, a status (`running` / `error` / `pending`, with a shimmer while a
+step runs), expandable and nestable. One file, one registry dependency (`collapsible`).
+
+**`code-block`** renders code, terminal output, logs and diffs, with a small size meant for tool
+output **inside** a Trace. Registry dependencies: `button` and `use-highlighted-code`.
+
+⚠️ **We hand-rolled this once already.** fit-room's assistant draws tool parts through its own
+`ToolPartView` in `components/assistant/assistant-chat.tsx`, written before these existed. That is the
+component to replace first, and the reason this file is worth reading before the next agent UI.
+
+## What is still open
+
+The patterns' **input shape** is not documented on the index page — whether they consume AI SDK
+message parts directly, or expect a mapping from eve's own event stream. `eve-agent` streams
+`task.started` / `task.settled` / `agent.started`, not AI SDK parts, so **the adapter between the two
+is ours to write and has not been written**. Read one pattern's markdown page before promising a
+wiring; do not assume the AI SDK shape.
+
+---
+
+> **The old AI SDK Elements how-to, kept for projects already on it.**
 
 [AI Elements](https://elements.ai-sdk.dev/) is Vercel's prebuilt component kit for AI surfaces, built
 **on top of shadcn/ui** (same theming conventions, components copied into your repo — not a runtime
