@@ -33,6 +33,22 @@ All eight also set `baseColor`, `theme` and `chartColor` to `neutral`, `radius: 
 `menuAccent: "subtle"`, `menuColor: "default"` and `rtl: false` — the knobs a preset code encodes and
 a style leaves at its default.
 
+## New components land in the new namespaces only
+
+Observed 2026-10-17, probing the registry rather than reading the page: `trace` and `code-block`
+(announced 2026-10-14) return **200 under every new namespace** — `base-*`, `radix-*`, `aria-*`,
+across the eight styles — and **404 under `new-york` and `new-york-v4`**.
+
+So the style namespace is not a cosmetic choice: a project left on the legacy style **cannot add the
+new components at all**, by any command. Two of ours are there today, `constellation` and `dataviz`.
+
+Two practical consequences:
+
+- **Check the namespace before promising a component.** `npx shadcn view <name>` run outside a
+  project resolves `new-york-v4` and reports the item missing — which is how this was first read as
+  "the changelog is ahead of the package". It was not; the probe was.
+- **Migrating off `new-york` is now a capability question**, not a visual one.
+
 ## ⚠️ The style sets `icon_library`, and one value is outside our contract
 
 This is the consequence that matters for `meta.json`, and it is not in their skill: **choosing a

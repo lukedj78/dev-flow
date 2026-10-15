@@ -1,6 +1,20 @@
 # AI Elements — the opt-in chat kit, bound to `useEveAgent()`
 
-> **This is an OPTION, not the default.** The repo's best practice for an eve chat UI stays the
+> ⚠️ **Read this first — the ground moved on 2026-10-14, and the rest of this file has not caught up.**
+> AI Elements is now **shadcn's own**: 21 patterns (Chat, Prompt Input, Reasoning, Tool, Plan,
+> Subagent) composed from shadcn components, documented at `ui.shadcn.com`, **with no package to
+> install**. It *replaces* **AI SDK Elements** — the `elements.ai-sdk.dev` kit this file is written
+> against — which shadcn says will be **deprecated**. Components already installed keep working, and
+> each pattern page carries a migration prompt that rebuilds the wrapper on the new **Trace** and
+> **Code Block** components, keeping export names and props.
+>
+> **What that does to the verdict below.** The objection was *a second kit, with its own conventions,
+> beside ours* — and that objection dissolves when the kit is shadcn's composition layer over the
+> components and tokens we already install. The old framing is kept below because the **how-to** is
+> still accurate for a project that installed the AI SDK kit; the **recommendation** is stale.
+> Re-decide before quoting it, and see `docs/vercel-changelog-watch.md` §shadcn, pass 2026-10-17.
+
+> **The previous verdict, now under review.** The repo's best practice for an eve chat UI stays the
 > **official shadcn chat components + `shadcn/typeset`** (`design-md-to-app/references/chat-and-typeset.md`)
 > — they inherit the project's DESIGN.md tokens and stay consistent with the rest of the app. Reach for
 > AI Elements **only when the user explicitly asks for that kit**. This file is the how-to for that case.
