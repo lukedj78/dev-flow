@@ -1016,5 +1016,33 @@ class Hooks(unittest.TestCase):
         self.assertTrue(any("H1" in p for p in problems), problems)
 
 
+    def test_the_braced_variable_the_harness_expands(self) -> None:
+        """`${CLAUDE_PROJECT_DIR}` kept its braces, so the path could not exist and the hook earned
+        an H8 `missing` while the real script ran unread — a false positive and a bypass at once."""
+        scripts, unresolved = ri.hook_scripts(Path("/tmp/p"), 'python3 "${CLAUDE_PROJECT_DIR}/a.py"')
+        self.assertEqual([str(x) for x in scripts], ["/tmp/p/a.py"])
+        self.assertEqual(unresolved, [])
+
+    def test_what_only_a_shell_can_resolve_is_reported_not_invented(self) -> None:
+        """A shell expands `$HOME`, a glob and `$(…)`; shlex does not. Computing a path from the
+        literal text invents a file and then reports it missing."""
+        for token in ("$HOME/evil.py", "ev*.py"):
+            with self.subTest(token=token):
+                scripts, unresolved = ri.hook_scripts(Path("/tmp/p"), f"python3 {token}")
+                self.assertEqual(scripts, [], "no path is invented")
+                self.assertEqual(unresolved, [token])
+        # Command substitution also TOKENISES differently: shlex splits `$(echo ev)il.py` on the
+        # inner space, and the second piece carries no shell syntax at all. So the whole command
+        # is unresolved, not one token of it.
+        for command in ("python3 $(echo ev)il.py", "python3 `which x`.py"):
+            with self.subTest(command=command):
+                scripts, unresolved = ri.hook_scripts(Path("/tmp/p"), command)
+                self.assertEqual(scripts, [], "no path is invented")
+                self.assertEqual(unresolved, [command])
+        codes = self.codes(("Stop", "python3 $HOME/evil.py"))
+        self.assertIn(("H9", "review"), codes)
+        self.assertNotIn("H8", [c for c, _ in codes], "never reported missing")
+
+
 if __name__ == "__main__":
     unittest.main()

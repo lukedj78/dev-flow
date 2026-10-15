@@ -221,6 +221,7 @@ here where we carried none.
 | H5 | block | a destructive command run automatically, with nobody to confirm it |
 | H6 | review | the script lives outside the project, or is reached by an absolute path — unreviewable in a diff, and broken on every other machine |
 | H7 | review | detaches a background process that outlives the call |
+| H9 | review | **a shell resolves the command and we cannot** — `$HOME/x.py`, a glob, `$(…)`. The script it runs was not reviewed, and that is the finding; inventing a path from the literal text would report a file that never existed |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
 Blocking findings fail `check`, and **there is no acceptance path** — not an omission. The first
@@ -243,6 +244,15 @@ Two limits are deliberate, and both come from building it:
 Both of those, and the fact that **every** script in a chained command is read rather than the
 first, came from a security review of the commit that added this section — `python3 ok.py &&
 python3 evil.py` was once reviewed by reading `ok.py`.
+
+A third review found the one underneath them all: **we read the command and a shell runs it.**
+`shlex` does not expand `${CLAUDE_PROJECT_DIR}`, `$HOME` or a glob, so the path computed from the
+literal text was a file that never existed — the hook earned an H8 *missing* while the real script
+ran unread, a false positive and a bypass in the same line. Command substitution is worse than an
+expansion difference: `shlex` splits `$(echo ev)il.py` on the inner space, and the second piece
+carries no shell syntax for a per-token filter to catch, so a command containing `$(` or a backtick
+resolves to **no** paths at all. What a shell resolves and we cannot is now H9, said out loud,
+rather than a path we made up.
 
 ## Where it runs
 
@@ -290,7 +300,7 @@ python3 evil.py` was once reviewed by reading `ok.py`.
 ## Files
 
 - `scripts/registry_intake.py` — the whole mechanism (stdlib only).
-- `scripts/test_registry_intake.py` — 79 tests, no network; run in CI.
+- `scripts/test_registry_intake.py` — 81 tests, no network; run in CI.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.

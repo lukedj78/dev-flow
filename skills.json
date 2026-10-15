@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-15T10:04:53Z",
+  "generated_at": "2026-10-15T10:08:34Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -215,7 +215,7 @@
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 296,
+      "skill_md_lines": 306,
       "bundle": "dist/registry-intake.skill"
     },
     {
