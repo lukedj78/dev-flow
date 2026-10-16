@@ -105,6 +105,17 @@ In this order, each for a reason:
      for a shadcn registry** — those are found through their site and their `registry.json`
      (`research.py read <url>`), through a catalogue, or because somebody handed one over. When the
      thing you want is a registry item, say so in the plan instead of concluding it does not exist.
+   - **The catalogue slot, filled 2026-10-16: [ShadHub](https://shadhub.dev)** — a directory of
+     shadcn-format GitHub registries ranked by stars, each with its README and, one level down, a
+     **list of its items with descriptions and a copy-ready install command**. That last page is the
+     right depth for this step: it answers *does a component for this already exist* without
+     installing anything. ⚠️ **And it is small.** Measured the day it was added: **twelve registries
+     on the index**, no API, no sitemap, no licence stated, one maintainer, "not affiliated with
+     shadcn". **Zero of the twelve are registries we use** — pdfcn, audiocn, gauge-ui, Logoforge,
+     `@coss`, agentcn, emailcn and evex are all absent. So it is a *second* lookup, never the first:
+     **our own `resources.md` first**, then shadcn's own 471 items (`shadcn search @shadcn --query`),
+     then the registry's own site, and only then a catalogue. Reading it as the inventory of what
+     exists would have told us none of the eight registries we actually install from exist.
 2. **Reddit**, because it is where people say what did not work. The post tells the success story,
    the comments tell the rest: open the thread, never stop at the title.
 3. **X**, because it is where builders show last week's work. On these topics an eighteen-month-old
