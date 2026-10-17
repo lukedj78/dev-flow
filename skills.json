@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T14:19:20Z",
+  "generated_at": "2026-10-17T14:23:48Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -112,6 +112,7 @@
         "inventory.py",
         "inventory_gate.py",
         "meta_io.py",
+        "phases.py",
         "primitives_guard_gate.py",
         "registry_intake_gate.py",
         "research.py",
@@ -119,6 +120,7 @@
         "test_data_residency.py",
         "test_inventory.py",
         "test_meta_io.py",
+        "test_phases.py",
         "test_primitives_guard_gate.py",
         "test_research.py",
         "test_wireframes_gate.py",

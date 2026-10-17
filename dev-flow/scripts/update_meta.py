@@ -45,30 +45,8 @@ from pathlib import Path
 from typing import Any
 
 import meta_io
-
-# Phase enum — must stay in sync with .workflow/contracts.md.
-# Index = monotonic position. Skills MAY set a phase >= current; never <.
-PHASES = [
-    "empty",
-    "idea_captured",
-    "prd_drafted",
-    "tasks_split",
-    "design_extracted",
-    # Monorepo-only mid-bootstrap checkpoint (turborepo root before apps are scaffolded)
-    "monorepo_initialized",
-    "scaffolded",
-    "page_generated",
-    "module_added",
-    # Cross-stack terminal progression beyond module_added (web / mobile / agent / monorepo)
-    "feature_complete",
-    "deployed",
-]
-
-# Backwards-compatibility: accept the old kebab-case spelling. set-phase
-# will normalize "module-added" to "module_added" on write.
-PHASE_ALIASES = {
-    "module-added": "module_added",
-}
+import phases
+from phases import PHASES  # the enum and its legacy aliases live in phases.py, shared with show_state.py
 
 
 def now_iso() -> str:
@@ -196,12 +174,21 @@ def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curre
     )
 
 
+def unknown_phase_refusal(current: object, action: str) -> str:
+    return (
+        f"Phase change refused: the current phase {current!r} is not a phase this script knows.\n"
+        f"  Valid phases: {', '.join(PHASES)}\n"
+        f"  It may come from a newer contract, so `{action}` could move the project backwards.\n"
+        f"  To reset it on purpose: update_meta.py <root> set-phase <phase> --allow-regress\n"
+    )
+
+
 def cmd_set_phase(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     meta_path, meta = load_meta(root)
 
     # Normalize aliases (e.g. legacy kebab "module-added" → "module_added")
-    requested = PHASE_ALIASES.get(args.phase, args.phase)
+    requested = phases.normalize(args.phase)
 
     if requested not in PHASES:
         sys.stderr.write(f"Unknown phase: {args.phase!r}\n")
@@ -209,8 +196,15 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         return 1
 
     current_raw = meta.get("phase", "empty")
-    current = PHASE_ALIASES.get(current_raw, current_raw)
-    cur_idx = PHASES.index(current) if current in PHASES else -1
+    current = phases.normalize(current_raw)
+    cur_idx = phases.index(current_raw)
+    if cur_idx is None:
+        # It may be a phase a newer contract added, so moving it could be a regression nobody can see.
+        # It used to count as index -1, which let any move through.
+        if not args.allow_regress:
+            sys.stderr.write(unknown_phase_refusal(current_raw, f"set-phase {requested}"))
+            return 1
+        cur_idx = -1  # an explicit reset: every gate up to the target still runs
     new_idx = PHASES.index(requested)
 
     if new_idx < cur_idx and not args.allow_regress:
@@ -303,7 +297,7 @@ def cmd_append_history(args: argparse.Namespace) -> int:
     # was taken through the whole flow: `tasks_ready` for `tasks_split`.
     phase_after = None
     if args.phase_after:
-        phase_after = PHASE_ALIASES.get(args.phase_after, args.phase_after)
+        phase_after = phases.normalize(args.phase_after)
         if phase_after not in PHASES:
             sys.stderr.write(f"Unknown phase: {args.phase_after}\n")
             sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
@@ -311,8 +305,11 @@ def cmd_append_history(args: argparse.Namespace) -> int:
 
     if phase_after:
         cur_raw = meta.get("phase", "empty")
-        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-        cur_idx = PHASES.index(cur) if cur in PHASES else -1
+        cur = phases.normalize(cur_raw)
+        cur_idx = phases.index(cur_raw)
+        if cur_idx is None:
+            sys.stderr.write(unknown_phase_refusal(cur_raw, f"append-history --phase-after {phase_after}"))
+            return 1
         refusal = (inventory_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after)
                    or wireframes_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after))
         if refusal:
@@ -330,9 +327,7 @@ def cmd_append_history(args: argparse.Namespace) -> int:
     })
 
     if phase_after:
-        cur_raw = meta.get("phase", "empty")
-        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-        cur_idx = PHASES.index(cur) if cur in PHASES else -1
+        cur_idx = phases.index(meta.get("phase", "empty"))
         new_idx = PHASES.index(phase_after)
         if new_idx >= cur_idx:
             meta["phase"] = phase_after

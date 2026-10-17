@@ -773,7 +773,9 @@ def check_installed_in_sync(root: Path, all_skills: set[str]) -> None:
 # skills and 14 knowledge-role ones. Their siblings (`mobile · expo`, `engine ·
 # eve`) had always been plain family counts, so the definition was never in doubt
 # — only unenforced. Each card is now derived from skills.json or, for `phases`,
-# from the contract's own Phase enum, which is the only place phases are declared.
+# from contract-package's Phase enum. That is one of three copies of the phase
+# list, alongside the table in contracts.md and dev-flow/scripts/phases.py; tests
+# hold both copies to the table (contract-package's test_core, dev-flow's test_phases).
 PHASE_ENUM = "contract-package/src/dev_flow_contract/core.py"
 METRIC_RE = re.compile(
     r'<div class="metric"><div class="k">(?:<[^>]+>)*\s*([a-z0-9 ·-]+?)\s*</div>'
@@ -782,7 +784,7 @@ METRIC_RE = re.compile(
 
 
 def phase_count(root: Path) -> int | None:
-    """Members of the Phase enum — the contract is the only place they are declared."""
+    """Members of contract-package's Phase enum, which its tests keep equal to the contract's table."""
     path = root / PHASE_ENUM
     if not path.exists():
         return None

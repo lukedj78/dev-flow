@@ -106,6 +106,9 @@ jobs:
       - name: Test meta.json writes (atomic replace, lock, no lost update under concurrency)
         run: cd dev-flow/scripts && python3 -m unittest test_meta_io -v
 
+      - name: Test the phase enum (one table, matches the contract, no regression through an alias)
+        run: cd dev-flow/scripts && python3 -m unittest test_phases -v
+
       - name: Self-test the compliance grader (offline — the agent runs are local and paid)
         run: python3 evals/compliance/comply.py selftest
 

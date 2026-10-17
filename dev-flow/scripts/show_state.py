@@ -11,6 +11,9 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import phases  # noqa: E402 — the phase enum and its aliases, shared with update_meta.py
+
 # Next-step proposals per phase, keyed by `stack.framework`. Mirrors the routing tables
 # in dev-flow/SKILL.md (§Stack-aware routing) — keep the two in sync.
 # All phase keys are snake_case (contract §phase enum); legacy kebab-case is normalized below.
@@ -58,8 +61,12 @@ PHASE_NEXT_BY_STACK = {
     },
 }
 
-# Legacy aliases still found in older meta.json files.
-PHASE_ALIASES = {"module-added": "module_added", "page-generated": "page_generated", "design-extracted": "design_extracted"}
+def routing_phase(raw: object) -> str:
+    """The phase to route on: aliases read as their canonical name, and anything that is not a phase as
+    `empty` (contract: an unknown value must not crash and routes as `empty`). A missing phase is ''."""
+    if not raw:
+        return ''
+    return phases.normalize(raw) if phases.index(raw) is not None else 'empty'
 
 
 # dev-flow/references/contracts.md §stack — keep the two in step.
@@ -107,8 +114,7 @@ def linters_present(root: Path) -> set[str]:
     return found
 
 
-PRE_CODE_PHASES = {'empty', 'idea_captured', 'prd_drafted', 'tasks_split', 'design_extracted',
-                   'monorepo_initialized', ''}
+PRE_CODE_PHASES = set(phases.before('scaffolded')) | {''}
 SKIP_DIRS = {'node_modules', '.next', '.git', '.turbo', 'dist', 'build', '.expo'}
 
 
@@ -137,7 +143,7 @@ def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
     spec-review, shadscan and the gates only from `page_generated` on, so a phase left behind silently
     switches every check off — smart-travel was at `design_extracted` through three days of building and
     238 hand-made elements. Returns the counts when that is the case."""
-    phase = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    phase = routing_phase(meta.get('phase'))
     fw = (meta.get('stack') or {}).get('framework')
     if phase not in PRE_CODE_PHASES or fw == 'agent':
         return None
@@ -145,8 +151,8 @@ def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
     return (routes, components) if routes or components else None
 
 
-def next_step(phase: str | None, framework: str | None) -> str:
-    phase = PHASE_ALIASES.get(phase or "", phase or "")
+def next_step(phase: object, framework: str | None) -> str:
+    phase = routing_phase(phase)
     if phase in COMMON_NEXT:
         return COMMON_NEXT[phase]
     fw = framework or "next"
@@ -175,6 +181,9 @@ def main() -> int:
     meta = json.loads(meta_path.read_text())
     print(f"Project:  {meta.get('project_name')!r}  ({meta.get('project_slug')!r})")
     print(f"Phase:    {meta.get('phase')}")
+    if meta.get('phase') and phases.index(meta.get('phase')) is None:
+        print(f"⚠ {meta.get('phase')!r} is not a phase of the contract — routed as 'empty'. update_meta.py refuses to")
+        print(f"  move it without --allow-regress; valid phases: {', '.join(phases.PHASES)}")
     print(f"Updated:  {meta.get('updated_at')}")
     stack = meta.get('stack') or {}
     stack_str = ", ".join(f"{k}={v}" for k, v in stack.items() if v) or "(undecided)"
@@ -207,7 +216,7 @@ def main() -> int:
 
     # A project already at or past `scaffolded` without the design lint — it predates the gate,
     # or its phase was edited by hand. Not blocking here; set-phase blocks the transition.
-    phase_norm = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    phase_norm = routing_phase(meta.get('phase'))
     behind = phase_behind_code(meta, root)
     if behind:
         routes, components = behind
