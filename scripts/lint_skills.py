@@ -645,6 +645,16 @@ VENDORED_SOURCE = [
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
       for skill in ("design-md-to-app", "forms", "linear-scrum", "registry-intake", "wireframe-canvas")),
+    # The RN version pins. refresh_stack_defaults.py rewrites both tables; the prose around them drifted
+    # by hand (rn-bootstrap's still said NativeWind had no v5 when rn-fundamentals had it in preview).
+    ("rn-fundamentals/references/stack-defaults.md", "rn-bootstrap/references/stack-defaults.md"),
+]
+
+# Vendored by every skill that reads or writes `.workflow/` (CONTEXT.md, "The vendored contract is
+# duplication on purpose"). Discovered rather than listed, so a skill that starts carrying it is checked
+# from its first commit. Until 2026-10-17 the identity was a manual md5 loop and nothing failed on drift.
+VENDORED_EVERYWHERE = [
+    ("dev-flow/references/contracts.md", "*/references/contracts.md"),
 ]
 
 
@@ -657,15 +667,19 @@ def check_vendored_source(root: Path) -> None:
     green — the same shape as check 12, one layer out. `meta_io.py` is the same
     case inside the repo: tested in dev-flow, run from five other skills.
     """
-    for tested, vendored in VENDORED_SOURCE:
+    pairs = list(VENDORED_SOURCE)
+    for canonical, pattern in VENDORED_EVERYWHERE:
+        pairs += [(canonical, str(p.relative_to(root))) for p in sorted(root.glob(pattern))
+                  if str(p.relative_to(root)) != canonical]
+    for tested, vendored in pairs:
         a, b = root / tested, root / vendored
         if not a.exists() or not b.exists():
             warn(f"vendored pair missing: {tested} / {vendored}")
             continue
         if a.read_bytes() != b.read_bytes():
             err(
-                f"{vendored} differs from {tested} — the copy in use "
-                f"is not the one the tests cover. Copy it across."
+                f"{vendored} differs from {tested}, its canonical copy — "
+                f"edit the canonical one and copy it across."
             )
 
 
