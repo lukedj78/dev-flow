@@ -370,16 +370,34 @@ if [ "${#PROJECT_DIRS[@]}" -gt 0 ]; then
         jobs+=("primitives-guard|$SKILLS_DIR/design-md-to-app/scripts/setup_primitives_guard.py|")
       fi
       [ "${#jobs[@]}" -gt 0 ] || continue
-      # The scan reaches every subfolder, cloned third-party repos included, and setup writes the hook copy,
-      # settings.json and AGENTS.md. A symlink at any of those paths would make it overwrite whatever file it
-      # points to, outside the project. Such a project is skipped, not followed.
-      linked=""
-      for rel in .claude .claude/hooks .claude/hooks/registry_intake.py .claude/settings.json AGENTS.md CLAUDE.md \
-                 scripts scripts/guard scripts/guard/primitives-guard.mjs .workflow .workflow/meta.json; do
-        if [ -L "$proj/$rel" ]; then linked="$rel"; break; fi
-      done
+      # The scan reaches every subfolder, cloned third-party repos included, and setup writes the hook copies,
+      # settings.json, AGENTS.md, meta.json, the lock, the formatter's ignore file and more. A symlink on the
+      # way to any of them would make setup overwrite the file it points to, outside the project. Rather than
+      # a list of paths that ages with every file setup learns to write, the rule is general: skip a project
+      # that is itself a symlink, or where anything within three levels (node_modules and .git aside, where
+      # setup writes nothing) resolves outside the project.
+      linked="$(python3 - "$proj" <<'PY'
+import os, sys
+top = sys.argv[1].rstrip("/")
+root = os.path.realpath(top)
+if os.path.islink(top):
+    print("the project folder itself"); sys.exit()
+todo = [(top, 1)]
+while todo:
+    folder, depth = todo.pop()
+    for name in sorted(os.listdir(folder)):
+        if name in ("node_modules", ".git"):
+            continue
+        path = os.path.join(folder, name)
+        if os.path.islink(path):
+            if os.path.commonpath([root, os.path.realpath(path)]) != root:
+                print(os.path.relpath(path, top)); sys.exit()
+        elif depth < 3 and os.path.isdir(path):
+            todo.append((path, depth + 1))
+PY
+)"
       if [ -n "$linked" ]; then
-        echo "  ✗ $(basename "$proj"): skipped — $linked is a symlink; setup would write through it"
+        echo "  ✗ $(basename "$proj"): skipped — $linked is a symlink out of the project; setup would write through it"
         continue
       fi
       touched=$((touched + 1))
