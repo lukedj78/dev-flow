@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T16:05:39Z",
+  "generated_at": "2026-10-17T16:06:45Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -492,7 +492,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 344,
+      "skill_md_lines": 346,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -763,7 +763,7 @@
         "observability.md"
       ],
       "scripts": [],
-      "skill_md_lines": 184,
+      "skill_md_lines": 190,
       "bundle": "dist/rn-eas-deploy.skill"
     },
     {

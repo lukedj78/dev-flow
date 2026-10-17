@@ -99,7 +99,13 @@ Run `eas build --profile production --platform all --non-interactive`. Wait.
 
 ### Step 8 — Submit to stores
 
-Run `eas submit --profile production --platform all --non-interactive`.
+**Stop and ask before submitting.** This uploads the build to App Store Connect and the Play Console: it
+spends a build number, can start a review, and on Play with auto-release configured it can reach users.
+The smoke-test "OK" in Step 5 was for the preview build, not consent to submit. Show the user the version
+(`app.json#expo.version`), the build IDs from Step 7, and the stores, and submit only on an explicit yes
+in this conversation (dev-flow's autonomous-runs rules list store submission as needing a human).
+
+Then run `eas submit --profile production --platform all --non-interactive`.
 
 For first submission of a new app:
 - App MUST exist in App Store Connect / Play Console with the correct bundle ID / package name (manual setup, can't be automated).
