@@ -80,8 +80,8 @@ A dev-flow project's documented standards are not a `CONTRIBUTING.md` someone ma
 | **The repo's own docs** | `CONTRIBUTING.md`, `CODING_STANDARDS.md`, `AGENTS.md`/`CLAUDE.md` if present — **these override everything above where they conflict**, including this skill |
 | **Fowler baseline** | the floor, below — applies even when nothing above says anything |
 
-**Skip anything tooling already enforces.** `biome`/`eslint`, `tsc`, and the three gates
-(`shadscan`, `vercel-doctor`, `compliance-audit`) have their own runs; repeating them here produces a
+**Skip anything tooling already enforces.** `biome`/`eslint`, `tsc`, and the four pre-deploy gates
+(`shadscan`, `vercel-doctor`, `compliance-audit`, `launch-audit`) have their own runs; repeating them here produces a
 long report that says nothing new. If the project has a lint gate, a review finding about formatting is
 noise.
 

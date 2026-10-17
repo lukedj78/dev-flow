@@ -238,7 +238,7 @@ in code before reporting a delta**, rather than trusting that two runs minutes a
 ## dev-flow hook
 
 Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy gate** at `feature_complete`,
-completing the trio: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)**.
+one of four: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)** · `launch-audit` (commercial readiness).
 Re-run it in the `deployed` maintenance loop to catch UI regressions. It records `meta.json#shadscan` +
 `history` and **never bumps `phase`**. It never *blocks* the deploy on its own — it surfaces the score and
 the open decisions so the user decides.
