@@ -509,7 +509,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 19
+CHECK_COUNT = 20
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -633,6 +633,46 @@ def check_eve_recipe_count(root: Path) -> None:
         for m in re.finditer(NUMBER_WORD_RE, path.read_text(errors="ignore")):
             if m.group(1).lower() not in {word, str(real)}:
                 err(f"{path}: \"{m.group(0)}\" — eve-patterns.md has {real}")
+
+
+# --- check 20: two skills that share a trigger phrase must exclude each other ------
+#
+# The agent picks a skill from its description alone. "add auth" sat in both module-add's and
+# rn-module-add's triggers, "artboard" in iframe-canvas's and wireframe-canvas's, and neither of
+# each pair named the other in its `Not for:` — so the description gave the agent nothing to choose
+# by (AUDIT.md §6.6). A phrase that is a contract value (a phase, a framework) is not a trigger.
+TRIGGER_PHRASE_RE = re.compile(r'["“]([^"”]{4,80})["”]')
+NOT_TRIGGERS = {"next", "expo-rn", "monorepo", "agent", "use client"}
+
+
+def check_shared_triggers(root: Path, all_skills: set[str]) -> None:
+    sys.path.insert(0, str(root / "dev-flow" / "scripts"))
+    try:
+        import phases
+        contract_values = NOT_TRIGGERS | set(phases.PHASES)
+    except ImportError:
+        contract_values = set(NOT_TRIGGERS)
+    descriptions: dict[str, str] = {}
+    for name in sorted(all_skills):
+        text = (root / name / "SKILL.md").read_text(errors="ignore")
+        try:
+            fm = yaml.safe_load(text.split("---")[1]) or {}
+        except Exception:
+            continue  # check 1 reports a broken frontmatter
+        descriptions[name] = str(fm.get("description") or "")
+    owners: dict[str, set[str]] = {}
+    for name, desc in descriptions.items():
+        for phrase in TRIGGER_PHRASE_RE.findall(desc):
+            phrase = phrase.strip().lower()
+            if phrase not in contract_values:
+                owners.setdefault(phrase, set()).add(name)
+    for phrase, names in sorted(owners.items()):
+        for a in sorted(names):
+            not_for = descriptions[a].split("Not for", 1)[1] if "Not for" in descriptions[a] else ""
+            for b in sorted(names - {a}):
+                if b not in not_for:
+                    err(f"{a}/SKILL.md: shares the trigger \"{phrase}\" with `{b}`, but its `Not for:` "
+                        f"does not name `{b}` — the agent chooses on the description alone")
 
 
 def check_lint_check_count(root: Path) -> None:
@@ -905,6 +945,7 @@ def main() -> int:
     check_eve_recipe_count(root)
     check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)
+    check_shared_triggers(root, all_skills)
     check_installed_in_sync(root, all_skills)
 
     print()

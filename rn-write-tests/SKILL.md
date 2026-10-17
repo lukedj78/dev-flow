@@ -1,6 +1,6 @@
 ---
 name: rn-write-tests
-description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "two-user flow", "multi-user test", "test con due utenti", "shared state between users", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), or testing pure logic outside an Expo project.'
+description: 'Use to write tests for an Expo + RN app: Jest + React Native Testing Library for unit/integration (components, hooks, queries, mutations) and Maestro for end-to-end flows (sign-in, navigation, forms). Sets up the testing stack on first call (jest-expo preset, RNTL, jest config) and writes a focused test next to the source file. Triggers on: "write tests for X", "add e2e test", "two-user flow", "multi-user test", "test con due utenti", "shared state between users", "mock expo-notifications", "test this hook". Not for: choosing what to test (the user decides), running the existing test suite (just `npm test`), testing pure logic outside an Expo project, or a Next.js web app (write-tests).'
 ---
 
 # rn-write-tests — Jest + RNTL + Maestro testing for Expo + RN

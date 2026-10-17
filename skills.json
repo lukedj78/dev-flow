@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T16:20:15Z",
+  "generated_at": "2026-10-17T16:39:18Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -489,7 +489,7 @@
       "name": "shadscan",
       "family": "web",
       "role": "operative",
-      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. The third pre-deploy gate, alongside `compliance-audit...",
+      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of four pre-deploy gates, with `compliance-audit` ...",
       "skill_file": "shadscan/SKILL.md",
       "references": [
         "contracts.md"
@@ -594,7 +594,7 @@
         "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 171,
+      "skill_md_lines": 172,
       "bundle": "dist/write-tests.skill"
     },
     {
