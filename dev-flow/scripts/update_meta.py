@@ -71,7 +71,7 @@ def load_meta(root: Path) -> tuple[Path, dict[str, Any]]:
         sys.stderr.write(f"No .workflow/meta.json at {root}\n")
         sys.stderr.write("Run init_workflow.py first.\n")
         sys.exit(1)
-    return meta_path, json.loads(meta_path.read_text())
+    return meta_path, meta_io.load_or_exit(meta_path)
 
 
 def save_meta(meta_path: Path, meta: dict[str, Any]) -> None:

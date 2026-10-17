@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T15:05:59Z",
+  "generated_at": "2026-10-17T15:22:00Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -122,6 +122,7 @@
         "test_history.py",
         "test_inventory.py",
         "test_meta_io.py",
+        "test_meta_validation.py",
         "test_phases.py",
         "test_primitives_guard_gate.py",
         "test_research.py",

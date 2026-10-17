@@ -11,8 +11,8 @@ Every script in this folder that changes meta.json goes through here. It used to
 Usage:
 
     with meta_io.locked(root / ".workflow"):
-        meta = json.loads(meta_path.read_text())
-        ...                                   # change meta
+        meta = meta_io.load_or_exit(meta_path)   # refuses an invalid file with exit 2, changes nothing
+        ...                                      # change meta
         meta_io.write_json(meta_path, meta)
 
 The lock is `flock` on the `.workflow` directory itself, not on meta.json. `os.replace` swaps
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -36,6 +37,57 @@ try:
     import fcntl
 except ImportError:  # Windows
     fcntl = None  # type: ignore[assignment]
+
+
+class InvalidMeta(ValueError):
+    """meta.json is not something a script can safely read or rewrite."""
+
+
+# The containers scripts read with .get(), .append() and .items(). When one held the wrong type, some
+# scripts crashed on it and others saved it back unchanged (AUDIT.md §6.2). `phase` is not checked here:
+# a wrong phase is refused by update_meta.py and repaired with `set-phase --allow-regress`, and that
+# repair needs the file to load. A missing container is fine; `null` is not, because `setdefault` keeps it.
+CONTAINERS = {"history": list, "artifacts": dict, "stack": dict, "stack_config": dict}
+_JSON_TYPES = {dict: "an object", list: "an array", str: "a string", int: "a number", float: "a number",
+               bool: "a boolean", type(None): "null"}
+
+
+def read_meta(path: Path) -> dict[str, Any]:
+    """Parse meta.json and check its structure; raise InvalidMeta saying what is wrong."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise InvalidMeta(f"it is not UTF-8 text ({e.reason})") from None
+    if not text.strip():
+        raise InvalidMeta("the file is empty")
+    try:
+        meta = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise InvalidMeta(f"it is not valid JSON ({e.msg}, line {e.lineno} column {e.colno})") from None
+    if not isinstance(meta, dict):
+        raise InvalidMeta(f"its top level is {_JSON_TYPES.get(type(meta), type(meta).__name__)}, not an object")
+    for key, kind in CONTAINERS.items():
+        if key in meta and not isinstance(meta[key], kind):
+            raise InvalidMeta(f"`{key}` is {_JSON_TYPES.get(type(meta[key]), type(meta[key]).__name__)}, "
+                              f"not {_JSON_TYPES[kind]}")
+    for key, entry in (meta.get("artifacts") or {}).items():
+        if not isinstance(entry, dict):
+            raise InvalidMeta(f"artifact `{key}` is {_JSON_TYPES.get(type(entry), type(entry).__name__)}, "
+                              "not an object")
+    return meta
+
+
+def load_or_exit(path: Path) -> dict[str, Any]:
+    """read_meta for a command-line script: on an invalid file, say why and exit 2, having changed nothing."""
+    try:
+        return read_meta(path)
+    except InvalidMeta as e:
+        sys.stderr.write(
+            f"{path} is not a valid meta.json: {e}.\n"
+            "  Nothing was changed. Fix it by hand, or restore the last committed version with\n"
+            f"  git checkout -- {path}\n"
+        )
+        sys.exit(2)
 
 
 @contextmanager

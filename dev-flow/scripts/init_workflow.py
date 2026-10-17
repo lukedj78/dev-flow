@@ -48,7 +48,7 @@ def main() -> int:
 
 def _init(root: Path, meta_path: Path, name: str | None) -> int:
     if meta_path.exists():
-        meta = json.loads(meta_path.read_text())
+        meta = meta_io.load_or_exit(meta_path)  # an invalid one is reported, never overwritten
         print(f"meta.json already exists. phase={meta.get('phase')!r}, name={meta.get('project_name')!r}")
         return 0
 

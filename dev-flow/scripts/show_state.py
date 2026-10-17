@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import meta_io  # noqa: E402 — reads meta.json, refusing an invalid one with exit 2
 import phases  # noqa: E402 — the phase enum and its aliases, shared with update_meta.py
 
 # Next-step proposals per phase, keyed by `stack.framework`. Mirrors the routing tables
@@ -182,7 +183,7 @@ def main() -> int:
         print("Run init_workflow.py first, or this isn't a dev-flow project root.")
         return 1
 
-    meta = json.loads(meta_path.read_text())
+    meta = meta_io.load_or_exit(meta_path)
     print(f"Project:  {meta.get('project_name')!r}  ({meta.get('project_slug')!r})")
     print(f"Phase:    {meta.get('phase')}")
     if meta.get('phase') and phases.index(meta.get('phase')) is None:

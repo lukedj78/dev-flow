@@ -162,7 +162,7 @@ def cmd_record(a: argparse.Namespace) -> int:
 
 
 def _record(a: argparse.Namespace, meta_path: Path) -> int:
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta = meta_io.load_or_exit(meta_path)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     meta["inventory"] = {
         "verdict": a.verdict,

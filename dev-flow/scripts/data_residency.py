@@ -86,7 +86,7 @@ def load(root: Path) -> dict:
     p = meta_path(root)
     if not p.exists():
         raise SystemExit(f"no {p} — run dev-flow/scripts/init_workflow.py first")
-    return json.loads(p.read_text())
+    return meta_io.load_or_exit(p)
 
 
 def save(root: Path, meta: dict) -> None:
