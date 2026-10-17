@@ -373,7 +373,7 @@ You control browser caching yourself via the `Cache-Control` header on **your** 
 
 ## GDPR note (read this before shipping)
 
-- **R3 — data residency.** A Blob store has a region fixed at creation and **cannot be changed afterwards**. `compliance-audit` R3 flags US-default residency; the Vercel default region for compute is `iad1` (Washington, D.C.). For an EU product, create the store in `fra1` / `cdg1` / `dub1` / `arn1` and **record it** so R3 has an answer: set `meta.json#compliance.data_residency = "eu"` and note the region in `docs/compliance/`.
+- **R3 — data residency.** A Blob store has a region fixed at creation and **cannot be changed afterwards**. `compliance-audit` R3 flags US-default residency; the Vercel default region for compute is `iad1` (Washington, D.C.). For an EU product, create the store in `fra1` / `cdg1` / `dub1` / `arn1` and **record it** so R3 has an answer: the store goes in the sub-processor register with its region (`dev-flow/scripts/data_residency.py add <root> --name "Vercel Blob" --service storage --data … --region fra1`), against the residency already decided in `stack.data_residency`. (This used to say `meta.json#compliance.data_residency`, a key nothing reads.)
 - **R4 — retention / erasure.** `del()` is the erasure path. Wire it into the account-deletion flow: `listUserFiles(userId)` → `del(pathnames)` → delete the `files` rows. Without this, deleting a user leaves their uploads in the store forever.
 - Blob is a **sub-processor** only in the sense that it's Vercel — which is already in the register if you deploy there. That is the whole reason it's the default here.
 

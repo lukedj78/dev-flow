@@ -8,7 +8,8 @@ This module owns **the wiring**, not the shipping.
 
 | Concern | Owner |
 |---|---|
-| `vercel.json` / `vercel.ts`, region choice, build settings, env-var plumbing, monorepo root directory | **this module** |
+| `vercel.json` / `vercel.ts` (its `regions` included), build settings, the env-var **matrix** (which variables, in which environments), `.vercel` in `.gitignore` | **this module** |
+| Creating and linking the Vercel project, the project-level function region, the variables' **values** (secrets), marketplace connectors, DNS | **`project-infra-setup`** |
 | Running the actual deploy, promotion to production, rollback, domains, post-deploy smoke | **`vercel-deploy`** |
 | Cost/perf gate before shipping (caching, function duration, image waste, dead code) | **`vercel-doctor`** |
 | Legal/privacy gate before shipping (GDPR/AI-Act, incl. data residency) | **`compliance-audit`** |
@@ -33,22 +34,19 @@ If all four: tell the user it's wired, offer to re-check the env-var matrix or c
 - **Run `deploy` last** among modules. It reads the configured stack — if `db`/`auth`/`storage` land afterwards, their env vars are missing from the matrix you just built.
 - The Vercel CLI, invoked without a global install: `pnpm dlx vercel@latest <cmd>` (or `npx vercel`). A global `npm i -g vercel` also works; don't add `vercel` to the project's dependencies.
 
-## Step 1 — Link the project
+## Step 1 — Confirm the project is linked
 
-```bash
-cd <project-root>
-pnpm dlx vercel@latest link
-```
+`project-infra-setup` creates and links the Vercel project (step 3 of its sequence), with the region read
+back. This module does not link: two skills linking was how a directory got pointed at the wrong
+project. If `.vercel/project.json` is missing, stop and run `project-infra-setup` first.
 
-Interactive: pick scope (team), then an existing project or create one. Non-interactive: `vercel link --yes --project <name>`. `--project` also reads from `VERCEL_PROJECT_ID`; the flag wins.
-
-This writes `.vercel/project.json` (project id + org id). **Add `.vercel` to `.gitignore`** — it is machine-local link state, not shared config. Verify:
+`.vercel/project.json` holds the project id and org id. **Make sure `.vercel` is in `.gitignore`** — it is machine-local link state, not shared config:
 
 ```bash
 grep -qx '.vercel' .gitignore || echo '.vercel' >> .gitignore
 ```
 
-**Monorepo**: run `vercel link --repo` from the **repository root** (not the app subdirectory) to link every app to its own Vercel project in one pass. Requires the Git integration. Note the plan cap on Vercel projects connected per Git repo: 25 (Hobby) / 150 (Pro).
+**Monorepo** (for reference — `project-infra-setup` runs it): `vercel link --repo` from the **repository root** (not the app subdirectory) to link every app to its own Vercel project in one pass. Requires the Git integration. Note the plan cap on Vercel projects connected per Git repo: 25 (Hobby) / 150 (Pro).
 
 ## Step 2 — Write `vercel.json`
 
@@ -135,7 +133,15 @@ Plan caps: **Hobby = single region**, Pro = 5, Enterprise = all. *"Deploying to 
 
 Set it in `vercel.json` (`"regions": ["fra1"]`), in the dashboard (**Settings → Functions → Function Regions**), or per-deploy with `vercel --regions fra1`. `vercel.json` is what this module writes — it's the version-controlled one.
 
-**Record the choice.** When the region is EU, set `meta.json#compliance.data_residency = "eu"`; `compliance-audit` reads it and R3 stops being an open finding. Routing Middleware is deployed to all regions regardless of this setting — mention it if the middleware touches personal data.
+**One region, two places, and they must agree.** `project-infra-setup` sets the project-level region and
+writes it in `docs/infrastructure.md`; `vercel.json#regions` **overrides** it for every deployment. Write
+the same region here, read from that file (or from `vercel project inspect`), not a new choice — a
+mismatch silently moves the functions away from the database.
+
+**Record the choice** where the contract keeps it: the residency decision is `stack.data_residency`, set
+by `dev-flow/scripts/data_residency.py decide` at the stack decision, and Vercel goes in the sub-processor
+register with `data_residency.py add` (which `project-infra-setup` step 8 does). `compliance-audit` R3
+reads both. (This used to say `meta.json#compliance.data_residency`, a key nothing reads.) Routing Middleware is deployed to all regions regardless of this setting — mention it if the middleware touches personal data.
 
 ## Step 4 — Environment variables per environment
 
@@ -151,7 +157,7 @@ Vercel has three system environments — **Production**, **Preview**, **Developm
 2. For each var, decide the environment matrix and **tell the user** which ones must differ per environment rather than being copied:
    - **Must differ**: `DATABASE_URL` (never point preview at the production DB), `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`, any webhook secret (Stripe test vs live), `RESEND_DEV_TO` (set in preview/dev, empty in production).
    - **Can be shared**: read-only third-party keys, feature flags.
-3. Emit the commands — **do not run them**; they take secret values interactively and the user owns their credentials:
+3. The **values** are `project-infra-setup`'s (step 7: secrets on stdin, never in chat). If it already ran, check that every name in the matrix exists in each environment with `vercel env ls` and report the gaps. If it has not, emit the commands — **do not run them**; they take secret values interactively and the user owns their credentials:
    ```bash
    pnpm dlx vercel@latest env add DATABASE_URL production
    pnpm dlx vercel@latest env add DATABASE_URL preview
