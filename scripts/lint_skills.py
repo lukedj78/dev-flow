@@ -509,7 +509,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 20
+CHECK_COUNT = 21
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -673,6 +673,53 @@ def check_shared_triggers(root: Path, all_skills: set[str]) -> None:
                 if b not in not_for:
                     err(f"{a}/SKILL.md: shares the trigger \"{phrase}\" with `{b}`, but its `Not for:` "
                         f"does not name `{b}` — the agent chooses on the description alone")
+
+
+# --- check 21: dated facts older than STALE_DAYS are named, never failed -------------
+#
+# Third-party facts age: versions, security floors, flags. resources.md's rule is "anything older than
+# a couple of months is a row to re-read", and nothing applied it — contracts.md kept calling Next 16.3
+# `latest` after 16.4.0 shipped (AUDIT.md §6.10). A note per file, with its oldest marker; notes never
+# change the exit code, because a fact being old is a reason to re-read it, not proof it is wrong.
+STALE_DAYS = 60
+DATED_MARKER_RE = re.compile(
+    r"\b(verified|re-verified|checked|snapshot date|last pass|read|as of)\b:?\s*(?:on\s+)?"
+    r"(20\d\d-\d\d(?:-\d\d)?)\b", re.I)
+# Dated records of what happened, not facts that can go stale.
+STALE_EXEMPT = ("CHANGELOG.md", "AUDIT.md", "docs/superpowers/", "evals/compliance/baselines/", "dist/")
+
+
+def check_stale_markers(root: Path, today=None) -> None:
+    import datetime
+    today = today or datetime.date.today()
+    tracked = subprocess_lines(root, ["git", "ls-files", "*.md"])
+    for rel in tracked:
+        if rel.startswith(STALE_EXEMPT) or (rel.endswith("/references/contracts.md")
+                                              and rel != "dev-flow/references/contracts.md"):
+            continue
+        text = (root / rel).read_text(errors="ignore")
+        old = []
+        for m in DATED_MARKER_RE.finditer(text):
+            stamp = m.group(2)
+            try:
+                day = datetime.date.fromisoformat(stamp if len(stamp) == 10 else stamp + "-01")
+            except ValueError:
+                continue
+            if (today - day).days > STALE_DAYS:
+                old.append((day, text.count("\n", 0, m.start()) + 1, m.group(0)))
+        if old:
+            day, line, marker = min(old)
+            more = f" (+{len(old) - 1} more)" if len(old) > 1 else ""
+            note(f"{rel}:{line}: \"{marker}\" is {(today - day).days} days old{more} — re-read the fact "
+                 f"against its source, then update the date")
+
+
+def subprocess_lines(root: Path, cmd: list[str]) -> list[str]:
+    import subprocess
+    try:
+        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, check=True).stdout.split()
+    except (OSError, subprocess.CalledProcessError):
+        return []
 
 
 def check_lint_check_count(root: Path) -> None:
@@ -946,6 +993,7 @@ def main() -> int:
     check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)
     check_shared_triggers(root, all_skills)
+    check_stale_markers(root)
     check_installed_in_sync(root, all_skills)
 
     print()
