@@ -2,20 +2,20 @@
 
 The **how**, not just "use i18next". Doc-grounded (docs.expo.dev, i18next.com, react.i18next.com) so we scaffold it right the first time. Golden rule 2: every frontend ships i18n from day one, minimum locales **en + it**, `stack.locales = ["en","it"]`, default `en`, **zero hardcoded user-facing strings**. Web sibling: `design-md-to-app/references/i18n-next-intl.md`.
 
-Verified **2026-08-26** — npm registry for the plain packages, and `expo@57.0.16`'s
+Verified **2026-10-17** — npm registry for the plain packages, and `expo@58.0.14`'s
 `bundledNativeModules.json` for anything installed with `expo install`. `[VERIFY]` on every bump:
 
 | Package | Version | Install with |
 |---|---|---|
-| `expo-localization` | `~57.0.1` (SDK 57 line) | `npx expo install` |
-| `i18next` | `26.4.0` | `npm install` |
-| `react-i18next` | `17.0.12` | `npm install` |
-| `@formatjs/intl-pluralrules` | `6.3.13` | `npm install` |
+| `expo-localization` | `~58.0.4` (SDK 58 line) | `npx expo install` |
+| `i18next` | `26.5.0` | `npm install` |
+| `react-i18next` | `17.1.0` | `npm install` |
+| `@formatjs/intl-pluralrules` | `6.3.15` | `npm install` |
 | `@react-native-async-storage/async-storage` | **`2.2.0`** — see below | `npx expo install` |
 
 ⚠️ **The async-storage row was wrong, and wrong in the way this repo has a rule against.** It said
 `3.1.1` — which *is* npm `latest` — next to `npx expo install`, and those two cannot both be right:
-**`expo install` resolves from `bundledNativeModules.json`, and `expo@57.0.16` pins `2.2.0`**. Run the
+**`expo install` resolves from `bundledNativeModules.json`, and `expo@57.0.16` pins `2.2.0`** (still `2.2.0` in `expo@58.0.14`). Run the
 documented command and you get 2.x, a full major below the number the table promised. For anything
 `expo install` touches, **the SDK's pin is the authority and npm `latest` is a distraction** — the 3.x
 line belongs to a later SDK.
@@ -42,7 +42,7 @@ Symptom if you skip it: en/it look fine (both `one`/`other`), then you add `ru`/
 ## Install
 
 ```bash
-# native modules → npx expo install (pins an SDK-57-compatible version)
+# native modules → npx expo install (pins the version the installed SDK bundles)
 npx expo install expo-localization @react-native-async-storage/async-storage
 
 # pure JS → npm
@@ -216,13 +216,13 @@ if (shouldBeRTL !== I18nManager.isRTL && Platform.OS !== 'web') {
 }
 ```
 
-**SDK boundary, re-checked 2026-08-26 and still current** (SDK 58 exists only as canaries — `npm view expo dist-tags` shows `latest: 57.0.16`): the Expo guide's RTL section says it "describes the behavior in **SDK 58 and later**. On previous versions, RTL support was enabled by default, except in Expo Go where it was disabled." We are on **SDK 57** → RTL is on by default but **disabled inside Expo Go**; test RTL in a dev build. The plugin props `supportsRTL: false` / `forcesRTL: true` appear on the unversioned guide but are **not** in the SDK 57 API reference — `[VERIFY]` against your installed `expo-localization` first.
+**SDK boundary, re-checked 2026-10-17 on SDK 58:** the Expo guide's RTL section "describes the behavior in **SDK 58 and later**", which is now us. RTL is opt-in through the `expo-localization` config plugin: `supportsRTL: true` (which on Android now also sets `android:supportsRtl` in the manifest) and `forcesRTL: true` to force it; both props are in `expo-localization@58.0.4`'s plugin. On iOS, RTL no longer turns on from the device locale: it follows React Native's `I18nManager` (package `CHANGELOG.md`, 58.0.0). Test RTL in a dev build. On a project still on SDK 57 the older rule holds: RTL on by default, disabled inside Expo Go.
 
 en + it are both LTR, so RTL is dormant for the default set — but write layouts with `start`/`end` (not `left`/`right`) so adding `ar`/`he` is a locale-file job, not a re-layout.
 
 ## TypeScript (cheap, do it)
 
-**TS 6 first.** The SDK 57 `blank-typescript` template ships TypeScript 6, which reports **TS2882** ("Cannot find module or type declarations for side-effect import") for the three polyfill imports at the top of `lib/i18n.ts` — `@formatjs/intl-pluralrules` publishes those entry points without `.d.ts` files reachable under `expo/tsconfig.base`'s resolution. `rn-bootstrap`'s `wire-nativewind.ts` writes a root `declarations.d.ts` covering them (and `*.css`); if the project was scaffolded before that change, add it by hand:
+**TS 6 first.** The `blank-typescript` template ships TypeScript 6 (SDK 57 and 58, `~6.0.3`), which reports **TS2882** ("Cannot find module or type declarations for side-effect import") for the three polyfill imports at the top of `lib/i18n.ts` — `@formatjs/intl-pluralrules` publishes those entry points without `.d.ts` files reachable under `expo/tsconfig.base`'s resolution. `rn-bootstrap`'s `wire-nativewind.ts` writes a root `declarations.d.ts` covering them (and `*.css`); if the project was scaffolded before that change, add it by hand:
 
 ```ts
 // declarations.d.ts

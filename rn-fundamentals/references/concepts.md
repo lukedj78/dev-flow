@@ -17,13 +17,13 @@
 - **Fabric**: the new UI renderer built on JSI. Concurrent rendering capable.
 - **TurboModules**: native modules over JSI. Lazy-loaded.
 - **Hermes**: the JS engine optimized for RN (smaller bundle, faster start). Default since SDK 49.
-- **New Architecture = Fabric + TurboModules + Hermes**. Nothing to enable: since **SDK 55 it is always on and cannot be disabled**, and `newArchEnabled` is ignored (it is not even in `@expo/config-types@57`'s schema).
+- **New Architecture = Fabric + TurboModules + Hermes**. Nothing to enable: since **SDK 55 it is always on and cannot be disabled**, and `newArchEnabled` is ignored (it is not even in `@expo/config-types@58.0.3`'s schema, checked 2026-10-17).
 
 ## Managed vs bare (TL;DR)
 
 - **Managed**: `app.json` describes the native config; you don't touch Xcode/Android Studio. Expo prebuild generates native code on demand. 95% of apps.
 - **Bare**: you own `ios/` and `android/` folders. Use when you need a native library Expo cannot wrap (rare).
-- **Expo Go**: dev sandbox for managed apps with no custom native deps. Quick to start, can't load custom native modules. ⚠️ The **App Store** build is frozen at **SDK 54** (SDK 55+ were never approved), so on a physical iPhone it can't open our SDK 57 project — Android and the iOS simulator are unaffected. See `decision-tree.md` Q2.
+- **Expo Go**: dev sandbox for managed apps with no custom native deps. Quick to start, can't load custom native modules. ⚠️ We ship **SDK 58**; the store Expo Go that supports it (SDK 58 only) is announced for the App Store and Google Play "within a few weeks" of 2026-10-15 — until then no store build opens our project (the App Store one was frozen at SDK 54 through SDK 57). Use a dev build. See `decision-tree.md` Q2.
 - **Dev client** (`expo-dev-client`): custom Expo Go for your app, supports any native module. **This is the default** — start here rather than reaching for Expo Go.
 
 ## Sources

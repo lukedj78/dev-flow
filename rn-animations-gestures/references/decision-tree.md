@@ -11,7 +11,7 @@ What does the animation do?
 ├── Enter / exit / layout shift                             → Reanimated Layout animations
 │                                                            (FadeIn / FadeOut / SlideIn / LinearTransition)
 ├── State-driven style change (expand/collapse, toggle,     → CSS Animations/Transitions API
-│   theme swap) — trigger is plain React state, not a         (Reanimated 4+): `transition: {...}`
+│   theme swap) — trigger is plain React state, not a         (Reanimated 4+): `transitionProperty`…
 │   continuous gesture value                                  on the style, or `animationName` keyframes
 ├── Simple opacity/scale on press                           → Either: worklets with withSpring/withTiming,
 │                                                            or a CSS `transition` — pick worklets if the
@@ -19,7 +19,7 @@ What does the animation do?
 └── Already-animated by another lib (Expo Router header)    → leave it alone
 ```
 
-Reanimated 4 introduced a web-style `transition: { property, duration, easing }` / `animationName` keyframes API — see `references/patterns.md` for examples. It runs on the UI thread like worklets and is fully backward-compatible, but it animates FROM one committed style TO another; it does not drive continuous per-frame gesture values, so drag/pinch/scroll-linked motion still needs classic worklets.
+Reanimated 4 introduced a web-style `transitionProperty` / `transitionDuration` / `transitionTimingFunction` / `animationName` keyframes API (style props, CSS names — there is no `transition: {...}` object) — see `references/patterns.md` for examples. It runs on the UI thread like worklets and is fully backward-compatible, but it animates FROM one committed style TO another; it does not drive continuous per-frame gesture values, so drag/pinch/scroll-linked motion still needs classic worklets.
 
 ## Q2: `withTiming` or `withSpring`?
 
@@ -41,29 +41,38 @@ Animation scope?
 └── Triggered by data change                   → useEffect with the data as dep + start the animation
 ```
 
-## Q4: When to use `runOnJS` / `runOnUI`?
+## Q4: Crossing between the runtimes — `scheduleOnRN` / `scheduleOnUI`
 
 ```
 Where am I, where do I want to be?
-├── In a worklet, want to call a JS function (setState, navigate, alert) → runOnJS(fn)(args)
-├── In JS, want to set a shared value urgently from JS                    → just `sv.value = x` (it's automatic)
-├── In JS, want to RUN a worklet on UI thread                             → runOnUI(workletFn)(args)
-└── In a worklet, want to set another shared value                        → just `sv.value = x` (already worklet)
+├── In a worklet, want to call a JS function (setState, navigate, haptic) → scheduleOnRN(fn, ...args)
+├── In JS, want to set a shared value                                     → sv.set(x) (it's automatic)
+├── In JS, want to RUN a worklet on the UI runtime                        → scheduleOnUI(workletFn, ...args)
+└── In a worklet, want to set another shared value                        → sv.set(x) (already a worklet)
 ```
 
-## Q5: Gesture choice
+All from `react-native-worklets` (0.13.0 on SDK 58). `runOnJS(fn)(args)` / `runOnUI(fn)(args)` still
+work but are `@deprecated` in Reanimated 4.7.1 — see SKILL.md rule 3.
+
+## Q5: Gesture choice — Gesture Handler 3 hooks (SDK 58 bundles `~3.3.0`)
 
 ```
 What's the interaction?
-├── Single tap / double tap                  → Gesture.Tap() / Gesture.Tap().numberOfTaps(2)
-├── Long press                                → Gesture.LongPress()
-├── Drag in 1D / 2D                           → Gesture.Pan()
-├── Two-finger pinch                          → Gesture.Pinch()
-├── Two-finger rotate                         → Gesture.Rotation()
-├── Multiple gestures together                → Gesture.Simultaneous(g1, g2)
-├── Multiple gestures, one wins               → Gesture.Race(g1, g2)
-└── Multiple gestures, in priority order      → Gesture.Exclusive(g1, g2)
+├── Single tap / double tap                  → useTapGesture({...}) / useTapGesture({ numberOfTaps: 2, ... })
+├── Long press                                → useLongPressGesture({...})
+├── Drag in 1D / 2D                           → usePanGesture({...})  (activeOffsetX: [-10, 10] for 1D)
+├── Two-finger pinch                          → usePinchGesture({...})
+├── Two-finger rotate                         → useRotationGesture({...})
+├── Multiple gestures together                → useSimultaneousGestures(g1, g2)
+├── Multiple gestures, one wins               → useCompetingGestures(g1, g2)
+├── Multiple gestures, in priority order      → useExclusiveGestures(g1, g2)
+├── Across detectors (nested, scroll + pan)   → config: simultaneousWith / requireToFail / block
+├── Swipe-to-reveal row actions               → ReanimatedSwipeable ("react-native-gesture-handler/ReanimatedSwipeable")
+└── Plain press feedback, no gesture logic    → Pressable, or RNGH's Touchable (activeScale / activeOpacity)
 ```
+
+The v2 names (`Gesture.Tap()`, `Gesture.Race()`, …) still compile and are all `@deprecated` — the
+mapping is in `patterns.md` → "Migrating from Gesture Handler 2".
 
 ## Q6: Performance — am I doing it right?
 

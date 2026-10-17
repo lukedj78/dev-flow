@@ -1,8 +1,8 @@
 > Sources: https://firebase.google.com/docs/auth, https://rnfirebase.io/
 > Verified **2026-08-26** against `@react-native-firebase/{app,auth,firestore}@26.3.2` (npm `latest`).
-> ⚠️ **None of the `@react-native-firebase/*` packages is in `expo@57`'s `bundledNativeModules.json`**,
+> ⚠️ **None of the `@react-native-firebase/*` packages is in `expo@58.0.14`'s `bundledNativeModules.json`** (re-checked 2026-10-17),
 > so `npx expo install` gives you npm `latest` for them, not an SDK-blessed pin — unlike
-> `expo-secure-store` (`~57.0.1`). Pin them yourself and bump deliberately.
+> `expo-secure-store` (`~58.0.2`). Pin them yourself and bump deliberately.
 > `[VERIFY]` on a major: this library removed its whole namespaced API in v22.
 
 # Firebase — alternative BaaS

@@ -132,7 +132,7 @@ function writeNativewindEnvDts(projectRoot: string) {
 }
 
 function writeDeclarationsDts(projectRoot: string) {
-  // TypeScript 6 (what the SDK 57 blank-typescript template ships) reports TS2882 for a
+  // TypeScript 6 (what the SDK 57 and 58 blank-typescript templates ship) reports TS2882 for a
   // side-effect import that resolves to no declaration file: `import "../global.css"` in
   // app/_layout.tsx and the @formatjs/intl-pluralrules polyfill imports in lib/i18n.ts
   // (see references/i18n-rn.md). One ambient file covers both. Idempotent: only written if

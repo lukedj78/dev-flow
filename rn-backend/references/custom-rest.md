@@ -73,8 +73,8 @@ For "Sign in with Google / Apple / GitHub", use `expo-auth-session` on the clien
 handler on the server.
 
 ⚠️ **`AuthSession.startAsync` no longer exists.** It was the old one-call helper and it is gone
-from the package (checked 2026-09-11 against `expo-auth-session@57.0.11`, MIT — the build's
-`.d.ts` has no such export). Code that still calls it is copied from a pre-SDK-48 answer. The
+from the package (re-checked 2026-10-17 against `expo-auth-session@58.0.13`, the `expo@58.0.14` pin, MIT — the build's
+`.d.ts` has no such export; `usePKCE` still `@default true`). Code that still calls it is copied from a pre-SDK-48 answer. The
 current API is a hook plus `promptAsync`, and **`usePKCE` defaults to `true`** — the authorization
 code never leaves the device unprotected:
 

@@ -59,7 +59,7 @@ PINNED_BELOW = {
 #
 # Checking these against npm produced a table where EVERY Expo-managed package
 # was wrong, including `react-native-gesture-handler` pinned a whole major above
-# what SDK 57 bundles (^3.1.0 vs ~2.32.0). Following npm here does not give you
+# what SDK 57 bundled (^3.1.0 vs ~2.32.0). Following npm here does not give you
 # a newer project, it gives you one `expo install` disagrees with.
 #
 # So: for packages Expo bundles, the SDK is the source of truth. npm `latest`

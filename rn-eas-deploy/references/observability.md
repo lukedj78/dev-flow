@@ -1,4 +1,4 @@
-> Sources: https://docs.expo.dev/eas/observe/introduction/, https://docs.expo.dev/eas-update/introduction/, https://github.com/expo/skills (`plugins/expo/skills/eas-observe`, `plugins/expo/skills/eas-update-insights`), https://mcp.expo.dev/mcp. **Swept 2026-08-26** against `eas-cli@22.6.0`, `expo-observe@57.0.17`, the three `eas/observe/*` docs pages and <https://expo.dev/pricing>. The flags and the SDK-version wrapper split are now stated from the artefacts rather than hedged; what stays `[VERIFY]` is the CLI surface on a major and **anything about price**, which is restated nowhere in this file on purpose. Recheck against live docs / the `mcp.expo.dev` MCP server / the official `expo/skills` `eas-observe` and `eas-update-insights` skills before relying on them verbatim.
+> Sources: https://docs.expo.dev/eas/observe/introduction/, https://docs.expo.dev/eas-update/introduction/, https://github.com/expo/skills (`plugins/expo/skills/eas-observe`, `plugins/expo/skills/eas-update-insights`), https://mcp.expo.dev/mcp. **Swept 2026-08-26** against `eas-cli@22.6.0`, `expo-observe@57.0.17` (package claims re-checked 2026-10-17 at `expo-observe@58.0.15`), the three `eas/observe/*` docs pages and <https://expo.dev/pricing>. The flags and the SDK-version wrapper split are now stated from the artefacts rather than hedged; what stays `[VERIFY]` is the CLI surface on a major and **anything about price**, which is restated nowhere in this file on purpose. Recheck against live docs / the `mcp.expo.dev` MCP server / the official `expo/skills` `eas-observe` and `eas-update-insights` skills before relying on them verbatim.
 
 # Observability — closing the release → observe → decide loop
 
@@ -38,15 +38,19 @@ Enable it once the app is `feature_complete`, before its first `rn-eas-deploy` p
 npx expo install expo-observe
 ```
 Then wrap the root layout. **Confirmed 2026-08-26** against Expo's get-started page (which ships both
-variants in SDK-labelled tabs) and against `expo-observe@57.0.17`, where **both symbols still exist**:
+variants in SDK-labelled tabs) and against `expo-observe@57.0.17`; **re-checked 2026-10-17 at `58.0.15`**
+(`build/index.d.ts`): `ObserveRoot` (with a `.wrap` static) is exported from `expo-observe`; `AppMetricsRoot`
+is not — it lives in the dependency `expo-app-metrics` (`~58.0.13`), which `ObserveRoot` wraps, and the
+re-exported `AppMetrics` name is `@deprecated`:
 - SDK 55: `AppMetricsRoot.wrap(RootLayout)`.
 - **SDK 56+ (us): `ObserveRoot.wrap(RootLayout)`** — `export default ObserveRoot.wrap(RootLayout)`.
 
 Both still being exported is why picking the wrong one fails silently rather than at import: you get a
-wrapper that no longer feeds the current pipeline. `expo@57.0.16` pins `expo-observe` at `~57.0.16`, so
-take `npx expo install`, not npm latest (`57.0.17`).
+wrapper that no longer feeds the current pipeline. `expo@58.0.14` pins `expo-observe` at `~58.0.15`
+(also npm latest on 2026-10-17) — take `npx expo install` regardless. New at 58.0.0: `ObserveErrorBoundary`
+and `reportError` for render-phase and caught errors.
 
-Call `markInteractive()` once the app is ready for input (end of splash/loading state) — skipping this means TTI never resolves and the metric is meaningless.
+Call `markInteractive()` once the app is ready for input (end of splash/loading state) — skipping this means TTI never resolves and the metric is meaningless. With the `expo-router` integration on, prefer `useObserve().markInteractive()`: it fills in `routeName`, the raw call does not (`build/types.d.ts`, 58.0.15).
 
 ### Reading the metrics
 ```bash

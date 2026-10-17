@@ -23,7 +23,7 @@ structure needs to change."* On the mechanism: *"filename conventions are brittl
 Read that as **agreement with this skill's own recommendation**, arrived at from the other direction:
 on mobile, a component outside `app/` is the intended shape, not a workaround for a missing feature.
 
-Mechanically confirmed at **`expo-router@57.0.16`** (`build/getRoutesCore.js`): the entire ignore list
+Mechanically confirmed at **`expo-router@58.0.23`** (`build/getRoutesCore.js`, re-checked 2026-10-17 — unchanged since 57.0.16): the entire ignore list
 is `+html`, `+native-intent`, `+api`, `+middleware` and whatever you pass as `options.ignore` — **no
 underscore rule**. The only underscore-aware names in the build are `_layout` and `_sitemap`, and the
 special `+` names are `+not-found`, `+api`, `+middleware`, `+html`. `options.ignore` is the escape

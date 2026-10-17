@@ -18,7 +18,7 @@ Need a native library Expo cannot wrap?
 
 ```
 Do you need the app on a physical iPhone?
-├── YES → DEV BUILD (expo-dev-client). The App Store Expo Go can't load SDK 57.
+├── YES → DEV BUILD (expo-dev-client). No store Expo Go loads SDK 58 yet (2026-10-17).
 └── NO  → Android device, or iOS simulator? Expo Go is still fine for a quick spin.
          Adding a custom native module / config plugin / custom build flag?
          └── YES → DEV BUILD anyway.
@@ -26,11 +26,11 @@ Do you need the app on a physical iPhone?
 
 **Default for a brand-new app: a development build (`expo-dev-client`).**
 
-This flipped in 2026. The App Store build of Expo Go is **frozen at SDK 54** — SDK 55, 56 and 57 were never approved by App Review, and Expo has no approved timeline. We ship **SDK 57**, so the Expo Go you install from the App Store simply cannot open our project.
+This flipped in 2026. Through SDK 57 the App Store build of Expo Go was **frozen at SDK 54** — SDK 55, 56 and 57 were never approved by App Review. We now ship **SDK 58**, and per the SDK 58 changelog (2026-10-15) *the new Expo Go "will be released on the App Store and Google Play within a few weeks"* and **will support only SDK 58**. Until it lands, no store Expo Go — iOS **or Android** — opens our project, and `npx create-expo-app` still scaffolds SDK 57 (use `--template default@sdk-58`). Whether App Review actually approves the iOS build is `[VERIFY]`.
 
 What still works:
-- **Android** — Expo Go is unaffected; the Play Store build tracks current SDKs.
-- **iOS simulator** — current-SDK Expo Go is installed by Expo CLI (or from https://expo.dev/go), bypassing App Review entirely.
+- **Android** — the Play Store build tracks current SDKs, but the SDK 58 one is not out yet (2026-10-17); until then, a dev build.
+- **iOS simulator** — current-SDK Expo Go is installed by Expo CLI (or from https://expo.dev/go), bypassing App Review entirely. `[VERIFY]` for SDK 58 before the store release: the changelog says to start SDK 58 projects on a dev build.
 - **iOS physical device** — you need either a dev build, or `eas go` (builds *your own* copy of Expo Go and delivers it via TestFlight; requires a paid Apple Developer membership).
 
 Expo now positions Expo Go as an educational tool for beginners' first steps and recommends development builds for real work. Treat Expo Go as a demo convenience, not the team's daily driver: one `eas build --profile development` per native change buys you a client that matches the app you actually ship.

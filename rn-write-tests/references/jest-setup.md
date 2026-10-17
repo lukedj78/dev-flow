@@ -4,7 +4,7 @@
 > `react-native >=0.78`, **`test-renderer ^1.0.0`**; `engines.node` = **`^22.13.0 || >=24`**.
 > `test-renderer` is a real package (latest `1.2.0`, peer `react ^19.0.0`), published as `1.0.0` /
 > `1.1.0` / `1.2.0` — one line per React 19 minor, exactly as described below.
-> ⚠️ **Only `jest-expo` is pinned by the SDK** (and `@react-native/jest-preset` is not either — see §1) (`~57.0.4` in `expo@57.0.16`'s `bundledNativeModules`);
+> ⚠️ **Only `jest-expo` is pinned by the SDK** (and `@react-native/jest-preset` is not either — see §1) (`~58.0.11` in `expo@58.0.14`'s `bundledNativeModules`);
 > `jest`, `@testing-library/react-native` and `test-renderer` are **not**, so `npx expo install` hands
 > you npm `latest` for those three. That is why the version ranges above are written by hand.
 
@@ -21,17 +21,17 @@ npx expo install --dev \
   test-renderer@^1 \
   @types/jest -- --legacy-peer-deps
 
-# jest-expo 57 declares `@react-native/jest-preset ^0.86.3` as a peer, and that package is
-# NOT in the SDK's bundledNativeModules — so `expo install` would hand you npm latest (0.87.x),
-# whose setup looks for `react-native/src/setup-env.js` and fails on RN 0.86. Pin it to the
-# React Native version the project actually has:
+# jest-expo declares `@react-native/jest-preset` as a peer (58: `^0.88.0`), and that package is
+# NOT in the SDK's bundledNativeModules — so `expo install` hands you npm latest, which breaks as
+# soon as it is a minor ahead of the project's RN (SDK 57, 2026-09-08: 0.87.1 against RN 0.86).
+# Pin it to the React Native version the project actually has:
 RN_VERSION="$(node -p "require('react-native/package.json').version")"
 npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSION}"
 ```
 
-- **`@react-native/jest-preset` must match the React Native minor.** jest-expo 57 lists it as a peer (`^0.86.3` — `npm view jest-expo@57 peerDependencies`), but peers are not installed under `--legacy-peer-deps`, and the package is not SDK-pinned, so `npx expo install` picks npm `latest`. On 2026-09-08 that was `0.87.1` against RN `0.86.3`: its `jest/setup.js` mocks `react-native/setup-env`, a file that only exists from RN 0.87, so every suite fails before running. The `RN_VERSION` line above resolves the exact match; re-run it after every `rn-upgrade`.
+- **`@react-native/jest-preset` must match the React Native minor.** jest-expo lists it as a peer (58: `^0.88.0` — `npm view jest-expo@58 peerDependencies`; 57 said `^0.86.3`), but peers are not installed under `--legacy-peer-deps`, and the package is not SDK-pinned, so `npx expo install` picks npm `latest`. On 2026-09-08 that was `0.87.1` against RN `0.86.3`: its `jest/setup.js` mocks `react-native/setup-env`, a file that only exists from RN 0.87, so every suite fails before running. The `RN_VERSION` line above resolves the exact match; re-run it after every `rn-upgrade`. On 2026-10-17 npm `latest` happens to equal SDK 58's RN (`0.88.0`); the pin is what keeps it so when 0.89 ships.
 - **`test-renderer@^1` is a required peer dependency of RNTL v14** — it replaces the deprecated `react-test-renderer`, which was dropped. If the project still has `react-test-renderer` / `@types/react-test-renderer`, remove them.
-- Pick the `test-renderer` line that matches your React 19 minor: `1.2` for React 19.2, `1.1` for 19.1, `1.0` for 19.0. A newer line than your React version produces peer warnings (or an install error on npm); an older line blocks newer React 19 features in tests.
+- Pick the `test-renderer` line that matches your React 19 minor: `1.3` for React 19.3 (SDK 58), `1.2` for React 19.2, `1.1` for 19.1, `1.0` for 19.0. A newer line than your React version produces peer warnings (or an install error on npm); an older line blocks newer React 19 features in tests.
 - **Node `^22.13 || >=24` is required** by RNTL v14 (along with React ≥ 19 and RN ≥ 0.78). CI images pinned to Node 20 will fail to install — bump the runner before pinning the dep.
 - Native matchers like `toBeOnTheScreen()` are built into `@testing-library/react-native` v12.4+; the standalone `@testing-library/jest-native` package is deprecated and no longer needed.
 
@@ -49,6 +49,7 @@ npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSIO
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind))"
     ],
+    "resolver": "react-native-reanimated/jest/resolver",
     "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
@@ -58,6 +59,8 @@ npm install --save-dev --legacy-peer-deps "@react-native/jest-preset@${RN_VERSIO
 ```
 
 The `transformIgnorePatterns` is the standard jest-expo recipe; keep it verbatim. NativeWind is added at the end (it ships ESM and needs transform).
+
+⚠️ **`resolver` is required from Reanimated 4.7 (SDK 58).** Without it `setUpTests()` in `jest.setup.ts` crashes every suite with *"Cannot read properties of undefined (reading 'loadUnpackersWithCode')"*: Jest resolves the worklets runtime's `.native.ts` files, which call a native module that does not exist in Node. `react-native-reanimated/jest/resolver` (shipped since 4.7.0, absent in 4.5.1 and 4.6.0) sends Reanimated's and Worklets' own internals to their web implementations and leaves everything else to Jest's default resolver. Do not use `react-native-worklets/jest/resolver` alone: it fails later with *"`runOnUISync` is not supported on web"*. Verified 2026-10-17 on a fresh SDK 58 app (expo 58.0.14, RN 0.88.0, reanimated 4.7.1, worklets 0.13.0, jest-expo 58.0.11, jest 30.5): smoke test and an RNTL v14 render test pass.
 
 ## 3. `jest.setup.ts` — global mocks + matchers
 
@@ -78,7 +81,9 @@ console.warn = (...args: unknown[]) => {
 };
 ```
 
-## 4. (Optional) tsconfig path
+## 4. tsconfig `types` (required on TypeScript 6)
+
+The SDK 57 and 58 templates ship TypeScript 6, and `expo/tsconfig.base` sets no `types`. Without this line jest runs green but `tsc --noEmit` fails on every test file (*"Cannot find name 'test'"*, TS2593) and on `jest.setup.ts` — so does `rn-bootstrap`'s `verify.ts`. Re-checked 2026-10-17 on a fresh SDK 58 app.
 
 ```json
 {
