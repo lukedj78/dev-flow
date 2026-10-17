@@ -1726,7 +1726,7 @@ grades the trace and the final tree deterministically. It reads level 2, where t
 with no reminder. The idea is ECC's `skill-comply`; the LLM judge is dropped, because our gates
 are named scripts and named paths.
 
-CI runs `lint_skills.py`, `run_skill_tests.py` (every skill's test suite, discovered rather than listed), `build_skills_registry.py`, `build_agent_plugin.py --check` and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
+CI runs `lint_skills.py`, `run_skill_tests.py` (every skill's test suite, discovered rather than listed), `build_skills_registry.py`, `build_agent_plugin.py --check`, `build_skill_bundles.py --check` (the `dist/*.skill` bundles against their sources) and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
 

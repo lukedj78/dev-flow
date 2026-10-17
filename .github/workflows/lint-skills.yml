@@ -30,6 +30,11 @@ on:
       # so a change to any script folder must run them. Naming folders one by one is how CI
       # came to run 4 of 17 test files.
       - "*/scripts/**"
+      # What goes into dist/<skill>.skill, the bundles themselves, and their builder:
+      # build_skill_bundles.py --check compares the committed bundles with the sources.
+      - "*/assets/**"
+      - "dist/*.skill"
+      - "scripts/build_skill_bundles.py"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -61,6 +66,11 @@ on:
       # so a change to any script folder must run them. Naming folders one by one is how CI
       # came to run 4 of 17 test files.
       - "*/scripts/**"
+      # What goes into dist/<skill>.skill, the bundles themselves, and their builder:
+      # build_skill_bundles.py --check compares the committed bundles with the sources.
+      - "*/assets/**"
+      - "dist/*.skill"
+      - "scripts/build_skill_bundles.py"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -105,6 +115,11 @@ jobs:
 
       - name: Build the Agent Plugins package and check its manifest
         run: python3 scripts/build_agent_plugin.py --check
+
+      # Only the pre-commit hook rebuilt the bundles, and it runs only in clones that installed it.
+      # On 2026-10-03 twelve of fifty-one were wrong. This compares their content with the sources.
+      - name: Check the dist/*.skill bundles match their sources
+        run: python3 scripts/build_skill_bundles.py --check
 
       - name: Check the published site is regenerated
         run: |
