@@ -372,28 +372,30 @@ if [ "${#PROJECT_DIRS[@]}" -gt 0 ]; then
       [ "${#jobs[@]}" -gt 0 ] || continue
       # The scan reaches every subfolder, cloned third-party repos included, and setup writes the hook copies,
       # settings.json, AGENTS.md, meta.json, the lock, the formatter's ignore file and more. A symlink on the
-      # way to any of them would make setup overwrite the file it points to, outside the project. Rather than
-      # a list of paths that ages with every file setup learns to write, the rule is general: skip a project
-      # that is itself a symlink, or where anything within three levels (node_modules and .git aside, where
-      # setup writes nothing) resolves outside the project.
+      # way to any of them would make setup overwrite the file it points to, outside the project. The rule is
+      # general, not a list of paths that ages with every file setup learns to write: skip a project that is
+      # itself a symlink, or that has a symlink anywhere in its real tree resolving outside it. The walk has
+      # no depth limit, so a chain of in-project links always lands on folders it has checked. The folders it
+      # skips for cost (node_modules, .git, .next) are the exception, so a link into one of them counts too.
       linked="$(python3 - "$proj" <<'PY'
 import os, sys
+SKIP = ("node_modules", ".git", ".next")
 top = sys.argv[1].rstrip("/")
 root = os.path.realpath(top)
 if os.path.islink(top):
     print("the project folder itself"); sys.exit()
-todo = [(top, 1)]
-while todo:
-    folder, depth = todo.pop()
-    for name in sorted(os.listdir(folder)):
-        if name in ("node_modules", ".git"):
-            continue
+def inside(path):
+    return os.path.commonpath([root, path]) == root
+def unscanned(path):
+    return any(part in SKIP for part in os.path.relpath(path, root).split(os.sep))
+for folder, dirs, files in os.walk(top):          # os.walk does not descend into symlinked folders
+    dirs[:] = [d for d in dirs if d not in SKIP]
+    for name in dirs + files:
         path = os.path.join(folder, name)
         if os.path.islink(path):
-            if os.path.commonpath([root, os.path.realpath(path)]) != root:
+            target = os.path.realpath(path)
+            if not inside(target) or unscanned(target):
                 print(os.path.relpath(path, top)); sys.exit()
-        elif depth < 3 and os.path.isdir(path):
-            todo.append((path, depth + 1))
 PY
 )"
       if [ -n "$linked" ]; then
