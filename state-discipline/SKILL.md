@@ -48,7 +48,7 @@ This skill owns everything left over: derived values, prop mirrors, UI toggles, 
 7. **Do you need one-time external sync at mount (DOM API, third-party widget, focus management)?** `useMountEffect` from `@/lib/hooks/use-mount-effect` — the project's explicit-intent escape hatch with a single `eslint-disable` localized to its definition.
 8. **None of the above** → `useState` is honestly the right answer (transient UI like hover, dropdown-open without URL contract, animation in-progress, etc.). Use it and move on.
 
-**Never bare `useEffect`.** Ban it via lint:
+**Never bare `useEffect`.** Ban it via lint — **no dev-flow scaffold installs this rule**, so until a project adds it to its ESLint config the ban is a convention, checked by this skill's audit recipe (`references/audit-recipe.md`, step 1 looks for the rule) and by review:
 
 ```json
 // eslint config — no-restricted-syntax
@@ -58,7 +58,7 @@ This skill owns everything left over: derived values, prop mirrors, UI toggles, 
 }
 ```
 
-The lint rule lives in the project; this skill is its conceptual source of truth.
+The lint rule lives in the project; this skill is its conceptual source of truth. Adding it to an existing project raises its lint findings, so if the project caps warnings (`--max-warnings`), lower the cap only after the existing `useEffect` calls are converted or moved behind `useMountEffect`.
 
 ## The eight rungs — with examples
 

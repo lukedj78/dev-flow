@@ -21,9 +21,9 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 `.workflow/` is the load-bearing convention. **`references/contracts.md`** defines the folder layout, the `meta.json` schema, the `phase` enum, and which skill owns which file. Read the part you are about to act on before acting — the phase enum and the folder layout on a routing turn, §stack at the stack decision, the owning skill's rows before invoking it — rather than the whole file every turn. **Do not improvise.** If a skill behaves in a way the contract doesn't describe, fix the contract or fix the skill — never silently diverge.
 
-## Golden rules (enforced on every project)
+## Golden rules (on every project)
 
-Three non-negotiables, defined in full in `references/contracts.md` §Golden rules — every skill honors them:
+Three non-negotiables, defined in full in `references/contracts.md` §Golden rules — every skill honors them. **Rule 3 is enforced by tools** (the design lint, the write-time guard, the `set-phase` gate); **rules 1 and 2 are checked in review** (`spec-review`) — no tool catches a breach of either, so don't report them as verified because the lint is green:
 
 1. **Code is in English** — functions, variables, constants, types, file names, DB columns, API fields, comments. Independent of the conversation language (the user may speak Italian; the code is still English). Only user-facing copy is localized (rule 2).
 2. **Every frontend ships i18n from day one** — no hardcoded user-facing strings; all copy through i18n keys. Web → **[next-intl](https://next-intl.dev/)** (`stack.i18n = "next-intl"`), mobile → the RN i18n stack. Minimum locales **English + Italian** (`stack.locales = ["en","it"]`, default `en`); more per project. Set at scaffold, not deferred.
