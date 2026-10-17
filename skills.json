@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-16T09:44:28Z",
+  "generated_at": "2026-10-17T10:03:20Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -331,7 +331,7 @@
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1283,
+      "skill_md_lines": 1324,
       "bundle": "dist/design-md-to-app.skill"
     },
     {

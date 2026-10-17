@@ -400,6 +400,47 @@ The stub:
 - Does **not** include real data, real forms, or any business logic.
 - The icon here is a **UI icon** (`stack.icon_library`), not an illustration. A hand-drawn illustration is a *stylistic commitment* — only if DESIGN.md's visual language admits it, only at emotional moments (first-run empty state, onboarding, 404), and only a handful per product. See `references/illustrations.md` (Koboyo, `stack.illustrations` — default `null`); when in doubt, type and spacing beat borrowed art.
 
+#### When the icon does not exist in the project's set — Icônes, and the licence first
+
+`stack.icon_library` is **one** library per project, chosen by the shadcn style, and it stays that
+way: a second icon dependency is a second visual voice. But every set has holes, and the honest
+answer so far has been "draw it" or "break the rule".
+
+**[Icônes](https://icones.js.org)** (antfu-collective, MIT, 7.5k★) is a browser over **Iconify** —
+measured 2026-10-17: **243 sets, 413,781 icons**, with our whole enum inside it (`lucide` 1,891 ·
+ISC, `tabler` 6,238 · `hugeicons` 6,065 · `ph` 9,072 · `radix-icons` 332 · `heroicons` 1,288, all
+MIT). Use it to **find the one icon that is missing**, then take it as **source, not as a
+dependency**:
+
+```bash
+curl -s https://api.iconify.design/ph/calendar-blank.svg
+```
+
+That returns `width="1em" height="1em"` with `fill="currentColor"` — it inherits the project's size
+and colour tokens with nothing to adjust. One file in `components/icons/`, the library untouched.
+
+⚠️ **Check the set's licence before the icon lands, every time.** It is one command, and it is not
+optional:
+
+```bash
+curl -s "https://api.iconify.design/collections?prefix=solar" | python3 -m json.tool
+```
+
+**Why it is not optional**, measured the same day: **64 of the 243 sets — 93,891 icons, 23% of
+everything Icônes shows — are CC BY or CC BY-SA.** Attribution is a condition, and BY-SA adds
+share-alike. The big ones are the tempting ones: `arcticons` 15,322 (BY-SA), `solar` 8,706 (BY),
+`selfhst` 7,272 (BY), `openmoji` 4,544 (BY-SA), `game-icons` 4,133 (BY). Nothing in the browsing
+experience warns you, and an icon copied from one of those puts an obligation on a product we
+deliver — a `launch-audit` §third-party-marks question, raised at the moment of copying instead.
+
+Prefer a set that is MIT, ISC or CC0. When only a CC BY set has the icon, that is a decision with an
+attribution line attached, not a copy-paste. `@iconify/json` (MIT) carries the same index offline if
+the check ever needs to run without a network.
+
+⚠️ This does **not** answer the animated-icon gap the contract flags: `animated-icons` has registries
+for heroicons and hugeicons only, and Iconify ships static SVG. A phosphor project wanting an
+*animated* icon still has no answer here.
+
 #### Reusable placeholder component
 
 Generate a single `<PlaceholderPage>` component that all stubs use, so:
