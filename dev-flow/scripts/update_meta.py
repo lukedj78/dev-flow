@@ -174,6 +174,65 @@ def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curre
     )
 
 
+def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """Every phase gate, in order. The first refusal is returned; None means the move may happen.
+
+    The one list both doors use: `set-phase` and `append-history --phase-after`. append-history used to
+    check only the inventory and the wireframes, so it moved a project past the data-residency, design-lint,
+    registry-intake and primitives-guard gates with exit 0 (AUDIT.md §6.2). The bootstrap templates for
+    Codex, Gemini and generic runtimes move phase through append-history, so there it was the normal path.
+    """
+    refusal = inventory_refusal(root, meta, cur_idx, new_idx, current, requested)
+    if refusal:
+        return refusal
+
+    def refused(gate, what: str) -> str | None:
+        passed, why = gate.verify(root, meta)
+        if passed:
+            return None
+        return (
+            f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
+            + "".join(f"  {line}\n" for line in why.splitlines())
+            + gate.remedy(root) + "\n"
+        )
+
+    # Crossing into `scaffolded` requires the design lint to be wired, or an explicit
+    # opt-out recorded. Checked here because this is where phase moves: a skill that edits
+    # meta.json#phase by hand skips it, which is why the skills that scaffold call set-phase.
+    # Registry intake is checked at the same crossing: from `scaffolded` on, skills install components.
+    scaffold_idx = PHASES.index("scaffolded")
+    if cur_idx < scaffold_idx <= new_idx:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import data_residency_gate
+        import design_lint_gate
+        import registry_intake_gate
+
+        for gate, what in ((data_residency_gate, "a data-residency decision"),
+                           (design_lint_gate, "the design lint"), (registry_intake_gate, "registry intake")):
+            refusal = refused(gate, what)
+            if refusal:
+                return refusal
+
+    # Golden rule 3 at every phase from `scaffolded` on, not only at the crossing: the design lint must
+    # carry design/no-handmade-ui and the write-time guard must be installed (or each opted out with a
+    # reason). smart-travel built 238 hand-made elements while its phase still said `design_extracted`;
+    # a project already past `scaffolded` without them is refused here too — the retrofit is one command.
+    if new_idx >= scaffold_idx:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import design_lint_gate
+        import primitives_guard_gate
+
+        gates = [(primitives_guard_gate, "the primitives guard (golden rule 3)")]
+        if cur_idx >= scaffold_idx:  # at the crossing the design lint was checked above
+            gates.insert(0, (design_lint_gate, "the design lint"))
+        for gate, what in gates:
+            refusal = refused(gate, what)
+            if refusal:
+                return refusal
+
+    return wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+
+
 def unknown_phase_refusal(current: object, action: str) -> str:
     return (
         f"Phase change refused: the current phase {current!r} is not a phase this script knows.\n"
@@ -214,56 +273,7 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         )
         return 1
 
-    refusal = inventory_refusal(root, meta, cur_idx, new_idx, current, requested)
-    if refusal:
-        sys.stderr.write(refusal)
-        return 1
-
-    # Crossing into `scaffolded` requires the design lint to be wired, or an explicit
-    # opt-out recorded. Checked here because this is where phase moves: a skill that edits
-    # meta.json#phase by hand skips it, which is why the skills that scaffold call set-phase.
-    # Registry intake is checked at the same crossing: from `scaffolded` on, skills install components.
-    scaffold_idx = PHASES.index("scaffolded")
-    if cur_idx < scaffold_idx <= new_idx:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import data_residency_gate
-        import design_lint_gate
-        import registry_intake_gate
-
-        for gate, what in ((data_residency_gate, "a data-residency decision"),
-                           (design_lint_gate, "the design lint"), (registry_intake_gate, "registry intake")):
-            passed, why = gate.verify(root, meta)
-            if not passed:
-                sys.stderr.write(
-                    f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
-                    + "".join(f"  {line}\n" for line in why.splitlines())
-                    + gate.remedy(root) + "\n"
-                )
-                return 1
-
-    # Golden rule 3 at every phase from `scaffolded` on, not only at the crossing: the design lint must
-    # carry design/no-handmade-ui and the write-time guard must be installed (or each opted out with a
-    # reason). smart-travel built 238 hand-made elements while its phase still said `design_extracted`;
-    # a project already past `scaffolded` without them is refused here too — the retrofit is one command.
-    if new_idx >= scaffold_idx:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import design_lint_gate
-        import primitives_guard_gate
-
-        gates = [(primitives_guard_gate, "the primitives guard (golden rule 3)")]
-        if cur_idx >= scaffold_idx:  # at the crossing the design lint was checked above
-            gates.insert(0, (design_lint_gate, "the design lint"))
-        for gate, what in gates:
-            passed, why = gate.verify(root, meta)
-            if not passed:
-                sys.stderr.write(
-                    f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
-                    + "".join(f"  {line}\n" for line in why.splitlines())
-                    + gate.remedy(root) + "\n"
-                )
-                return 1
-
-    refusal = wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+    refusal = gate_refusal(root, meta, cur_idx, new_idx, current, requested)
     if refusal:
         sys.stderr.write(refusal)
         return 1
@@ -310,8 +320,10 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         if cur_idx is None:
             sys.stderr.write(unknown_phase_refusal(cur_raw, f"append-history --phase-after {phase_after}"))
             return 1
-        refusal = (inventory_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after)
-                   or wireframes_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after))
+        # Gated only when the phase moves forward: a run recorded at the current phase (rn-upgrade,
+        # rn-write-tests) crosses nothing, and one below it is not applied.
+        new_idx = PHASES.index(phase_after)
+        refusal = gate_refusal(root, meta, cur_idx, new_idx, cur, phase_after) if new_idx > cur_idx else None
         if refusal:
             sys.stderr.write(refusal)
             return 1

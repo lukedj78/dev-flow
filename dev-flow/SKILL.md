@@ -461,14 +461,16 @@ The report of an autonomous run opens with the assumptions made — count, then 
     check` to pass (lock, hook, nothing installed around them), or `stack.registry_intake = "none"` with
     `stack_config.registry_intake_reason`. **And the wireframe gate**, one step earlier for a monorepo:
     crossing into `monorepo_initialized` or `scaffolded` needs `meta.json#wireframes` approved by the user
-    (`wireframe-canvas`), or skipped with a reason — every stack except agent-only (`scripts/wireframes_gate.py`,
-    checked by `append-history --phase-after` too). **And the primitives-guard gate (golden rule 3) at
+    (`wireframe-canvas`), or skipped with a reason — every stack except agent-only (`scripts/wireframes_gate.py`).
+    **And the primitives-guard gate (golden rule 3) at
     `scaffolded` and every later phase**: a Next web app on a Tailwind UI needs `design/no-handmade-ui` at
     `error` in the preset and the write-time guard installed (`scripts/primitives_guard_gate.py`, which runs
     `design-md-to-app/scripts/setup_primitives_guard.py --check`), or `stack.primitives_guard = "none"` with
     `stack_config.primitives_guard_reason`; from then on the design-lint gate is re-checked at every phase
     change too. Skills move phase through this command so the gates run; a phase written by hand skips them.
   - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
+    When `--phase-after` moves the phase forward, every gate above runs, the same list as `set-phase`
+    (`gate_refusal()`). A run recorded at the current phase is not gated.
 - `scripts/data_residency.py <decide|add|check|render> <project-root>` — the data-residency decision (four answers → `stack.data_residency`, `compliance.data_categories`), the sub-processor register (`meta.json#compliance.sub_processors`, rendered to `docs/compliance/subprocessors.md`), and `check`: register vs. declared stack, regions in `vercel.json` and `.env*.example`. Flags inform and never fail; only an undecided residency does. How-to: `references/eu-data-sovereignty.md`.
 - `scripts/inventory.py <scan|record>` — step 1 of the inventory as a command (`scan`: installed skills, plugins, the other projects on this machine, `resources.md`; prints what it searched and what it could not read) and the record of the verdict in `meta.json#inventory` (`record`). `scripts/inventory_gate.py` is what `set-phase` and `append-history --phase-after` check before a project leaves `idea_captured`. Stdlib only; `scan` writes nothing.
 - `scripts/research.py <status|repos|reddit|thread|hn|post|read|papers>` — the outside half of the inventory step: GitHub through `gh`, plus the four channels a `WebSearch` reads badly (a whole Reddit thread, an X post, a paper, a page as markdown). Stdlib only, no API key, nothing written. Exit `0` answered · `3` answered and empty · `4` could not look, and a `4` goes into the plan as a channel **not covered**. `read` refuses loopback, private IPv4 and `.local`/`.internal`/`.test`, because it renders through a third party. How-to: `references/before-you-build.md` §4.

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T14:23:48Z",
+  "generated_at": "2026-10-17T14:29:47Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -118,6 +118,7 @@
         "research.py",
         "show_state.py",
         "test_data_residency.py",
+        "test_gate_doors.py",
         "test_inventory.py",
         "test_meta_io.py",
         "test_phases.py",
@@ -127,7 +128,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 496,
+      "skill_md_lines": 498,
       "bundle": "dist/dev-flow.skill"
     },
     {
