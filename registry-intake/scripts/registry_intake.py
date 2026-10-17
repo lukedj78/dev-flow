@@ -959,7 +959,8 @@ def registry_problems(root: Path, lock: dict) -> list[str]:
         if not snap.exists():
             problems.append(f"{key}: snapshot {entry['snapshot']} is missing")
         elif sha256(snap) != entry["sha256"]:
-            problems.append(f"{key}: {entry['snapshot']} was edited after approval")
+            problems.append(f"{key}: {entry['snapshot']} was edited after approval. If only a formatter touched "
+                            f"it, restore the approved bytes from git; `setup` keeps formatters out of {VENDOR}/")
     vendor = root / VENDOR
     if vendor.exists():
         for f in sorted(vendor.rglob("*.json")):
@@ -1940,6 +1941,7 @@ def cmd_setup(args) -> int:
     lock["design_lint_caps"] = {**caps, **{k: min(v, caps.get(k, v)) for k, v in (lock.get("design_lint_caps") or {}).items()}}
     save_lock(root, lock)
     hooked = wire_hook(root)
+    excluded, manual = exclude_from_formatters(root)
     agents = root / "AGENTS.md"
     text = agents.read_text() if agents.exists() else ""
     if SETUP_MARK[0] in text:
@@ -1951,10 +1953,50 @@ def cmd_setup(args) -> int:
     print(f"{'created' if created else 'updated'} {LOCK} · registries allowlisted: {', '.join(lock['registries']) or 'none'}")
     print(f"hook: {'wired in' if hooked else 'already in'} .claude/settings.json · AGENTS.md section written")
     print(f"design-lint caps baseline: {lock['design_lint_caps'] or 'none'}")
+    if excluded:
+        print(f"{VENDOR}/ excluded from the formatter in: {', '.join(excluded)}")
+    for line in manual:
+        print(f"  ! {line}")
     ok, problems = check(root)
     for pr in problems:
         print(f"  ✗ {pr}")
     return 0 if ok else 1
+
+
+# A snapshot is evidence: `check` compares its sha256 with the one recorded at approval. A formatter run
+# over the whole tree rewrites it with the same data and different bytes, and the snapshot then reads as
+# edited (fit-coach, 2026-10-17: `biome format --write .` folded two arrays onto one line).
+def exclude_from_formatters(root: Path) -> tuple[list[str], list[str]]:
+    try:
+        pkg = json.loads((root / "package.json").read_text())
+    except (OSError, ValueError):
+        pkg = {}
+    deps = {**(pkg.get("dependencies") or {}), **(pkg.get("devDependencies") or {})}
+    changed, manual = [], []
+    if "prettier" in deps or "prettier" in pkg or any(root.glob(".prettierrc*")) or any(root.glob("prettier.config.*")):
+        ignore = root / ".prettierignore"
+        lines = ignore.read_text().splitlines() if ignore.exists() else []
+        if not {"vendor/registry", "vendor/registry/", "/vendor/registry/"} & {l.strip() for l in lines}:
+            ignore.write_text("\n".join([*lines, f"{VENDOR}/"]) + "\n")
+            changed.append(".prettierignore")
+    for name in ("biome.json", "biome.jsonc"):
+        conf = root / name
+        if not conf.exists():
+            continue
+        try:
+            data = json.loads(conf.read_text())
+        except ValueError:   # comments in a .jsonc: rewriting it would drop them
+            manual.append(f'{name}: add "!{VENDOR}" to files.includes (Biome 2) or "{VENDOR}" to files.ignore (Biome 1) by hand')
+            continue
+        files = data.setdefault("files", {})
+        v1 = "ignore" in files or str(deps.get("@biomejs/biome", "")).lstrip("^~=v").startswith("1.")
+        key, entry = ("ignore", VENDOR) if v1 and "includes" not in files else ("includes", f"!{VENDOR}")
+        current = files.get(key) or ([] if key == "ignore" else ["**"])
+        if entry not in current:
+            files[key] = [*current, entry]
+            conf.write_text(json.dumps(data, indent=2) + "\n")
+            changed.append(name)
+    return changed, manual
 
 
 def stack_ui(root: Path) -> str | None:

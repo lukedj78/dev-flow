@@ -42,7 +42,7 @@ and tested.)
 
 ```bash
 S=registry-intake/scripts/registry_intake.py
-python3 $S setup   <root>                                   # lock + hook + AGENTS.md section; idempotent
+python3 $S setup   <root>                                   # lock + hook + AGENTS.md section + formatter exclusion; idempotent
 python3 $S review  <root> @pdfcn/takumi/card --registry '@pdfcn=https://pdfcn.dev/r/{name}.json'   # before allowing
 python3 $S allow   <root> @pdfcn 'https://pdfcn.dev/r/{name}.json' --reason "PDF export of tender documents" --by <name>
 python3 $S approve <root> @pdfcn/takumi/card --by <name> [--accept CODE="why" ...] [--note ...]
@@ -282,6 +282,13 @@ which is H10 now.
 - **The phase gate.** `dev-flow/scripts/update_meta.py set-phase` refuses `scaffolded` for a Next app on
   a Tailwind UI or an eve agent until `check` passes, or `stack.registry_intake = "none"` is recorded with
   `stack_config.registry_intake_reason`. `show_state.py` warns on projects already past it.
+- **Snapshots stay out of the formatter.** `check` compares each snapshot's sha256 with the one recorded at
+  approval, so a formatter run over the tree makes an untouched item read as edited (fit-coach, 2026-10-17:
+  `biome format --write .` folded two arrays onto one line, same data). `setup` adds `vendor/registry/` to
+  `.prettierignore` when the project uses Prettier, and to `files.includes` (`!vendor/registry`, Biome 2) or
+  `files.ignore` (Biome 1) in `biome.json`. A `biome.jsonc` with comments is not rewritten: `setup` prints
+  the line to add. If a formatter already got there, restore the approved bytes from git; re-approving is
+  not needed for a change that is only formatting.
 - **The hook** lives in the project's `.claude/settings.json` and runs a vendored copy of the script,
   `.claude/hooks/registry_intake.py`, through `$CLAUDE_PROJECT_DIR` — both committable. Never an absolute
   path to the installed skill: committed, it breaks on every other machine, and `python3` on a missing

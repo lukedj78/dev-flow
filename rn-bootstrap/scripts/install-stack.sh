@@ -27,7 +27,8 @@ echo "[install-stack] installing animations stack (Reanimated + Gesture Handler)
 # expo install picks the version compatible with the current Expo SDK.
 # --legacy-peer-deps works around a known peer-dep conflict where transitively-installed
 # react-native-screens (via @react-navigation/bottom-tabs) demands a newer RN than the
-# Expo SDK 57 ships (RN 0.86.2). The Expo CLI's chosen versions are still correct; npm just
+# Expo SDK ships (seen on SDK 57 / RN 0.86; still applied on SDK 58 / RN 0.88, where a full
+# bootstrap with the flag was re-run 2026-10-17). The Expo CLI's chosen versions are still correct; npm just
 # refuses to resolve without the flag. Drop the flag once the upstream peer ranges align.
 # `react-native-worklets` is NOT optional: Reanimated 4 separated worklets into their own
 # package, and Expo's own install line is `expo install react-native-reanimated

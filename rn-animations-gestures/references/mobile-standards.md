@@ -5,7 +5,9 @@ the frequency gate are **the same bar**. This file is what mobile changes.
 
 Distilled 2026-10-04 from [emilkowalski/skills](https://github.com/emilkowalski/skills) (MIT), with
 the Reanimated API verified against `react-native-reanimated@4.5.1` and `react-native-worklets@0.10.1`
-— the versions Expo SDK 57 bundles. `dev-flow/references/resources.md` has the row.
+(SDK 57). Re-checked 2026-10-17 against `react-native-reanimated@4.7.1`, `react-native-worklets@0.13.0`
+and `react-native-gesture-handler@3.3.0` — the versions Expo SDK 58 bundles; the gesture names below
+are Gesture Handler 3's hooks. `dev-flow/references/resources.md` has the row.
 
 ## Three things mobile changes, and everything else follows
 
@@ -42,7 +44,7 @@ The cheapest tool is usually one that already exists. Walk down and stop at the 
 | A state-driven change — press, toggle, colour, a value flipping | Reanimated **CSS transition** (`transitionProperty` in the style) |
 | A loop, multi-stage, or plays on mount | Reanimated **CSS animation** (`animationName` keyframes) |
 | Mounting / unmounting, or a list reflowing | **Layout animations** (`entering` / `exiting` / `itemLayoutAnimation`) |
-| Anything a finger touches, or derived from scroll | `useSharedValue` + `Gesture` + `useAnimatedStyle` |
+| Anything a finger touches, or derived from scroll | `useSharedValue` + a `use*Gesture` hook + `useAnimatedStyle` |
 | Screen to screen | **native stack options in Expo Router** — never hand-rolled |
 | A bottom sheet that is its own screen | **`presentation: 'formSheet'`** — a real `UISheetPresentationController`, free and correct |
 | Tab bar | **`NativeTabs`** (`expo-router/unstable-native-tabs`) — the platform's tab bar with its own behaviours |
@@ -163,7 +165,13 @@ translation, scale, parallax and overshoot. Screen transitions become `animation
   it by hand, and there it must be **last**. A missing plugin no longer falls back silently — it
   throws `Failed to create a worklet` at runtime.
 - **`GestureHandlerRootView` must wrap the app**, or gestures do nothing, with no error.
-- **Reanimated 4 requires the New Architecture.**
+- **Reanimated 4 requires the New Architecture**, and so does Gesture Handler 3 (its upgrade guide).
+- **A layout animation that regressed on SDK 58** — Reanimated 4.7 made a new layout-animations engine
+  the default. Roll back with `"reanimated": { "staticFeatureFlags": { "USE_LEGACY_LAYOUT_ANIMATIONS_PROXY": true } }`
+  in `package.json` and a native rebuild (not with shared element transitions enabled), and report it.
+- **A hook gesture that ignores its sibling** — a Gesture Handler 3 hook gesture cannot be related
+  (`simultaneousWith`, `requireToFail`, `block`) to a v2 `Gesture.*` one. Half-migrated screens fail
+  silently; migrate the screen whole.
 - **120 fps needs a flag.** On ProMotion iPhones third-party animations are capped at 60 unless
   `CADisableMinimumFrameDurationOnPhone` is set in `infoPlist`. Recent Expo SDKs set it by default —
   confirm it rather than assume. With it, the frame budget is 8 ms, not 16, which is why keeping motion
@@ -180,10 +188,11 @@ same rule as `before-you-build.md`'s: say which of your claims you verified and 
 
 | Never | Instead |
 |---|---|
-| `PanResponder` | `Gesture.Pan()` |
+| `PanResponder` | `usePanGesture` (Gesture Handler 3) |
+| `Gesture.Pan()` and the other v2 builders (`@deprecated` in 3.x) | the `use*Gesture` hooks, `use*Gestures` to compose |
 | `setState` in a gesture or scroll handler | shared value + `useAnimatedStyle` |
 | `runOnJS` / `runOnUI` (deprecated in Reanimated 4) | `scheduleOnRN` / `scheduleOnUI` from `react-native-worklets` |
-| `scheduleOnRN` per frame | `onEnd`, or `useAnimatedReaction` at a threshold |
+| `scheduleOnRN` per frame | `onDeactivate`, or `useAnimatedReaction` at a threshold |
 | Reading or writing a shared value during render | `.get()` / `.set()` in worklets, handlers, effects |
 | Core `Animated` for anything a finger touches | Reanimated |
 | Animating `height` / `width` / `margin` / `flex` / `top` | `transform` + `opacity` (absolute childless elements exempt) |

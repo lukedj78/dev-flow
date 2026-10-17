@@ -230,7 +230,7 @@
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 327,
+      "skill_md_lines": 334,
       "bundle": "dist/registry-intake.skill"
     },
     {
@@ -663,7 +663,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 52,
+      "skill_md_lines": 56,
       "bundle": "dist/rn-animations-gestures.skill"
     },
     {
@@ -703,7 +703,7 @@
         "verify.ts",
         "wire-nativewind.ts"
       ],
-      "skill_md_lines": 148,
+      "skill_md_lines": 150,
       "bundle": "dist/rn-bootstrap.skill"
     },
     {

@@ -24,7 +24,7 @@ After `rn-bootstrap` finishes, verify each item before bumping `meta.json#phase`
 - [ ] `npx expo export --platform ios --output-dir <tmp>` exits 0 (`verify.ts` runs this; it is the check that catches unresolvable modules — `tsc` does not).
 - [ ] The empty app has been opened once on a simulator **before** any further package is added, so there is a known-good baseline to debug from.
 - [ ] `npx expo doctor` exits 0 or with only documented warnings (e.g. "no native modules").
-- [ ] `npx expo start` starts Metro and the app opens in a **development build** (`expo-dev-client`), the iOS simulator, or Expo Go on Android. ⚠️ The App Store build of Expo Go is frozen at **SDK 54** and cannot open an SDK 57 project on a physical iPhone — use a dev build, or `eas go` via TestFlight. See `rn-fundamentals/references/decision-tree.md` Q2.
+- [ ] `npx expo start` starts Metro and the app opens in a **development build** (`expo-dev-client`), or the iOS simulator. ⚠️ No store build of Expo Go opens SDK 58 yet (2026-10-17: the SDK 58 Expo Go is announced for the App Store and Google Play "within a few weeks"), so on a physical device use a dev build, or `eas go` via TestFlight. See `rn-fundamentals/references/decision-tree.md` Q2.
 
 ## meta.json
 

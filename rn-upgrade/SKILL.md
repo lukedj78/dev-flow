@@ -1,6 +1,6 @@
 ---
 name: rn-upgrade
-description: 'Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo`, run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear caches, and native-rebuild only for bare-workflow projects — skipped entirely for CNG (Continuous Native Generation) projects. Walks a breaking-changes checklist (removed APIs, moved imports, deprecated native modules). Reads `.workflow/meta.json` with `stack.framework="expo-rn"`; does NOT bump `phase`. Triggers on: "upgrade Expo SDK", "upgrade to Expo SDK 57", "bump expo version", "npx expo-doctor is failing", "upgrade React Native", "aggiorna Expo", "aggiorna il progetto RN", "expo install --fix". Not for: scaffolding a new app (`rn-bootstrap`), adding a screen (`rn-add-screen`), adding a backend/infra module (`rn-module-add`), or building/submitting to stores (`rn-eas-deploy`, `rn-eas-build-submit-update`).'
+description: 'Use to upgrade an existing Expo + RN project to a newer Expo SDK: bump `expo`, run `npx expo install --fix` to align every dependency, run `npx expo-doctor` for diagnostics, clear caches, and native-rebuild only for bare-workflow projects — skipped entirely for CNG (Continuous Native Generation) projects. Walks a breaking-changes checklist (removed APIs, moved imports, deprecated native modules). Reads `.workflow/meta.json` with `stack.framework="expo-rn"`; does NOT bump `phase`. Triggers on: "upgrade Expo SDK", "upgrade to Expo SDK 58", "bump expo version", "npx expo-doctor is failing", "upgrade React Native", "aggiorna Expo", "aggiorna il progetto RN", "expo install --fix". Not for: scaffolding a new app (`rn-bootstrap`), adding a screen (`rn-add-screen`), adding a backend/infra module (`rn-module-add`), or building/submitting to stores (`rn-eas-deploy`, `rn-eas-build-submit-update`).'
 ---
 
 # rn-upgrade — upgrade an Expo + RN project to a newer SDK
@@ -64,7 +64,7 @@ npx expo install --fix       # actually re-resolve them
 
 `expo install --fix` re-resolves every Expo-adjacent package (`react-native`, `react`, `expo-router`, `react-native-reanimated`, etc.) to the versions the newly-installed SDK expects — this is the step that actually fixes the dependency graph, not just the `expo` package itself.
 
-**Confirmed at `@expo/cli@57.0.18`** (`npm pack`, then the command's own help text): `--check` — *"Check which installed packages need to be updated"* — and `--fix` — *"Automatically update any invalid package versions"* — both exist. Run `--check` first on a project you don't own: it tells you the size of the blast radius before you take it.
+**Confirmed at `@expo/cli@57.0.18`, and again at `58.1.11` (the CLI `expo@58.0.14` depends on, 2026-10-17)** (`npm pack`, then the command's own help text): `--check` — *"Check which installed packages need to be updated"* — and `--fix` — *"Automatically update any invalid package versions"* — both exist. Run `--check` first on a project you don't own: it tells you the size of the blast radius before you take it.
 
 `[VERIFY]` on a different SDK major: this flag surface has moved historically (`--fix` vs interactive-prompt-only), so confirm against the live docs for the target SDK rather than against this line.
 
@@ -124,7 +124,7 @@ npx expo install expo@<tag> --fix
 
 - ⚠️ **`@next` does not mean anything fixed — read it.** On 2026-08-26 `next` and `latest` were the
   same version (`57.0.16`), so `expo install expo@next` installed *stable*. On 2026-09-22 `next` is
-  `58.0.0-preview.5`, so the same command installs a **beta**. `canary` / `canary-sdk-NN` are the
+  `58.0.0-preview.5`, so the same command installs a **beta**; on 2026-10-17 `next` is `58.0.11`, *behind* `latest` `58.0.14`, so it would downgrade. `canary` / `canary-sdk-NN` are the
   nightlies, `-preview.N` versions appear during a cycle, and `sdk-NN` pins an SDK line. Read the tags,
   then name the version you propose — `[VERIFY]` against `npm view expo dist-tags` and
   `https://expo.dev/changelog`.

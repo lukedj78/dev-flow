@@ -1,11 +1,17 @@
-> Sources: official `expo-ui` skill (community-published, mirrors Expo's own guidance), docs.expo.dev/versions/latest/sdk/ui/. **Re-verified 2026-08-26 against `@expo/ui@57.0.14`** (`npm pack` + the `exports` map) and the live
-SDK page. `[VERIFY]` again on an SDK major — this API is young and names/paths have already shifted
+> Sources: official `expo-ui` skill (community-published, mirrors Expo's own guidance), docs.expo.dev/versions/latest/sdk/ui/. **Re-verified 2026-10-17 against `@expo/ui@58.0.20`** (`npm pack` + the `exports` map + the package `CHANGELOG.md`) and the live
+SDK page (2026-10-17: recommends `~58.0.20`, still badged `Included in Expo Go`). `[VERIFY]` again on an SDK major — this API is young and names/paths have already shifted
 once (see the "community" vs "drop-in-replacements" note below).
 
-⚠️ **Two different "current" versions, and they disagree by a patch.** The docs page says
-*Recommended version: `~57.0.14`* (which is also npm `latest`), while `expo@57.0.16`'s
-`bundledNativeModules.json` — what `npx expo install` actually resolves — pins **`~57.0.13`**. Take the
-SDK's pin; the docs page tracks the package, not your SDK.
+⚠️ **Take the SDK's pin, not npm `latest` or the docs page.** `expo@58.0.14`'s
+`bundledNativeModules.json` — what `npx expo install` actually resolves — pins **`~58.0.20`** (also npm
+`latest` and the docs page's recommendation on 2026-10-17). At SDK 57 the docs page and the SDK pin
+disagreed by a patch; the docs page tracks the package, not your SDK.
+
+⚠️ **SDK 58 breaking changes** (`@expo/ui` `CHANGELOG.md`, 58.0.0, 2026-09-10) — check these when upgrading from 57:
+- **iOS `<Host>` now top-aligns its content** instead of centering it (matches Android's top-leading layout). A screen that relied on the centering needs explicit alignment.
+- **iOS `HStack` / `VStack` / `GlassEffectContainer` with no `spacing` now use the SwiftUI system default**, not `0`. Pass `spacing={0}` to keep the old layout.
+- **Android `RNHostView` lost its `style` prop** — use `modifiers` (confirmed absent from `build/jetpack-compose/RNHostView/index.d.ts` at 58.0.20).
+- Deprecated, still exported: the SwiftUI `backgroundOverlay` modifier → use `background` (now takes any `ShapeStyle`); `List.ForEach` with element children → the `data` / `keyExtractor` / `children` form, which recycles rows.
 
 # `@expo/ui` — real native components, not styling
 
@@ -21,10 +27,10 @@ SDK's pin; the docs page tracks the package, not your SDK.
 
 `@expo/ui` is not a replacement for NativeWind and not a competitor to `rn-components-apis`' core-component guidance — it's a third option you pull in specifically when a screen needs to look and behave like a first-party iOS/Android screen (Settings-app-style grouped sections, native `Picker`/`Slider`, a real `BottomSheet`), not when you just need a themed `View`.
 
-## Three levels — import paths verified against the `exports` map of `@expo/ui@57.0.14`
+## Three levels — import paths verified against the `exports` map of `@expo/ui@58.0.20`
 
 1. **Universal components** — `import { Host, Column, Row, Button, Text, List } from '@expo/ui'`
-   Re-verified at **57.0.14** (`build/universal/index.d.ts`, a barrel of `export *` lines — grep the file, not the package): the root exports 19: `Host`, `Column`, `Row`, `Text`, `Button`, `ScrollView`, `Switch`, `Slider`, `Checkbox`, `BottomSheet`, `Collapsible`, `FieldGroup`, `Icon`, `List`, `ListItem`, `Picker`, `Spacer`, `State`, `TextInput` (plus `RNHostView`).
+   Re-verified at **58.0.20** (`build/universal/index.d.ts`, a barrel of `export *` lines — grep the file, not the package): the root exports 19: `Host`, `Column`, `Row`, `Text`, `Button`, `ScrollView`, `Switch`, `Slider`, `Checkbox`, `BottomSheet`, `Collapsible`, `FieldGroup`, `Icon`, `List`, `ListItem`, `Picker`, `Spacer`, `State`, `TextInput` (plus `RNHostView`).
    One component tree that renders on iOS, Android, and web.
 
    **The "SDK 56+ floor" was hearsay — the docs badge the package `Included in Expo Go`.** No floor is
@@ -37,12 +43,12 @@ SDK's pin; the docs page tracks the package, not your SDK.
    - `import { ... } from '@expo/ui/swift-ui'` — iOS only.
    - `import { ... } from '@expo/ui/jetpack-compose'` — Android only.
    - Each has a **`/modifiers` companion** — `@expo/ui/swift-ui/modifiers`, `@expo/ui/jetpack-compose/modifiers` — the platform-native styling escape hatch (a SwiftUI/Compose modifier chain, not a style object). Same platform restriction applies.
-   - There is also a **`@expo/ui/babel-plugin`** subpath. Neither of these was documented here before; both are in the `exports` map at 57.0.14.
+   - There is also a **`@expo/ui/babel-plugin`** subpath. Neither of these was documented here before; both are in the `exports` map at 58.0.20.
    - Importing either on the other platform fails at runtime with an error along the lines of **"Unable to get view config"** — not a build-time TypeScript error, so it's easy to ship by accident.
    - Mitigation: split platform-specific trees into `.ios.tsx` / `.android.tsx` files, placed under `components/` (**not** `app/` — Expo Router does not support platform-extension route files), or guard with `Platform.OS` checks. This is the same `.ios.tsx`/`.android.tsx` split pattern used elsewhere in the RN skills for platform divergence, just non-negotiable here because the failure mode is a runtime crash, not a lint warning.
 
 3. **Drop-in replacements** — API-compatible swaps for existing community libraries, backed by native `@expo/ui` primitives underneath.
-   - **Settled: the subpath is `@expo/ui/community/<name>`.** Re-verified against the `exports` map at **57.0.14** — `drop-in-replacements/` **does not exist** and never did; the two "sources disagreeing" were one source and one guess. Still exactly eight: `bottom-sheet`, `datetime-picker`, `masked-view`, `menu`, `pager-view`, `picker`, `segmented-control`, `slider`.
+   - **Settled: the subpath is `@expo/ui/community/<name>`.** Re-verified against the `exports` map at **58.0.20** — `drop-in-replacements/` **does not exist** and never did; the two "sources disagreeing" were one source and one guess. Still exactly eight: `bottom-sheet`, `datetime-picker`, `masked-view`, `menu`, `pager-view`, `picker`, `segmented-control`, `slider`.
    - Example target: a `BottomSheet` drop-in for `@gorhom/bottom-sheet`, wrapping `ModalBottomSheet` (Jetpack Compose) on Android and SwiftUI's `BottomSheet` on iOS. Note a plain `BottomSheet` **also** ships in the universal layer, so check which one you want before reaching for `community/bottom-sheet`.
 
 ## Not for

@@ -12,7 +12,7 @@ Guideline violations get you a rejection you can argue with. These three reject 
 
 Apps uploaded to App Store Connect **must be built with Xcode 26 or later, using the iOS 26 SDK** (or iPadOS/tvOS/visionOS/watchOS 26). An older toolchain is refused at upload.
 
-On EAS this is free if you leave the build image alone: `image: auto` resolves to `macos-tahoe-26.5-xcode-26.6` for SDK 57. The trap is a project that **pinned an older `image` in `eas.json`** (e.g. `macos-sequoia-15.5-xcode-16.4` from an SDK 53 era) — those builds still succeed and then fail at submit. Grep `eas.json` for `"image"` before a release; if it's pinned to an Xcode < 26 image, drop the pin or move it forward. See `rn-eas-build-submit-update/references/eas-json.md`.
+On EAS this is free if you leave the build image alone: `image: auto` resolves through the `sdk-58` alias to `macos-tahoe-26.6-xcode-27.1` (Xcode 27.1 RC — SDK 58 is built for iOS 27) and to `macos-tahoe-26.5-xcode-26.6` for SDK 57 (EAS infrastructure docs, checked 2026-10-17). The trap is a project that **pinned an older `image` in `eas.json`** (e.g. `macos-sequoia-15.5-xcode-16.4` from an SDK 53 era) — those builds still succeed and then fail at submit. Grep `eas.json` for `"image"` before a release; if it's pinned to an Xcode < 26 image, drop the pin or move it forward. See `rn-eas-build-submit-update/references/eas-json.md`.
 
 ### Google Play developer verification + content ratings (announced 2026-07-15)
 

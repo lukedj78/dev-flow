@@ -58,6 +58,8 @@ Create (only if absent — idempotent):
 - `.env.example` — empty stub with `EXPO_PUBLIC_API_URL=`.
 - `tsconfig.json` — extend `expo/tsconfig.base`, add `paths` for `@/*` **without `baseUrl`**: TypeScript 6 makes `baseUrl` a hard error (TS5101, removed in 7.0); `paths` resolve relative to the tsconfig on their own. Add `"types": ["jest"]` once `rn-write-tests` installs the test stack. Include `declarations.d.ts` (written by step 4) in `include` if the project narrows it.
 
+Also patch `package.json`: `"main": "expo-router/entry"`, then delete the template's `index.ts` and `App.tsx`. The blank-typescript template (57 and 58 alike) ships `"main": "index.ts"`, which mounts `App.tsx` and never reads `app/` — `tsc` and `expo export` both pass on it while every route is dead code. `verify.ts` checks it.
+
 Also patch `app.json`:
 - `expo.scheme` — set to a kebab-case of `meta.json#project_name`.
 - `expo.experiments.typedRoutes` — `true`.

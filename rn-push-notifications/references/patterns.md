@@ -1,10 +1,14 @@
 > Sources: https://docs.expo.dev/push-notifications/receiving-notifications/, internal opinion.
-> API surface verified against **`expo-notifications@57.0.15`** (the version `expo@57.0.16` pins is
-> `~57.0.14`) on 2026-08-26: all thirteen `Notifications.*` calls this skill uses exist, and the
+> API surface re-verified against **`expo-notifications@58.1.5`** (what `expo@58.0.14` pins, `~58.1.5`)
+> on 2026-10-17 (`npm pack`, `build/**/*.d.ts`): all thirteen `Notifications.*` calls this skill uses exist, and the
 > handler shape below is the current one. `[VERIFY]` on an SDK major — this package changes shapes,
 > not just names: `shouldShowAlert` is now `@deprecated` in favour of the
 > `shouldShowBanner`/`shouldShowList` pair, and a handler written before that split still typechecks
 > while showing nothing.
+> **Changed at SDK 58** (`CHANGELOG.md`, 58.0.0, 2026-09-10): a notification arriving in the foreground
+> is now **shown by default** unless `setNotificationHandler` asks otherwise; a handler slower than 3 s
+> no longer drops it; `setNotificationHandler(null)` still suppresses it. Keep the explicit handler below
+> anyway — it is where you decide per-notification, and it documents intent.
 
 # Patterns — receiving + handling push notifications
 

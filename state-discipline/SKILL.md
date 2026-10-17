@@ -375,7 +375,7 @@ function Tabs({ activeTab }: { activeTab: "chat" | "settings" }) {
 }
 ```
 
-Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says "my draft disappeared when I switched tabs and came back," that's a `key`-shaped reset where `<Activity>` was needed. **Stable since React 19.2** — available from `react` directly (current stable 19.2.x). On React 19.0/19.1 it was canary-only, so check the project's version before reaching for it.
+Rule of thumb: **`key` = reset, `<Activity>` = preserve.** If a bug report says "my draft disappeared when I switched tabs and came back," that's a `key`-shaped reset where `<Activity>` was needed. **Stable since React 19.2** — available from `react` directly (current stable 19.3.x as of 2026-10-17). On React 19.0/19.1 it was canary-only, so check the project's version before reaching for it.
 
 ## Red flags / rationalizations
 
@@ -446,10 +446,10 @@ Violation kinds:
 
 ## Sources
 
-**Verified 2026-08-26 against `react@19.2.8`.** All five concurrent-state APIs this skill leans on —
+**Re-verified 2026-10-17 against `react@19.3.1`** (npm `latest`) and `react@19.3.0` (`cjs/react.production.js`). All five concurrent-state APIs this skill leans on —
 `useEffectEvent`, `Activity`, `useOptimistic`, `useActionState`, `useTransition` — are exported under
 their **stable** names, with no `unstable_` or `experimental_` variants alongside them. So the ladder
-below carries no canary hedge. (Note `expo@57.0.16` pins React at `19.2.3`, one patch behind npm; both
+below carries no canary hedge. (Note `expo@58.0.14` pins React at `19.3.0`, one patch behind npm; both
 are past the 19.2 stabilisation, so nothing here changes on RN — and RN has no URL rung anyway.)
 All ten cited URLs resolve.
 

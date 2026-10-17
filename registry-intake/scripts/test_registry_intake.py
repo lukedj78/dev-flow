@@ -1192,6 +1192,89 @@ class AfterTheCommand(Base):
         self.assertTrue(any("hook-post" in p for p in problems))
 
 
+class FormatterExclusion(Base):
+    """setup keeps the project's formatter out of vendor/registry/.
+
+    fit-coach, 2026-10-17: `pnpm format` (biome format --write .) folded two arrays of an approved
+    snapshot onto one line. Same data, different bytes, so `check` reported the snapshot as edited after
+    approval and the phase gate refused, a month later. A snapshot is evidence, not source code.
+    """
+
+    def write(self, rel: str, text: str) -> None:
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+
+    def package(self, **dev: str) -> None:
+        self.write("package.json", json.dumps({"name": "p", "devDependencies": dev}))
+
+    def setup_twice(self) -> str:
+        self.cli("setup", str(self.root))
+        return self.cli("setup", str(self.root))[1]
+
+    def biome(self) -> dict:
+        return json.loads((self.root / "biome.json").read_text())
+
+    def test_biome_2_includes_gain_the_exclusion_once(self) -> None:
+        self.package(**{"@biomejs/biome": "2.5.15"})
+        self.write("biome.json", json.dumps({"files": {"includes": ["**", "!**/node_modules"]}, "formatter": {"enabled": True}}))
+        self.setup_twice()
+        self.assertEqual(self.biome()["files"]["includes"], ["**", "!**/node_modules", "!vendor/registry"])
+        self.assertEqual(self.biome()["formatter"], {"enabled": True})
+
+    def test_biome_2_without_includes_gets_them(self) -> None:
+        self.package(**{"@biomejs/biome": "^2.1.0"})
+        self.write("biome.json", json.dumps({"formatter": {"enabled": True}}))
+        self.setup_twice()
+        self.assertEqual(self.biome()["files"]["includes"], ["**", "!vendor/registry"])
+
+    def test_biome_1_uses_ignore(self) -> None:
+        self.package(**{"@biomejs/biome": "1.9.4"})
+        self.write("biome.json", json.dumps({"files": {"ignore": ["dist"]}}))
+        self.setup_twice()
+        self.assertEqual(self.biome()["files"]["ignore"], ["dist", "vendor/registry"])
+
+    def test_a_biome_jsonc_with_comments_is_not_rewritten(self) -> None:
+        self.package(**{"@biomejs/biome": "2.5.15"})
+        text = '{\n  // ours\n  "files": { "includes": ["**"] }\n}\n'
+        self.write("biome.jsonc", text)
+        out = self.cli("setup", str(self.root))[1]
+        self.assertEqual((self.root / "biome.jsonc").read_text(), text)
+        self.assertIn("!vendor/registry", out)
+
+    def test_prettier_gets_an_ignore_file(self) -> None:
+        self.package(prettier="3.6.2")
+        self.setup_twice()
+        self.assertEqual((self.root / ".prettierignore").read_text().splitlines().count("vendor/registry/"), 1)
+
+    def test_an_existing_prettierignore_is_appended_to(self) -> None:
+        self.package(prettier="3.6.2")
+        self.write(".prettierignore", "dist\n.next")
+        self.setup_twice()
+        self.assertEqual((self.root / ".prettierignore").read_text(), "dist\n.next\nvendor/registry/\n")
+
+    def test_no_formatter_no_files(self) -> None:
+        self.package()
+        self.setup_twice()
+        self.assertFalse((self.root / ".prettierignore").exists())
+        self.assertFalse((self.root / "biome.json").exists())
+
+    def test_an_edited_snapshot_says_how_to_restore_it(self) -> None:
+        self.cli("setup", str(self.root))
+        self.serve("gauge", {"$schema": SCHEMA, "name": "gauge", "type": "registry:ui",
+                             "files": [{"path": "components/gauge.tsx", "type": "registry:ui", "content": "export const G = 1\n"}]})
+        lock = ri.load_lock(self.root)
+        lock["registries"]["@reg"] = {"url": REG, "trust": "snapshot", "reason": "t", "allowed_by": "t", "allowed_at": "t"}
+        ri.save_lock(self.root, lock)
+        code, out = self.cli("approve", str(self.root), "@reg/gauge", "--by", "t")
+        self.assertEqual(code, 0, out)
+        snap = next((self.root / ri.VENDOR).rglob("*.json"))
+        snap.write_text(json.dumps(json.loads(snap.read_text()), indent=4))
+        problems = " ".join(ri.check(self.root)[1])
+        self.assertIn("edited after approval", problems)
+        self.assertIn("formatter", problems)
+
+
 class PathTraversal(Base):
     """A registry item is untrusted input: neither its local path, its dependencies, its name nor its file
     targets may reach a file outside the project (ArchiStudio c6f0012, ported into this version)."""

@@ -25,7 +25,7 @@ description: 'Use when styling React Native + Expo components: choosing between 
 ## NativeWind vs `@expo/ui` — two different tools
 
 - **NativeWind** (this skill's default) styles RN's own primitives (`View`, `Text`, …) with utility classes. It changes how things *look*.
-- **`@expo/ui`** (see `references/expo-ui.md`; import paths verified against `@expo/ui@57.0.14`) renders **actual native components** — SwiftUI on iOS, Jetpack Compose on Android — not styled primitives. Reach for it when a screen needs to genuinely behave like a native settings/picker/sheet screen, not when it just needs the right colors and spacing.
+- **`@expo/ui`** (see `references/expo-ui.md`; import paths verified against `@expo/ui@58.0.20`) renders **actual native components** — SwiftUI on iOS, Jetpack Compose on Android — not styled primitives. Reach for it when a screen needs to genuinely behave like a native settings/picker/sheet screen, not when it just needs the right colors and spacing.
 - They compose: an `@expo/ui` tree can sit inside a NativeWind-styled screen. Don't use `@expo/ui` as a general-purpose styling system, and don't expect NativeWind classes to apply inside its native components.
 
 ## Common anti-patterns (NEVER do)
@@ -43,4 +43,4 @@ description: 'Use when styling React Native + Expo components: choosing between 
 - Official: https://reactnative.dev/docs/style (RN's own styling reference) — ⚠️ the `docs.expo.dev/develop/user-interface/styling/` page this line used to cite **404s** (checked 2026-08-26); Expo's user-interface section now covers `color-themes/`, `safe-areas/`, `fonts/` and `animation/` rather than a single styling page
 - Official: https://www.nativewind.dev/ (v4)
 - Official: https://github.com/AppAndFlow/react-native-safe-area-context
-- Official: https://docs.expo.dev/versions/latest/sdk/ui/ (`@expo/ui`) — the page badges it **Included in Expo Go** and recommends `~57.0.14`, while `expo@57.0.16` pins `~57.0.13`; take the SDK's pin. Import paths and the 19 root exports verified at 57.0.14 — see `references/expo-ui.md`
+- Official: https://docs.expo.dev/versions/latest/sdk/ui/ (`@expo/ui`) — the page badges it **Included in Expo Go** and recommends `~58.0.20`, matching `expo@58.0.14`'s pin (checked 2026-10-17; at SDK 57 they disagreed by a patch — take the SDK's pin). Import paths and the 19 root exports verified at 58.0.20; SDK 58 changed iOS `<Host>` alignment and stack default spacing — see `references/expo-ui.md`

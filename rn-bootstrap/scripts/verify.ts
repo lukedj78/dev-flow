@@ -25,7 +25,7 @@ const fileExists = (rel: string) => fs.existsSync(path.join(projectRoot, rel));
 
 // Load package.json once at startup, not on every hasDep() call. Subsequent
 // dep checks read from this cached value — avoids 11+ redundant disk reads.
-type PackageJson = { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+type PackageJson = { main?: string; dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
 const PKG: PackageJson | null = (() => {
   try {
     return JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8")) as PackageJson;
@@ -57,6 +57,9 @@ const checks: Check[] = [
   { name: "dep: react-native-safe-area-context", run: () => hasDep("react-native-safe-area-context") },
   { name: "dep: expo-image", run: () => hasDep("expo-image") },
   { name: "dep: @shopify/flash-list", run: () => hasDep("@shopify/flash-list") },
+  // The blank-typescript template ships `"main": "index.ts"`, which mounts App.tsx and never reads
+  // app/. Left alone, tsc and the bundle below pass on App.tsx while every route is dead code.
+  { name: "package.json main is expo-router/entry", run: () => PKG?.main === "expo-router/entry" },
   { name: "file: app/_layout.tsx", run: () => fileExists("app/_layout.tsx") },
   { name: "file: app/index.tsx", run: () => fileExists("app/index.tsx") },
   { name: "file: global.css", run: () => fileExists("global.css") },

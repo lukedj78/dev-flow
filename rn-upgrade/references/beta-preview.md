@@ -1,4 +1,4 @@
-> Snapshot date: **2026-09-22** (dist-tags read off npm that day; `expo@57.0.24` stable, `expo@next` = `58.0.0-preview.5`). Beta/preview tag conventions are the most volatile part of this workflow — and the tags themselves move without a release note. `[VERIFY]` with `npm view expo dist-tags` **and** `https://expo.dev/changelog` before running any of this on a real project.
+> Snapshot date: **2026-10-17** (dist-tags read off npm that day; `expo@58.0.14` stable, `expo@next` = `58.0.11`, *behind* `latest`). Beta/preview tag conventions are the most volatile part of this workflow — and the tags themselves move without a release note. `[VERIFY]` with `npm view expo dist-tags` **and** `https://expo.dev/changelog` before running any of this on a real project.
 
 # Upgrading to a beta / preview Expo SDK
 
@@ -15,20 +15,22 @@ Only follow this path on **explicit user request**. A beta SDK is, by definition
 npx expo install expo@next --fix
 ```
 
-**The dist-tag map, read off npm on 2026-09-22** (`npm view expo dist-tags`):
+**The dist-tag map, read off npm on 2026-10-17** (`npm view expo dist-tags`):
 
-| Tag | Means | On 2026-09-22 |
+| Tag | Means | On 2026-10-17 |
 |---|---|---|
-| `latest` | stable | `57.0.24` |
-| `next` | **whatever the cycle is on — read it, never assume** | `58.0.0-preview.5` |
+| `latest` | stable | `58.0.14` |
+| `next` | **whatever the cycle is on — read it, never assume** | `58.0.11` (older than `latest`) |
 | `canary` | nightly of the upcoming SDK | `58.0.0-canary-20260909-ea7a89a` |
 | `canary-sdk-NN` | — | one canary line per upcoming SDK |
-| `sdk-NN` | pin an SDK **line** and still get its patches | `sdk-52` … `sdk-57` (`57.0.24`) |
+| `sdk-NN` | pin an SDK **line** and still get its patches | `sdk-52` … `sdk-57` (`57.0.30`); no `sdk-58` tag on `expo` yet |
 
 ⚠️ **`next` means different things at different times, and that is the trap — in both directions.**
 On 2026-08-26 it pointed at stable `57.0.16`, so a user who asked for "the beta" got stable while
 believing they had taken a risk. On 2026-09-22 it points at `58.0.0-preview.5`, so the same command
 now moves a project onto a **beta** that the previous snapshot of this page promised it would not.
+On 2026-10-17, two days after SDK 58 went stable, it points at `58.0.11`, three patches *behind*
+`latest`: `expo install expo@next` would now downgrade a current project.
 Read the tag before running the command, every time: `npm view expo dist-tags` answers it, and the
 answer changes without notice. Name the version you are proposing, never the tag.
 
