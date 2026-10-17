@@ -268,7 +268,37 @@ class Projects(Fixture):
         (cloned / ".claude/hooks/registry_intake.py").symlink_to(victim)
         r = self.install("--projects", str(self.projects))
         self.assertEqual(victim.read_text(), "mine\n")
-        self.assertIn("cloned: skipped — .claude/hooks/registry_intake.py is a symlink", r.stdout)
+        self.assertIn("cloned: skipped — .claude/hooks/registry_intake.py is a symlink out of the project", r.stdout)
+        self.assertIn("governed: registry-intake ✓", r.stdout)
+
+    def test_a_symlink_on_a_file_setup_learned_later_is_caught_too(self) -> None:
+        # no list of paths to keep up to date: .prettierignore was not on the first one
+        victim = self.home / "precious.txt"
+        victim.write_text("mine\n")
+        cloned = self.projects / "cloned"
+        (cloned / ".claude/hooks").mkdir(parents=True)
+        (cloned / ".claude/hooks/registry_intake.py").write_text("# old\n")
+        (cloned / ".prettierignore").symlink_to(victim)
+        r = self.install("--projects", str(self.projects))
+        self.assertEqual(victim.read_text(), "mine\n")
+        self.assertIn("cloned: skipped — .prettierignore", r.stdout)
+
+    def test_a_symlinked_project_folder_is_skipped(self) -> None:
+        elsewhere = self.home / "elsewhere"
+        (elsewhere / ".claude/hooks").mkdir(parents=True)
+        (elsewhere / ".claude/hooks/registry_intake.py").write_text("# old\n")
+        (self.projects / "linked").symlink_to(elsewhere)
+        r = self.install("--projects", str(self.projects))
+        self.assertEqual((elsewhere / ".claude/hooks/registry_intake.py").read_text(), "# old\n")
+        self.assertIn("linked: skipped — the project folder itself", r.stdout)
+
+    def test_symlinks_inside_the_project_and_in_node_modules_are_fine(self) -> None:
+        (self.governed / "docs").mkdir()
+        (self.governed / "README.md").write_text("x")
+        (self.governed / "docs/README.md").symlink_to(self.governed / "README.md")
+        (self.governed / "node_modules/.bin").mkdir(parents=True)
+        (self.governed / "node_modules/.bin/tool").symlink_to(self.home)
+        r = self.install("--projects", str(self.projects))
         self.assertIn("governed: registry-intake ✓", r.stdout)
 
     def test_a_missing_directory_is_refused_before_installing(self) -> None:
