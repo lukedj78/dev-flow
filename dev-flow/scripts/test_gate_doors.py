@@ -61,7 +61,7 @@ class BothDoors(Fixture):
     def door(self, which: str, target: str) -> tuple[int, str]:
         ns = argparse.Namespace(project_root=self.root)
         if which == "set-phase":
-            ns.phase, ns.allow_regress, fn = target, False, update_meta.cmd_set_phase
+            ns.phase, ns.allow_regress, ns.skill, fn = target, False, None, update_meta.cmd_set_phase
         else:
             ns.skill, ns.inputs, ns.outputs, ns.phase_after = "test", "{}", "[]", target
             fn = update_meta.cmd_append_history

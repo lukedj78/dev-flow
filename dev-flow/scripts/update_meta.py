@@ -10,9 +10,12 @@ Three operations:
      entry says "skill X wrote this file with this exact content at time T".
      If the on-disk hash drifts later, that artifact is "stale".
 
-  2. set-phase — bump `phase` (only if monotonic forward) and `updated_at`.
+  2. set-phase — bump `phase` (only if monotonic forward) and `updated_at`, and record
+     the change in history (`action: "set-phase"`, `--skill` names who moved it).
 
-  3. append-history — record a skill run with inputs, outputs, phase delta.
+  3. append-history — record a skill run with inputs, outputs, phase delta. A
+     `--phase-after` behind the current phase is not applied, and the entry records
+     the phase the project actually has (`phase_requested` keeps what was asked).
 
 Usage:
     # Record an artifact
@@ -25,7 +28,7 @@ Usage:
         --derived-from .workflow/DESIGN.md
 
     # Set phase
-    python3 update_meta.py <project-root> set-phase scaffolded
+    python3 update_meta.py <project-root> set-phase scaffolded --skill design-md-to-app
 
     # Append history
     python3 update_meta.py <project-root> append-history \
@@ -278,6 +281,19 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         sys.stderr.write(refusal)
         return 1
 
+    # A phase change is recorded, so history never misses a move the project made. Setting the phase it
+    # already has changes nothing and records nothing.
+    if requested != current_raw:
+        entry: dict[str, Any] = {
+            "skill": args.skill or "set-phase",
+            "action": "set-phase",
+            "ran_at": now_iso(),
+            "phase_before": current_raw,
+            "phase_after": requested,
+        }
+        if new_idx < cur_idx or args.allow_regress and cur_idx == -1:
+            entry["allow_regress"] = True
+        meta.setdefault("history", []).append(entry)
     meta["phase"] = requested
     save_meta(meta_path, meta)
     print(f"phase: {current_raw} → {requested}")
@@ -328,21 +344,27 @@ def cmd_append_history(args: argparse.Namespace) -> int:
             sys.stderr.write(refusal)
             return 1
 
-    history = meta.setdefault("history", [])
-    history.append({
+    phase_before = meta.get("phase")
+    entry: dict[str, Any] = {
         "skill": args.skill,
         "ran_at": now_iso(),
         "inputs": inputs,
         "outputs": outputs,
-        "phase_before": meta.get("phase"),
+        "phase_before": phase_before,
         "phase_after": phase_after,
-    })
-
+    }
     if phase_after:
         cur_idx = phases.index(meta.get("phase", "empty"))
         new_idx = PHASES.index(phase_after)
         if new_idx >= cur_idx:
             meta["phase"] = phase_after
+        else:
+            # Behind the current phase: not applied, so not recorded as reached. It used to be written as
+            # phase_after anyway, and history then named a phase the project had already left.
+            entry["phase_after"] = phase_before
+            entry["phase_requested"] = phase_after
+            sys.stderr.write(f"note: phase stays {phase_before!r}; {phase_after!r} is behind it and was not applied\n")
+    meta.setdefault("history", []).append(entry)
 
     save_meta(meta_path, meta)
     print(f"history += {{ skill: {args.skill}, phase_after: {args.phase_after} }}")
@@ -368,6 +390,7 @@ def main() -> int:
     p_ph = sub.add_parser("set-phase", help="Bump meta#phase (forward-only by default)")
     p_ph.add_argument("phase")
     p_ph.add_argument("--allow-regress", action="store_true")
+    p_ph.add_argument("--skill", default=None, help="the skill moving the phase, recorded in history")
     p_ph.set_defaults(func=cmd_set_phase)
 
     p_h = sub.add_parser("append-history", help="Append a skill run to meta#history")
