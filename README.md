@@ -28,7 +28,7 @@
               │                                   │
               ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
               │                                   │
-              │   WEB FAMILY (15 skills)           MOBILE FAMILY (16 skills)
+              │   WEB FAMILY (18 skills)           MOBILE FAMILY (16 skills)
               │                                   │
    ┌──────────┼──────────┐               ┌────────┼─────────┐
    │          │          │               │        │         │
@@ -893,7 +893,7 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 **Bundled scripts:**
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`.
 - `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step. On a project already past `scaffolded` without the design lint, it prints what is missing and the command that fixes it.
-- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds **two gates at `scaffolded`**. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. A third gate, for the same Next apps on a Tailwind UI, refuses `scaffolded` and every later phase until the design lint carries `design/no-handmade-ui` and the write-time primitives guard is installed (`scripts/primitives_guard_gate.py`, checked through `design-md-to-app/scripts/setup_primitives_guard.py --check`) or `stack.primitives_guard = "none"` is recorded with its reason. Skills move phase through it so the gates run.
+- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds the **phase gates** (the same list for `append-history --phase-after`): the inventory to leave `idea_captured`, the wireframe canvas to reach `monorepo_initialized` or `scaffolded`, and three more at `scaffolded`. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. A third gate, for the same Next apps on a Tailwind UI, refuses `scaffolded` and every later phase until the design lint carries `design/no-handmade-ui` and the write-time primitives guard is installed (`scripts/primitives_guard_gate.py`, checked through `design-md-to-app/scripts/setup_primitives_guard.py --check`) or `stack.primitives_guard = "none"` is recorded with its reason. Skills move phase through it so the gates run.
 
 ### `prd-from-idea` — paragraph → PRD
 

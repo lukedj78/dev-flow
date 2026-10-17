@@ -402,7 +402,10 @@ FAMILIES = "core|web|agent|mobile|monorepo|refactor"
 COUNT_FILES = ["README.md", "CONTEXT.md", "docs/dev-flow-skill-map.html",
                "install.sh", "uninstall.sh", "dev-flow/SKILL.md",
                "dev-flow/references/external-skills.md",
-               "docs/skill-doctor-referto.html"]
+               "docs/skill-doctor-referto.html",
+               # What a marketplace user reads first. All three said "43" while the suite had 52.
+               ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json",
+               "dist/agent-plugin/plugin.json"]
 TOTAL_PATTERNS = [
     r"\b(\d+) skills \(", r"containing (\d+) skills", r"[Ss]hould print (\d+)",
     r"all (\d+) skills", r"map of the (\d+) skills", r"my-skills — (\d+) skills",
@@ -419,6 +422,9 @@ TOTAL_PATTERNS = [
     # The skill-map's metric card is a bare number with no adjacent word, so no
     # prose pattern above could ever match it. It sat at 44 for a full release.
     r'>skills</div><div class="v"[^>]*>(\d+)<',
+    # The plugin manifests' blurbs (generated from build_plugin_manifest.py) and the marketplace entry.
+    # "over one .workflow" anchors it: external-skills.md quotes a third-party suite as "25 skills over …".
+    r"and (\d+) skills that", r"(\d+) skills over one \.workflow",
 ]
 # A family name followed by a dash introduces a list, not a count ("2 agent — eve").
 # And a version number in front of one is not a count either: "Next.js 16 web" is a
@@ -427,6 +433,8 @@ TOTAL_PATTERNS = [
 FAMILY_COUNT_RE = re.compile(
     rf"(?<!next\.js )(?<!next )\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I
 )
+# The README's diagram puts the count after the name: "WEB FAMILY (15 skills)". It said 15 when there were 18.
+FAMILY_PAREN_RE = re.compile(rf"\b({FAMILIES}) FAMILY \((\d+) skills\)", re.I)
 
 
 def check_stated_counts(root: Path, all_skills: set[str]) -> None:
@@ -453,6 +461,12 @@ def check_stated_counts(root: Path, all_skills: set[str]) -> None:
             fam = m.group(2).lower()
             if fam in per_family and int(m.group(1)) != per_family[fam]:
                 err(f"{path}: \"{m.group(0)}\" — there are {per_family[fam]} {fam} skills")
+        for m in FAMILY_PAREN_RE.finditer(text):
+            fam = m.group(1).lower()
+            if fam in per_family and int(m.group(2)) != per_family[fam]:
+                err(f"{path}: \"{m.group(0)}\" — there are {per_family[fam]} {fam} skills")
+        if rel.endswith(".json") and "{count}" in text:
+            err(f"{path}: an unfilled {{count}} placeholder — build it with scripts/build_plugin_manifest.py")
 
 
 def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:

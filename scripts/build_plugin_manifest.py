@@ -32,11 +32,13 @@ MANIFEST_META = {
     "name": "dev-flow",
     "displayName": "dev-flow",
     "version": VERSION,
+    # {count} is filled in by build() from the skills it ships. It was a literal "43" here, and the
+    # marketplace blurb kept saying 43 while the suite grew to 52.
     "description": (
         "An end-to-end product-development skill suite: one filesystem contract "
-        "(.workflow/meta.json) and 43 skills that take an idea to production — "
+        "(.workflow/meta.json) and {count} skills that take an idea to production — "
         "web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, "
-        "plus GDPR/AI-Act and Vercel-cost pre-deploy gates."
+        "plus four pre-deploy gates: GDPR/AI-Act, Vercel cost, UI quality and launch readiness."
     ),
     "author": {"name": "lucadigerlando", "url": "https://github.com/lukedj78"},
     "homepage": "https://github.com/lukedj78/dev-flow",
@@ -58,7 +60,8 @@ def build() -> dict:
     names = [n for n in TAXONOMY if n not in EXCLUDED]
     # stable order: by family, then alphabetically — mirrors skills.json
     names.sort(key=lambda n: (FAMILY_ORDER.index(TAXONOMY[n][0]), n))
-    return {**MANIFEST_META, "skills": [f"./{n}" for n in names]}
+    meta = {**MANIFEST_META, "description": MANIFEST_META["description"].format(count=len(names))}
+    return {**meta, "skills": [f"./{n}" for n in names]}
 
 
 def main() -> int:

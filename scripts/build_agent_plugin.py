@@ -2,7 +2,7 @@
 """Build dist/agent-plugin/ — the suite as an Agent Plugins v1.0.0 package.
 
 A third distribution format alongside .claude-plugin/plugin.json (Claude Code)
-and dist/*.skill (single-skill bundles). Same 43 skills, same TAXONOMY, packaged
+and dist/*.skill (single-skill bundles). The same skills, same TAXONOMY, packaged
 the way the vendor-neutral standard wants them:
 
     dist/agent-plugin/
@@ -76,6 +76,8 @@ def manifest() -> dict:
         if field == "$schema" or field not in MANIFEST_META:
             continue
         value = MANIFEST_META[field]
+        if field == "description":  # the skill count is a {count} placeholder, filled from what ships
+            value = value.format(count=len(skill_names()))
         if field == "author":
             value = {k: v for k, v in value.items() if k in ALLOWED_AUTHOR_FIELDS}
         out[field] = value

@@ -6,26 +6,10 @@
 # generic markdown that any agent can follow. This installer supports six
 # runtimes — pick yours with --platform.
 #
-# Stacks (see the SKILLS array below for the authoritative, up-to-date list —
-# this is just a summary, so it won't drift when skills are added):
-#   * Core (stack-agnostic flow):        5 skills  — dev-flow, prd-from-idea,
-#                                        prd-to-tasks, wireframe-canvas, linear-scrum,
-#                                        compliance-audit, registry-intake
-#   * Web (Next.js 16 + shadcn/Base UI/MUI): 16 skills — figma-to-design-md,
-#                                        image-to-design-md, design-md-to-app,
-#                                        coss-ui, screenshot-to-page, module-add,
-#                                        write-tests, forms, data-fetching,
-#                                        state-discipline, transitions,
-#                                        animated-icons, vercel-doctor,
-#                                        shadscan, vercel-deploy, vgpu-shaders
-#   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
-#   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
-#   * Monorepo (web + mobile shared):    4 skills  — monorepo-bootstrap,
-#                                        monorepo-add-shared-package,
-#                                        monorepo-sync-types,
-#                                        monorepo-add-python-service
-#   * Refactor & composition:            2 skills  — promote-component,
-#                                        composition-patterns-guide
+# Stacks: core (stack-agnostic flow), web (Next.js 16 + shadcn / Base UI / MUI / Coss), agent engine
+# (eve), mobile (Expo + RN), monorepo, refactor & composition. The SKILLS array below is the list, and
+# lint_skills.py checks it against the skill folders on disk. (This header used to repeat it with counts;
+# they said "won't drift" and drifted: Core 5 against 10, Web 16 against 19.)
 #
 # Usage:
 #   ./install.sh                                # defaults to claude
