@@ -17,6 +17,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io
+
 
 def slugify(name: str) -> str:
     s = re.sub(r'[^a-zA-Z0-9]+', '-', name).strip('-').lower()
@@ -39,12 +41,18 @@ def main() -> int:
     workflow.mkdir(exist_ok=True)
     meta_path = workflow / 'meta.json'
 
+    # Locked so two inits racing on a new project write one file, not two halves of one.
+    with meta_io.locked(workflow):
+        return _init(root, meta_path, args.name)
+
+
+def _init(root: Path, meta_path: Path, name: str | None) -> int:
     if meta_path.exists():
         meta = json.loads(meta_path.read_text())
         print(f"meta.json already exists. phase={meta.get('phase')!r}, name={meta.get('project_name')!r}")
         return 0
 
-    name = args.name or root.name
+    name = name or root.name
     now = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
     meta = {
         "project_slug": slugify(name),
@@ -58,7 +66,7 @@ def main() -> int:
         },
         "history": [],
     }
-    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
+    meta_io.write_json(meta_path, meta)
     print(f"Initialized {meta_path} (phase=empty, slug={meta['project_slug']!r})")
     return 0
 

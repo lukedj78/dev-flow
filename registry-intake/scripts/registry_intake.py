@@ -1800,12 +1800,17 @@ def record(root: Path, value: str) -> None:
     meta = root / ".workflow" / "meta.json"
     if not meta.exists():
         return
-    text = meta.read_text()
-    d = json.loads(text)
-    if (d.get("stack") or {}).get("registry_intake") == value:
-        return
-    d.setdefault("stack", {})["registry_intake"] = value
-    meta.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n")
+    # Imported here, not at the top: `setup` vendors this one file into .claude/hooks/ as the hook,
+    # without meta_io.py beside it. The hook never records, so only this function needs the copy.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
+    with meta_io.locked(meta.parent):
+        d = json.loads(meta.read_text())
+        if (d.get("stack") or {}).get("registry_intake") == value:
+            return
+        d.setdefault("stack", {})["registry_intake"] = value
+        meta_io.write_json(meta, d)
 
 
 def cmd_allow(args) -> int:

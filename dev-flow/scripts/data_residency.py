@@ -30,6 +30,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io
+
 RESIDENCY = ("eu", "eu-sovereign", "none")
 CATEGORIES = ("identity-documents", "tax", "health", "biometric", "minors", "financial", "location",
               "criminal", "special-category-other", "contact", "usage")
@@ -89,7 +91,7 @@ def load(root: Path) -> dict:
 
 def save(root: Path, meta: dict) -> None:
     meta["updated_at"] = now()
-    meta_path(root).write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
+    meta_io.write_json(meta_path(root), meta)
 
 
 # The region field accepts free text, and people write their uncertainty into it — "to confirm",
@@ -336,7 +338,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("check"); s.add_argument("root", type=Path); s.add_argument("--json", action="store_true")
     s = sub.add_parser("render"); s.add_argument("root", type=Path)
     a = ap.parse_args(argv)
-    return {"decide": cmd_decide, "add": cmd_add, "check": cmd_check, "render": cmd_render}[a.cmd](a)
+    cmd = {"decide": cmd_decide, "add": cmd_add, "check": cmd_check, "render": cmd_render}[a.cmd]
+    if a.cmd in ("decide", "add"):  # the two that read, change and save meta.json (see meta_io.py)
+        with meta_io.locked(a.root.resolve() / ".workflow"):
+            return cmd(a)
+    return cmd(a)
 
 
 if __name__ == "__main__":

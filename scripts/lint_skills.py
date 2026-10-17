@@ -638,18 +638,24 @@ def check_lint_check_count(root: Path) -> None:
 
 
 VENDORED_SOURCE = [
-    # (tested source, the copy a skill hands to a project)
+    # (tested source, the copy a skill hands to a project — or runs itself)
     ("agent-guards/src/guards.ts", "eve-agent/references/guards.template.ts"),
+    # The lock and atomic write for .workflow/meta.json. Each skill installs standalone and cannot
+    # import from dev-flow, so every skill that writes meta.json carries a copy. The lock only works
+    # if all writers take the same one, which is why the copies must not drift.
+    *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
+      for skill in ("design-md-to-app", "forms", "linear-scrum", "registry-intake", "wireframe-canvas")),
 ]
 
 
 def check_vendored_source(root: Path) -> None:
-    """A file a skill copies into a project must equal the file CI tested.
+    """A vendored file must equal the file CI tested.
 
     `guards.template.ts` is what `eve-agent` writes into `agent/lib/guards.ts`.
     Its tests live in `agent-guards/`, and they test `src/guards.ts`. If the two
     drift, every project gets code that was never tested and the suite stays
-    green — the same shape as check 12, one layer out.
+    green — the same shape as check 12, one layer out. `meta_io.py` is the same
+    case inside the repo: tested in dev-flow, run from five other skills.
     """
     for tested, vendored in VENDORED_SOURCE:
         a, b = root / tested, root / vendored
@@ -658,7 +664,7 @@ def check_vendored_source(root: Path) -> None:
             continue
         if a.read_bytes() != b.read_bytes():
             err(
-                f"{vendored} differs from {tested} — the copy handed to projects "
+                f"{vendored} differs from {tested} — the copy in use "
                 f"is not the one the tests cover. Copy it across."
             )
 

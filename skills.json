@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T10:03:20Z",
+  "generated_at": "2026-10-17T14:19:20Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -111,12 +111,14 @@
         "init_workflow.py",
         "inventory.py",
         "inventory_gate.py",
+        "meta_io.py",
         "primitives_guard_gate.py",
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
         "test_data_residency.py",
         "test_inventory.py",
+        "test_meta_io.py",
         "test_primitives_guard_gate.py",
         "test_research.py",
         "test_wireframes_gate.py",
@@ -138,6 +140,7 @@
         "scrum-model.md"
       ],
       "scripts": [
+        "meta_io.py",
         "meta_linear.py",
         "task_key.py",
         "test_scripts.py"
@@ -212,6 +215,7 @@
         "contracts.md"
       ],
       "scripts": [
+        "meta_io.py",
         "registry_intake.py",
         "test_registry_intake.py"
       ],
@@ -241,6 +245,7 @@
         "contracts.md"
       ],
       "scripts": [
+        "meta_io.py",
         "test_wireframes.py",
         "wireframes.py"
       ],
@@ -325,6 +330,7 @@
       ],
       "scripts": [
         "build_registry.py",
+        "meta_io.py",
         "parse_design_md.py",
         "setup_design_lint.py",
         "setup_primitives_guard.py",
@@ -369,6 +375,7 @@
         "toolkit-tanstack.md"
       ],
       "scripts": [
+        "meta_io.py",
         "scaffold_lib_forms.py"
       ],
       "skill_md_lines": 502,

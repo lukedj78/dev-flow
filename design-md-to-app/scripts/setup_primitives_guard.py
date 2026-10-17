@@ -37,6 +37,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import setup_design_lint as sdl  # noqa: E402
+import meta_io  # noqa: E402 — vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
 
 ASSETS = HERE.parent / "assets" / "guard"
 GUARD_DIR = Path("scripts") / "guard"
@@ -184,11 +185,12 @@ def record(root: Path) -> None:
     p = root / ".workflow" / "meta.json"
     if not p.exists():
         return
-    m = json.loads(p.read_text())
-    if m.get("stack", {}).get("primitives_guard") == "installed":
-        return
-    m.setdefault("stack", {})["primitives_guard"] = "installed"
-    p.write_text(json.dumps(m, indent=2, ensure_ascii=False) + "\n")
+    with meta_io.locked(p.parent):
+        m = json.loads(p.read_text())
+        if m.get("stack", {}).get("primitives_guard") == "installed":
+            return
+        m.setdefault("stack", {})["primitives_guard"] = "installed"
+        meta_io.write_json(p, m)
 
 
 def install(root: Path, units: list[dict] | None = None) -> int:

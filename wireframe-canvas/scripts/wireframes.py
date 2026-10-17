@@ -23,6 +23,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
 INVENTORY = "docs/wireframes/screen-inventory.md"
 PNG_DIR = "docs/wireframes/png"
 STORY = re.compile(r"\bUS-\d+\b")
@@ -42,7 +44,7 @@ def load(root: Path) -> tuple[Path, dict]:
 
 def save(path: Path, meta: dict) -> None:
     meta["updated_at"] = now_iso()
-    path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
+    meta_io.write_json(path, meta)
 
 
 def cells(line: str) -> list[str]:
@@ -290,6 +292,9 @@ def main(argv: list[str] | None = None) -> int:
         p.set_defaults(func=fn)
     a = ap.parse_args(argv)
     a.root = a.root.resolve()
+    if a.op in ("approve", "skip", "posted"):  # the three that read, change and save meta.json
+        with meta_io.locked(a.root / ".workflow"):
+            return a.func(a)
     return a.func(a)
 
 

@@ -44,6 +44,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import meta_io
+
 # Phase enum — must stay in sync with .workflow/contracts.md.
 # Index = monotonic position. Skills MAY set a phase >= current; never <.
 PHASES = [
@@ -93,7 +95,7 @@ def load_meta(root: Path) -> tuple[Path, dict[str, Any]]:
 
 def save_meta(meta_path: Path, meta: dict[str, Any]) -> None:
     meta["updated_at"] = now_iso()
-    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
+    meta_io.write_json(meta_path, meta)
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +371,10 @@ def main() -> int:
     p_h.set_defaults(func=cmd_append_history)
 
     args = ap.parse_args()
-    return args.func(args)
+    # One lock around the whole read-modify-write: every operation loads meta.json, changes it and
+    # saves it, and two runs that interleave there lose one of the two changes (see meta_io.py).
+    with meta_io.locked(args.project_root.resolve() / ".workflow"):
+        return args.func(args)
 
 
 if __name__ == "__main__":
