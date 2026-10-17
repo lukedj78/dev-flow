@@ -50,6 +50,40 @@ class Fixture(unittest.TestCase):
         return sorted(skills.parent.glob(skills.name + "-backup-*"))
 
 
+# Where each runtime's install lands, and the bootstrap file it drops (install.sh's own table).
+PLATFORMS = {
+    "claude": (".claude/skills", None),
+    "codex": (".codex/dev-flow-skills", "AGENTS.md"),
+    "copilot": (".config/gh-copilot/skills", None),
+    "gemini": (".gemini/skills", "GEMINI.md"),
+    "cursor": (".dev-flow-skills", ".cursorrules"),
+    "generic": (".dev-flow-skills", "system-prompt.md"),
+}
+
+
+class EveryPlatform(Fixture):
+    """The same round trip on all six runtimes. This proves the install, not that each runtime then loads
+    the skills: four of them are still "scaffolded, not validated" (install.sh --list-platforms)."""
+
+    def test_install_reinstall_uninstall(self) -> None:
+        for platform, (where, bootstrap) in PLATFORMS.items():
+            with self.subTest(platform=platform):
+                skills = self.home / where
+                mine = skills / "my-own-skill" / "SKILL.md"
+                mine.parent.mkdir(parents=True, exist_ok=True)
+                mine.write_text("---\nname: my-own-skill\n---\n")
+                self.install("--platform", platform)
+                self.install("--platform", platform)
+                self.assertEqual(len([d for d in skills.glob("*/SKILL.md")]), SKILL_COUNT + 1)
+                self.assertTrue((skills / "bootstrap" / "tool-mappings.md").is_file())
+                if bootstrap:
+                    self.assertEqual((skills / bootstrap).read_bytes(),
+                                     (REPO / "bootstrap" / "templates" / bootstrap).read_bytes())
+                self.assertEqual(list(skills.glob("*.bak")), [])
+                self.uninstall("--platform", platform)
+                self.assertEqual(sorted(p.name for p in skills.iterdir()), ["my-own-skill"])
+
+
 class Claude(Fixture):
     def setUp(self) -> None:
         super().setUp()

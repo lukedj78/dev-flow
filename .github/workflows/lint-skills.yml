@@ -35,6 +35,10 @@ on:
       - "*/assets/**"
       - "dist/*.skill"
       - "scripts/build_skill_bundles.py"
+      # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
+      - "scripts/test_*.py"
+      - "scripts/run_skill_tests.py"
+      - "bootstrap/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -71,6 +75,10 @@ on:
       - "*/assets/**"
       - "dist/*.skill"
       - "scripts/build_skill_bundles.py"
+      # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
+      - "scripts/test_*.py"
+      - "scripts/run_skill_tests.py"
+      - "bootstrap/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -149,3 +157,14 @@ jobs:
 
       - name: Run every skill's test suite on 3.9
         run: python scripts/run_skill_tests.py
+
+  # install.sh and uninstall.sh run on the user's machine, and most users are on macOS: bash 3.2, BSD
+  # tools, shasum rather than sha256sum. The lint job covers Linux; this covers the Mac, all six runtimes.
+  install-macos:
+    name: installers on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install, reinstall, uninstall and restore on every runtime
+        run: cd scripts && python3 -m unittest test_install -v

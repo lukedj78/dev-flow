@@ -599,7 +599,7 @@ dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is 
 | **Cursor** | `~/.dev-flow-skills/` | `.cursorrules` (auto-copied) | 🧪 scaffolded |
 | **Generic** (any LLM agent) | `~/.dev-flow-skills/` | `system-prompt.md` (manual integration) | 🧪 scaffolded |
 
-`🧪 scaffolded` means: the install path + bootstrap file are wired and tested for shape (`./install.sh --platform codex` produces the right tree), but full end-to-end runs against the real runtime haven't been validated yet. If you try one and hit issues, please [file an issue](https://github.com/lukedj78/dev-flow/issues) — happy to iterate.
+`🧪 scaffolded` means: the install path + bootstrap file are wired and tested for shape — `scripts/test_install.py` installs, reinstalls and uninstalls on every runtime in the table, in CI on Linux and macOS — but full end-to-end runs against the real runtime haven't been validated yet. If you try one and hit issues, please [file an issue](https://github.com/lukedj78/dev-flow/issues) — happy to iterate.
 
 ### What makes it portable
 
