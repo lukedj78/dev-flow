@@ -20,6 +20,7 @@
 #   ./install.sh --platform cursor              # ~/.dev-flow-skills/ + .cursorrules
 #   ./install.sh --platform generic             # ~/.dev-flow-skills/ (path you wire yourself)
 #   ./install.sh --list-platforms               # show the table without installing
+#   ./install.sh --projects ~/projects          # also refresh the project hooks (see below)
 #
 #   CLAUDE_SKILLS_DIR=/custom/path ./install.sh --platform claude   # override
 #
@@ -30,12 +31,21 @@
 #   bootstrap/tool-mappings.md) that is not the one this installer wrote is saved there too, and every
 #   file it writes outside a skill folder is recorded with its hash in <skills-dir>/.dev-flow-installed,
 #   so uninstall.sh removes only what is still exactly as installed.
+#
+# --projects DIR (repeatable): after installing, re-run the setup of every project in DIR (DIR itself and
+#   its direct subfolders) that already has a dev-flow hook — registry-intake (.claude/hooks/registry_intake.py)
+#   or the primitives guard (scripts/guard/primitives-guard.mjs). Each project runs its hook from a committed
+#   copy, and `check` refuses the next phase while that copy differs from the installed skill, so every skill
+#   update used to need one setup per project by hand. A project without a hook is never touched, nothing is
+#   committed, and a setup that fails is named without failing the install. Opt-in: without the flag, this
+#   installer writes only under the skills dir.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM="claude"
 LIST_ONLY=0
+PROJECT_DIRS=()
 
 # Argument parsing.
 while [ $# -gt 0 ]; do
@@ -52,8 +62,14 @@ while [ $# -gt 0 ]; do
       LIST_ONLY=1
       shift
       ;;
+    --projects)
+      [ -n "${2:-}" ] || { echo "--projects needs a directory"; exit 2; }
+      [ -d "$2" ] || { echo "--projects: not a directory: $2"; exit 2; }
+      PROJECT_DIRS+=("$(cd "$2" && pwd)")
+      shift 2
+      ;;
     -h|--help)
-      sed -n '2,30p' "$0"   # prints the usage block above
+      sed -n '2,40p' "$0"   # prints the usage block above
       exit 0
       ;;
     *)
@@ -335,6 +351,55 @@ if [ "$KEEP" -gt 0 ]; then
       drop=$((drop - 1))
     fi
   done
+fi
+
+# Opt-in: refresh the vendored hooks of the projects that already have them (see --projects above).
+if [ "${#PROJECT_DIRS[@]}" -gt 0 ]; then
+  echo
+  echo "Refreshing project hooks:"
+  touched=0
+  for base in "${PROJECT_DIRS[@]}"; do
+    for proj in "$base" "$base"/*/; do
+      proj="${proj%/}"
+      [ -d "$proj" ] || continue
+      jobs=()
+      if [ -f "$proj/.claude/hooks/registry_intake.py" ]; then
+        jobs+=("registry-intake|$SKILLS_DIR/registry-intake/scripts/registry_intake.py|setup")
+      fi
+      if [ -f "$proj/scripts/guard/primitives-guard.mjs" ]; then
+        jobs+=("primitives-guard|$SKILLS_DIR/design-md-to-app/scripts/setup_primitives_guard.py|")
+      fi
+      [ "${#jobs[@]}" -gt 0 ] || continue
+      touched=$((touched + 1))
+      line="  ↻ $(basename "$proj"):"
+      fails=""
+      for job in "${jobs[@]}"; do
+        IFS='|' read -r name script sub <<< "$job"
+        if [ ! -f "$script" ]; then
+          line="$line $name ✗ (skill not installed)"
+          continue
+        fi
+        if out="$(python3 "$script" ${sub:+"$sub"} "$proj" 2>&1)"; then
+          skipped="$(printf '%s\n' "$out" | grep -m1 ' skipped — ' | sed 's/.* skipped — //' || true)"
+          if [ -n "$skipped" ]; then
+            line="$line $name skipped ($skipped)"
+          else
+            line="$line $name ✓"
+          fi
+        else
+          line="$line $name ✗"
+          fails="$fails$(printf '%s\n' "$out" | grep -E '✗|!|rror' | sed 's/^/      /')"$'\n'
+        fi
+      done
+      echo "$line"
+      if [ -n "$fails" ]; then printf '%s' "$fails"; fi
+    done
+  done
+  if [ "$touched" -eq 0 ]; then
+    echo "  no project with a dev-flow hook found under: ${PROJECT_DIRS[*]}"
+  else
+    echo "  Nothing was committed: review each project's changes with git diff."
+  fi
 fi
 
 echo

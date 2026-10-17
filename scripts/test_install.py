@@ -204,5 +204,71 @@ class Codex(Fixture):
         self.assertFalse(self.agents.exists())
 
 
+class Projects(Fixture):
+    """--projects re-runs the setup of the projects that already have a dev-flow hook.
+
+    Each project runs its hook from a committed copy, and `check` refuses the next phase while that copy
+    differs from the installed skill. Every skill update meant one setup per project by hand (8 on
+    2026-10-17). The flag is opt-in, and touches only projects that already have a hook.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.skills = self.home / ".claude/skills"
+        self.projects = self.home / "projects"
+        self.governed = self.projects / "governed"
+        (self.governed / ".claude/hooks").mkdir(parents=True)
+        (self.governed / ".claude/hooks/registry_intake.py").write_text("# an old copy\n")
+        self.plain = self.projects / "plain"
+        self.plain.mkdir(parents=True)
+
+    def test_a_stale_hook_is_refreshed(self) -> None:
+        r = self.install("--projects", str(self.projects))
+        hook = (self.governed / ".claude/hooks/registry_intake.py").read_text()
+        self.assertEqual(hook, (self.skills / "registry-intake/scripts/registry_intake.py").read_text())
+        self.assertIn("governed: registry-intake ✓", r.stdout)
+        self.assertIn("Nothing was committed", r.stdout)
+
+    def test_a_project_without_a_hook_is_not_touched(self) -> None:
+        r = self.install("--projects", str(self.projects))
+        self.assertEqual(list(self.plain.iterdir()), [])
+        self.assertNotIn("plain", r.stdout)
+
+    def test_without_the_flag_no_project_is_touched(self) -> None:
+        r = self.install()
+        self.assertEqual((self.governed / ".claude/hooks/registry_intake.py").read_text(), "# an old copy\n")
+        self.assertNotIn("Refreshing project hooks", r.stdout)
+
+    def test_a_failing_setup_is_named_and_does_not_fail_the_install(self) -> None:
+        broken = self.projects / "broken"
+        (broken / ".claude/hooks").mkdir(parents=True)
+        (broken / ".claude/hooks/registry_intake.py").write_text("# an old copy\n")
+        (broken / "vendor/registry").mkdir(parents=True)
+        (broken / "vendor/registry/stray.json").write_text("{}")   # in vendor/ but not in the lock: check fails
+        r = self.install("--projects", str(self.projects))
+        self.assertIn("broken: registry-intake ✗", r.stdout)
+        self.assertIn("stray.json", r.stdout)
+        self.assertIn("governed: registry-intake ✓", r.stdout)
+
+    def test_a_guard_setup_that_skips_says_so(self) -> None:
+        guarded = self.projects / "guarded"
+        (guarded / "scripts/guard").mkdir(parents=True)
+        (guarded / "scripts/guard/primitives-guard.mjs").write_text("// old\n")
+        r = self.install("--projects", str(self.projects))
+        # no Next app here, so the guard's setup skips itself (exit 0): that is not a refresh, and must not read as one
+        self.assertIn("guarded: primitives-guard skipped (stack.framework=None", r.stdout)
+        self.assertEqual((guarded / "scripts/guard/primitives-guard.mjs").read_text(), "// old\n")
+
+    def test_a_missing_directory_is_refused_before_installing(self) -> None:
+        r = self.sh("install.sh", "--projects", str(self.home / "nope"))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("not a directory", r.stdout)
+        self.assertFalse(self.skills.exists())
+
+    def test_no_project_with_a_hook_says_so(self) -> None:
+        r = self.install("--projects", str(self.plain))
+        self.assertIn("no project with a dev-flow hook", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

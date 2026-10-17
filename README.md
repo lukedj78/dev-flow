@@ -111,9 +111,12 @@ cd dev-flow
 ./install.sh                          # defaults to Claude Code
 ./install.sh --platform codex         # or Codex CLI / Copilot / Gemini / Cursor
 ./install.sh --list-platforms         # see all supported runtimes
+./install.sh --projects ~/projects    # also refresh the hooks of your projects that have them
 ```
 
 The script copies every skill folder into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and moves any pre-existing version of a skill, or a bootstrap file it did not write, to `<skills-dir>-backup-<timestamp>/` (outside the skills folder, so it is never loaded as a second copy; the newest 3 are kept, `DEV_FLOW_KEEP_BACKUPS=0` keeps all). `./uninstall.sh --platform <same>` removes the skills and only the bootstrap files still exactly as installed; add `--restore` to put back what the most recent install moved aside.
+
+`--projects <dir>` (repeatable, opt-in) re-runs, after installing, the setup of every project in `<dir>` (and `<dir>` itself) that already has a dev-flow hook: registry-intake or the primitives guard. Each project runs its hook from a committed copy, and the phase gate refuses while that copy is older than the installed skill, so without the flag every skill update needs one setup per project. Projects without a hook are not touched, nothing is committed, and a setup that fails or skips itself is named in the output.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
