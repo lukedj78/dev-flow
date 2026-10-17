@@ -1111,5 +1111,66 @@ class Hooks(unittest.TestCase):
         self.assertFalse(ri.check(root)[0])
 
 
+
+class AfterTheCommand(Base):
+    """A shell command's effect on the governed state, checked right after it (AUDIT.md P1-34).
+
+    The PreToolUse hook reads the command's text and can be talked around. What it cannot be talked around
+    on is what the command changed: a registry added to components.json, a snapshot edited after approval.
+    Those `check` already finds — at the phase gate, possibly days later (fit-coach's snapshot: a month).
+    Now the PreToolUse hook records the registry problems before the command and `hook-post` reports the
+    ones the command introduced."""
+
+    def event(self, session: str = "s1") -> dict:
+        return {"session_id": session, "cwd": str(self.root), "tool_name": "Bash", "tool_input": {"command": "x"}}
+
+    def setUp(self) -> None:
+        super().setUp()
+        project(self.root)
+        self.serve("pdf/card", item("pdf/card", [ui_file("components/pdf/card.tsx")]))
+        quiet(ri.main, ["setup", str(self.root)])
+        quiet(ri.main, ["allow", str(self.root), "@x", REG, "--reason", "r"])
+        quiet(ri.main, ["approve", str(self.root), "@x/pdf/card", "--by", "luca"])
+
+    def test_a_registry_the_command_added_is_reported_right_after_it(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        cfg = json.loads((self.root / "components.json").read_text())
+        cfg["registries"]["@evil"] = "https://evil.example/r/{name}.json"
+        write(self.root, "components.json", cfg)
+        report = ri.hook_post_report(self.event())
+        self.assertIsNotNone(report)
+        self.assertIn("@evil", report)
+
+    def test_a_snapshot_the_command_edited_is_reported(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")
+        self.assertIn("edited after approval", ri.hook_post_report(self.event()) or "")
+
+    def test_a_problem_that_was_there_before_is_not_repeated(self) -> None:
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")          # fit-coach: edited long before this command
+        ri.hook_pre_snapshot(self.event())
+        self.assertIsNone(ri.hook_post_report(self.event()))
+
+    def test_a_command_that_changes_nothing_governed_is_silent(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        write(self.root, "components/other.tsx", "export const O = 1\n")
+        self.assertIsNone(ri.hook_post_report(self.event()))
+
+    def test_without_a_snapshot_it_stays_out_of_the_way(self) -> None:
+        self.assertIsNone(ri.hook_post_report(self.event("never-pre")))
+
+    def test_setup_wires_the_post_hook_and_check_requires_it(self) -> None:
+        settings = json.loads((self.root / ".claude/settings.json").read_text())
+        post = settings["hooks"].get("PostToolUse") or []
+        self.assertTrue(any("hook-post" in h["command"] for m in post for h in m["hooks"]))
+        settings["hooks"]["PostToolUse"] = []
+        write(self.root, ".claude/settings.json", settings)
+        ok, problems = ri.check(self.root)
+        self.assertFalse(ok)
+        self.assertTrue(any("hook-post" in p for p in problems))
+
+
 if __name__ == "__main__":
     unittest.main()
