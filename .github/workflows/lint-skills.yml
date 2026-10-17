@@ -26,16 +26,10 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
-      # The design-lint setup and the phase gate in set-phase. Every new web app's move
-      # into `scaffolded` depends on them, so a change to either must run their tests.
-      - "design-md-to-app/scripts/**"
-      - "dev-flow/scripts/**"
-      - "registry-intake/scripts/**"
-      # Writers of meta.json through a vendored meta_io.py: test_meta_io runs them under concurrency,
-      # and the lint keeps their copy identical to dev-flow's.
-      - "forms/scripts/**"
-      - "linear-scrum/scripts/**"
-      - "wireframe-canvas/scripts/**"
+      # Every skill's scripts: run_skill_tests.py runs each <skill>/scripts/test_*.py it finds,
+      # so a change to any script folder must run them. Naming folders one by one is how CI
+      # came to run 4 of 17 test files.
+      - "*/scripts/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -63,16 +57,10 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
-      # The design-lint setup and the phase gate in set-phase. Every new web app's move
-      # into `scaffolded` depends on them, so a change to either must run their tests.
-      - "design-md-to-app/scripts/**"
-      - "dev-flow/scripts/**"
-      - "registry-intake/scripts/**"
-      # Writers of meta.json through a vendored meta_io.py: test_meta_io runs them under concurrency,
-      # and the lint keeps their copy identical to dev-flow's.
-      - "forms/scripts/**"
-      - "linear-scrum/scripts/**"
-      - "wireframe-canvas/scripts/**"
+      # Every skill's scripts: run_skill_tests.py runs each <skill>/scripts/test_*.py it finds,
+      # so a change to any script folder must run them. Naming folders one by one is how CI
+      # came to run 4 of 17 test files.
+      - "*/scripts/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -94,29 +82,11 @@ jobs:
       - name: Lint all skills
         run: python3 scripts/lint_skills.py
 
-      - name: Test the design-lint setup and the phase gate
-        run: cd design-md-to-app/scripts && python3 -m unittest test_setup_design_lint -v
-
-      - name: Test registry intake (allowlist, review, snapshot, hook, phase gate)
-        run: cd registry-intake/scripts && python3 -m unittest test_registry_intake -v
-
-      - name: Test data residency (decision, sub-processor register, check, phase gate)
-        run: cd dev-flow/scripts && python3 -m unittest test_data_residency -v
-
-      - name: Test meta.json writes (atomic replace, lock, no lost update under concurrency)
-        run: cd dev-flow/scripts && python3 -m unittest test_meta_io -v
-
-      - name: Test the phase enum (one table, matches the contract, no regression through an alias)
-        run: cd dev-flow/scripts && python3 -m unittest test_phases -v
-
-      - name: Test the phase gates at both doors (set-phase and append-history --phase-after)
-        run: cd dev-flow/scripts && python3 -m unittest test_gate_doors -v
-
-      - name: Test that history records every phase change and nothing that did not happen
-        run: cd dev-flow/scripts && python3 -m unittest test_history -v
-
-      - name: Test update_meta.py and show_state.py directly (record-artifact, input errors, routing table)
-        run: cd dev-flow/scripts && python3 -m unittest test_update_meta test_show_state -v
+      # One step for every suite: run_skill_tests.py discovers each <skill>/scripts/test_*.py tracked
+      # by git, fails on a red suite and on one that ran zero tests, and prints the skips. CI used to
+      # name the files one by one and ran 4 of 17.
+      - name: Run every skill's test suite
+        run: python3 scripts/run_skill_tests.py
 
       - name: Self-test the compliance grader (offline — the agent runs are local and paid)
         run: python3 evals/compliance/comply.py selftest
