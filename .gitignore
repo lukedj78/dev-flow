@@ -6,6 +6,9 @@
 .idea/
 *.swp
 
+# JavaScript dependencies — ignored everywhere, not only inside agent-guards/
+node_modules/
+
 # Python
 __pycache__/
 *.pyc
