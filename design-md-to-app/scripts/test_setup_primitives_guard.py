@@ -153,6 +153,41 @@ class Install(unittest.TestCase):
             self.assertIn("src/components/**", ui["ignores"])
 
 
+class ConfinedWrites(unittest.TestCase):
+    """Every write the guard's setup makes lands inside the project once symlinks are followed (as registry-intake's)."""
+
+    def test_a_settings_file_pointing_outside_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as o:
+            root, victim = Path(d), Path(o) / "settings.json"
+            scaffold(root)
+            victim.write_text("{}\n")
+            (root / ".claude").mkdir(exist_ok=True)
+            (root / ".claude/settings.json").symlink_to(victim)
+            with self.assertRaises(SystemExit) as e:
+                quiet(spg.install, root)
+            self.assertIn("outside the project", str(e.exception.code))
+            self.assertEqual(victim.read_text(), "{}\n")
+
+    def test_a_guard_folder_linked_outside_is_refused_before_anything_is_copied(self) -> None:
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as o:
+            root = Path(d)
+            scaffold(root)
+            (root / "scripts").mkdir(exist_ok=True)
+            (root / "scripts/guard").symlink_to(o)
+            with self.assertRaises(SystemExit):
+                quiet(spg.install, root)
+            self.assertEqual(list(Path(o).iterdir()), [])
+
+    def test_agents_md_linked_to_claude_md_inside_is_fine(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            scaffold(root)
+            (root / "CLAUDE.md").write_text("# project\n")
+            (root / "AGENTS.md").symlink_to(root / "CLAUDE.md")
+            self.assertEqual(quiet(spg.install, root), 0)
+            self.assertIn(spg.BEGIN, (root / "CLAUDE.md").read_text())
+
+
 class Retrofit(unittest.TestCase):
     """dev-flow's one-command retrofit is setup_design_lint.py: the rule, then the guard."""
 

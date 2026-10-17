@@ -168,8 +168,22 @@ def load_lock(root: Path) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
+def confined(root: Path, path: Path) -> Path:
+    """The path, if it lands inside the project once every symlink on the way is followed; else refuse.
+
+    Called right before each write into a project. A cloned repo can put a symlink where setup writes
+    (the hook copy, settings.json, AGENTS.md, meta.json, the lock…) and make the write overwrite a file
+    of the user's elsewhere. Checking at the write, on the fully resolved path, holds for any chain of
+    links at any depth; a list of paths checked beforehand did not. Links that stay inside the project
+    (AGENTS.md -> CLAUDE.md) are fine."""
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise SystemExit(f"refused: {path} resolves to {path.resolve()}, outside the project {root}. "
+                         "A symlink on the way would make this write land there; remove it and run again.")
+    return path
+
+
 def save_lock(root: Path, lock: dict) -> None:
-    lock_path(root).write_text(json.dumps(lock, indent=2, sort_keys=False) + "\n")
+    confined(root, lock_path(root)).write_text(json.dumps(lock, indent=2, sort_keys=False) + "\n")
 
 
 def find_root(start: Path) -> Path | None:
@@ -842,7 +856,7 @@ def cmd_approve(args) -> int:
         if not in_vendor(root, rel):
             print(f"\nrefused: the snapshot path of {it.key} resolves outside {VENDOR}/", file=sys.stderr)
             return 1
-        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        confined(root, root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(json.dumps(snap, indent=2) + "\n")
         mine = [f for f in rep.findings if f.item == it.key]
         lock.setdefault("items", {})[it.key] = {
@@ -1869,13 +1883,13 @@ def wire_hook(root: Path) -> bool:
     break on every other machine — and python3 on a missing file exits 2, which Claude Code reads
     as "block", so every Bash call would be refused."""
     changed = False
-    copy = root / HOOK_COPY
+    copy = confined(root, root / HOOK_COPY)
     here = Path(__file__).resolve()
     if here != copy.resolve() and (not copy.exists() or copy.read_bytes() != here.read_bytes()):
         copy.parent.mkdir(parents=True, exist_ok=True)
         copy.write_bytes(here.read_bytes())
         changed = True
-    p = root / ".claude" / "settings.json"
+    p = confined(root, root / ".claude" / "settings.json")
     data = json.loads(p.read_text()) if p.exists() else {}
     wrote = False
     for event, command in (("PreToolUse", HOOK_COMMAND), ("PostToolUse", HOOK_POST_COMMAND)):
@@ -1942,7 +1956,7 @@ def cmd_setup(args) -> int:
     save_lock(root, lock)
     hooked = wire_hook(root)
     excluded, manual = exclude_from_formatters(root)
-    agents = root / "AGENTS.md"
+    agents = confined(root, root / "AGENTS.md")
     text = agents.read_text() if agents.exists() else ""
     if SETUP_MARK[0] in text:
         text = re.sub(re.escape(SETUP_MARK[0]) + r".*?" + re.escape(SETUP_MARK[1]) + r"\n?", AGENTS_BLOCK, text, flags=re.S)
@@ -1977,7 +1991,7 @@ def exclude_from_formatters(root: Path) -> tuple[list[str], list[str]]:
         ignore = root / ".prettierignore"
         lines = ignore.read_text().splitlines() if ignore.exists() else []
         if not {"vendor/registry", "vendor/registry/", "/vendor/registry/"} & {l.strip() for l in lines}:
-            ignore.write_text("\n".join([*lines, f"{VENDOR}/"]) + "\n")
+            confined(root, ignore).write_text("\n".join([*lines, f"{VENDOR}/"]) + "\n")
             changed.append(".prettierignore")
     for name in ("biome.json", "biome.jsonc"):
         conf = root / name
@@ -1994,7 +2008,7 @@ def exclude_from_formatters(root: Path) -> tuple[list[str], list[str]]:
         current = files.get(key) or ([] if key == "ignore" else ["**"])
         if entry not in current:
             files[key] = [*current, entry]
-            conf.write_text(json.dumps(data, indent=2) + "\n")
+            confined(root, conf).write_text(json.dumps(data, indent=2) + "\n")
             changed.append(name)
     return changed, manual
 
@@ -2030,7 +2044,7 @@ def record(root: Path, value: str) -> None:
         if (d.get("stack") or {}).get("registry_intake") == value:
             return
         d.setdefault("stack", {})["registry_intake"] = value
-        meta_io.write_json(meta, d)
+        meta_io.write_json(confined(root, meta), d)
 
 
 def cmd_allow(args) -> int:

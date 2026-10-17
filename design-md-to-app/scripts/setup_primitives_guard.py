@@ -120,6 +120,19 @@ def guard_units(root: Path, units: list[dict]) -> list[dict]:
 # Wiring — safe to repeat
 # ---------------------------------------------------------------------------------------
 
+def confined(root: Path, path: Path) -> Path:
+    """The path, if it lands inside the project once every symlink on the way is followed; else refuse.
+
+    Called right before each write into a project (the same rule as registry-intake's setup). A cloned
+    repo can put a symlink where setup writes and make the write overwrite a file of the user's
+    elsewhere; checking the fully resolved path at the write holds for any chain of links. Links that
+    stay inside the project (AGENTS.md -> CLAUDE.md) are fine."""
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise SystemExit(f"refused: {path} resolves to {path.resolve()}, outside the project {root}. "
+                         "A symlink on the way would make this write land there; remove it and run again.")
+    return path
+
+
 def write_if_changed(p: Path, text: str) -> bool:
     if p.exists() and p.read_text() == text:
         return False
@@ -131,7 +144,7 @@ def write_if_changed(p: Path, text: str) -> bool:
 def copy_assets(root: Path) -> list[str]:
     changed = []
     for name in COPIED:
-        dst = root / GUARD_DIR / name
+        dst = confined(root, root / GUARD_DIR / name)
         if not dst.exists() or dst.read_bytes() != (ASSETS / name).read_bytes():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ASSETS / name, dst)
@@ -154,7 +167,7 @@ def has_guard_hook(entries: list, mode: str, matcher: str | None) -> bool:
 
 def merge_settings(root: Path) -> bool:
     """Add the guard's hooks to .claude/settings.json without removing or reordering anything."""
-    p = root / ".claude" / "settings.json"
+    p = confined(root, root / ".claude" / "settings.json")
     try:
         data = json.loads(p.read_text()) if p.exists() else {}
     except json.JSONDecodeError as e:
@@ -190,8 +203,8 @@ def write_section(p: Path, body: str, create: bool) -> str:
 
 def write_agents(root: Path, components: str) -> list[str]:
     body = agents_section(components)
-    notes = [f"AGENTS.md: {write_section(root / 'AGENTS.md', body, create=True)}"]
-    claude = root / "CLAUDE.md"
+    notes = [f"AGENTS.md: {write_section(confined(root, root / 'AGENTS.md'), body, create=True)}"]
+    claude = confined(root, root / "CLAUDE.md")
     # create-next-app@16 writes CLAUDE.md as `@AGENTS.md`: the section reaches Claude through the import
     if claude.exists() and "@AGENTS.md" not in claude.read_text():
         notes.append(f"CLAUDE.md: {write_section(claude, body, create=False)}")
@@ -207,7 +220,7 @@ def record(root: Path) -> None:
         if m.get("stack", {}).get("primitives_guard") == "installed":
             return
         m.setdefault("stack", {})["primitives_guard"] = "installed"
-        meta_io.write_json(p, m)
+        meta_io.write_json(confined(root, p), m)
 
 
 def install(root: Path, units: list[dict] | None = None) -> int:
@@ -228,7 +241,7 @@ def install(root: Path, units: list[dict] | None = None) -> int:
         return 1
     gunits = guard_units(root, units)
     copied = copy_assets(root)
-    cfg = write_if_changed(root / GUARD_DIR / "guard.json", json.dumps({"units": gunits}, indent=2) + "\n")
+    cfg = write_if_changed(confined(root, root / GUARD_DIR / "guard.json"), json.dumps({"units": gunits}, indent=2) + "\n")
     hooks = merge_settings(root)
     notes = write_agents(root, gunits[0]["components"])
     record(root)
