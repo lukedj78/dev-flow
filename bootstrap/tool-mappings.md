@@ -41,15 +41,15 @@ Beyond tool names, dev-flow has a few **filesystem-contract operations** that ar
 | Append history | `python3 dev-flow/scripts/update_meta.py <root> append-history --skill <s> --inputs <json> --outputs <json>` | any |
 | Check drift | `python3 dev-flow/scripts/check_drift.py <root> [--plan]` | any |
 
-Or, equivalently from any Python runtime:
+From Python, the `dev-flow-contract` package reads and writes the same file:
 
 ```python
-from dev_flow_contract import (
-    init_workflow, record_artifact, set_phase, append_history, check_drift, Phase
-)
+from dev_flow_contract import load_meta, record_artifact, check_drift
 ```
 
-The contract package is the **portable surface** — every runtime that can run Python (or shell out to it) can read and write `.workflow/` correctly.
+It is **not** equivalent for moving phase: its `set_phase()` enforces order only and runs none of the
+gates `update_meta.py set-phase` holds (inventory, wireframes, data residency, design lint, registry
+intake, primitives guard). Move phase with the script, from any runtime that can shell out to Python.
 
 ## When this table goes stale
 

@@ -14,7 +14,7 @@ Every dev-flow project has a `.workflow/` folder at its root. The state lives in
 {
   "project_slug": "...",
   "project_name": "...",
-  "phase": "empty | idea_captured | prd_drafted | tasks_split | design_extracted | scaffolded | page_generated | module-added",
+  "phase": "empty | idea_captured | prd_drafted | tasks_split | design_extracted | monorepo_initialized | scaffolded | page_generated | module_added | feature_complete | deployed",
   "stack": { "framework": "...", "ui": "...", "auth": "...", "db": "...", "payments": "...", "email": "...", "test": "...", "ci": "..." },
   "artifacts": { "<path>": { "sha256": "...", "produced_by": "...", "produced_at": "...", "derived_from": [...] } },
   "history": [ { "skill": "...", "ran_at": "...", "outputs": [...], "phase_before": "...", "phase_after": "..." } ]
@@ -62,10 +62,12 @@ python3 <dev-flow-root>/dev-flow/scripts/update_meta.py <project-root> \
 python3 <dev-flow-root>/dev-flow/scripts/check_drift.py <project-root> [--plan]
 ```
 
-Or, equivalently from any Python runtime that has the package:
+From Python, the `dev-flow-contract` package reads and writes the same file — but it is **not** equivalent
+for moving phase: it does not run the phase gates (inventory, wireframes, data residency, design lint,
+registry intake, primitives guard). Move phase with `update_meta.py`, always:
 
 ```python
-from dev_flow_contract import init_workflow, record_artifact, set_phase, append_history, check_drift, Phase
+from dev_flow_contract import load_meta, record_artifact, check_drift  # reading, recording, drift — fine
 ```
 
 ## Tool naming

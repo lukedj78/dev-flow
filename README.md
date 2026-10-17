@@ -81,7 +81,7 @@ The skill count is an implementation detail. The contract is the moat.
 - **Enforced transitions, where it matters.** The orchestrator *suggests* the next step; one transition it *refuses*. A Next web app on a Tailwind UI does not enter `scaffolded` until its design-system lint is wired — `update_meta.py set-phase` runs the check — or an opt-out is recorded with its reason. A guardrail is worth most before the first violation exists, and a rule an agent is merely asked to follow is the rule a hurried agent skips.
 - **Drift detection.** Every contract file is content-addressed. When the user edits `DESIGN.md` by hand, the system knows that `registry.json` and `/showcase` (which were derived from it) are now stale — and it knows transitively, so a chain of derivations propagates.
 
-The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. The skills are interchangeable consumers; the package is the durable surface.
+The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. It is a reference implementation, held to the contract by tests, not what the skills run, and it does not run the phase gates: phase moves go through `update_meta.py`.
 
 ---
 
@@ -611,7 +611,7 @@ dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is 
    - `bootstrap/templates/.cursorrules` — Cursor entry point
    - `bootstrap/templates/system-prompt.md` — generic system-prompt fallback for custom agents
 
-3. **`dev-flow-contract` Python package** — the runtime-independent core. Any Python-capable agent can read/write `.workflow/` correctly without depending on any specific runtime:
+3. **`dev-flow-contract` Python package** — the contract as a library, independent of any runtime, for reading `.workflow/`, recording artifacts and checking drift. It does not run the phase gates, so phase moves still go through `update_meta.py` (item 4):
    ```python
    from dev_flow_contract import init_workflow, record_artifact, check_drift
    ```

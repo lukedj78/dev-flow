@@ -1,14 +1,25 @@
-"""Core types + functions for the dev-flow filesystem contract.
+"""Core types + functions for the dev-flow filesystem contract — a reference implementation.
 
-This is the load-bearing module. The CLI scripts in `dev-flow/scripts/`
-delegate to these primitives so there's a single source of truth for the
-contract semantics.
+The dev-flow skills do NOT run this package: `dev-flow/scripts/` (update_meta.py, show_state.py,
+check_drift.py) is its own implementation, and the normative text is `dev-flow/references/contracts.md`.
+This module used to say the scripts delegated to it; nothing imported it (AUDIT.md §6.5). What it offers
+is the contract as a library, for a tool outside the skills that wants to read or write `.workflow/`.
+
+What it does not do, by design: run dev-flow's phase gates (inventory, wireframes, data residency,
+design lint, registry intake, primitives guard). `set_phase()` here enforces monotonicity only, so a
+tool that moves phase through it walks past every gate `update_meta.py set-phase` would hold.
+
+What it does guarantee: fields the dataclasses do not model are written back untouched, as the contract
+requires, and every write is atomic.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
+import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -43,16 +54,15 @@ class Phase(str, Enum):
 
     @classmethod
     def _missing_(cls, value: object) -> "Phase | None":
-        """Accept the legacy hyphenated spelling of `module_added`.
+        """Accept the legacy hyphenated spellings (the aliases in dev-flow/scripts/phases.py).
 
-        Projects scaffolded before the enum was normalised carry
-        `"module-added"` in their meta.json. `update_meta.py` rewrites it on
-        the next write; until then it must still parse, or a working project
-        stops loading because of a dash.
+        Projects scaffolded before the enum was normalised carry `"module-added"` and its siblings in
+        their meta.json. `update_meta.py` rewrites them on the next phase change; until then they must
+        still parse, or a working project stops loading because of a dash.
         """
-        if value == "module-added":
-            return cls.MODULE_ADDED
-        return None
+        legacy = {"module-added": cls.MODULE_ADDED, "page-generated": cls.PAGE_GENERATED,
+                  "design-extracted": cls.DESIGN_EXTRACTED}
+        return legacy.get(value) if isinstance(value, str) else None
 
     @classmethod
     def order(cls) -> list["Phase"]:
@@ -136,6 +146,9 @@ class Meta:
     stack: Stack = field(default_factory=Stack)
     artifacts: dict[str, Artifact] = field(default_factory=dict)
     history: list[HistoryEntry] = field(default_factory=list)
+    # The document as it was read. Written back underneath the modelled fields, so a key this class does
+    # not know (inventory, wireframes, stack.agent, a history entry's `action`) survives the write.
+    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
 # ---------------------------------------------------------------------------
@@ -194,17 +207,69 @@ def _meta_path(root: Path) -> Path:
 
 
 def _to_dict(meta: Meta) -> dict[str, Any]:
-    """Serialize Meta → dict for JSON output (preserving the shape)."""
+    """Serialize Meta → dict: the document as read, with the modelled fields written over it.
+
+    An artifact or history entry no operation changed is written back exactly as read, so a hand-written
+    shape (an artifact with no sha256, inputs as bare paths) is not silently normalised."""
     d = asdict(meta)
-    # asdict turns Stack into a dict and keeps None values — the spec wants
-    # null on undecided keys, so leave them.
-    # artifacts: dict[str, Artifact] → asdict turns the values into dicts,
-    # but the keys (paths) are preserved.
-    return d
+    d.pop("raw")
+    out = copy.deepcopy(meta.raw)
+    raw_artifacts = out.get("artifacts") if isinstance(out.get("artifacts"), dict) else {}
+    raw_history = out.get("history") if isinstance(out.get("history"), list) else []
+
+    artifacts = dict(raw_artifacts)
+    for path, art in meta.artifacts.items():
+        old = raw_artifacts.get(path)
+        if isinstance(old, dict) and _artifact_from(old) == art:
+            artifacts[path] = old
+        else:
+            artifacts[path] = {**(old if isinstance(old, dict) else {}), **asdict(art)}
+
+    history = []
+    for i, entry in enumerate(meta.history):
+        old = raw_history[i] if i < len(raw_history) and isinstance(raw_history[i], dict) else None
+        history.append(old if old is not None and _history_from(old) == entry
+                       else {**(old or {}), **asdict(entry)})
+
+    raw_stack = out.get("stack") if isinstance(out.get("stack"), dict) else {}
+    out.update({k: v for k, v in d.items() if k not in ("stack", "artifacts", "history")})
+    out["stack"] = {**raw_stack, **d["stack"]}
+    out["artifacts"] = artifacts
+    out["history"] = history
+    if meta.raw:  # a document read from disk: a key it lacked and that is still empty is not invented
+        for k in [k for k, v in out.items() if k not in meta.raw and v in ("", {}, [])]:
+            del out[k]
+    return out
+
+
+def _artifact_from(entry: dict[str, Any]) -> Artifact:
+    derived = []
+    for dep in entry.get("derived_from") or []:
+        if isinstance(dep, str):  # a bare path, as some hand-written files have it
+            derived.append(DerivedFrom(path=dep, sha256=""))
+        elif isinstance(dep, dict):
+            derived.append(DerivedFrom(path=dep.get("path", ""), sha256=dep.get("sha256", "")))
+    return Artifact(
+        sha256=entry.get("sha256", ""),
+        produced_by=entry.get("produced_by", ""),
+        produced_at=entry.get("produced_at", ""),
+        derived_from=derived,
+    )
+
+
+def _history_from(h: dict[str, Any]) -> HistoryEntry:
+    return HistoryEntry(
+        skill=h.get("skill", ""),
+        ran_at=h.get("ran_at", ""),
+        inputs=h.get("inputs") or {},
+        outputs=h.get("outputs") or [],
+        phase_before=h.get("phase_before"),
+        phase_after=h.get("phase_after"),
+    )
 
 
 def _from_dict(d: dict[str, Any]) -> Meta:
-    """Parse a dict (from JSON) into Meta. Tolerant of older shapes."""
+    """Parse a dict (from JSON) into Meta. Tolerant of older and hand-written shapes."""
     stack_d = d.get("stack") or {}
     stack = Stack(
         framework=stack_d.get("framework"),
@@ -219,40 +284,20 @@ def _from_dict(d: dict[str, Any]) -> Meta:
         deploy=stack_d.get("deploy"),
     )
 
-    artifacts: dict[str, Artifact] = {}
-    for path, entry in (d.get("artifacts") or {}).items():
-        derived = [
-            DerivedFrom(path=dep["path"], sha256=dep["sha256"])
-            for dep in entry.get("derived_from") or []
-        ]
-        artifacts[path] = Artifact(
-            sha256=entry["sha256"],
-            produced_by=entry["produced_by"],
-            produced_at=entry["produced_at"],
-            derived_from=derived,
-        )
-
-    history = [
-        HistoryEntry(
-            skill=h["skill"],
-            ran_at=h["ran_at"],
-            inputs=h.get("inputs") or {},
-            outputs=h.get("outputs") or [],
-            phase_before=h.get("phase_before"),
-            phase_after=h.get("phase_after"),
-        )
-        for h in d.get("history") or []
-    ]
+    artifacts = {path: _artifact_from(entry) for path, entry in (d.get("artifacts") or {}).items()
+                 if isinstance(entry, dict)}
+    history = [_history_from(h) for h in d.get("history") or [] if isinstance(h, dict)]
 
     return Meta(
-        project_slug=d["project_slug"],
-        project_name=d["project_name"],
-        created_at=d["created_at"],
-        updated_at=d["updated_at"],
+        project_slug=d.get("project_slug", ""),
+        project_name=d.get("project_name", ""),
+        created_at=d.get("created_at", ""),
+        updated_at=d.get("updated_at", ""),
         phase=d.get("phase", Phase.EMPTY.value),
         stack=stack,
         artifacts=artifacts,
         history=history,
+        raw=copy.deepcopy(d),
     )
 
 
@@ -301,7 +346,25 @@ def save_meta(root: Path, meta: Meta) -> None:
     meta.updated_at = _now_iso()
     meta_path = _meta_path(Path(root).resolve())
     meta_path.parent.mkdir(parents=True, exist_ok=True)
-    meta_path.write_text(json.dumps(_to_dict(meta), indent=2, ensure_ascii=False) + "\n")
+    # Atomic, like dev-flow/scripts/meta_io.py: a reader sees the old file or the new one, never a
+    # truncated one, and a crash mid-write cannot leave meta.json empty.
+    fd, tmp = tempfile.mkstemp(dir=meta_path.parent, prefix=".meta.json.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(_to_dict(meta), indent=2, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        if meta_path.exists():
+            os.chmod(tmp, meta_path.stat().st_mode & 0o777)
+        else:
+            umask = os.umask(0)
+            os.umask(umask)
+            os.chmod(tmp, 0o666 & ~umask)
+        os.replace(tmp, meta_path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def record_artifact(
