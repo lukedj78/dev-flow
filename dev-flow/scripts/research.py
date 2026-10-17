@@ -273,7 +273,10 @@ def cmd_status(_a) -> int:
             dead += 0 if ok else 1
             continue
         status, _ = get(url, accept="*/*")
-        print(f"  {name:22} {'alive' if status == 200 else f'unreachable ({status or 'no answer'})'}")
+        # Built outside the f-string: a quote reused inside one is Python 3.12+ syntax, and macOS's own
+        # python3 is 3.9 (CI compiles every script on 3.9).
+        label = "alive" if status == 200 else f"unreachable ({status or 'no answer'})"
+        print(f"  {name:22} {label}")
         dead += 0 if status == 200 else 1
     print("\nThe general web is WebSearch and WebFetch: there is no search engine here, because every")
     print("good one wants a key. A channel that is silent goes into the plan as not covered.")

@@ -130,3 +130,22 @@ jobs:
             echo "::error::docs/ site is stale. Run scripts/build_site.py and commit the result."
             exit 1
           fi
+
+  # The scripts run on whatever `python3` the user has, and macOS's own is 3.9. Everything targets it
+  # (hence `from __future__ import annotations` where `X | None` appears), but only contract-package was
+  # tested there, so research.py shipped 3.12-only syntax and failed on a stock Mac with a SyntaxError.
+  python-floor:
+    name: scripts on Python 3.9
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Compile every script on 3.9
+        run: python -m compileall -q $(git ls-files '*.py' | grep -v '^contract-package/')
+
+      - name: Run every skill's test suite on 3.9
+        run: python scripts/run_skill_tests.py

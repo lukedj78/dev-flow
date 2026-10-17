@@ -89,6 +89,9 @@ The contract is also published as a standalone Python package, [`dev-flow-contra
 
 ### 1. Install the skills
 
+**Requirements:** the bundled scripts need **Python 3.9 or newer** (3.9 is macOS's own `python3`; CI
+compiles and tests every script on it) and git. Most scripts use the standard library only.
+
 Two ways in, two philosophies. The **plugin** subscribes you to the suite as a managed bundle that updates when we ship. **`install.sh`** copies the skill files so you can fork and hack on them — and it's the route for Codex / Copilot / Gemini / Cursor. Pick one; installing both leaves you with every skill twice.
 
 #### Option A — Claude Code plugin (recommended)
