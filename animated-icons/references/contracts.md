@@ -114,6 +114,7 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
   "updated_at": "2026-04-25T15:30:00Z",
   "phase": "design_extracted",
   "contract_version": 1,
+  "meta_digest": { "sha256": "9f2c…", "checked_phase": "design_extracted" },
   "stack": {
     "framework": "next",
     "ui": "shadcn",
@@ -380,3 +381,13 @@ optional field, a phase appended to the enum) leave it alone. A script never rew
 version is higher than the one it knows: it refuses with exit 2 and leaves the file untouched, since it
 would save back fields whose meaning it does not have. Reading such a file is allowed, with a warning
 (`show_state.py`).
+
+**`meta_digest`** (`{ "sha256", "checked_phase" }`) is stamped by every write through `meta_io.py`, so a
+direct edit — allowed as a fallback — can be told from a scripted write. `sha256` hashes the document's
+values without the digest (key order and layout ignored, so reformatting is not an edit); when it no
+longer matches, `show_state.py` says the file was changed outside the scripts. `checked_phase` is the
+last phase the phase gates checked: only `update_meta.py`, after they pass, moves it forward, and every
+other writer carries it over. When `phase` is ahead of it, the phase was set by hand: `show_state.py`
+names it, and `set-phase` / `append-history --phase-after` check the gates **from `checked_phase`**, so
+a phase typed into the file cannot skip them. A file without the field predates it and is trusted as it
+is until its next write.

@@ -74,9 +74,23 @@ def load_meta(root: Path) -> tuple[Path, dict[str, Any]]:
     return meta_path, meta_io.load_or_exit(meta_path)
 
 
-def save_meta(meta_path: Path, meta: dict[str, Any]) -> None:
+def save_meta(meta_path: Path, meta: dict[str, Any], checked: str | None = None) -> None:
+    """`checked` is passed only by a phase move whose gates just passed: it becomes meta_digest's checked_phase."""
     meta["updated_at"] = now_iso()
-    meta_io.write_json(meta_path, meta)
+    meta_io.write_json(meta_path, meta, phase_checked=checked)
+
+
+def gate_baseline(meta: dict[str, Any], cur_idx: int) -> int:
+    """Where the gates are checked from: the current phase, or the last phase they checked when the current
+    one was set by hand. Without this, a phase typed into meta.json skipped its gates, and so did every
+    set-phase after it, since each started from the phase already "reached" (AUDIT.md P1-33)."""
+    checked = meta_io.checked_phase(meta)
+    checked_idx = phases.index(checked)
+    if checked_idx is not None and checked_idx < cur_idx:
+        sys.stderr.write(f"note: phase {meta.get('phase')!r} was set outside dev-flow's scripts; the gates are "
+                         f"checked from {checked!r}, the last phase they passed.\n")
+        return checked_idx
+    return cur_idx
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +306,7 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         )
         return 1
 
-    refusal = gate_refusal(root, meta, cur_idx, new_idx, current, requested)
+    refusal = gate_refusal(root, meta, gate_baseline(meta, cur_idx), new_idx, current, requested)
     if refusal:
         sys.stderr.write(refusal)
         return 1
@@ -311,7 +325,7 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
             entry["allow_regress"] = True
         meta.setdefault("history", []).append(entry)
     meta["phase"] = requested
-    save_meta(meta_path, meta)
+    save_meta(meta_path, meta, checked=requested)
     print(f"phase: {current_raw} → {requested}")
     return 0
 
@@ -355,7 +369,8 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         # Gated only when the phase moves forward: a run recorded at the current phase (rn-upgrade,
         # rn-write-tests) crosses nothing, and one below it is not applied.
         new_idx = PHASES.index(phase_after)
-        refusal = gate_refusal(root, meta, cur_idx, new_idx, cur, phase_after) if new_idx > cur_idx else None
+        gate_idx = gate_baseline(meta, cur_idx)
+        refusal = gate_refusal(root, meta, gate_idx, new_idx, cur, phase_after) if new_idx > gate_idx else None
         if refusal:
             sys.stderr.write(refusal)
             return 1
@@ -369,11 +384,13 @@ def cmd_append_history(args: argparse.Namespace) -> int:
         "phase_before": phase_before,
         "phase_after": phase_after,
     }
+    checked = None
     if phase_after:
         cur_idx = phases.index(meta.get("phase", "empty"))
         new_idx = PHASES.index(phase_after)
         if new_idx >= cur_idx:
             meta["phase"] = phase_after
+            checked = phase_after  # the gates above ran from the last checked phase up to this one
         else:
             # Behind the current phase: not applied, so not recorded as reached. It used to be written as
             # phase_after anyway, and history then named a phase the project had already left.
@@ -382,7 +399,7 @@ def cmd_append_history(args: argparse.Namespace) -> int:
             sys.stderr.write(f"note: phase stays {phase_before!r}; {phase_after!r} is behind it and was not applied\n")
     meta.setdefault("history", []).append(entry)
 
-    save_meta(meta_path, meta)
+    save_meta(meta_path, meta, checked=checked)
     print(f"history += {{ skill: {args.skill}, phase_after: {args.phase_after} }}")
     return 0
 

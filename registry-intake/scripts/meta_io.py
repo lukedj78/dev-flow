@@ -25,6 +25,7 @@ Standard library only, like every script the skills ship.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -44,6 +45,36 @@ except ImportError:  # Windows
 # without the field predates it and is version 1-compatible. A script never rewrites a file whose version is
 # higher than the one it knows: it would save back fields whose meaning it does not have.
 CONTRACT_VERSION = 1
+
+
+# Every write through here stamps `meta_digest`: {"sha256": the content's hash, "checked_phase": the last
+# phase the phase gates checked}. A hand edit leaves the hash stale, so it can be told from a scripted write.
+# And a phase moved by hand differs from checked_phase, so update_meta.py checks the gates from checked_phase,
+# not from the phase that was typed in (AUDIT.md P1-33). Only update_meta.py, after the gates pass, moves
+# checked_phase forward; every other writer carries it over unchanged, so no later write can launder a phase
+# that was moved by hand. The hash is over the parsed values, so reformatting the file is not an edit.
+DIGEST_KEY = "meta_digest"
+
+
+def digest_of(meta: dict[str, Any]) -> str:
+    """sha256 (16 hex) of the document's values, without the digest itself; key order and layout ignored."""
+    body = {k: v for k, v in meta.items() if k != DIGEST_KEY}
+    canonical = json.dumps(body, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def edited_outside(meta: dict[str, Any]) -> bool:
+    """True when a digest is present and no longer matches: the file changed since a script last wrote it."""
+    stamp = meta.get(DIGEST_KEY)
+    return isinstance(stamp, dict) and stamp.get("sha256") != digest_of(meta)
+
+
+def checked_phase(meta: dict[str, Any]) -> Any:
+    """The last phase the gates checked. A file from before the digest is trusted as it is."""
+    stamp = meta.get(DIGEST_KEY)
+    if isinstance(stamp, dict) and isinstance(stamp.get("checked_phase"), str):
+        return stamp["checked_phase"]
+    return meta.get("phase")
 
 
 class InvalidMeta(ValueError):
@@ -77,6 +108,8 @@ def read_meta(path: Path) -> dict[str, Any]:
         if key in meta and not isinstance(meta[key], kind):
             raise InvalidMeta(f"`{key}` is {_JSON_TYPES.get(type(meta[key]), type(meta[key]).__name__)}, "
                               f"not {_JSON_TYPES[kind]}")
+    if DIGEST_KEY in meta and not isinstance(meta[DIGEST_KEY], dict):
+        raise InvalidMeta(f"`{DIGEST_KEY}` is {_JSON_TYPES.get(type(meta[DIGEST_KEY]), type(meta[DIGEST_KEY]).__name__)}, not an object")
     version = meta.get("contract_version")
     if "contract_version" in meta and (not isinstance(version, int) or isinstance(version, bool) or version < 1):
         raise InvalidMeta(f"`contract_version` is {version!r}, not a positive integer")
@@ -142,9 +175,11 @@ def write_text(path: Path, text: str) -> None:
         raise
 
 
-def write_json(path: Path, data: Any) -> None:
+def write_json(path: Path, data: Any, phase_checked: str | None = None) -> None:
     """Write `data` in meta.json's usual layout (2-space indent, UTF-8, trailing newline), atomically,
-    stamped with CONTRACT_VERSION. A file written under a newer contract is refused with exit 2, untouched."""
+    stamped with CONTRACT_VERSION and `meta_digest`. A file written under a newer contract is refused with
+    exit 2, untouched. `phase_checked` is passed only by a phase move whose gates just passed; without it the
+    previously checked phase is carried over."""
     if isinstance(data, dict):
         version = data.get("contract_version")
         if isinstance(version, int) and not isinstance(version, bool) and version > CONTRACT_VERSION:
@@ -153,4 +188,6 @@ def write_json(path: Path, data: Any) -> None:
                 f"{CONTRACT_VERSION}).\n  Nothing was changed. Update the dev-flow skills, then run this again.\n")
             sys.exit(2)
         data["contract_version"] = CONTRACT_VERSION
+        carried = phase_checked if phase_checked is not None else checked_phase(data)
+        data[DIGEST_KEY] = {"sha256": digest_of(data), "checked_phase": carried}
     write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")

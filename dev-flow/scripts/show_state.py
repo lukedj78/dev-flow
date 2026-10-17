@@ -192,6 +192,13 @@ def main() -> int:
     meta = meta_io.load_or_exit(meta_path)
     print(f"Project:  {meta.get('project_name')!r}  ({meta.get('project_slug')!r})")
     print(f"Phase:    {meta.get('phase')}")
+    if meta_io.edited_outside(meta):
+        print("⚠ meta.json was changed outside dev-flow's scripts since they last wrote it (its meta_digest no longer")
+        print("  matches). That is allowed; it means nothing checked the edit.")
+    checked = meta_io.checked_phase(meta)
+    if (phases.index(meta.get('phase')) or 0) > (phases.index(checked) if phases.index(checked) is not None else 99):
+        print(f"⚠ phase {meta.get('phase')!r} was set without the gates — the last phase they checked is {checked!r}.")
+        print(f"  The next set-phase checks them from {checked!r}.")
     if (meta.get('contract_version') or 0) > meta_io.CONTRACT_VERSION:
         print(f"⚠ meta.json was written under a newer contract (version {meta['contract_version']}; this dev-flow "
               f"knows {meta_io.CONTRACT_VERSION}). Update the dev-flow skills before any script writes it.")

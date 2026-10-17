@@ -124,6 +124,7 @@
         "test_gate_doors.py",
         "test_history.py",
         "test_inventory.py",
+        "test_meta_digest.py",
         "test_meta_io.py",
         "test_meta_validation.py",
         "test_phases.py",
