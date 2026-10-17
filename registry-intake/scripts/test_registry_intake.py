@@ -1450,5 +1450,50 @@ class HookFailsClosed(Base):
             ri.hook_decision = real
 
 
+class ConfinedWrites(Base):
+    """Every write setup makes into a project lands inside it, once the symlinks on the way are followed.
+
+    A cloned repo can put a symlink where setup writes and make it overwrite a file of the user's
+    elsewhere. install.sh --projects scans for that beforehand; this is the check at the write itself.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._outside = tempfile.TemporaryDirectory()
+        self.outside = Path(self._outside.name)
+        self.victim = self.outside / "precious.txt"
+        self.victim.write_text("mine\n")
+
+    def tearDown(self) -> None:
+        self._outside.cleanup()
+        super().tearDown()
+
+    def refused(self) -> str:
+        with self.assertRaises(SystemExit) as e:
+            quiet(ri.main, ["setup", str(self.root)])
+        self.assertEqual(self.victim.read_text(), "mine\n")
+        return str(e.exception.code)
+
+    def test_an_agents_md_pointing_outside_is_refused(self) -> None:
+        (self.root / "AGENTS.md").symlink_to(self.victim)
+        self.assertIn("outside the project", self.refused())
+
+    def test_a_chain_of_links_deep_down_is_refused(self) -> None:
+        deep = self.root / "a/b/c/d"
+        deep.mkdir(parents=True)
+        (deep / "hooks").symlink_to(self.outside)
+        (self.root / ".claude").symlink_to(deep)
+        self.victim.rename(self.outside / "registry_intake.py")
+        self.victim = self.outside / "registry_intake.py"
+        self.assertIn("registry_intake.py", self.refused())
+
+    def test_a_link_that_stays_inside_is_fine(self) -> None:
+        (self.root / "CLAUDE.md").write_text("# project\n")
+        (self.root / "AGENTS.md").symlink_to(self.root / "CLAUDE.md")
+        code, out = self.cli("setup", str(self.root))
+        self.assertEqual(code, 0, out)
+        self.assertIn(ri.SETUP_MARK[0], (self.root / "CLAUDE.md").read_text())
+
+
 if __name__ == "__main__":
     unittest.main()
