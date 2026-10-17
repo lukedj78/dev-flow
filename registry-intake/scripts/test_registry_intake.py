@@ -439,6 +439,13 @@ class Hook(Base):
             "npx 'shadcn'@latest add @mapcn/map",
             'sh -c "npx shadcn add @mapcn/map"',
             "bash -lc 'cd web && pnpm dlx shadcn add @mapcn/map'",
+            # From the security review of the first version of this fix:
+            "npx shad\\cn add @mapcn/map",                       # a backslash, no quote to strip
+            'bash -xc "npx shadcn add @mapcn/map"',                # a flag cluster around c
+            'bash --norc -c "npx shadcn add @mapcn/map"',          # a long option before -c
+            'dash -c "npx shadcn add @mapcn/map"',
+            'env bash -c "npx shadcn add @mapcn/map"',
+            '/bin/zsh -ec "npx shadcn add @mapcn/map"',
         ]
         allowed = [
             "npm exec shadcn -- add button",

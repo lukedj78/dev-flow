@@ -51,6 +51,16 @@ It is **not** equivalent for moving phase: its `set_phase()` enforces order only
 gates `update_meta.py set-phase` holds (inventory, wireframes, data residency, design lint, registry
 intake, primitives guard). Move phase with the script, from any runtime that can shell out to Python.
 
+## Hooks — Claude Code only
+
+**Hooks run only in Claude Code.** Two dev-flow guards are Claude Code hooks written to a project's
+`.claude/settings.json`: registry intake's install check and the write-time primitives guard (golden
+rule 3). This runtime does not read that file, so neither runs here. Follow those rules by hand:
+third-party registry items go through `registry_intake.py review / approve / install`, never a direct
+`shadcn add`; UI is built from the library's primitives. What still checks them is the lint
+(`design/no-handmade-ui`), `registry_intake.py check` and the `set-phase` gates — after the fact, not
+at the moment of writing.
+
 ## When this table goes stale
 
 Tool names evolve. When a runtime renames a tool (e.g., Codex moves from `shell` to something else), update this file in one place and the bootstraps inherit it. The skills themselves never need to change — that's the point of routing through this mapping rather than hard-coding tool names in every `SKILL.md`.

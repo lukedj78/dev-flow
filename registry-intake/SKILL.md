@@ -28,7 +28,7 @@ the host through `node:child_process`, not in eve's sandbox. This skill's review
 
 **What the hook is — and is not.** It reads the Bash command string and recognises the ways an agent
 writes an install: `npx` / `pnpm dlx` / `yarn dlx` / `bunx` / `npm exec [--] shadcn add`, a version pin,
-quotes inside the name, `--` separators, `&&` / `;` / `|` chains, and one level of `sh|bash|zsh -c "…"`.
+quotes or backslashes inside the name, `--` separators, `&&` / `;` / `|` chains, and a shell's `-c` (`sh`, `bash`, `zsh`, `dash`, `ksh`, `fish`, `csh`, `tcsh`; `-c` alone or in a flag cluster like `-xc`, after long options, nested).
 It is a **tripwire for an honest agent's mistakes, not a barrier against an adversary**. It does not see:
 an install whose name or arguments come from a variable (`X=@ns/item; npx shadcn add $X`), the CLI run by
 path (`node node_modules/shadcn/dist/index.js add …`), a command written to a file and then executed,

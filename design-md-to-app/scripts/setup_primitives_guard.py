@@ -72,7 +72,8 @@ an sr-only table, an exception recorded in the preset's `designExceptions` with 
 
 A write-time guard enforces it (`.claude/settings.json` → `scripts/guard/primitives-guard.mjs`): a Write or
 Edit that adds hand-made UI is refused with the primitive to use, and an agent cannot finish with hand-made UI
-added through the shell. The lint rule `design/no-handmade-ui` checks the whole tree. A green lint or a
+added through the shell. That guard is a Claude Code hook: on another runtime (Codex, Cursor, Gemini) nothing
+runs it, and the rule is followed by hand. The lint rule `design/no-handmade-ui` checks the whole tree. A green lint or a
 screenshot that matches the board is not proof of conformity: a hand-made button identical to the board
 passes both.
 {END}

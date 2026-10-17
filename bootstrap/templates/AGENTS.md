@@ -82,6 +82,16 @@ python3 <repo-root>/dev-flow-skills/dev-flow/scripts/check_drift.py <project-roo
 
 This produces a migration plan showing which artifacts are stale (self-drift, upstream-stale, missing) and which skills should re-run, in what order. Tell the user.
 
+## Hooks run only in Claude Code
+
+Two dev-flow guards are Claude Code hooks written to a project's
+`.claude/settings.json`: registry intake's install check and the write-time primitives guard (golden
+rule 3). This runtime does not read that file, so neither runs here. Follow those rules by hand:
+third-party registry items go through `registry_intake.py review / approve / install`, never a direct
+`shadcn add`; UI is built from the library's primitives. What still checks them is the lint
+(`design/no-handmade-ui`), `registry_intake.py check` and the `set-phase` gates — after the fact, not
+at the moment of writing.
+
 ## Important constraints
 
 - **Don't invent.** If a skill references a file that doesn't exist, stop and ask. Never fabricate `meta.json` values.

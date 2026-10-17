@@ -605,7 +605,7 @@ dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is 
 
 1. **Tool-name mapping** — the skill bodies use Claude Code names (`Bash`, `Read`, `Edit`, `Glob`, `Grep`). The `bootstrap/tool-mappings.md` reference (installed alongside the skills) is the canonical Claude → Codex → Copilot → Gemini → Cursor equivalence table. The LLM reads it once at session start and translates as it goes.
 
-2. **Bootstrap files** for runtimes that don't auto-discover skills:
+2. **Bootstrap files** for runtimes that don't auto-discover skills. They also say what does **not** port: the two guards that are Claude Code hooks (registry intake's install check, the write-time primitives guard) do not run on another runtime — the lint, `registry_intake.py check` and the `set-phase` gates still catch what lands, after the fact:
    - `bootstrap/templates/AGENTS.md` — Codex CLI entry point
    - `bootstrap/templates/GEMINI.md` — Gemini CLI entry point
    - `bootstrap/templates/.cursorrules` — Cursor entry point

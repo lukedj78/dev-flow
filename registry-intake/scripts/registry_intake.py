@@ -1720,7 +1720,9 @@ AGENTS_BLOCK = f"""{SETUP_MARK[0]}
 ## Third-party registries
 
 Items from a shadcn-format registry other than shadcn's own (`@ns/item`, a registry URL) are not
-installed with `shadcn add` directly — a hook refuses it. They go through registry intake:
+installed with `shadcn add` directly — a hook refuses it. (That hook is a Claude Code hook: on another
+runtime nothing runs it, and these steps are followed by hand; `registry_intake.py check` and the
+`set-phase` gate still catch what lands.) They go through registry intake:
 
 1. `registry_intake.py review . @ns/item` — read-only report of files, npm deps, env vars and findings
 2. **Stop and ask the user**, always, even for a clean review or when in a hurry: a new registry needs
@@ -1854,6 +1856,23 @@ def cmd_deny(args) -> int:
 RUNNERS = {"npx", "pnpx", "bunx", "dlx", "exec"}
 
 
+# Shells whose -c runs a command string (`env` is not one: `env bash -c` reaches bash as its own token).
+C_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
+
+
+def shell_c_payload(args: list[str]) -> str | None:
+    """The command string a shell runs with -c, or None. `-c`, `-lc`, `-xec`: any short-option cluster
+    holding `c`; long options (`--norc`) are skipped. The first plain argument means a script, not -c."""
+    for j, a in enumerate(args):
+        if a.startswith("--"):
+            continue
+        if re.match(r"^-[A-Za-z]*c[A-Za-z]*$", a):
+            return args[j + 1] if j + 1 < len(args) else None
+        if not a.startswith("-"):
+            return None
+    return None
+
+
 def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]:
     """[(tool, items, --cwd, read_only)] for every `shadcn add` / `eve add` / `eve registry add`."""
     out = []
@@ -1863,12 +1882,14 @@ def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]
         except ValueError:
             toks = seg.split()
         for i, t in enumerate(toks):
-            # `sh -c "npx shadcn add …"` carries the whole install in one token: parse it as a command.
-            if t in ("-c", "-lc", "-ic") and i > 0 and toks[i - 1].split("/")[-1] in ("sh", "bash", "zsh") \
-                    and i + 1 < len(toks):
-                out.extend(governed_adds(toks[i + 1]))
-                break
             base = t.split("/")[-1]
+            # `bash -xc "npx shadcn add …"` carries the whole install in one token: find the shell's -c
+            # (alone or in a flag cluster, after any long option) and parse its argument as a command.
+            if base in C_SHELLS:
+                payload = shell_c_payload(toks[i + 1:])
+                if payload is not None:
+                    out.extend(governed_adds(payload))
+                    break
             tool = "shadcn" if re.match(r"^shadcn(@[\w.-]+)?$", base) else "eve" if re.match(r"^eve(@[\w.-]+)?$", base) else None
             if not tool:
                 continue
@@ -1953,10 +1974,8 @@ def hook_decision(payload: dict) -> str | None:
                 "with no review and no hash. Read it first with `registry_intake.py skill-review <root> "
                 "<name|url>`, show the report, and let the user run the install themselves; "
                 "`skill-approve` then pins the text that landed.")
-    # Quotes stripped first: `npx shad""cn add` runs shadcn, and the raw string never contains "shadcn".
-    unquoted = command.replace('"', "").replace("'", "")
-    if "shadcn" not in unquoted and "eve" not in unquoted:
-        return None
+    # No substring short-circuit: `shad""cn` and `shad\\cn` both run shadcn while the raw string never
+    # contains it. governed_adds() tokenises like the shell does, and it is cheap enough for every call.
     adds = governed_adds(command)
     if not adds:
         return None
