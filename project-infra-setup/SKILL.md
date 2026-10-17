@@ -9,6 +9,8 @@ Everything outside the codebase that a project needs before `module-add` can wir
 
 It owns the **accounts and the CLI-level resources**. It does not write application code (`module-add` owns that), does not deploy (`vercel-deploy` owns that), and does not touch the PRD, design or tasks.
 
+On Vercel the line with `module-add deploy` is: **this skill** creates and links the project, sets the project-level function region, and puts the variables' values in; **`module-add deploy`** writes `vercel.json` (its `regions` must equal the region set here, read from `docs/infrastructure.md`), the build settings, and the matrix of which variables each environment needs. It does not link.
+
 ## Rules (they held up)
 1. **Every outward step is confirmed, one at a time**: create the repo, create the project, create a database, write a DNS record, create or revoke a key, send a test email. A "yes" to the plan is not a "yes" to each step.
 2. **Check the region of every service before and after creating it.** The default is US (`iad1`) for functions, Blob and Neon, and a database region **cannot be changed afterwards**. Read it back from the service (`PGHOST`, the project API), not from the CLI's summary.

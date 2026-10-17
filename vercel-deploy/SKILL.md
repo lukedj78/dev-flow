@@ -1,6 +1,6 @@
 ---
 name: vercel-deploy
-description: 'Ship a Next.js 16 App Router project to production on Vercel end-to-end: preview → smoke test → a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet → `vercel promote` → domains and DNS, plus a rollback runbook. Requires `stack.framework` in {`next`, `monorepo`} and `phase >= feature_complete`; sets `phase = "deployed"` on success. Idempotent. Triggers on: "deploy", "ship it", "go live", "push to production", "manda in produzione", "attacca il dominio", "rollback the deploy". Not for: the Vercel project config — `vercel.json`, region, env-var matrix, monorepo root directory are `module-add deploy` (run it first); the pre-deploy gates (`vercel-doctor`, `compliance-audit`, `shadscan`); CI and git hooks (`module-add ci`); an Expo/RN app (`rn-eas-deploy`); an eve agent (`eve deploy`).'
+description: 'Ship a Next.js 16 App Router project to production on Vercel end-to-end: preview → smoke test → a *staged* production deployment (`vercel --prod --skip-domain`) that serves no traffic yet → `vercel promote` → domains and DNS, plus a rollback runbook. Requires `stack.framework` in {`next`, `monorepo`} and `phase >= feature_complete`; sets `phase = "deployed"` on success. Idempotent. Triggers on: "deploy", "ship it", "go live", "push to production", "manda in produzione", "attacca il dominio", "rollback the deploy". Not for: the Vercel project config — `vercel.json`, region, env-var matrix, monorepo root directory are `module-add deploy` (run it first); the pre-deploy gates (`vercel-doctor`, `compliance-audit`, `shadscan`, `launch-audit`); CI and git hooks (`module-add ci`); an Expo/RN app (`rn-eas-deploy`); an eve agent (`eve deploy`).'
 ---
 
 # vercel-deploy — ship the web app to production on Vercel
@@ -67,19 +67,19 @@ pnpm dlx vercel@latest project inspect   # details of the *linked* project
 
 Never `vercel link` from this skill. Re-linking silently repoints the directory at a different project — that is how staging code reaches production.
 
-### Step 2 — Confirm the three gates ran (propose, never block)
+### Step 2 — Confirm the four gates ran (propose, never block)
 
-Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf) and `meta.json#shadscan` (UI quality + a11y).
+Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf), `meta.json#shadscan` (UI quality + a11y) and `meta.json#launch_audit` (commercial readiness: metadata, legal and identity pages, a reachable CTA).
 
 - Missing → tell the user which gate has never run and offer to run it now.
 - Present but older than the last material change (compare against `history`) → offer a re-run.
 - Present and current → state the findings summary in one line and move on.
 
-No gate blocks a deploy. Report and let the user decide — that is the existing policy for all three, and this skill does not tighten it.
+No gate blocks a deploy. Report and let the user decide — that is the existing policy for all four, and this skill does not tighten it.
 
 #### Also check the Next.js security floor
 
-The three gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.
+The four gates read the *code*. None of them reads the *version*, and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.
 
 ```bash
 pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"

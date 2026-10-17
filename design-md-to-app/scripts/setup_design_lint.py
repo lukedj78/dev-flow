@@ -831,15 +831,20 @@ def record(root: Path) -> None:
     p = root / ".workflow" / "meta.json"
     if not p.exists():
         return
-    text = p.read_text()
-    m = json.loads(text)
-    if m.get("stack", {}).get("design_lint") == "shadcn-lint":
-        return
-    m.setdefault("stack", {})["design_lint"] = "shadcn-lint"
-    p.write_text(json.dumps(m, indent=2, ensure_ascii=False) + "\n")
-    prettier = root / "node_modules" / ".bin" / "prettier"
-    if prettier.exists():  # keep the project's own JSON formatting
-        subprocess.run([str(prettier), "--write", str(p)], capture_output=True, check=False)
+    # Imported here, not at the top: evals/compliance/comply.py loads this module by file path to
+    # read its constants, with this folder off sys.path, and only record() needs the vendored copy.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
+    with meta_io.locked(p.parent):
+        m = json.loads(p.read_text())
+        if m.get("stack", {}).get("design_lint") == "shadcn-lint":
+            return
+        m.setdefault("stack", {})["design_lint"] = "shadcn-lint"
+        meta_io.write_json(p, m)
+        prettier = root / "node_modules" / ".bin" / "prettier"
+        if prettier.exists():  # keep the project's own JSON formatting
+            subprocess.run([str(prettier), "--write", str(p)], capture_output=True, check=False)
 
 
 # ---------------------------------------------------------------------------------------

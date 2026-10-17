@@ -1,0 +1,50 @@
+name: stack-defaults-watch
+
+# The RN/Expo version pins in */references/stack-defaults.md age between releases, and the only thing that
+# re-checked them was someone remembering to run the script. Once a month this runs it in dry-run, writes
+# the drift report to the run summary, and keeps ONE open issue up to date with it (never one per month).
+# It changes no file: applying a bump, and above all a major one, stays a human decision.
+
+on:
+  schedule:
+    - cron: "0 7 1 * *"   # the 1st of every month, 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refresh dry-run
+        id: refresh
+        run: |
+          python3 scripts/refresh_stack_defaults.py | tee report.txt
+          {
+            echo '```'
+            cat report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q "package(s) drifted" report.txt; then echo "drift=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Keep one issue up to date with the drift
+        if: steps.refresh.outputs.drift == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Stack defaults drift (refresh_stack_defaults.py dry-run)"
+          body="$(printf 'Monthly dry-run, %s. Nothing was changed. Apply with %s after reading the report; a major bump (Expo SDK, React Native) is a discussion first.\n\n```\n%s\n```' "$(date -u +%F)" '`python3 scripts/refresh_stack_defaults.py --apply`' "$(cat report.txt)")"
+          number="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

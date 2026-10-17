@@ -3,29 +3,13 @@
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
-# generic markdown that any agent can follow. This installer supports five
+# generic markdown that any agent can follow. This installer supports six
 # runtimes — pick yours with --platform.
 #
-# Stacks (see the SKILLS array below for the authoritative, up-to-date list —
-# this is just a summary, so it won't drift when skills are added):
-#   * Core (stack-agnostic flow):        5 skills  — dev-flow, prd-from-idea,
-#                                        prd-to-tasks, wireframe-canvas, linear-scrum,
-#                                        compliance-audit, registry-intake
-#   * Web (Next.js 16 + shadcn/Base UI/MUI): 16 skills — figma-to-design-md,
-#                                        image-to-design-md, design-md-to-app,
-#                                        coss-ui, screenshot-to-page, module-add,
-#                                        write-tests, forms, data-fetching,
-#                                        state-discipline, transitions,
-#                                        animated-icons, vercel-doctor,
-#                                        shadscan, vercel-deploy, vgpu-shaders
-#   * Agent engine (eve):                2 skills  — eve-agent, eve-registry-porting
-#   * Mobile (Expo + RN):                16 skills — rn-fundamentals … rn-upgrade
-#   * Monorepo (web + mobile shared):    4 skills  — monorepo-bootstrap,
-#                                        monorepo-add-shared-package,
-#                                        monorepo-sync-types,
-#                                        monorepo-add-python-service
-#   * Refactor & composition:            2 skills  — promote-component,
-#                                        composition-patterns-guide
+# Stacks: core (stack-agnostic flow), web (Next.js 16 + shadcn / Base UI / MUI / Coss), agent engine
+# (eve), mobile (Expo + RN), monorepo, refactor & composition. The SKILLS array below is the list, and
+# lint_skills.py checks it against the skill folders on disk. (This header used to repeat it with counts;
+# they said "won't drift" and drifted: Core 5 against 10, Web 16 against 19.)
 #
 # Usage:
 #   ./install.sh                                # defaults to claude
@@ -39,10 +23,13 @@
 #
 #   CLAUDE_SKILLS_DIR=/custom/path ./install.sh --platform claude   # override
 #
-# Idempotent-ish: an existing install at the target is moved to a timestamped
-#   <skills-dir>-backup-YYYYmmdd-HHMMSS/ — OUTSIDE the skills dir, so the backup
-#   is never itself registered as a skill — before
-# overwrite (one level only — running twice loses the second-most-recent).
+# Idempotent: an existing skill folder at the target is moved to a timestamped
+#   <skills-dir>-backup-YYYYmmdd-HHMMSS/ before it is overwritten — OUTSIDE the skills dir, so the
+#   backup is never itself registered as a skill. The newest 3 are kept (DEV_FLOW_KEEP_BACKUPS=N, 0 = all); `./uninstall.sh --restore`
+#   puts back the most recent. A bootstrap file (AGENTS.md, GEMINI.md, .cursorrules, system-prompt.md,
+#   bootstrap/tool-mappings.md) that is not the one this installer wrote is saved there too, and every
+#   file it writes outside a skill folder is recorded with its hash in <skills-dir>/.dev-flow-installed,
+#   so uninstall.sh removes only what is still exactly as installed.
 
 set -euo pipefail
 
@@ -282,15 +269,72 @@ for s in "${SKILLS[@]}"; do
   echo "  ✓ $s"
 done
 
+# Files written OUTSIDE a skill folder share the skills dir with whatever the user keeps there — a skill
+# of their own called `bootstrap`, an AGENTS.md they edited. uninstall.sh used to delete all of them by
+# name. Now each one is recorded with its hash, and one the installer did not write is saved first.
+MANIFEST="$SKILLS_DIR/.dev-flow-installed"
+NEW_MANIFEST="$(mktemp)"
+
+sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  else sha256sum "$1" | cut -d' ' -f1; fi
+}
+
+recorded_sha() {
+  if [ -f "$MANIFEST" ]; then awk -v p="$1" '$2 == p { h = $1 } END { print h }' "$MANIFEST"; fi
+}
+
+install_file() {   # <source> <path relative to SKILLS_DIR>
+  local src="$1" rel="$2" dest="$SKILLS_DIR/$2"
+  if [ -f "$dest" ] && ! cmp -s "$src" "$dest" && [ "$(sha256_of "$dest")" != "$(recorded_sha "$rel")" ]; then
+    mkdir -p "$(dirname "$BACKUP_DIR/$rel")"
+    cp "$dest" "$BACKUP_DIR/$rel"
+    echo "  ⚠ $rel — the existing file is not the one dev-flow installed; saved to $BACKUP_DIR/$rel"
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  echo "$(sha256_of "$dest")  $rel" >> "$NEW_MANIFEST"
+  echo "  ✓ $rel"
+}
+
 # Copy the cross-platform tool mappings — useful regardless of platform.
-mkdir -p "$SKILLS_DIR/bootstrap"
-cp "$SCRIPT_DIR/bootstrap/tool-mappings.md" "$SKILLS_DIR/bootstrap/tool-mappings.md"
-echo "  ✓ bootstrap/tool-mappings.md"
+install_file "$SCRIPT_DIR/bootstrap/tool-mappings.md" "bootstrap/tool-mappings.md"
 
 # Copy the platform-specific bootstrap if there is one.
 if [ -n "$BOOTSTRAP_TEMPLATE" ] && [ -f "$BOOTSTRAP_TEMPLATE" ]; then
-  cp "$BOOTSTRAP_TEMPLATE" "$BOOTSTRAP_TARGET"
-  echo "  ✓ $(basename "$BOOTSTRAP_TARGET")  (bootstrap for $PLATFORM)"
+  install_file "$BOOTSTRAP_TEMPLATE" "$(basename "$BOOTSTRAP_TARGET")"
+  echo "    (bootstrap for $PLATFORM)"
+fi
+
+# Keep the records of files this run did not touch (cursor and generic share a folder), then add ours.
+if [ -f "$MANIFEST" ]; then
+  awk 'NR == FNR { mine[$2] = 1; next } !($2 in mine)' "$NEW_MANIFEST" "$MANIFEST" > "$NEW_MANIFEST.all"
+  cat "$NEW_MANIFEST" >> "$NEW_MANIFEST.all"
+  mv "$NEW_MANIFEST.all" "$MANIFEST"
+  rm -f "$NEW_MANIFEST"
+else
+  mv "$NEW_MANIFEST" "$MANIFEST"
+fi
+
+# Keep the newest DEV_FLOW_KEEP_BACKUPS backups (default 3; 0 keeps them all). Each run used to add one,
+# about 7 MB, forever. Only folders with this installer's exact timestamp are counted or removed: a
+# `skills-backup-manual` of the user's own shares the prefix and must never match.
+KEEP="${DEV_FLOW_KEEP_BACKUPS:-3}"
+case "$KEEP" in ''|*[!0-9]*) KEEP=3 ;; esac
+if [ "$KEEP" -gt 0 ]; then
+  total=0
+  for d in "${SKILLS_DIR%/}"-backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
+    if [ -d "$d" ]; then total=$((total + 1)); fi
+  done
+  drop=$((total - KEEP))
+  for d in "${SKILLS_DIR%/}"-backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do   # the glob sorts oldest first
+    if [ "$drop" -le 0 ]; then break; fi
+    if [ -d "$d" ]; then
+      rm -rf "$d"
+      echo "  · removed an old backup: $d (keeping the newest $KEEP; DEV_FLOW_KEEP_BACKUPS=0 keeps all)"
+      drop=$((drop - 1))
+    fi
+  done
 fi
 
 echo

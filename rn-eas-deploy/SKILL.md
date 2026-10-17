@@ -1,6 +1,6 @@
 ---
 name: rn-eas-deploy
-description: 'Use to deploy an Expo + RN app end-to-end: initialize eas.json with 3 profiles (development/preview/production), set up credentials (APNs key, Android keystore) via `eas credentials`, build for preview to smoke-test, build production, submit to App Store Connect + Play Console via EAS Submit, configure EAS Update channels (preview + production), and verify the post-submission checklist from rn-publishing-payments. Reads .workflow/meta.json with stack.framework="expo-rn" and phase="feature_complete". Sets phase to "deployed" on success. Triggers on: "deploy to production", "ship to App Store / Play Store", "release the app". Not for: granular EAS Build/Submit/Update operations (rn-eas-build-submit-update), store metadata work (rn-publishing-payments).'
+description: 'Use to deploy an Expo + RN app end-to-end: initialize eas.json with 3 profiles (development/preview/production), set up credentials (APNs key, Android keystore) via `eas credentials`, build for preview to smoke-test, build production, submit to App Store Connect + Play Console via EAS Submit, configure EAS Update channels (preview + production), and verify the post-submission checklist from rn-publishing-payments. Reads .workflow/meta.json with stack.framework="expo-rn" and phase="feature_complete". Sets phase to "deployed" on success. Triggers on: "deploy to production", "ship to App Store / Play Store", "release the app". Not for: granular EAS Build/Submit/Update operations (rn-eas-build-submit-update), store metadata work (rn-publishing-payments), or a web app (vercel-deploy).'
 ---
 
 # rn-eas-deploy — end-to-end EAS deploy orchestration
@@ -99,7 +99,13 @@ Run `eas build --profile production --platform all --non-interactive`. Wait.
 
 ### Step 8 — Submit to stores
 
-Run `eas submit --profile production --platform all --non-interactive`.
+**Stop and ask before submitting.** This uploads the build to App Store Connect and the Play Console: it
+spends a build number, can start a review, and on Play with auto-release configured it can reach users.
+The smoke-test "OK" in Step 5 was for the preview build, not consent to submit. Show the user the version
+(`app.json#expo.version`), the build IDs from Step 7, and the stores, and submit only on an explicit yes
+in this conversation (dev-flow's autonomous-runs rules list store submission as needing a human).
+
+Then run `eas submit --profile production --platform all --non-interactive`.
 
 For first submission of a new app:
 - App MUST exist in App Store Connect / Play Console with the correct bundle ID / package name (manual setup, can't be automated).

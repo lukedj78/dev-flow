@@ -26,11 +26,20 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
-      # The design-lint setup and the phase gate in set-phase. Every new web app's move
-      # into `scaffolded` depends on them, so a change to either must run their tests.
-      - "design-md-to-app/scripts/**"
-      - "dev-flow/scripts/**"
-      - "registry-intake/scripts/**"
+      # Every skill's scripts: run_skill_tests.py runs each <skill>/scripts/test_*.py it finds,
+      # so a change to any script folder must run them. Naming folders one by one is how CI
+      # came to run 4 of 17 test files.
+      - "*/scripts/**"
+      # What goes into dist/<skill>.skill, the bundles themselves, and their builder:
+      # build_skill_bundles.py --check compares the committed bundles with the sources.
+      - "*/assets/**"
+      - "dist/*.skill"
+      - "scripts/build_skill_bundles.py"
+      - "scripts/sync_routing_table.py"
+      # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
+      - "scripts/test_*.py"
+      - "scripts/run_skill_tests.py"
+      - "bootstrap/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -58,11 +67,20 @@ on:
       # the file is the one thing that never sees it.
       - "skills.json"
       - ".claude-plugin/**"
-      # The design-lint setup and the phase gate in set-phase. Every new web app's move
-      # into `scaffolded` depends on them, so a change to either must run their tests.
-      - "design-md-to-app/scripts/**"
-      - "dev-flow/scripts/**"
-      - "registry-intake/scripts/**"
+      # Every skill's scripts: run_skill_tests.py runs each <skill>/scripts/test_*.py it finds,
+      # so a change to any script folder must run them. Naming folders one by one is how CI
+      # came to run 4 of 17 test files.
+      - "*/scripts/**"
+      # What goes into dist/<skill>.skill, the bundles themselves, and their builder:
+      # build_skill_bundles.py --check compares the committed bundles with the sources.
+      - "*/assets/**"
+      - "dist/*.skill"
+      - "scripts/build_skill_bundles.py"
+      - "scripts/sync_routing_table.py"
+      # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
+      - "scripts/test_*.py"
+      - "scripts/run_skill_tests.py"
+      - "bootstrap/**"
       # the compliance grader reads the gates' scripts above; its selftest runs on either change
       - "evals/compliance/**"
       - ".github/workflows/lint-skills.yml"
@@ -84,14 +102,11 @@ jobs:
       - name: Lint all skills
         run: python3 scripts/lint_skills.py
 
-      - name: Test the design-lint setup and the phase gate
-        run: cd design-md-to-app/scripts && python3 -m unittest test_setup_design_lint -v
-
-      - name: Test registry intake (allowlist, review, snapshot, hook, phase gate)
-        run: cd registry-intake/scripts && python3 -m unittest test_registry_intake -v
-
-      - name: Test data residency (decision, sub-processor register, check, phase gate)
-        run: cd dev-flow/scripts && python3 -m unittest test_data_residency -v
+      # One step for every suite: run_skill_tests.py discovers each <skill>/scripts/test_*.py tracked
+      # by git, fails on a red suite and on one that ran zero tests, and prints the skips. CI used to
+      # name the files one by one and ran 4 of 17.
+      - name: Run every skill's test suite
+        run: python3 scripts/run_skill_tests.py
 
       - name: Self-test the compliance grader (offline — the agent runs are local and paid)
         run: python3 evals/compliance/comply.py selftest
@@ -99,17 +114,25 @@ jobs:
       - name: Regenerate skills.json and check it's committed
         run: |
           python3 scripts/build_skills_registry.py
-          # Exclude the auto-changing "generated_at" timestamp from the diff —
-          # only structural changes (skill list, counts, etc.) should fail CI.
-          if ! git diff -I '"generated_at":' --quiet skills.json; then
+          # skills.json carries no timestamp any more, so any difference is a real one.
+          if ! git diff --quiet skills.json; then
             echo "::error::skills.json is out of date. Run scripts/build_skills_registry.py and commit the result."
-            git diff -I '"generated_at":' skills.json | head -40
+            git diff skills.json | head -40
             exit 1
           fi
-          echo "✓ skills.json is up to date (structurally)."
+          echo "✓ skills.json is up to date."
 
       - name: Build the Agent Plugins package and check its manifest
         run: python3 scripts/build_agent_plugin.py --check
+
+      # Only the pre-commit hook rebuilt the bundles, and it runs only in clones that installed it.
+      # On 2026-10-03 twelve of fifty-one were wrong. This compares their content with the sources.
+      # The routing table lives in show_state.py; SKILL.md carries a rendering of it, never a second copy.
+      - name: Check dev-flow's routing table in SKILL.md matches show_state.py
+        run: python3 scripts/sync_routing_table.py --check
+
+      - name: Check the dist/*.skill bundles match their sources
+        run: python3 scripts/build_skill_bundles.py --check
 
       - name: Check the published site is regenerated
         run: |
@@ -120,3 +143,33 @@ jobs:
             echo "::error::docs/ site is stale. Run scripts/build_site.py and commit the result."
             exit 1
           fi
+
+  # The scripts run on whatever `python3` the user has, and macOS's own is 3.9. Everything targets it
+  # (hence `from __future__ import annotations` where `X | None` appears), but only contract-package was
+  # tested there, so research.py shipped 3.12-only syntax and failed on a stock Mac with a SyntaxError.
+  python-floor:
+    name: scripts on Python 3.9
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Compile every script on 3.9
+        run: python -m compileall -q $(git ls-files '*.py' | grep -v '^contract-package/')
+
+      - name: Run every skill's test suite on 3.9
+        run: python scripts/run_skill_tests.py
+
+  # install.sh and uninstall.sh run on the user's machine, and most users are on macOS: bash 3.2, BSD
+  # tools, shasum rather than sha256sum. The lint job covers Linux; this covers the Mac, all six runtimes.
+  install-macos:
+    name: installers on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install, reinstall, uninstall and restore on every runtime
+        run: cd scripts && python3 -m unittest test_install -v

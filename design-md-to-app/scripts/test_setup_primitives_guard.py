@@ -77,9 +77,10 @@ class Install(unittest.TestCase):
             quiet(spg.install, root)
             s = json.loads((root / ".claude/settings.json").read_text())
             self.assertEqual(s["permissions"], mine["permissions"])
-            self.assertEqual(s["hooks"]["PostToolUse"], mine["hooks"]["PostToolUse"])
+            self.assertEqual(s["hooks"]["PostToolUse"][0], mine["hooks"]["PostToolUse"][0], "existing hook kept first")
+            self.assertEqual(len(s["hooks"]["PostToolUse"]), 2, "the guard's Bash post hook added once")
             self.assertEqual(s["hooks"]["PreToolUse"][0], mine["hooks"]["PreToolUse"][0], "existing hook kept first")
-            self.assertEqual(len(s["hooks"]["PreToolUse"]), 2, "the guard's hook added once")
+            self.assertEqual(len(s["hooks"]["PreToolUse"]), 3, "the guard's Write and Bash hooks added once each")
             self.assertEqual(len(s["hooks"]["Stop"]), 1)
             self.assertEqual(len(s["hooks"]["SubagentStop"]), 1)
 
@@ -246,6 +247,47 @@ class Guard(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("components/sep.tsx", r.stderr)
         self.assertEqual(self.hook("stop", {"stop_hook_active": True}).returncode, 0, "never loops")
+
+    def init_repo(self) -> None:
+        git = lambda *a: subprocess.run(["git", *a], cwd=self.root, capture_output=True, text=True, check=True)  # noqa: E731
+        git("init", "-q")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init")
+
+    def test_a_shell_write_is_caught_right_after_the_command(self) -> None:
+        # The 5-session trial of 2026-10-17: every agent wrote its files with `cat > … <<'EOF'`, which the
+        # Write/Edit hook never sees; only `stop` caught it, at the end of the turn (AUDIT.md P1-32).
+        self.init_repo()
+        write(self.root, "components/legacy.tsx", "export const L = () => <button>Old</button>\n")
+        bash = {"session_id": "s1", "tool_name": "Bash", "tool_input": {"command": "cat > components/sep.tsx <<'EOF' …"}}
+        self.assertEqual(self.hook("bash-pre", bash).returncode, 0)
+        write(self.root, "components/sep.tsx", "export const Sep = () => <hr className=\"my-4\" />\n")
+        r = self.hook("bash-post", bash)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("components/sep.tsx", r.stderr)
+        self.assertNotIn("legacy.tsx", r.stderr, "only what this command touched")
+
+    def test_only_what_the_command_added_is_reported(self) -> None:
+        self.init_repo()
+        before = "export const R = () => (\n  <div>\n    <button>Old</button>\n  </div>\n)\n"
+        write(self.root, "components/row.tsx", before)
+        bash = {"session_id": "s2", "tool_name": "Bash", "tool_input": {"command": "sed -i …"}}
+        self.hook("bash-pre", bash)
+        write(self.root, "components/row.tsx", before.replace("  </div>", "    <p>x</p>\n  </div>"))
+        self.assertEqual(self.hook("bash-post", bash).returncode, 0, "the old <button> was there before the command")
+
+    def test_a_command_that_touches_no_ui_file_is_silent(self) -> None:
+        self.init_repo()
+        bash = {"session_id": "s3", "tool_name": "Bash", "tool_input": {"command": "ls && echo hi > notes.md"}}
+        self.hook("bash-pre", bash)
+        write(self.root, "notes.md", "<button>")
+        r = self.hook("bash-post", bash)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_without_a_snapshot_the_post_hook_stays_out_of_the_way(self) -> None:
+        self.init_repo()
+        write(self.root, "components/sep.tsx", "export const Sep = () => <hr />\n")
+        bash = {"session_id": "never-pre", "tool_name": "Bash", "tool_input": {"command": "true"}}
+        self.assertEqual(self.hook("bash-post", bash).returncode, 0, "stop still catches it at the end")
 
 
 if __name__ == "__main__":

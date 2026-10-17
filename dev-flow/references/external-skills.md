@@ -1,3 +1,32 @@
+# Policy — External skills — suggest, never install
+
+dev-flow ships its skills free. It is also allowed to **mention that
+somebody else's skill exists** when a project reaches a point where one would
+help — the way a colleague tells you which tool down the hall does the thing you
+just asked for.
+
+`references/external-skills.md` holds the list: what each one does, the single
+moment in a project when it is worth raising, what it costs, and what dev-flow
+already does for free instead.
+
+Four rules keep this from turning dev-flow into a paid product:
+
+1. **Suggest; the user installs.** Never run `npx skills add` on their behalf,
+   never add one to `install.sh`, never let a dev-flow skill import or require one.
+2. **Say the price in the same breath**, before the user goes anywhere near a
+   signup page. A payment step must never arrive as a surprise.
+3. **Name the free path we already have**, and let the user choose. The suggestion
+   is an option, not a recommendation.
+4. **Only when the work reaches it** — never as a menu of possibilities at kickoff.
+
+Nothing in that file is a dependency: delete every row and dev-flow does exactly
+what it did before.
+
+Moved out of `dev-flow/SKILL.md` on 2026-10-17 to cut the router's every-turn cost; SKILL.md keeps an
+index line pointing here. The text is unchanged.
+
+---
+
 # External skills — what dev-flow can point you at, and never installs
 
 dev-flow ships its skills free and offline-capable. It is also allowed to

@@ -40,10 +40,28 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import meta_io  # noqa: E402 — reads meta.json, refusing an invalid one with exit 2
+
 # ---------------------------------------------------------------------------
 # Hashing helpers (intentionally duplicated from update_meta.py to keep
 # check_drift.py importable / runnable as a standalone script)
 # ---------------------------------------------------------------------------
+
+
+def deps(entry: dict[str, Any]) -> list[tuple[str, str | None]]:
+    """(path, recorded sha256 or None) for each input an artifact was derived from.
+
+    record-artifact writes `{"path", "sha256"}` objects. Some hand-written meta.json files hold bare
+    paths instead (predictionleagues: `[".workflow/DESIGN.md"]`), and indexing those as objects crashed
+    the whole check. A bare path still propagates staleness; it just has no snapshot to compare."""
+    out = []
+    for dep in entry.get("derived_from") or []:
+        if isinstance(dep, str):
+            out.append((dep, None))
+        elif isinstance(dep, dict) and isinstance(dep.get("path"), str):
+            out.append((dep["path"], dep.get("sha256") if isinstance(dep.get("sha256"), str) else None))
+    return out
 
 
 def sha256_file(path: Path) -> str:
@@ -85,7 +103,7 @@ def main() -> int:
         sys.stderr.write(f"No .workflow/meta.json at {root}\n")
         return 1
 
-    meta = json.loads(meta_path.read_text())
+    meta = meta_io.load_or_exit(meta_path)
     artifacts: dict[str, dict[str, Any]] = meta.get("artifacts") or {}
 
     if not artifacts:
@@ -114,7 +132,17 @@ def main() -> int:
             "detail": "",
         }
 
-        if not abs_path.exists():
+        if not abs_path.is_relative_to(root):
+            # A key written by hand can point anywhere; record-artifact refuses these, so never read one.
+            row["status"] = "outside"
+            row["detail"] = "the path resolves outside the project; not read"
+            any_drift = True
+        elif not recorded_sha:
+            # idea-validator and predictionleagues have entries like this, written by hand: nothing to compare.
+            row["status"] = "unhashed"
+            row["detail"] = "recorded without a sha256; re-record it with update_meta.py record-artifact"
+            any_drift = True
+        elif not abs_path.exists():
             row["status"] = "missing"
             row["detail"] = "file no longer exists on disk"
             any_drift = True
@@ -127,16 +155,19 @@ def main() -> int:
             else:
                 # Self matches — check immediate upstream dependencies.
                 upstream_stale: list[str] = []
-                for dep in entry.get("derived_from") or []:
-                    dep_path = (root / dep["path"]).resolve()
+                for dep_rel, dep_sha in deps(entry):
+                    dep_path = (root / dep_rel).resolve()
+                    if not dep_path.is_relative_to(root):
+                        upstream_stale.append(f"{dep_rel} (outside the project, not read)")
+                        continue
                     if not dep_path.exists():
-                        upstream_stale.append(f"{dep['path']} (missing)")
+                        upstream_stale.append(f"{dep_rel} (missing)")
+                        continue
+                    if dep_sha is None:  # recorded as a bare path: no snapshot to compare against
                         continue
                     current_dep_sha = sha256_file(dep_path)
-                    if current_dep_sha != dep["sha256"]:
-                        upstream_stale.append(
-                            f"{dep['path']} ({dep['sha256'][:8]} → {current_dep_sha[:8]})"
-                        )
+                    if current_dep_sha != dep_sha:
+                        upstream_stale.append(f"{dep_rel} ({dep_sha[:8]} → {current_dep_sha[:8]})")
                 if upstream_stale:
                     row["status"] = "upstream-stale"
                     row["detail"] = "; ".join(upstream_stale)
@@ -159,12 +190,12 @@ def main() -> int:
             row = rows_by_path[rel_path]
             if is_stale(row):
                 continue
-            for dep in entry.get("derived_from") or []:
-                dep_row = rows_by_path.get(dep["path"])
+            for dep_rel, _ in deps(entry):
+                dep_row = rows_by_path.get(dep_rel)
                 if dep_row and is_stale(dep_row):
                     row["status"] = "upstream-stale"
                     row["detail"] = (
-                        f"transitively via {dep['path']} ({dep_row['status']})"
+                        f"transitively via {dep_rel} ({dep_row['status']})"
                     )
                     any_drift = True
                     changed = True

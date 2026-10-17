@@ -1,6 +1,6 @@
 ---
 name: shadscan
-description: 'Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. The third pre-deploy gate, alongside `compliance-audit` (legal) and `vercel-doctor` (cost); dev-flow proposes it at `feature_complete` and in the `deployed` maintenance loop. Use when the user says "shadscan", "audit my UI", "check accessibility", "is this app accessible", "a11y audit", "missing loading/empty states", "UI quality check", or dev-flow routes here before a web deploy. Refuses for non-React / non-shadcn targets (mobile RN is out of scope). Not for: legal/privacy audit (use compliance-audit), Vercel cost (use vercel-doctor), designing the UI (use design-md-to-app), or writing tests (use write-tests).'
+description: 'Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of four pre-deploy gates, with `compliance-audit` (legal), `vercel-doctor` (cost) and `launch-audit` (launch readiness); dev-flow proposes it at `feature_complete` and in the `deployed` maintenance loop. Use when the user says "shadscan", "audit my UI", "check accessibility", "is this app accessible", "a11y audit", "missing loading/empty states", "UI quality check", or dev-flow routes here before a web deploy. Refuses for non-React / non-shadcn targets (mobile RN is out of scope). Not for: legal/privacy audit (use compliance-audit), Vercel cost (use vercel-doctor), launch readiness (use launch-audit), designing the UI (use design-md-to-app), or writing tests (use write-tests).'
 ---
 
 # shadscan — UI-quality & accessibility pre-deploy gate for React/shadcn apps
@@ -25,7 +25,7 @@ that the form errors `forms` specifies are really rendered, that a route has a l
 ## Verified invocation + flags
 
 ```bash
-npx --yes @shadscan/cli                                       # explore: latest, human output
+npx --yes @shadscan/cli@0.9.0                                 # explore: human output, same pin
 npx --yes @shadscan/cli@0.9.0 --json --no-interactive \
   > docs/ui/shadscan.json                                     # audit: PINNED — the mode this skill uses
 npx --yes @shadscan/cli@0.9.0 --fail-under 70 --no-interactive # CI gate: pinned + ratcheted
@@ -37,6 +37,8 @@ rules → 60), silently making a before/after diff a comparison across two diffe
 knows this: the `verification.shadscanCommand` it emits in its own acceptance criteria is **already
 pinned** (`pnpm dlx @shadscan/cli@0.9.0 --json`). Follow it. Pin the baseline run, pin the re-run, and
 only drop the pin when you deliberately want the newer ruleset — then re-baseline instead of diffing.
+The explore line is pinned too: `--yes` runs a third-party package without asking, and an unpinned one
+runs whatever was published last.
 
 `pnpm dlx @shadscan/cli` and `bunx @shadscan/cli` work identically. Supported frameworks (per the README):
 **Next.js, Vite, TanStack Start, Laravel, Astro, React Router** — it auto-detects the adapter and reports
@@ -58,8 +60,8 @@ it (`framework.adapter`, e.g. `next-app-router`) plus how confident it is that t
 | `setup [path]` | write an explicit project integration |
 | `mcp [paths...]` | serve shadscan as an **MCP server over stdio** for coding agents |
 
-If a flag above is rejected, the CLI has moved — run `npx --yes @shadscan/cli --help` and use what it
-reports rather than guessing.
+If a flag above is rejected, the CLI has moved — run `npx --yes @shadscan/cli@0.9.0 --help` (or the new
+pin, if you are moving to it on purpose) and use what it reports rather than guessing.
 
 ⚠️ **Do not use `--apply`.** It shells out to another agent CLI to do the work. You *are* the agent —
 read the JSON, triage it against the rules below, and apply the fixes yourself with the owning skill's
@@ -238,12 +240,12 @@ in code before reporting a delta**, rather than trusting that two runs minutes a
 ## dev-flow hook
 
 Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy gate** at `feature_complete`,
-completing the trio: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)**.
+one of four: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)** · `launch-audit` (commercial readiness).
 Re-run it in the `deployed` maintenance loop to catch UI regressions. It records `meta.json#shadscan` +
 `history` and **never bumps `phase`**. It never *blocks* the deploy on its own — it surfaces the score and
 the open decisions so the user decides.
 
-**In CI** the natural form is `npx --yes @shadscan/cli --json --no-interactive --fail-under <N>`, with `N`
+**In CI** the natural form is `npx --yes @shadscan/cli@<pinned> --json --no-interactive --fail-under <N>` — pinned, like every run you compare — with `N`
 set to the score already achieved (a ratchet), not to an aspirational number. `--fail-under` also fails on
 partial coverage, which is the behaviour you want.
 

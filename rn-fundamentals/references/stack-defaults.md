@@ -1,4 +1,5 @@
 > Snapshot date: 2026-10-09. Refresh with `python3 scripts/refresh_stack_defaults.py` (dry-run) — **not** by hand.
+> This file is carried by `rn-fundamentals` and `rn-bootstrap`, byte-identical (`lint_skills.py` fails otherwise).
 
 # Stack defaults (opinionated)
 
@@ -48,10 +49,15 @@ track npm `latest`, since Expo does not manage them.
 
 ## How to refresh
 
-Re-run `npm view <pkg> version` once a month for each row of the table above. If a major version bump appears (Expo, React Native, NativeWind, Reanimated), do not bump silently — open a discussion: the related skill content (`patterns.md`, `decision-tree.md`, `examples/`) may need updates.
+Monthly, from the dev-flow repo: `python3 scripts/refresh_stack_defaults.py` prints the drift (dry-run),
+and `--apply` rewrites the table in both copies of this file. It reads the Expo-managed rows from the
+SDK's `bundledNativeModules.json` and the others from npm `latest`, the split explained at the top. When
+`bundledNativeModules.json` is unreachable it falls back to npm for every row and says so; don't apply
+that run. If a major version bump appears (Expo, React Native, NativeWind, Reanimated), do not bump
+silently — open a discussion: the RN skills' patterns, decision trees and examples may need updates too.
 
 ## Known compatibility constraints
 
-- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. NativeWind **v5 targets Tailwind v4**, but it is still on the `preview` dist-tag (`5.0.0-preview.4`) — `latest` remains **4.2.6**. Stay on Tailwind 3.4.x until v5 leaves preview.
+- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. NativeWind **v5 targets Tailwind v4**, and it is at release candidate: `5.0.0-rc.0` on the `preview` and `rc` dist-tags, while `latest` is **4.2.7** (npm registry, read 2026-10-17). Stay on Tailwind 3.4.x until v5 is `latest`.
 - **React 19** is the default for Expo SDK 55+. Some third-party RN libraries lag — when one breaks, check its issues page before downgrading React.
 - **Reanimated 4** uses the New Architecture under the hood — which on SDK 55+ is simply always there, nothing to switch on.

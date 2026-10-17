@@ -402,7 +402,10 @@ FAMILIES = "core|web|agent|mobile|monorepo|refactor"
 COUNT_FILES = ["README.md", "CONTEXT.md", "docs/dev-flow-skill-map.html",
                "install.sh", "uninstall.sh", "dev-flow/SKILL.md",
                "dev-flow/references/external-skills.md",
-               "docs/skill-doctor-referto.html"]
+               "docs/skill-doctor-referto.html",
+               # What a marketplace user reads first. All three said "43" while the suite had 52.
+               ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json",
+               "dist/agent-plugin/plugin.json"]
 TOTAL_PATTERNS = [
     r"\b(\d+) skills \(", r"containing (\d+) skills", r"[Ss]hould print (\d+)",
     r"all (\d+) skills", r"map of the (\d+) skills", r"my-skills — (\d+) skills",
@@ -419,6 +422,9 @@ TOTAL_PATTERNS = [
     # The skill-map's metric card is a bare number with no adjacent word, so no
     # prose pattern above could ever match it. It sat at 44 for a full release.
     r'>skills</div><div class="v"[^>]*>(\d+)<',
+    # The plugin manifests' blurbs (generated from build_plugin_manifest.py) and the marketplace entry.
+    # "over one .workflow" anchors it: external-skills.md quotes a third-party suite as "25 skills over …".
+    r"and (\d+) skills that", r"(\d+) skills over one \.workflow",
 ]
 # A family name followed by a dash introduces a list, not a count ("2 agent — eve").
 # And a version number in front of one is not a count either: "Next.js 16 web" is a
@@ -427,6 +433,8 @@ TOTAL_PATTERNS = [
 FAMILY_COUNT_RE = re.compile(
     rf"(?<!next\.js )(?<!next )\b(\d+)\s+({FAMILIES})\b(?!\s*[-–—]\s*)", re.I
 )
+# The README's diagram puts the count after the name: "WEB FAMILY (15 skills)". It said 15 when there were 18.
+FAMILY_PAREN_RE = re.compile(rf"\b({FAMILIES}) FAMILY \((\d+) skills\)", re.I)
 
 
 def check_stated_counts(root: Path, all_skills: set[str]) -> None:
@@ -453,6 +461,12 @@ def check_stated_counts(root: Path, all_skills: set[str]) -> None:
             fam = m.group(2).lower()
             if fam in per_family and int(m.group(1)) != per_family[fam]:
                 err(f"{path}: \"{m.group(0)}\" — there are {per_family[fam]} {fam} skills")
+        for m in FAMILY_PAREN_RE.finditer(text):
+            fam = m.group(1).lower()
+            if fam in per_family and int(m.group(2)) != per_family[fam]:
+                err(f"{path}: \"{m.group(0)}\" — there are {per_family[fam]} {fam} skills")
+        if rel.endswith(".json") and "{count}" in text:
+            err(f"{path}: an unfilled {{count}} placeholder — build it with scripts/build_plugin_manifest.py")
 
 
 def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
@@ -495,7 +509,7 @@ def check_installer_skills(installer_path: Path, all_skills: set[str]) -> None:
 # session that added checks 13 and 14 found nine stale numbers in the skill map alone,
 # so
 # every count that nothing writes gets a guard the moment it is written down.
-CHECK_COUNT = 19
+CHECK_COUNT = 21
 CHECK_COUNT_PATTERNS = [
     r"— (\d+) checks",
     r"Sanity-check every skill — (\d+) checks",
@@ -621,6 +635,93 @@ def check_eve_recipe_count(root: Path) -> None:
                 err(f"{path}: \"{m.group(0)}\" — eve-patterns.md has {real}")
 
 
+# --- check 20: two skills that share a trigger phrase must exclude each other ------
+#
+# The agent picks a skill from its description alone. "add auth" sat in both module-add's and
+# rn-module-add's triggers, "artboard" in iframe-canvas's and wireframe-canvas's, and neither of
+# each pair named the other in its `Not for:` — so the description gave the agent nothing to choose
+# by (AUDIT.md §6.6). A phrase that is a contract value (a phase, a framework) is not a trigger.
+TRIGGER_PHRASE_RE = re.compile(r'["“]([^"”]{4,80})["”]')
+NOT_TRIGGERS = {"next", "expo-rn", "monorepo", "agent", "use client"}
+
+
+def check_shared_triggers(root: Path, all_skills: set[str]) -> None:
+    sys.path.insert(0, str(root / "dev-flow" / "scripts"))
+    try:
+        import phases
+        contract_values = NOT_TRIGGERS | set(phases.PHASES)
+    except ImportError:
+        contract_values = set(NOT_TRIGGERS)
+    descriptions: dict[str, str] = {}
+    for name in sorted(all_skills):
+        text = (root / name / "SKILL.md").read_text(errors="ignore")
+        try:
+            fm = yaml.safe_load(text.split("---")[1]) or {}
+        except Exception:
+            continue  # check 1 reports a broken frontmatter
+        descriptions[name] = str(fm.get("description") or "")
+    owners: dict[str, set[str]] = {}
+    for name, desc in descriptions.items():
+        for phrase in TRIGGER_PHRASE_RE.findall(desc):
+            phrase = phrase.strip().lower()
+            if phrase not in contract_values:
+                owners.setdefault(phrase, set()).add(name)
+    for phrase, names in sorted(owners.items()):
+        for a in sorted(names):
+            not_for = descriptions[a].split("Not for", 1)[1] if "Not for" in descriptions[a] else ""
+            for b in sorted(names - {a}):
+                if b not in not_for:
+                    err(f"{a}/SKILL.md: shares the trigger \"{phrase}\" with `{b}`, but its `Not for:` "
+                        f"does not name `{b}` — the agent chooses on the description alone")
+
+
+# --- check 21: dated facts older than STALE_DAYS are named, never failed -------------
+#
+# Third-party facts age: versions, security floors, flags. resources.md's rule is "anything older than
+# a couple of months is a row to re-read", and nothing applied it — contracts.md kept calling Next 16.3
+# `latest` after 16.4.0 shipped (AUDIT.md §6.10). A note per file, with its oldest marker; notes never
+# change the exit code, because a fact being old is a reason to re-read it, not proof it is wrong.
+STALE_DAYS = 60
+DATED_MARKER_RE = re.compile(
+    r"\b(verified|re-verified|checked|snapshot date|last pass|read|as of)\b:?\s*(?:on\s+)?"
+    r"(20\d\d-\d\d(?:-\d\d)?)\b", re.I)
+# Dated records of what happened, not facts that can go stale.
+STALE_EXEMPT = ("CHANGELOG.md", "AUDIT.md", "docs/superpowers/", "evals/compliance/baselines/", "dist/")
+
+
+def check_stale_markers(root: Path, today=None) -> None:
+    import datetime
+    today = today or datetime.date.today()
+    tracked = subprocess_lines(root, ["git", "ls-files", "*.md"])
+    for rel in tracked:
+        if rel.startswith(STALE_EXEMPT) or (rel.endswith("/references/contracts.md")
+                                              and rel != "dev-flow/references/contracts.md"):
+            continue
+        text = (root / rel).read_text(errors="ignore")
+        old = []
+        for m in DATED_MARKER_RE.finditer(text):
+            stamp = m.group(2)
+            try:
+                day = datetime.date.fromisoformat(stamp if len(stamp) == 10 else stamp + "-01")
+            except ValueError:
+                continue
+            if (today - day).days > STALE_DAYS:
+                old.append((day, text.count("\n", 0, m.start()) + 1, m.group(0)))
+        if old:
+            day, line, marker = min(old)
+            more = f" (+{len(old) - 1} more)" if len(old) > 1 else ""
+            note(f"{rel}:{line}: \"{marker}\" is {(today - day).days} days old{more} — re-read the fact "
+                 f"against its source, then update the date")
+
+
+def subprocess_lines(root: Path, cmd: list[str]) -> list[str]:
+    import subprocess
+    try:
+        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, check=True).stdout.split()
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+
 def check_lint_check_count(root: Path) -> None:
     """The number of checks, stated in the README and on the skill map."""
     for rel in ("README.md", "CONTEXT.md", SKILL_MAP):
@@ -638,28 +739,48 @@ def check_lint_check_count(root: Path) -> None:
 
 
 VENDORED_SOURCE = [
-    # (tested source, the copy a skill hands to a project)
+    # (tested source, the copy a skill hands to a project — or runs itself)
     ("agent-guards/src/guards.ts", "eve-agent/references/guards.template.ts"),
+    # The lock and atomic write for .workflow/meta.json. Each skill installs standalone and cannot
+    # import from dev-flow, so every skill that writes meta.json carries a copy. The lock only works
+    # if all writers take the same one, which is why the copies must not drift.
+    *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
+      for skill in ("design-md-to-app", "forms", "linear-scrum", "registry-intake", "wireframe-canvas")),
+    # The RN version pins. refresh_stack_defaults.py rewrites both tables; the prose around them drifted
+    # by hand (rn-bootstrap's still said NativeWind had no v5 when rn-fundamentals had it in preview).
+    ("rn-fundamentals/references/stack-defaults.md", "rn-bootstrap/references/stack-defaults.md"),
+]
+
+# Vendored by every skill that reads or writes `.workflow/` (CONTEXT.md, "The vendored contract is
+# duplication on purpose"). Discovered rather than listed, so a skill that starts carrying it is checked
+# from its first commit. Until 2026-10-17 the identity was a manual md5 loop and nothing failed on drift.
+VENDORED_EVERYWHERE = [
+    ("dev-flow/references/contracts.md", "*/references/contracts.md"),
 ]
 
 
 def check_vendored_source(root: Path) -> None:
-    """A file a skill copies into a project must equal the file CI tested.
+    """A vendored file must equal the file CI tested.
 
     `guards.template.ts` is what `eve-agent` writes into `agent/lib/guards.ts`.
     Its tests live in `agent-guards/`, and they test `src/guards.ts`. If the two
     drift, every project gets code that was never tested and the suite stays
-    green — the same shape as check 12, one layer out.
+    green — the same shape as check 12, one layer out. `meta_io.py` is the same
+    case inside the repo: tested in dev-flow, run from five other skills.
     """
-    for tested, vendored in VENDORED_SOURCE:
+    pairs = list(VENDORED_SOURCE)
+    for canonical, pattern in VENDORED_EVERYWHERE:
+        pairs += [(canonical, str(p.relative_to(root))) for p in sorted(root.glob(pattern))
+                  if str(p.relative_to(root)) != canonical]
+    for tested, vendored in pairs:
         a, b = root / tested, root / vendored
         if not a.exists() or not b.exists():
             warn(f"vendored pair missing: {tested} / {vendored}")
             continue
         if a.read_bytes() != b.read_bytes():
             err(
-                f"{vendored} differs from {tested} — the copy handed to projects "
-                f"is not the one the tests cover. Copy it across."
+                f"{vendored} differs from {tested}, its canonical copy — "
+                f"edit the canonical one and copy it across."
             )
 
 
@@ -767,7 +888,9 @@ def check_installed_in_sync(root: Path, all_skills: set[str]) -> None:
 # skills and 14 knowledge-role ones. Their siblings (`mobile · expo`, `engine ·
 # eve`) had always been plain family counts, so the definition was never in doubt
 # — only unenforced. Each card is now derived from skills.json or, for `phases`,
-# from the contract's own Phase enum, which is the only place phases are declared.
+# from contract-package's Phase enum. That is one of three copies of the phase
+# list, alongside the table in contracts.md and dev-flow/scripts/phases.py; tests
+# hold both copies to the table (contract-package's test_core, dev-flow's test_phases).
 PHASE_ENUM = "contract-package/src/dev_flow_contract/core.py"
 METRIC_RE = re.compile(
     r'<div class="metric"><div class="k">(?:<[^>]+>)*\s*([a-z0-9 ·-]+?)\s*</div>'
@@ -776,7 +899,7 @@ METRIC_RE = re.compile(
 
 
 def phase_count(root: Path) -> int | None:
-    """Members of the Phase enum — the contract is the only place they are declared."""
+    """Members of contract-package's Phase enum, which its tests keep equal to the contract's table."""
     path = root / PHASE_ENUM
     if not path.exists():
         return None
@@ -869,6 +992,8 @@ def main() -> int:
     check_eve_recipe_count(root)
     check_local_paths_resolve(root, all_skills)
     check_lint_check_count(root)
+    check_shared_triggers(root, all_skills)
+    check_stale_markers(root)
     check_installed_in_sync(root, all_skills)
 
     print()

@@ -1,6 +1,6 @@
 ---
 name: write-tests
-description: 'Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query). Reads the project''s wired test framework from `.workflow/meta.json#stack.test`, follows the mocking patterns already present in `vitest.setup.ts` and any sibling test files. Use when the user says "scrivi i test per X", "test per la server action Y", "e2e per /clienti", "unit test per il componente Z", "add tests for <file>", or after `screenshot-to-page` / `module-add` runs and the user wants coverage. Not for: scaffolding the test infrastructure (`module-add test`), running QA on a deployed site (`qa`), or methodology guidance (`superpowers:test-driven-development`).'
+description: 'Write Vitest unit/integration tests OR Playwright e2e tests for an existing source file (server action, page, component, query). Reads the project''s wired test framework from `.workflow/meta.json#stack.test`, follows the mocking patterns already present in `vitest.setup.ts` and any sibling test files. Use when the user says "scrivi i test per X", "test per la server action Y", "e2e per /clienti", "unit test per il componente Z", "add tests for <file>", or after `screenshot-to-page` / `module-add` runs and the user wants coverage. Not for: scaffolding the test infrastructure (`module-add test`), running QA on a deployed site (`qa`), methodology guidance (`superpowers:test-driven-development`), or an Expo/RN app (`rn-write-tests`).'
 ---
 
 # write-tests — generate tests for one file at a time
@@ -31,6 +31,7 @@ This skill follows the dev-flow contract — see `references/contracts.md`. Key 
 
 Read `<project-root>/.workflow/meta.json`:
 
+- `stack.framework` must be `next`, or `monorepo` with the test aimed at `apps/web/`. On `expo-rn` (or a file under `apps/mobile/`), stop and hand off to **`rn-write-tests`**: `stack.test` alone does not tell the two apart — `jest-expo+rntl` is a valid value too — and this skill's Vitest/Playwright patterns are wrong for React Native.
 - `stack.test` must be set (e.g., `"vitest+playwright"`). If `null`, stop and tell the user: *"Test infrastructure not wired. Run `module-add test` first, then come back."*
 - `phase` should be `module_added` or later. If earlier, the project might not have anything testable yet — warn and ask whether to proceed.
 

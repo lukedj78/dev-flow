@@ -169,7 +169,7 @@ _Avoid_: store, repo.
 
 ## ⚠️ The vendored contract is duplication **on purpose**
 
-`references/contracts.md` is **byte-identical in 33 skills** — roughly 1 MB of the same file. It looks
+`references/contracts.md` is **byte-identical in 41 skills** — roughly 2.8 MB of the same file. It looks
 like waste, and sooner or later someone will try to "fix" it with a symlink, a single shared copy, or a
 build step that injects it.
 
@@ -179,11 +179,12 @@ against. The duplication is what makes single-skill installs possible; removing 
 a broken install path.
 
 What keeps it honest is the invariant, not the count: **every copy must be byte-identical to
-`dev-flow/references/contracts.md`**, which is canonical. Change it there, re-vendor to all of them, and
-verify one hash comes back:
+`dev-flow/references/contracts.md`**, which is canonical. Change it there and re-vendor to all of them;
+`lint_skills.py` fails on any copy that differs (its vendored-source check), so a missed copy is red at
+commit time:
 
 ```bash
-for f in */references/contracts.md; do md5 -q "$f"; done | sort -u | wc -l   # must print 1
+for f in */references/contracts.md; do [ "$f" = dev-flow/references/contracts.md ] || cp dev-flow/references/contracts.md "$f"; done
 ```
 
 The **eleven skills without one are also deliberate**: the ten mobile `knowledge` skills teach a stack

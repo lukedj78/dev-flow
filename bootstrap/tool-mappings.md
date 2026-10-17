@@ -41,15 +41,25 @@ Beyond tool names, dev-flow has a few **filesystem-contract operations** that ar
 | Append history | `python3 dev-flow/scripts/update_meta.py <root> append-history --skill <s> --inputs <json> --outputs <json>` | any |
 | Check drift | `python3 dev-flow/scripts/check_drift.py <root> [--plan]` | any |
 
-Or, equivalently from any Python runtime:
+From Python, the `dev-flow-contract` package reads and writes the same file:
 
 ```python
-from dev_flow_contract import (
-    init_workflow, record_artifact, set_phase, append_history, check_drift, Phase
-)
+from dev_flow_contract import load_meta, record_artifact, check_drift
 ```
 
-The contract package is the **portable surface** — every runtime that can run Python (or shell out to it) can read and write `.workflow/` correctly.
+It is **not** equivalent for moving phase: its `set_phase()` enforces order only and runs none of the
+gates `update_meta.py set-phase` holds (inventory, wireframes, data residency, design lint, registry
+intake, primitives guard). Move phase with the script, from any runtime that can shell out to Python.
+
+## Hooks — Claude Code only
+
+**Hooks run only in Claude Code.** Two dev-flow guards are Claude Code hooks written to a project's
+`.claude/settings.json`: registry intake's install check and the write-time primitives guard (golden
+rule 3). This runtime does not read that file, so neither runs here. Follow those rules by hand:
+third-party registry items go through `registry_intake.py review / approve / install`, never a direct
+`shadcn add`; UI is built from the library's primitives. What still checks them is the lint
+(`design/no-handmade-ui`), `registry_intake.py check` and the `set-phase` gates — after the fact, not
+at the moment of writing.
 
 ## When this table goes stale
 

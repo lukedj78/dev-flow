@@ -272,3 +272,87 @@ def test_legacy_hyphen_still_parses() -> None:
     """Projects written before the rename must keep loading."""
     assert Phase("module-added") is Phase.MODULE_ADDED
     assert Phase.MODULE_ADDED.value == "module_added"
+
+
+# ---------------------------------------------------------------------------
+# Fields the dataclasses do not model must survive a write.
+#
+# contracts.md: "preserve unknown fields". The package parsed meta.json into dataclasses and wrote back
+# only what they model, so one record_artifact() erased inventory, wireframes, linear, stack.agent,
+# stack.data_residency and stack.design_lint, the very data dev-flow's phase gates read (AUDIT.md §6.5).
+# ---------------------------------------------------------------------------
+
+def _write_raw(root: Path, meta: dict) -> None:
+    (root / ".workflow" / "meta.json").write_text(json.dumps(meta))
+
+
+def _read_raw(root: Path) -> dict:
+    return json.loads((root / ".workflow" / "meta.json").read_text())
+
+
+def test_unknown_fields_survive_every_write(project_root: Path) -> None:
+    meta = _read_raw(project_root)
+    meta.update({
+        "inventory": {"verdict": "build", "searched": ["skills"]},
+        "wireframes": {"skipped": True, "reason": "agent-only"},
+        "linear": {"team_id": "T1"},
+        "stack_config": {"design_lint_reason": "MUI"},
+    })
+    meta["stack"].update({"agent": "eve", "data_residency": "eu", "design_lint": "none"})
+    meta["history"] = [{"skill": "dev-flow", "action": "inventory", "ran_at": "2026-10-17T00:00:00Z"}]
+    meta["artifacts"] = {"old.md": {"sha256": "a" * 64, "produced_by": "x", "produced_at": "t", "note": "kept"}}
+    _write_raw(project_root, meta)
+
+    (project_root / "f.txt").write_text("x")
+    record_artifact(project_root, "f.txt", produced_by="test")
+    set_phase(project_root, "prd_drafted")
+    append_history(project_root, skill="test")
+
+    after = _read_raw(project_root)
+    for key in ("inventory", "wireframes", "linear", "stack_config"):
+        assert after[key] == meta[key], key
+    for key in ("agent", "data_residency", "design_lint"):
+        assert after["stack"][key] == meta["stack"][key], key
+    assert after["history"][0]["action"] == "inventory"
+    assert after["artifacts"]["old.md"]["note"] == "kept"
+    assert "f.txt" in after["artifacts"]
+    assert after["phase"] == "prd_drafted"
+
+
+def test_hand_written_shapes_load(project_root: Path) -> None:
+    # Two projects in ~/projects carry these: an artifact with no sha256, inputs as bare paths.
+    meta = _read_raw(project_root)
+    meta["artifacts"] = {
+        "STYLE_NOTES.md": {"produced_by": "design-md-to-app", "produced_at": "2026-05-04T20:55:00Z"},
+        "registry.json": {"sha256": "b" * 64, "produced_by": "x", "produced_at": "t",
+                          "derived_from": [".workflow/DESIGN.md"]},
+    }
+    _write_raw(project_root, meta)
+    load_meta(project_root)
+    append_history(project_root, skill="test")
+    after = _read_raw(project_root)
+    assert after["artifacts"]["STYLE_NOTES.md"] == meta["artifacts"]["STYLE_NOTES.md"]
+    assert after["artifacts"]["registry.json"]["derived_from"] == [".workflow/DESIGN.md"]
+
+
+def test_every_legacy_alias_parses() -> None:
+    assert Phase("page-generated") is Phase.PAGE_GENERATED
+    assert Phase("design-extracted") is Phase.DESIGN_EXTRACTED
+
+
+DEV_FLOW_PHASES = pathlib.Path(__file__).resolve().parents[2] / "dev-flow" / "scripts" / "phases.py"
+
+
+@pytest.mark.skipif(not DEV_FLOW_PHASES.exists(), reason="dev-flow not present (package installed standalone)")
+def test_aliases_match_dev_flow() -> None:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("dev_flow_phases", DEV_FLOW_PHASES)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for old, new in mod.ALIASES.items():
+        assert Phase(old).value == new, old
+
+
+def test_a_write_leaves_no_temp_file(project_root: Path) -> None:
+    append_history(project_root, skill="test")
+    assert sorted(p.name for p in (project_root / ".workflow").iterdir()) == ["meta.json"]

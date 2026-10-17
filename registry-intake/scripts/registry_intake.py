@@ -19,6 +19,7 @@ serves *today*. This script puts four barriers in front of that:
     registry_intake.py check   <root>                          gate / CI; exit 0 or 1
     registry_intake.py caps    <root> --reason ...             accept a raised design-lint cap
     registry_intake.py hook                                    Claude Code PreToolUse hook (stdin JSON)
+    registry_intake.py hook-post                               Claude Code PostToolUse hook on Bash (stdin JSON)
 
 A third-party agent skill is not code but instructions the agent obeys, so it gets the
 same two controls, minus the install (the user installs skills, never the agent):
@@ -42,10 +43,10 @@ import json
 import re
 import shlex
 import subprocess
+import os
 import sys
 import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -237,6 +238,7 @@ def known_registries(root: Path, lock: dict | None) -> dict[str, str]:
 
 def fetch_json(source: str, root: Path) -> dict:
     if "://" in source:
+        import urllib.request  # here, not at the top: the hooks import this file on every shell command (~100 ms)
         url = source
         for _ in range(6):
             if not url.startswith("https://"):
@@ -838,10 +840,9 @@ def hook_installed(root: Path) -> bool:
     return (root / HOOK_COPY).exists() and any(h.get("command") == HOOK_COMMAND for m in pre for h in m.get("hooks") or [])
 
 
-def check(root: Path) -> tuple[bool, list[str]]:
-    lock = load_lock(root)
-    if lock is None:
-        return False, [f"no {LOCK}: registry intake is not set up"]
+def registry_problems(root: Path, lock: dict) -> list[str]:
+    """The registry half of `check`: namespaces against the allowlist, snapshots against their approved
+    hash, nothing in vendor/ outside the lock. Cheap enough to run before and after every shell command."""
     problems = []
     allowed = lock.get("registries") or {}
     for ns, (url, p) in registries_in_components(root).items():
@@ -862,6 +863,70 @@ def check(root: Path) -> tuple[bool, list[str]]:
         for f in sorted(vendor.rglob("*.json")):
             if f.relative_to(root).as_posix() not in snapshots:
                 problems.append(f"{f.relative_to(root)} is in {VENDOR}/ but not in the lock")
+    return problems
+
+
+def post_hook_installed(root: Path) -> bool:
+    try:
+        post = (json.loads((root / ".claude" / "settings.json").read_text()).get("hooks") or {}).get("PostToolUse") or []
+    except (OSError, json.JSONDecodeError):
+        return False
+    return any(h.get("command") == HOOK_POST_COMMAND for m in post for h in m.get("hooks") or [])
+
+
+# The effect of a shell command, checked right after it (AUDIT.md P1-34). The PreToolUse hook reads the
+# command's text, and a text can always be written another way. What the command changed cannot: a registry
+# added to components.json, a snapshot edited after approval. `check` finds those too, but at the phase gate,
+# possibly much later — fit-coach's edited snapshot surfaced a month after the commit. So the PreToolUse
+# hook also records the registry problems before the command, and `hook-post` reports only the ones the
+# command introduced. What it cannot see is an install from a URL: the files and dependencies it leaves are
+# indistinguishable from shadcn's own components. Only a network-level barrier stops that one.
+def _effect_snapshot(root: Path, payload: dict) -> Path:
+    # Keyed on the project root, not the raw cwd: PostToolUse carries the cwd *after* the command, so a
+    # `cd sub` inside it looked for another snapshot, found none, and the check said nothing.
+    key = hashlib.sha1(f"{root}|{payload.get('session_id') or ''}".encode()).hexdigest()[:16]
+    # TMPDIR, not tempfile: this runs before and after every shell command, and importing tempfile cost ~40 ms.
+    return Path(os.environ.get("TMPDIR") or "/tmp") / f"registry-intake-{key}.json"
+
+
+def hook_pre_snapshot(payload: dict) -> None:
+    root = find_root(Path(payload.get("cwd") or ".").resolve())
+    lock = load_lock(root) if root else None
+    if lock is not None:
+        _effect_snapshot(root, payload).write_text(json.dumps(registry_problems(root, lock)))
+
+
+def hook_post_report(payload: dict) -> str | None:
+    root = find_root(Path(payload.get("cwd") or ".").resolve())
+    lock = load_lock(root) if root else None
+    if lock is None:
+        return None
+    path = _effect_snapshot(root, payload)
+    try:
+        before: set[str] | None = set(json.loads(path.read_text()))
+        path.unlink(missing_ok=True)
+    except (OSError, json.JSONDecodeError):
+        before = None  # a missing baseline is not a clean one: deleting it must not hide what the command did
+    now = registry_problems(root, lock)
+    new = now if before is None else [p for p in now if p not in before]
+    if not new:
+        return None
+    if before is None:
+        return ("Registry intake has no snapshot from before this command, so these are all the current "
+                "registry problems, not only the ones it introduced:\n"
+                + "".join(f"  - {p}\n" for p in new)
+                + "Fix them, or go through registry intake (see AGENTS.md).")
+    return ("The shell command just run changed governed registry state:\n"
+            + "".join(f"  - {p}\n" for p in new)
+            + "Put it back, or go through registry intake: `registry_intake.py review|approve|install <root> <item>` "
+              "(see AGENTS.md). A new registry needs the user's yes before `allow`.")
+
+
+def check(root: Path) -> tuple[bool, list[str]]:
+    lock = load_lock(root)
+    if lock is None:
+        return False, [f"no {LOCK}: registry intake is not set up"]
+    problems = registry_problems(root, lock)
     problems += check_skills(root, lock)
     problems += check_mcp(root, lock)
     problems += check_hooks(root, lock)
@@ -872,6 +937,8 @@ def check(root: Path) -> tuple[bool, list[str]]:
                             "with `registry_intake.py caps <root> --reason ...`")
     if not hook_installed(root):
         problems.append(f".claude/settings.json has no registry-intake PreToolUse hook running {HOOK_COPY}")
+    elif not post_hook_installed(root):
+        problems.append(f".claude/settings.json has no registry-intake PostToolUse hook running {HOOK_COPY} hook-post")
     else:
         here, copy = Path(__file__).resolve(), (root / HOOK_COPY).resolve()
         if here != copy and copy.read_bytes() != here.read_bytes():
@@ -1152,6 +1219,7 @@ def read_skill_target(target: str, root: Path) -> tuple[str, str, Path | None]:
     """`target` is an installed skill's name, a path to a SKILL.md or its directory, or a URL to
     read before installing. Returns (text, source label, local path)."""
     if skill_source_kind(target) == "url":
+        import urllib.request  # see fetch_json: kept off the hooks' import path
         with urllib.request.urlopen(target, timeout=20) as r:  # noqa: S310 — https, reviewed target
             return r.read().decode("utf-8", "replace"), target, None
     p = Path(target)
@@ -1689,6 +1757,7 @@ def check_hooks(root: Path, lock: dict) -> list[str]:
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"
 HOOK_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook'
+HOOK_POST_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook-post'
 
 
 def wire_hook(root: Path) -> bool:
@@ -1705,12 +1774,17 @@ def wire_hook(root: Path) -> bool:
         changed = True
     p = root / ".claude" / "settings.json"
     data = json.loads(p.read_text()) if p.exists() else {}
-    pre = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
-    ours = [m for m in pre for h in m.get("hooks") or [] if "registry_intake.py" in (h.get("command") or "")]
-    if len(ours) == 1 and [h.get("command") for h in ours[0]["hooks"]] == [HOOK_COMMAND]:
+    wrote = False
+    for event, command in (("PreToolUse", HOOK_COMMAND), ("PostToolUse", HOOK_POST_COMMAND)):
+        entries = data.setdefault("hooks", {}).setdefault(event, [])
+        ours = [m for m in entries for h in m.get("hooks") or [] if "registry_intake.py" in (h.get("command") or "")]
+        if len(ours) == 1 and [h.get("command") for h in ours[0]["hooks"]] == [command]:
+            continue
+        data["hooks"][event] = [m for m in entries if m not in ours] + [
+            {"matcher": "Bash", "hooks": [{"type": "command", "command": command}]}]
+        wrote = True
+    if not wrote:
         return changed
-    data["hooks"]["PreToolUse"] = [m for m in pre if m not in ours] + [
-        {"matcher": "Bash", "hooks": [{"type": "command", "command": HOOK_COMMAND}]}]
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2) + "\n")
     return True
@@ -1720,7 +1794,9 @@ AGENTS_BLOCK = f"""{SETUP_MARK[0]}
 ## Third-party registries
 
 Items from a shadcn-format registry other than shadcn's own (`@ns/item`, a registry URL) are not
-installed with `shadcn add` directly — a hook refuses it. They go through registry intake:
+installed with `shadcn add` directly — a hook refuses it. (That hook is a Claude Code hook: on another
+runtime nothing runs it, and these steps are followed by hand; `registry_intake.py check` and the
+`set-phase` gate still catch what lands.) They go through registry intake:
 
 1. `registry_intake.py review . @ns/item` — read-only report of files, npm deps, env vars and findings
 2. **Stop and ask the user**, always, even for a clean review or when in a hurry: a new registry needs
@@ -1800,12 +1876,17 @@ def record(root: Path, value: str) -> None:
     meta = root / ".workflow" / "meta.json"
     if not meta.exists():
         return
-    text = meta.read_text()
-    d = json.loads(text)
-    if (d.get("stack") or {}).get("registry_intake") == value:
-        return
-    d.setdefault("stack", {})["registry_intake"] = value
-    meta.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n")
+    # Imported here, not at the top: `setup` vendors this one file into .claude/hooks/ as the hook,
+    # without meta_io.py beside it. The hook never records, so only this function needs the copy.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
+    with meta_io.locked(meta.parent):
+        d = json.loads(meta.read_text())
+        if (d.get("stack") or {}).get("registry_intake") == value:
+            return
+        d.setdefault("stack", {})["registry_intake"] = value
+        meta_io.write_json(meta, d)
 
 
 def cmd_allow(args) -> int:
@@ -1849,6 +1930,10 @@ def cmd_deny(args) -> int:
 RUNNERS = {"npx", "pnpx", "bunx", "dlx", "exec"}
 
 
+# Shells whose -c runs a command string (`env` is not one: `env bash -c` reaches bash as its own token).
+C_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
+
+
 def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]:
     """[(tool, items, --cwd, read_only)] for every `shadcn add` / `eve add` / `eve registry add`."""
     out = []
@@ -1859,10 +1944,23 @@ def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]
             toks = seg.split()
         for i, t in enumerate(toks):
             base = t.split("/")[-1]
+            # `bash -xc "npx shadcn add …"` carries the whole install in one token: find the shell's -c
+            # (alone or in a flag cluster, after any long option) and parse its argument as a command.
+            if base in C_SHELLS:
+                # Modelling every option a shell takes is a race this parser loses (`-o pipefail -c …`,
+                # `-oc pipefail …`, `--rcfile x -c …`). When any option cluster after the shell holds a
+                # `c`, scan every later argument as a possible command string instead of guessing which.
+                rest_args = toks[i + 1:]
+                if any(re.match(r"^[-+][A-Za-z]*c[A-Za-z]*$", a) for a in rest_args):
+                    for a in rest_args:
+                        out.extend(governed_adds(a))
+                    break
             tool = "shadcn" if re.match(r"^shadcn(@[\w.-]+)?$", base) else "eve" if re.match(r"^eve(@[\w.-]+)?$", base) else None
             if not tool:
                 continue
             rest = toks[i + 1:]
+            while rest and rest[0] == "--":  # `npm exec shadcn -- add …`: the separator npm needs
+                rest = rest[1:]
             if tool == "eve" and rest[:2] == ["registry", "add"]:
                 out.append(("eve-registry", [a for a in rest[2:] if not a.startswith("-")], None, False))
                 break
@@ -1941,8 +2039,8 @@ def hook_decision(payload: dict) -> str | None:
                 "with no review and no hash. Read it first with `registry_intake.py skill-review <root> "
                 "<name|url>`, show the report, and let the user run the install themselves; "
                 "`skill-approve` then pins the text that landed.")
-    if "shadcn" not in command and "eve" not in command:
-        return None
+    # No substring short-circuit: `shad""cn` and `shad\\cn` both run shadcn while the raw string never
+    # contains it. governed_adds() tokenises like the shell does, and it is cheap enough for every call.
     adds = governed_adds(command)
     if not adds:
         return None
@@ -2023,6 +2121,10 @@ def cmd_hook(_args) -> int:
         payload = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError:
         return 0
+    try:
+        hook_pre_snapshot(payload)  # for hook-post; never allowed to break the decision below
+    except Exception:  # noqa: BLE001
+        pass
     reason = hook_decision(payload)
     if reason:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
@@ -2033,6 +2135,19 @@ def cmd_hook(_args) -> int:
         # "ask": the reason is shown to the user, not to Claude (hooks docs, PreToolUse decision control)
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
                                                  "permissionDecisionReason": ask}}))
+    return 0
+
+
+def cmd_hook_post(_args) -> int:
+    """PostToolUse on Bash: exit 2 with what the command changed, so the agent reads it at once."""
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+        report = hook_post_report(payload)
+    except Exception:  # noqa: BLE001 — a hook that crashes must not read as a verdict
+        return 0
+    if report:
+        sys.stderr.write(report)
+        return 2
     return 0
 
 
@@ -2068,6 +2183,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("check"); s.add_argument("root", type=Path)
     s = sub.add_parser("caps"); s.add_argument("root", type=Path); s.add_argument("--reason", required=True)
     sub.add_parser("hook")
+    sub.add_parser("hook-post")
     args = ap.parse_args(argv)
     if getattr(args, "shadcn_args", None) and args.shadcn_args[:1] == ["--"]:
         args.shadcn_args = args.shadcn_args[1:]
@@ -2087,7 +2203,7 @@ def main(argv: list[str] | None = None) -> int:
         print("✓ registry intake enforced" if ok else "✗ registry intake:\n" + "\n".join(f"  {p}" for p in problems))
         return 0 if ok else 1
     return {"setup": cmd_setup, "allow": cmd_allow, "deny": cmd_deny, "approve": cmd_approve,
-            "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook,
+            "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook, "hook-post": cmd_hook_post,
             "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve,
             "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve,
             "hook-review": cmd_hook_review}[args.cmd](args)

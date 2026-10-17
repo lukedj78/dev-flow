@@ -11,55 +11,69 @@ import json
 import sys
 from pathlib import Path
 
-# Next-step proposals per phase, keyed by `stack.framework`. Mirrors the routing tables
-# in dev-flow/SKILL.md (§Stack-aware routing) — keep the two in sync.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import meta_io  # noqa: E402 — reads meta.json, refusing an invalid one with exit 2
+import phases  # noqa: E402 — the phase enum and its aliases, shared with update_meta.py
+
+# Next-step proposals per phase, keyed by `stack.framework`: THE routing table. dev-flow/SKILL.md
+# §Stack-aware routing does not restate it — scripts/sync_routing_table.py renders this dict into it, and
+# CI fails if the rendered copy is stale. It used to be a second, hand-kept table, and the two had drifted:
+# the prose sent expo-rn to rn-bootstrap before the wireframes, this file sent next/expo-rn/monorepo to the
+# scaffold straight from prd_drafted (which the wireframe gate refuses), and the agent stack had a
+# module_added row for a phase the contract says it never reaches.
 # All phase keys are snake_case (contract §phase enum); legacy kebab-case is normalized below.
 COMMON_NEXT = {
-    "empty":            "prd-from-idea (capture idea + draft PRD)",
-    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md)",
-    "deployed":         "maintenance loop — re-run compliance-audit after material changes",
+    "empty":            "inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea",
+    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'",
 }
 
 PHASE_NEXT_BY_STACK = {
     "next": {
-        "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
-        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  design-md-to-app",
+        "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md / a hand-written DESIGN.md  THEN  wireframe-canvas  THEN  design-md-to-app",
+        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app",
-        "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add",
+        "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)",
         "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit  THEN  vercel-deploy",
+        "deployed":         "maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit after material changes",
     },
     "expo-rn": {
-        "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  OR  rn-bootstrap",
-        "tasks_split":      "linear-scrum (Setup)  THEN  image-to-design-md  OR  rn-bootstrap",
+        "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
+        "tasks_split":      "linear-scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  rn-bootstrap",
         "scaffolded":       "rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)",
         "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen",
         "module_added":     "spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "gate: compliance-audit  THEN  rn-eas-deploy",
+        "deployed":         "maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit after material changes",
     },
     "monorepo": {
-        "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md  OR  image-to-design-md  OR  monorepo-bootstrap",
-        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md  OR  image-to-design-md  OR  monorepo-bootstrap",
+        "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
+        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap",
-        "monorepo_initialized": "monorepo-bootstrap continues (apps/web, apps/mobile, apps/agent)",
-        "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent",
+        "monorepo_initialized": "monorepo-bootstrap continues (design-md-to-app in apps/web, rn-bootstrap in apps/mobile)",
+        "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types",
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy",
+        "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
+        "deployed":         "maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit after material changes",
     },
     "agent": {
-        "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app)",
+        "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)",
         "tasks_split":      "linear-scrum (Setup)  THEN  eve-agent (bootstrap)",
-        "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting",
-        "module_added":     "eve-agent (capability mode) — set phase feature_complete when the build is done",
+        "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting — set phase feature_complete when the build is done",
         "feature_complete": "gate: compliance-audit  THEN  eve deploy",
+        "deployed":         "maintenance loop — more capabilities (eve-agent), compliance-audit after material changes",
     },
 }
 
-# Legacy aliases still found in older meta.json files.
-PHASE_ALIASES = {"module-added": "module_added", "page-generated": "page_generated", "design-extracted": "design_extracted"}
+def routing_phase(raw: object) -> str:
+    """The phase to route on: aliases read as their canonical name, and anything that is not a phase as
+    `empty` (contract: an unknown value must not crash and routes as `empty`). A missing phase is ''."""
+    if not raw:
+        return ''
+    return phases.normalize(raw) if phases.index(raw) is not None else 'empty'
 
 
 # dev-flow/references/contracts.md §stack — keep the two in step.
@@ -107,8 +121,7 @@ def linters_present(root: Path) -> set[str]:
     return found
 
 
-PRE_CODE_PHASES = {'empty', 'idea_captured', 'prd_drafted', 'tasks_split', 'design_extracted',
-                   'monorepo_initialized', ''}
+PRE_CODE_PHASES = set(phases.before('scaffolded')) | {''}
 SKIP_DIRS = {'node_modules', '.next', '.git', '.turbo', 'dist', 'build', '.expo'}
 
 
@@ -137,7 +150,7 @@ def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
     spec-review, shadscan and the gates only from `page_generated` on, so a phase left behind silently
     switches every check off — smart-travel was at `design_extracted` through three days of building and
     238 hand-made elements. Returns the counts when that is the case."""
-    phase = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    phase = routing_phase(meta.get('phase'))
     fw = (meta.get('stack') or {}).get('framework')
     if phase not in PRE_CODE_PHASES or fw == 'agent':
         return None
@@ -145,8 +158,8 @@ def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
     return (routes, components) if routes or components else None
 
 
-def next_step(phase: str | None, framework: str | None) -> str:
-    phase = PHASE_ALIASES.get(phase or "", phase or "")
+def next_step(phase: object, framework: str | None) -> str:
+    phase = routing_phase(phase) or 'empty'
     if phase in COMMON_NEXT:
         return COMMON_NEXT[phase]
     fw = framework or "next"
@@ -155,7 +168,11 @@ def next_step(phase: str | None, framework: str | None) -> str:
         return f"(stack.framework={fw!r} is not recognized — dev-flow refuses to guess; ask the user which stack)"
     if phase in table:
         return table[phase]
-    return "(unknown phase — treat as empty: prd-from-idea)"
+    # A real phase this stack does not pass through (agent-only has no page_generated, a single app no
+    # monorepo_initialized). It used to say "unknown phase — treat as empty: prd-from-idea", which sent a
+    # built project back to the PRD.
+    return (f"(no step for {phase!r} on stack {fw!r} — this stack does not pass through it; "
+            "check the phase with the user before moving on)")
 
 
 def main() -> int:
@@ -172,9 +189,22 @@ def main() -> int:
         print("Run init_workflow.py first, or this isn't a dev-flow project root.")
         return 1
 
-    meta = json.loads(meta_path.read_text())
+    meta = meta_io.load_or_exit(meta_path)
     print(f"Project:  {meta.get('project_name')!r}  ({meta.get('project_slug')!r})")
     print(f"Phase:    {meta.get('phase')}")
+    if meta_io.edited_outside(meta):
+        print("⚠ meta.json was changed outside dev-flow's scripts since they last wrote it (its meta_digest no longer")
+        print("  matches). That is allowed; it means nothing checked the edit.")
+    checked = meta_io.checked_phase(meta)
+    if (phases.index(meta.get('phase')) or 0) > (phases.index(checked) if phases.index(checked) is not None else 99):
+        print(f"⚠ phase {meta.get('phase')!r} was set without the gates — the last phase they checked is {checked!r}.")
+        print(f"  The next set-phase checks them from {checked!r}.")
+    if (meta.get('contract_version') or 0) > meta_io.CONTRACT_VERSION:
+        print(f"⚠ meta.json was written under a newer contract (version {meta['contract_version']}; this dev-flow "
+              f"knows {meta_io.CONTRACT_VERSION}). Update the dev-flow skills before any script writes it.")
+    if meta.get('phase') and phases.index(meta.get('phase')) is None:
+        print(f"⚠ {meta.get('phase')!r} is not a phase of the contract — routed as 'empty'. update_meta.py refuses to")
+        print(f"  move it without --allow-regress; valid phases: {', '.join(phases.PHASES)}")
     print(f"Updated:  {meta.get('updated_at')}")
     stack = meta.get('stack') or {}
     stack_str = ", ".join(f"{k}={v}" for k, v in stack.items() if v) or "(undecided)"
@@ -207,7 +237,7 @@ def main() -> int:
 
     # A project already at or past `scaffolded` without the design lint — it predates the gate,
     # or its phase was edited by hand. Not blocking here; set-phase blocks the transition.
-    phase_norm = PHASE_ALIASES.get(meta.get('phase') or '', meta.get('phase') or '')
+    phase_norm = routing_phase(meta.get('phase'))
     behind = phase_behind_code(meta, root)
     if behind:
         routes, components = behind

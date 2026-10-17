@@ -24,6 +24,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io
+
 ANSWERED, EMPTY, UNREACHABLE = 0, 3, 4
 
 VERDICTS = ("have-it", "adapts", "halfway", "build", "skipped")
@@ -155,7 +157,12 @@ def cmd_record(a: argparse.Namespace) -> int:
     if a.verdict != "skipped" and not a.searched:
         sys.stderr.write("--searched is required: name what you looked at, including the channels that gave nothing.\n")
         return 1
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    with meta_io.locked(meta_path.parent):
+        return _record(a, meta_path)
+
+
+def _record(a: argparse.Namespace, meta_path: Path) -> int:
+    meta = meta_io.load_or_exit(meta_path)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     meta["inventory"] = {
         "verdict": a.verdict,
@@ -174,7 +181,7 @@ def cmd_record(a: argparse.Namespace) -> int:
         "ran_at": now,
     })
     meta["updated_at"] = now
-    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    meta_io.write_json(meta_path, meta)
     print(f"inventory recorded: {a.verdict}")
     return 0
 

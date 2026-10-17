@@ -426,6 +426,43 @@ class Hook(Base):
         snap.write_text(snap.read_text() + " ")
         self.assertIn("changed after approval", self.decide("npx shadcn add ./vendor/registry/x/pdf/card.json"))
 
+    def test_the_other_spellings_an_honest_agent_writes(self) -> None:
+        # The hook matched `shadcn` followed by `add`. `npm exec shadcn -- add` puts `--` in between and walked
+        # through; so did a quote inside the name (the raw-string short-circuit never saw "shadcn") and an
+        # install wrapped in `sh -c "…"` (one token, never split). AUDIT.md §6.8.
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+        denied = [
+            "npm exec shadcn -- add @mapcn/map",
+            "npm exec -- shadcn@latest add @mapcn/map",
+            'npx shad""cn add @mapcn/map',
+            "npx 'shadcn'@latest add @mapcn/map",
+            'sh -c "npx shadcn add @mapcn/map"',
+            "bash -lc 'cd web && pnpm dlx shadcn add @mapcn/map'",
+            # From the security review of the first version of this fix:
+            "npx shad\\cn add @mapcn/map",                       # a backslash, no quote to strip
+            'bash -xc "npx shadcn add @mapcn/map"',                # a flag cluster around c
+            'bash --norc -c "npx shadcn add @mapcn/map"',          # a long option before -c
+            'dash -c "npx shadcn add @mapcn/map"',
+            'env bash -c "npx shadcn add @mapcn/map"',
+            '/bin/zsh -ec "npx shadcn add @mapcn/map"',
+            'bash -o pipefail -c "npx shadcn add @mapcn/map"',     # an option that takes a value
+            'bash -O extglob -lc "npx shadcn add @mapcn/map"',
+            'bash -oc pipefail "npx shadcn add @mapcn/map"',      # the value after a cluster holding o and c
+            'bash --rcfile x.rc -c "npx shadcn add @mapcn/map"',  # a long option that takes a value
+        ]
+        allowed = [
+            "npm exec shadcn -- add button",
+            'sh -c "ls && git status"',
+            "bash -c 'npx shadcn@latest add button'",
+        ]
+        for c in denied:
+            with self.subTest(deny=c):
+                self.assertIsNotNone(self.decide(c))
+        for c in allowed:
+            with self.subTest(allow=c):
+                self.assertIsNone(self.decide(c))
+
     def test_coss_is_live_only_when_the_stack_chose_it(self) -> None:
         project(self.root, ui="shadcn", registries={"@coss": "https://coss.com/ui/r/{name}.json"})
         quiet(ri.main, ["setup", str(self.root)])
@@ -1072,6 +1109,86 @@ class Hooks(unittest.TestCase):
         codes = [(f.code, f.level) for f in ri.review_hooks(root)]
         self.assertIn(("H10", "block"), codes)
         self.assertFalse(ri.check(root)[0])
+
+
+
+class AfterTheCommand(Base):
+    """A shell command's effect on the governed state, checked right after it (AUDIT.md P1-34).
+
+    The PreToolUse hook reads the command's text and can be talked around. What it cannot be talked around
+    on is what the command changed: a registry added to components.json, a snapshot edited after approval.
+    Those `check` already finds — at the phase gate, possibly days later (fit-coach's snapshot: a month).
+    Now the PreToolUse hook records the registry problems before the command and `hook-post` reports the
+    ones the command introduced."""
+
+    def event(self, session: str = "s1") -> dict:
+        return {"session_id": session, "cwd": str(self.root), "tool_name": "Bash", "tool_input": {"command": "x"}}
+
+    def setUp(self) -> None:
+        super().setUp()
+        project(self.root)
+        self.serve("pdf/card", item("pdf/card", [ui_file("components/pdf/card.tsx")]))
+        quiet(ri.main, ["setup", str(self.root)])
+        quiet(ri.main, ["allow", str(self.root), "@x", REG, "--reason", "r"])
+        quiet(ri.main, ["approve", str(self.root), "@x/pdf/card", "--by", "luca"])
+
+    def test_a_registry_the_command_added_is_reported_right_after_it(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        cfg = json.loads((self.root / "components.json").read_text())
+        cfg["registries"]["@evil"] = "https://evil.example/r/{name}.json"
+        write(self.root, "components.json", cfg)
+        report = ri.hook_post_report(self.event())
+        self.assertIsNotNone(report)
+        self.assertIn("@evil", report)
+
+    def test_a_snapshot_the_command_edited_is_reported(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")
+        self.assertIn("edited after approval", ri.hook_post_report(self.event()) or "")
+
+    def test_a_problem_that_was_there_before_is_not_repeated(self) -> None:
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")          # fit-coach: edited long before this command
+        ri.hook_pre_snapshot(self.event())
+        self.assertIsNone(ri.hook_post_report(self.event()))
+
+    def test_a_command_that_changes_nothing_governed_is_silent(self) -> None:
+        ri.hook_pre_snapshot(self.event())
+        write(self.root, "components/other.tsx", "export const O = 1\n")
+        self.assertIsNone(ri.hook_post_report(self.event()))
+
+    def test_without_a_snapshot_a_clean_project_stays_silent(self) -> None:
+        self.assertIsNone(ri.hook_post_report(self.event("never-pre")))
+
+    def test_without_a_snapshot_every_current_problem_is_reported(self) -> None:
+        # A missing baseline is not a clean one: deleting the snapshot must not hide what the command did.
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")
+        report = ri.hook_post_report(self.event("never-pre"))
+        self.assertIn("edited after approval", report or "")
+        self.assertIn("no snapshot", report or "")
+
+    def test_a_cd_inside_the_command_does_not_lose_the_snapshot(self) -> None:
+        # The PostToolUse payload carries the cwd *after* the command; keyed on the raw cwd, a `cd sub`
+        # looked for another snapshot, found none and stayed silent.
+        (self.root / "app").mkdir(exist_ok=True)
+        ri.hook_pre_snapshot(self.event())
+        cfg = json.loads((self.root / "components.json").read_text())
+        cfg["registries"]["@evil"] = "https://evil.example/r/{name}.json"
+        write(self.root, "components.json", cfg)
+        after = {**self.event(), "cwd": str(self.root / "app")}
+        self.assertIn("@evil", ri.hook_post_report(after) or "")
+
+    def test_setup_wires_the_post_hook_and_check_requires_it(self) -> None:
+        settings = json.loads((self.root / ".claude/settings.json").read_text())
+        post = settings["hooks"].get("PostToolUse") or []
+        self.assertTrue(any("hook-post" in h["command"] for m in post for h in m["hooks"]))
+        settings["hooks"]["PostToolUse"] = []
+        write(self.root, ".claude/settings.json", settings)
+        ok, problems = ri.check(self.root)
+        self.assertFalse(ok)
+        self.assertTrue(any("hook-post" in p for p in problems))
 
 
 if __name__ == "__main__":

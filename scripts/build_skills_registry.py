@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""build_skills_registry.py — regenerate skills.json from the 24 SKILL.md files
+"""build_skills_registry.py — regenerate skills.json from every SKILL.md
 
 Output: skills.json at repo root, with:
-  - schema_version, generated_at, generated_by
+  - schema_version, generated_by (no timestamp: it changed the file on every run, so skills.json showed
+    up in 291 of 495 commits since July for nothing, and CI had to diff around it)
   - skill_count
   - families: {core: [...], web: [...], mobile: [...]}
   - skills: list of {name, family, role, description, skill_file,
@@ -27,7 +28,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -188,7 +188,6 @@ def main() -> int:
 
     registry = {
         "schema_version": "1.0",
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "generated_by": "scripts/build_skills_registry.py",
         "skill_count": len(skills),
         "families": {

@@ -9,13 +9,19 @@
 //         the write adds counts, so converting a file that still has old findings is never blocked.
 //   stop  Stop / SubagentStop: the same check on every .tsx/.jsx changed since HEAD, compared with HEAD — it
 //         catches what was written through the shell (sed, heredocs) instead of Write/Edit.
+//   bash-pre / bash-post  PreToolUse / PostToolUse on Bash: before the command, snapshot the .tsx/.jsx files
+//         already changed; after it, check only the files the command touched, against their content from
+//         just before it. A shell write is reported right after the command that made it, not at the end of
+//         the turn — agents write files with `cat > … <<'EOF'` as often as with Write. The command itself is
+//         never parsed: what changed on disk is the evidence.
 //
 // Units, presets and ignores come from scripts/guard/guard.json. Copied by
 // design-md-to-app/scripts/setup_primitives_guard.py — do not edit here; re-run the script.
 import { execFileSync } from "node:child_process"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import os from "node:os"
 import path from "node:path"
-import { guardLinter } from "./eslint.guard.mjs"
 
 const root = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 const mode = process.argv[2]
@@ -63,7 +69,12 @@ function unitOf(file) {
 const linters = new Map()
 async function findings(unit, text, file) {
   if (text == null) return []
-  if (!linters.has(unit.dir)) linters.set(unit.dir, await guardLinter(root, unit))
+  // ESLint is loaded on the first lint, not at start-up: the Bash hooks run before and after every shell
+  // command, and most commands touch no UI file — loading it eagerly cost up to ~0.8 s a hook for nothing.
+  if (!linters.has(unit.dir)) {
+    const { guardLinter } = await import("./eslint.guard.mjs")
+    linters.set(unit.dir, await guardLinter(root, unit))
+  }
   const [result] = await linters.get(unit.dir).lintText(text, { filePath: path.resolve(root, file) })
   const lines = text.split("\n")
   return (result?.messages ?? [])
@@ -158,11 +169,74 @@ async function stop(event) {
   return 2
 }
 
+/** Per project and session, so two sessions in one repo never read each other's snapshot. */
+function snapshotPath(event) {
+  const key = createHash("sha1").update(`${root}|${event.session_id ?? ""}`).digest("hex").slice(0, 16)
+  return path.join(os.tmpdir(), `primitives-guard-${key}.json`)
+}
+
+/** The guarded files changed since HEAD, with their current content; null outside a git repository. */
+function changedUiFiles() {
+  let changed
+  try {
+    changed = changedFiles()
+  } catch {
+    return null
+  }
+  const out = {}
+  for (const file of changed) {
+    const abs = path.join(root, file)
+    if (unitOf(file) && existsSync(abs)) out[file] = readFileSync(abs, "utf8")
+  }
+  return out
+}
+
+async function bashPre(event) {
+  const now = changedUiFiles()
+  if (now) writeFileSync(snapshotPath(event), JSON.stringify(now))
+  return 0
+}
+
+async function bashPost(event) {
+  let before
+  try {
+    before = JSON.parse(readFileSync(snapshotPath(event), "utf8"))
+    rmSync(snapshotPath(event), { force: true })
+  } catch {
+    return 0 // no snapshot from bash-pre: stay out of the way; stop still checks at the end of the turn
+  }
+  const after = changedUiFiles()
+  if (!after) return 0
+  const report = []
+  let unitForMessage = null
+  for (const [file, text] of Object.entries(after)) {
+    if (before[file] === text) continue // not touched by this command
+    let previous = before[file] ?? null // not changed before the command: its previous content is HEAD's
+    if (previous === null) {
+      try {
+        previous = git(["show", `HEAD:./${file}`])
+      } catch {
+        // a new file: everything in it is added
+      }
+    }
+    const unit = unitOf(file)
+    const fresh = added(await findings(unit, previous, file), await findings(unit, text, file))
+    if (fresh.length) {
+      report.push(describe(file, fresh))
+      unitForMessage ??= unit
+    }
+  }
+  if (report.length === 0) return 0
+  process.stderr.write(`The shell command just run added hand-made UI:\n${report.join("\n")}\n${stopAndAsk(unitForMessage)}\n`)
+  return 2
+}
+
 let raw = ""
 for await (const chunk of process.stdin) raw += chunk
 const event = raw ? JSON.parse(raw) : {}
 try {
-  process.exit(mode === "stop" ? await stop(event) : await pre(event))
+  const run = { stop, "bash-pre": bashPre, "bash-post": bashPost }[mode] ?? pre
+  process.exit(await run(event))
 } catch (e) {
   // exit 1 is a non-blocking error: shown, never silently passed off as a clean write
   process.stderr.write(`primitives guard could not run: ${e?.message ?? e}\n`)

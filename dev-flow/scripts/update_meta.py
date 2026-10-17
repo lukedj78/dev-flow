@@ -10,9 +10,12 @@ Three operations:
      entry says "skill X wrote this file with this exact content at time T".
      If the on-disk hash drifts later, that artifact is "stale".
 
-  2. set-phase — bump `phase` (only if monotonic forward) and `updated_at`.
+  2. set-phase — bump `phase` (only if monotonic forward) and `updated_at`, and record
+     the change in history (`action: "set-phase"`, `--skill` names who moved it).
 
-  3. append-history — record a skill run with inputs, outputs, phase delta.
+  3. append-history — record a skill run with inputs, outputs, phase delta. A
+     `--phase-after` behind the current phase is not applied, and the entry records
+     the phase the project actually has (`phase_requested` keeps what was asked).
 
 Usage:
     # Record an artifact
@@ -25,7 +28,7 @@ Usage:
         --derived-from .workflow/DESIGN.md
 
     # Set phase
-    python3 update_meta.py <project-root> set-phase scaffolded
+    python3 update_meta.py <project-root> set-phase scaffolded --skill design-md-to-app
 
     # Append history
     python3 update_meta.py <project-root> append-history \
@@ -44,29 +47,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# Phase enum — must stay in sync with .workflow/contracts.md.
-# Index = monotonic position. Skills MAY set a phase >= current; never <.
-PHASES = [
-    "empty",
-    "idea_captured",
-    "prd_drafted",
-    "tasks_split",
-    "design_extracted",
-    # Monorepo-only mid-bootstrap checkpoint (turborepo root before apps are scaffolded)
-    "monorepo_initialized",
-    "scaffolded",
-    "page_generated",
-    "module_added",
-    # Cross-stack terminal progression beyond module_added (web / mobile / agent / monorepo)
-    "feature_complete",
-    "deployed",
-]
-
-# Backwards-compatibility: accept the old kebab-case spelling. set-phase
-# will normalize "module-added" to "module_added" on write.
-PHASE_ALIASES = {
-    "module-added": "module_added",
-}
+import meta_io
+import phases
+from phases import PHASES  # the enum and its legacy aliases live in phases.py, shared with show_state.py
 
 
 def now_iso() -> str:
@@ -88,17 +71,40 @@ def load_meta(root: Path) -> tuple[Path, dict[str, Any]]:
         sys.stderr.write(f"No .workflow/meta.json at {root}\n")
         sys.stderr.write("Run init_workflow.py first.\n")
         sys.exit(1)
-    return meta_path, json.loads(meta_path.read_text())
+    return meta_path, meta_io.load_or_exit(meta_path)
 
 
-def save_meta(meta_path: Path, meta: dict[str, Any]) -> None:
+def save_meta(meta_path: Path, meta: dict[str, Any], checked: str | None = None) -> None:
+    """`checked` is passed only by a phase move whose gates just passed: it becomes meta_digest's checked_phase."""
     meta["updated_at"] = now_iso()
-    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
+    meta_io.write_json(meta_path, meta, phase_checked=checked)
+
+
+def gate_baseline(meta: dict[str, Any], cur_idx: int) -> int:
+    """Where the gates are checked from: the current phase, or the last phase they checked when the current
+    one was set by hand. Without this, a phase typed into meta.json skipped its gates, and so did every
+    set-phase after it, since each started from the phase already "reached" (AUDIT.md P1-33)."""
+    checked = meta_io.checked_phase(meta)
+    checked_idx = phases.index(checked)
+    if checked_idx is not None and checked_idx < cur_idx:
+        sys.stderr.write(f"note: phase {meta.get('phase')!r} was set outside dev-flow's scripts; the gates are "
+                         f"checked from {checked!r}, the last phase they passed.\n")
+        return checked_idx
+    return cur_idx
 
 
 # ---------------------------------------------------------------------------
 # Operation: record-artifact
 # ---------------------------------------------------------------------------
+
+
+def inside(root: Path, path: Path) -> str | None:
+    """`path` relative to the project root, or None when it resolves outside it (absolute, `..`, a symlink
+    out). Artifact keys stay relative so meta.json is portable; this used to raise a bare ValueError."""
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return None
 
 
 def cmd_record_artifact(args: argparse.Namespace) -> int:
@@ -118,7 +124,10 @@ def cmd_record_artifact(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Cannot record artifact — file does not exist: {target_abs}\n")
         return 1
 
-    rel_path = str(target_abs.relative_to(root))
+    rel_path = inside(root, target_abs)
+    if rel_path is None:
+        sys.stderr.write(f"Cannot record artifact — {target_abs} is outside the project ({root})\n")
+        return 1
     sha = sha256_file(target_abs)
 
     artifacts = meta.setdefault("artifacts", {})
@@ -137,8 +146,12 @@ def cmd_record_artifact(args: argparse.Namespace) -> int:
             if not dep_abs.exists():
                 sys.stderr.write(f"Cannot derive from missing file: {dep_abs}\n")
                 return 1
+            dep_rel = inside(root, dep_abs)
+            if dep_rel is None:
+                sys.stderr.write(f"Cannot derive from {dep_abs} — it is outside the project ({root})\n")
+                return 1
             deps.append({
-                "path": str(dep_abs.relative_to(root)),
+                "path": dep_rel,
                 "sha256": sha256_file(dep_abs),
             })
         entry["derived_from"] = deps
@@ -194,34 +207,27 @@ def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curre
     )
 
 
-def cmd_set_phase(args: argparse.Namespace) -> int:
-    root = args.project_root.resolve()
-    meta_path, meta = load_meta(root)
+def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """Every phase gate, in order. The first refusal is returned; None means the move may happen.
 
-    # Normalize aliases (e.g. legacy kebab "module-added" → "module_added")
-    requested = PHASE_ALIASES.get(args.phase, args.phase)
-
-    if requested not in PHASES:
-        sys.stderr.write(f"Unknown phase: {args.phase!r}\n")
-        sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
-        return 1
-
-    current_raw = meta.get("phase", "empty")
-    current = PHASE_ALIASES.get(current_raw, current_raw)
-    cur_idx = PHASES.index(current) if current in PHASES else -1
-    new_idx = PHASES.index(requested)
-
-    if new_idx < cur_idx and not args.allow_regress:
-        sys.stderr.write(
-            f"Phase regression refused: current={current!r} → requested={requested!r}\n"
-            f"Use --allow-regress only if you know what you're doing (e.g., manual reset).\n"
-        )
-        return 1
-
+    The one list both doors use: `set-phase` and `append-history --phase-after`. append-history used to
+    check only the inventory and the wireframes, so it moved a project past the data-residency, design-lint,
+    registry-intake and primitives-guard gates with exit 0 (AUDIT.md §6.2). The bootstrap templates for
+    Codex, Gemini and generic runtimes move phase through append-history, so there it was the normal path.
+    """
     refusal = inventory_refusal(root, meta, cur_idx, new_idx, current, requested)
     if refusal:
-        sys.stderr.write(refusal)
-        return 1
+        return refusal
+
+    def refused(gate, what: str) -> str | None:
+        passed, why = gate.verify(root, meta)
+        if passed:
+            return None
+        return (
+            f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
+            + "".join(f"  {line}\n" for line in why.splitlines())
+            + gate.remedy(root) + "\n"
+        )
 
     # Crossing into `scaffolded` requires the design lint to be wired, or an explicit
     # opt-out recorded. Checked here because this is where phase moves: a skill that edits
@@ -236,14 +242,9 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
 
         for gate, what in ((data_residency_gate, "a data-residency decision"),
                            (design_lint_gate, "the design lint"), (registry_intake_gate, "registry intake")):
-            passed, why = gate.verify(root, meta)
-            if not passed:
-                sys.stderr.write(
-                    f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
-                    + "".join(f"  {line}\n" for line in why.splitlines())
-                    + gate.remedy(root) + "\n"
-                )
-                return 1
+            refusal = refused(gate, what)
+            if refusal:
+                return refusal
 
     # Golden rule 3 at every phase from `scaffolded` on, not only at the crossing: the design lint must
     # carry design/no-handmade-ui and the write-time guard must be installed (or each opted out with a
@@ -258,22 +259,73 @@ def cmd_set_phase(args: argparse.Namespace) -> int:
         if cur_idx >= scaffold_idx:  # at the crossing the design lint was checked above
             gates.insert(0, (design_lint_gate, "the design lint"))
         for gate, what in gates:
-            passed, why = gate.verify(root, meta)
-            if not passed:
-                sys.stderr.write(
-                    f"Phase change refused: {current!r} → {requested!r} needs {what}.\n"
-                    + "".join(f"  {line}\n" for line in why.splitlines())
-                    + gate.remedy(root) + "\n"
-                )
-                return 1
+            refusal = refused(gate, what)
+            if refusal:
+                return refusal
 
-    refusal = wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+    return wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+
+
+def unknown_phase_refusal(current: object, action: str) -> str:
+    return (
+        f"Phase change refused: the current phase {current!r} is not a phase this script knows.\n"
+        f"  Valid phases: {', '.join(PHASES)}\n"
+        f"  It may come from a newer contract, so `{action}` could move the project backwards.\n"
+        f"  To reset it on purpose: update_meta.py <root> set-phase <phase> --allow-regress\n"
+    )
+
+
+def cmd_set_phase(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    meta_path, meta = load_meta(root)
+
+    # Normalize aliases (e.g. legacy kebab "module-added" → "module_added")
+    requested = phases.normalize(args.phase)
+
+    if requested not in PHASES:
+        sys.stderr.write(f"Unknown phase: {args.phase!r}\n")
+        sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
+        return 1
+
+    current_raw = meta.get("phase", "empty")
+    current = phases.normalize(current_raw)
+    cur_idx = phases.index(current_raw)
+    if cur_idx is None:
+        # It may be a phase a newer contract added, so moving it could be a regression nobody can see.
+        # It used to count as index -1, which let any move through.
+        if not args.allow_regress:
+            sys.stderr.write(unknown_phase_refusal(current_raw, f"set-phase {requested}"))
+            return 1
+        cur_idx = -1  # an explicit reset: every gate up to the target still runs
+    new_idx = PHASES.index(requested)
+
+    if new_idx < cur_idx and not args.allow_regress:
+        sys.stderr.write(
+            f"Phase regression refused: current={current!r} → requested={requested!r}\n"
+            f"Use --allow-regress only if you know what you're doing (e.g., manual reset).\n"
+        )
+        return 1
+
+    refusal = gate_refusal(root, meta, gate_baseline(meta, cur_idx), new_idx, current, requested)
     if refusal:
         sys.stderr.write(refusal)
         return 1
 
+    # A phase change is recorded, so history never misses a move the project made. Setting the phase it
+    # already has changes nothing and records nothing.
+    if requested != current_raw:
+        entry: dict[str, Any] = {
+            "skill": args.skill or "set-phase",
+            "action": "set-phase",
+            "ran_at": now_iso(),
+            "phase_before": current_raw,
+            "phase_after": requested,
+        }
+        if new_idx < cur_idx or args.allow_regress and cur_idx == -1:
+            entry["allow_regress"] = True
+        meta.setdefault("history", []).append(entry)
     meta["phase"] = requested
-    save_meta(meta_path, meta)
+    save_meta(meta_path, meta, checked=requested)
     print(f"phase: {current_raw} → {requested}")
     return 0
 
@@ -301,7 +353,7 @@ def cmd_append_history(args: argparse.Namespace) -> int:
     # was taken through the whole flow: `tasks_ready` for `tasks_split`.
     phase_after = None
     if args.phase_after:
-        phase_after = PHASE_ALIASES.get(args.phase_after, args.phase_after)
+        phase_after = phases.normalize(args.phase_after)
         if phase_after not in PHASES:
             sys.stderr.write(f"Unknown phase: {args.phase_after}\n")
             sys.stderr.write(f"Valid phases: {', '.join(PHASES)}\n")
@@ -309,33 +361,45 @@ def cmd_append_history(args: argparse.Namespace) -> int:
 
     if phase_after:
         cur_raw = meta.get("phase", "empty")
-        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-        cur_idx = PHASES.index(cur) if cur in PHASES else -1
-        refusal = (inventory_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after)
-                   or wireframes_refusal(root, meta, cur_idx, PHASES.index(phase_after), cur, phase_after))
+        cur = phases.normalize(cur_raw)
+        cur_idx = phases.index(cur_raw)
+        if cur_idx is None:
+            sys.stderr.write(unknown_phase_refusal(cur_raw, f"append-history --phase-after {phase_after}"))
+            return 1
+        # Gated only when the phase moves forward: a run recorded at the current phase (rn-upgrade,
+        # rn-write-tests) crosses nothing, and one below it is not applied.
+        new_idx = PHASES.index(phase_after)
+        gate_idx = gate_baseline(meta, cur_idx)
+        refusal = gate_refusal(root, meta, gate_idx, new_idx, cur, phase_after) if new_idx > gate_idx else None
         if refusal:
             sys.stderr.write(refusal)
             return 1
 
-    history = meta.setdefault("history", [])
-    history.append({
+    phase_before = meta.get("phase")
+    entry: dict[str, Any] = {
         "skill": args.skill,
         "ran_at": now_iso(),
         "inputs": inputs,
         "outputs": outputs,
-        "phase_before": meta.get("phase"),
+        "phase_before": phase_before,
         "phase_after": phase_after,
-    })
-
+    }
+    checked = None
     if phase_after:
-        cur_raw = meta.get("phase", "empty")
-        cur = PHASE_ALIASES.get(cur_raw, cur_raw)
-        cur_idx = PHASES.index(cur) if cur in PHASES else -1
+        cur_idx = phases.index(meta.get("phase", "empty"))
         new_idx = PHASES.index(phase_after)
         if new_idx >= cur_idx:
             meta["phase"] = phase_after
+            checked = phase_after  # the gates above ran from the last checked phase up to this one
+        else:
+            # Behind the current phase: not applied, so not recorded as reached. It used to be written as
+            # phase_after anyway, and history then named a phase the project had already left.
+            entry["phase_after"] = phase_before
+            entry["phase_requested"] = phase_after
+            sys.stderr.write(f"note: phase stays {phase_before!r}; {phase_after!r} is behind it and was not applied\n")
+    meta.setdefault("history", []).append(entry)
 
-    save_meta(meta_path, meta)
+    save_meta(meta_path, meta, checked=checked)
     print(f"history += {{ skill: {args.skill}, phase_after: {args.phase_after} }}")
     return 0
 
@@ -359,6 +423,7 @@ def main() -> int:
     p_ph = sub.add_parser("set-phase", help="Bump meta#phase (forward-only by default)")
     p_ph.add_argument("phase")
     p_ph.add_argument("--allow-regress", action="store_true")
+    p_ph.add_argument("--skill", default=None, help="the skill moving the phase, recorded in history")
     p_ph.set_defaults(func=cmd_set_phase)
 
     p_h = sub.add_parser("append-history", help="Append a skill run to meta#history")
@@ -369,7 +434,10 @@ def main() -> int:
     p_h.set_defaults(func=cmd_append_history)
 
     args = ap.parse_args()
-    return args.func(args)
+    # One lock around the whole read-modify-write: every operation loads meta.json, changes it and
+    # saves it, and two runs that interleave there lose one of the two changes (see meta_io.py).
+    with meta_io.locked(args.project_root.resolve() / ".workflow"):
+        return args.func(args)
 
 
 if __name__ == "__main__":

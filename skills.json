@@ -1,6 +1,5 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T10:03:20Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -99,7 +98,10 @@
         "eu-data-sovereignty.md",
         "external-skills.md",
         "merge-conflicts.md",
+        "policies.md",
         "resources.md",
+        "scripts.md",
+        "stack-decisions.md",
         "stack-expo-rn.md",
         "stack-monorepo.md"
       ],
@@ -111,19 +113,30 @@
         "init_workflow.py",
         "inventory.py",
         "inventory_gate.py",
+        "meta_io.py",
+        "phases.py",
         "primitives_guard_gate.py",
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
+        "test_contract_version.py",
         "test_data_residency.py",
+        "test_gate_doors.py",
+        "test_history.py",
         "test_inventory.py",
+        "test_meta_digest.py",
+        "test_meta_io.py",
+        "test_meta_validation.py",
+        "test_phases.py",
         "test_primitives_guard_gate.py",
         "test_research.py",
+        "test_show_state.py",
+        "test_update_meta.py",
         "test_wireframes_gate.py",
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 496,
+      "skill_md_lines": 292,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -138,6 +151,7 @@
         "scrum-model.md"
       ],
       "scripts": [
+        "meta_io.py",
         "meta_linear.py",
         "task_key.py",
         "test_scripts.py"
@@ -199,7 +213,7 @@
         "make_issues.py",
         "test_project_infra_setup.py"
       ],
-      "skill_md_lines": 38,
+      "skill_md_lines": 40,
       "bundle": "dist/project-infra-setup.skill"
     },
     {
@@ -212,10 +226,11 @@
         "contracts.md"
       ],
       "scripts": [
+        "meta_io.py",
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 315,
+      "skill_md_lines": 327,
       "bundle": "dist/registry-intake.skill"
     },
     {
@@ -241,6 +256,7 @@
         "contracts.md"
       ],
       "scripts": [
+        "meta_io.py",
         "test_wireframes.py",
         "wireframes.py"
       ],
@@ -325,13 +341,14 @@
       ],
       "scripts": [
         "build_registry.py",
+        "meta_io.py",
         "parse_design_md.py",
         "setup_design_lint.py",
         "setup_primitives_guard.py",
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1324,
+      "skill_md_lines": 1325,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -369,6 +386,7 @@
         "toolkit-tanstack.md"
       ],
       "scripts": [
+        "meta_io.py",
         "scaffold_lib_forms.py"
       ],
       "skill_md_lines": 502,
@@ -472,13 +490,13 @@
       "name": "shadscan",
       "family": "web",
       "role": "operative",
-      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. The third pre-deploy gate, alongside `compliance-audit...",
+      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of four pre-deploy gates, with `compliance-audit` ...",
       "skill_file": "shadscan/SKILL.md",
       "references": [
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 344,
+      "skill_md_lines": 346,
       "bundle": "dist/shadscan.skill"
     },
     {
@@ -577,7 +595,7 @@
         "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 171,
+      "skill_md_lines": 172,
       "bundle": "dist/write-tests.skill"
     },
     {
@@ -749,7 +767,7 @@
         "observability.md"
       ],
       "scripts": [],
-      "skill_md_lines": 184,
+      "skill_md_lines": 190,
       "bundle": "dist/rn-eas-deploy.skill"
     },
     {

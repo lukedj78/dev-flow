@@ -26,6 +26,18 @@ the host through `node:child_process`, not in eve's sandbox. This skill's review
 | 3 | **Snapshot** in `vendor/registry/`, hashed in `registry-lock.json`, installed instead of the URL | `approve` → `install` | `install` and the hook refuse a snapshot whose hash changed |
 | 4 | **Nothing around it** | `check`, `hook` | the PreToolUse hook; `set-phase scaffolded`; `show_state.py` |
 
+**What the hook is — and is not.** It reads the Bash command string and recognises the ways an agent
+writes an install: `npx` / `pnpm dlx` / `yarn dlx` / `bunx` / `npm exec [--] shadcn add`, a version pin,
+quotes or backslashes inside the name, `--` separators, `&&` / `;` / `|` chains, and a shell's `-c` (`sh`, `bash`, `zsh`, `dash`, `ksh`, `fish`, `csh`, `tcsh`; `-c` alone or in a flag cluster like `-xc`, after long options, nested).
+It is a **tripwire for an honest agent's mistakes, not a barrier against an adversary**. It does not see:
+an install whose name or arguments come from a variable (`X=@ns/item; npx shadcn add $X`), the CLI run by
+path (`node node_modules/shadcn/dist/index.js add …`), a command written to a file and then executed,
+or anything piped into a shell (`echo "…" | bash`). After such an install, `check` sees only what
+reaches `components.json`, the lock and `vendor/registry/` — an item added straight from a URL leaves
+nothing it can catch. The runtime's own permissions are the boundary; this is the reminder. **After every shell command, a PostToolUse hook (`hook-post`) checks the effect instead of the text:** the PreToolUse hook records `check`'s registry problems before the command, and `hook-post` reports with exit 2 the ones the command introduced — a registry added to `components.json` outside the allowlist, a snapshot edited after approval, a file in `vendor/registry/` outside the lock. A problem that was already there is not repeated. It still cannot see an install from a URL: those files and dependencies look like shadcn's own components, and only a network-level barrier stops them. (Measured
+2026-10-17: `npm exec shadcn -- add`, `shad""cn` and `sh -c` walked through before; they are now caught
+and tested.)
+
 ## Commands
 
 ```bash

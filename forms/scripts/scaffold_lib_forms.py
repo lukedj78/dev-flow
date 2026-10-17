@@ -56,6 +56,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
 EXPECTED_FILES = [
     "index.ts",
     "FormProvider.tsx",
@@ -217,6 +219,11 @@ def append_history(
     library: str,
     written: list[str],
 ) -> None:
+    with meta_io.locked(meta_path.parent):
+        _append_history(meta_path, library, written)
+
+
+def _append_history(meta_path: Path, library: str, written: list[str]) -> None:
     with meta_path.open() as f:
         meta = json.load(f)
     history = meta.setdefault("history", [])
@@ -231,9 +238,7 @@ def append_history(
         }
     )
     meta["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    with meta_path.open("w") as f:
-        json.dump(meta, f, indent=2)
-        f.write("\n")
+    meta_io.write_json(meta_path, meta)
 
 
 def print_next_steps(library: str, toast: str, toast_installed: bool) -> None:

@@ -25,7 +25,7 @@ Severity guide: **H** = likely non-compliance or store rejection · **M** = gap 
 
 **Baseline first:** `stack.data_residency` and the register (`python3 dev-flow/scripts/data_residency.py check <root> --json`) — the audit verifies the code against the decision recorded at the stack decision (`dev-flow/references/eu-data-sovereignty.md`). An undecided residency is itself the finding. Known traps from that reference: Neon's only EU region is `aws-eu-central-1`; Supabase's generic "Europe" includes London and Zurich; Resend's EU region moves sending only; Sentry, Linear and Clerk keep account data in the US; Firebase Auth and Expo Push have no EU option; the AI Gateway `inferenceRegion` does not pin the gateway hop.
 **Audit signals:** `stack.db="neon-drizzle"`/`supabase`/`firebase` with no EU-region marker; `DATABASE_URL` = generic `*.neon.tech`; Vercel default `iad1`; `stack.agent="eve"` → prompts routed through the AI Gateway to US LLM providers (Anthropic/OpenAI/Google); voice audio → US.
-**Safe-fix:** a note in `docs/compliance/` + `meta.json#compliance.data_residency` flag; a data-minimization pass so prompts/logs carry no unnecessary PII.
+**Safe-fix:** a note in `docs/compliance/`, and the decision recorded where the contract keeps it — `stack.data_residency` via `data_residency.py decide`, never by hand; a data-minimization pass so prompts/logs carry no unnecessary PII.
 **Flag:** *which* EU region to pick (Neon/Vercel/Supabase project region) and whether **SCCs / adequacy / a provider DPA** are in place — a contractual/product decision. Note: self-hosting the eve app runtime does **not** relocate the LLM inference call.
 
 ## R4 — Retention, TTL & PII-scrubbing · Art. 5(1)(e) · H (eve) / M

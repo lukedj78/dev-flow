@@ -16,7 +16,9 @@ Three things live here now, answering different questions.
 Property-based golden tests for the deterministic scripts that back several
 dev-flow skills. Not a replacement for end-to-end review of LLM output —
 that's qualitative by nature. This catches regressions in the *deterministic*
-parts (k-means quantization, DESIGN.md parsing, registry building, etc.).
+parts. Today it has fixtures for one script, `image-to-design-md`'s k-means palette quantizer; the
+other scripts are covered by the unit tests each skill keeps in `<skill>/scripts/test_*.py`
+(`scripts/run_skill_tests.py` runs them all).
 
 ## Why property assertions, not snapshots
 

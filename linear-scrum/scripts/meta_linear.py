@@ -12,6 +12,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+
 DEFAULT_STATES = {
     "backlog": "Backlog", "todo": "Todo", "in_progress": "In Progress",
     "in_review": "In Review", "done": "Done", "blocked_label": "blocked",
@@ -60,7 +62,7 @@ def _load(p: Path) -> dict:
 
 
 def _save(p: Path, meta: dict) -> None:
-    p.write_text(json.dumps(meta, indent=2) + "\n")
+    meta_io.write_json(p, meta)
 
 
 def main() -> None:
@@ -78,7 +80,12 @@ def main() -> None:
     sub.add_parser("ensure-scrum")
 
     args = ap.parse_args()
-    p = Path(args.meta_path)
+    p = Path(args.meta_path).resolve()
+    with meta_io.locked(p.parent):
+        _apply(args, p)
+
+
+def _apply(args: argparse.Namespace, p: Path) -> None:
     meta = _load(p)
     if args.op == "upsert-linear":
         meta = upsert_linear(meta, team_id=args.team_id, team_name=args.team_name,

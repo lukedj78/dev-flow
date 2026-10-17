@@ -56,6 +56,10 @@
           "tool": "^(Write|Edit|MultiEdit)$",
           "input": "app/settings/notifications/page\\.tsx",
           "field": "file_path"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "(?:>{1,2}|\\btee(?:\\s+-a)?)\\s*['\\\"]?\\S*app/settings/notifications/page\\.tsx"
         }
       ]
     },

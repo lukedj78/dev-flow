@@ -1,15 +1,24 @@
-> Bootstrap snapshot — kept in sync manually with `rn-fundamentals/references/stack-defaults.md`.
-> Update both files together when bumping a major version.
-> Snapshot date: 2026-10-09.
+> Snapshot date: 2026-10-09. Refresh with `python3 scripts/refresh_stack_defaults.py` (dry-run) — **not** by hand.
+> This file is carried by `rn-fundamentals` and `rn-bootstrap`, byte-identical (`lint_skills.py` fails otherwise).
 
 # Stack defaults (opinionated)
 
 When bootstrapping a new RN/Expo app via `rn-bootstrap`, install these exact major versions:
 
-⚠️ **For everything Expo manages, npm `latest` is the wrong answer** — the table is generated from
-`expo@57`'s `bundledNativeModules.json` (what `expo install` resolves), with Expo's own range
-operators. **Install with `npx expo install <pkg>`, never `npm install <pkg>`.** Full rationale in
-`rn-fundamentals/references/stack-defaults.md`.
+⚠️ **For everything Expo manages, npm `latest` is the wrong answer.** Expo SDK ships
+`bundledNativeModules.json` — the version `expo install` resolves for that SDK — and it lags npm on
+purpose, because a native module has to match the SDK's compiled runtime. The table below is generated
+from **`expo@57`'s manifest**, not from `npm view`, and the range operators are Expo's own (`~` is
+narrower than `^`, and for a native module that difference is the point).
+
+Checking this against npm instead had every Expo-managed row wrong, `react-native-gesture-handler`
+included — pinned at `^3.1.0` while SDK 57 bundles `~2.32.0`, a whole major ahead of what the SDK
+supports. Following npm there does not give you a newer app; it gives you one `expo install` disagrees
+with. **Install with `npx expo install <pkg>`, never `npm install <pkg>`**: it reads the same manifest
+and is the reason these numbers are what they are.
+
+The non-Expo rows (`typescript`, `zustand`, `@tanstack/react-query`, `nativewind`, `tailwindcss`) still
+track npm `latest`, since Expo does not manage them.
 
 | Package | Version | Purpose | Notes |
 |---|---|---|---|
@@ -38,8 +47,17 @@ operators. **Install with `npx expo install <pkg>`, never `npm install <pkg>`.**
 - Bundler: Metro (Expo default).
 - Package manager: **npm**.
 
+## How to refresh
+
+Monthly, from the dev-flow repo: `python3 scripts/refresh_stack_defaults.py` prints the drift (dry-run),
+and `--apply` rewrites the table in both copies of this file. It reads the Expo-managed rows from the
+SDK's `bundledNativeModules.json` and the others from npm `latest`, the split explained at the top. When
+`bundledNativeModules.json` is unreachable it falls back to npm for every row and says so; don't apply
+that run. If a major version bump appears (Expo, React Native, NativeWind, Reanimated), do not bump
+silently — open a discussion: the RN skills' patterns, decision trees and examples may need updates too.
+
 ## Known compatibility constraints
 
-- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. Stay on Tailwind 3.4.x until NativeWind ships a v5 (or v4.x patch) confirming Tailwind 4 support.
+- **Tailwind 4.x ≠ NativeWind v4 today.** NativeWind v4 reads Tailwind 3.x preset format; Tailwind 4 changed config format substantially. NativeWind **v5 targets Tailwind v4**, and it is at release candidate: `5.0.0-rc.0` on the `preview` and `rc` dist-tags, while `latest` is **4.2.7** (npm registry, read 2026-10-17). Stay on Tailwind 3.4.x until v5 is `latest`.
 - **React 19** is the default for Expo SDK 55+. Some third-party RN libraries lag — when one breaks, check its issues page before downgrading React.
 - **Reanimated 4** uses the New Architecture under the hood — which on SDK 55+ is simply always there, nothing to switch on.

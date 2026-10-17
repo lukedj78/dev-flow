@@ -14,7 +14,7 @@ Every dev-flow project has a `.workflow/` folder at its root. The state lives in
 {
   "project_slug": "...",
   "project_name": "...",
-  "phase": "empty | idea_captured | prd_drafted | tasks_split | design_extracted | scaffolded | page_generated | module-added",
+  "phase": "empty | idea_captured | prd_drafted | tasks_split | design_extracted | monorepo_initialized | scaffolded | page_generated | module_added | feature_complete | deployed",
   "stack": { "framework": "...", "ui": "...", "auth": "...", "db": "...", "payments": "...", "email": "...", "test": "...", "ci": "..." },
   "artifacts": { "<path>": { "sha256": "...", "produced_by": "...", "produced_at": "...", "derived_from": [...] } },
   "history": [ { "skill": "...", "ran_at": "...", "outputs": [...], "phase_before": "...", "phase_after": "..." } ]
@@ -62,10 +62,12 @@ python3 <dev-flow-root>/dev-flow/scripts/update_meta.py <project-root> \
 python3 <dev-flow-root>/dev-flow/scripts/check_drift.py <project-root> [--plan]
 ```
 
-Or, equivalently from any Python runtime that has the package:
+From Python, the `dev-flow-contract` package reads and writes the same file — but it is **not** equivalent
+for moving phase: it does not run the phase gates (inventory, wireframes, data residency, design lint,
+registry intake, primitives guard). Move phase with `update_meta.py`, always:
 
 ```python
-from dev_flow_contract import init_workflow, record_artifact, set_phase, append_history, check_drift, Phase
+from dev_flow_contract import load_meta, record_artifact, check_drift  # reading, recording, drift — fine
 ```
 
 ## Tool naming
@@ -80,6 +82,16 @@ The skills' bodies reference Claude Code tool names (`Bash`, `Read`, `Edit`, `Wr
 - `Grep` → search file contents (use `rg` or `grep -r` via shell)
 
 Don't get hung up on the names — use semantic equivalence.
+
+## Hooks run only in Claude Code
+
+Two dev-flow guards are Claude Code hooks written to a project's
+`.claude/settings.json`: registry intake's install check and the write-time primitives guard (golden
+rule 3). This runtime does not read that file, so neither runs here. Follow those rules by hand:
+third-party registry items go through `registry_intake.py review / approve / install`, never a direct
+`shadcn add`; UI is built from the library's primitives. What still checks them is the lint
+(`design/no-handmade-ui`), `registry_intake.py check` and the `set-phase` gates — after the fact, not
+at the moment of writing.
 
 ## Critical constraints
 

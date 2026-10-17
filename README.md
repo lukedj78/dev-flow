@@ -15,7 +15,7 @@
 >
 > **Rule zero — doc-grounded, never invent.** The skills are a second brain: when one says *"use library X"*, it ships the **how** from X's official docs, prefers the **version-matched** source the tool itself ships (`next dev` maintains an `AGENTS.md` block pointing at bundled docs; eve ships `node_modules/eve/docs`), marks fast-moving identifiers `[VERIFY]`, and gets re-verified on a cadence — logged in [docs/vercel-changelog-watch.md](./docs/vercel-changelog-watch.md). The map of every how-to is **[docs/knowledge-index.md](./docs/knowledge-index.md)**.
 >
-> **Golden rules** (enforced on every project, see the contract): **① code is written in English** (identifiers, constants, comments — independent of the conversation language); **② every frontend ships i18n from day one** — web via [next-intl](https://next-intl.dev/), mobile via the RN i18n stack, minimum locales **English + Italian**, no hardcoded user-facing copy; **③ UI is composed only from the chosen library's primitives** — for shadcn the components the CLI installs into `components/ui/` (all of them, at `scaffolded`), changed only through DESIGN.md tokens and `cva` variants; never a hand-rolled primitive, never a second component library, never a forked primitive, and a truly new one only as a recorded exception. **The primitive renders the design**: when a board differs, the primitive's `cva` variants and DESIGN.md tokens are tuned until it matches pixel by pixel, never the board, and converting an existing screen is proved with a before/after pixel diff. Enforced by the design-system lint (`design/no-handmade-ui` for raw elements and redrawn primitives; undeclared component libraries and the primitives' headless bases are banned imports outside `components/ui/`), a write-time guard (Claude Code hooks installed at scaffold), `spec-review`'s Standards axis and `shadscan`'s routing.
+> **Golden rules** (on every project, see the contract — ③ is enforced by tools; ① and ② are checked in review, by `spec-review`): **① code is written in English** (identifiers, constants, comments — independent of the conversation language); **② every frontend ships i18n from day one** — web via [next-intl](https://next-intl.dev/), mobile via the RN i18n stack, minimum locales **English + Italian**, no hardcoded user-facing copy; **③ UI is composed only from the chosen library's primitives** — for shadcn the components the CLI installs into `components/ui/` (all of them, at `scaffolded`), changed only through DESIGN.md tokens and `cva` variants; never a hand-rolled primitive, never a second component library, never a forked primitive, and a truly new one only as a recorded exception. **The primitive renders the design**: when a board differs, the primitive's `cva` variants and DESIGN.md tokens are tuned until it matches pixel by pixel, never the board, and converting an existing screen is proved with a before/after pixel diff. Enforced by the design-system lint (`design/no-handmade-ui` for raw elements and redrawn primitives; undeclared component libraries and the primitives' headless bases are banned imports outside `components/ui/`), a write-time guard (Claude Code hooks installed at scaffold), `spec-review`'s Standards axis and `shadscan`'s routing.
 
 ```
                       ┌────────────────────────┐
@@ -28,7 +28,7 @@
               │                                   │
               ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
               │                                   │
-              │   WEB FAMILY (15 skills)           MOBILE FAMILY (16 skills)
+              │   WEB FAMILY (18 skills)           MOBILE FAMILY (16 skills)
               │                                   │
    ┌──────────┼──────────┐               ┌────────┼─────────┐
    │          │          │               │        │         │
@@ -81,13 +81,16 @@ The skill count is an implementation detail. The contract is the moat.
 - **Enforced transitions, where it matters.** The orchestrator *suggests* the next step; one transition it *refuses*. A Next web app on a Tailwind UI does not enter `scaffolded` until its design-system lint is wired — `update_meta.py set-phase` runs the check — or an opt-out is recorded with its reason. A guardrail is worth most before the first violation exists, and a rule an agent is merely asked to follow is the rule a hurried agent skips.
 - **Drift detection.** Every contract file is content-addressed. When the user edits `DESIGN.md` by hand, the system knows that `registry.json` and `/showcase` (which were derived from it) are now stale — and it knows transitively, so a chain of derivations propagates.
 
-The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. The skills are interchangeable consumers; the package is the durable surface.
+The contract is also published as a standalone Python package, [`dev-flow-contract`](./contract-package), so any future tool — a Cursor plugin, a CLI, a different LLM agent — can read/write `.workflow/` without depending on Claude Code. It is a reference implementation, held to the contract by tests, not what the skills run, and it does not run the phase gates: phase moves go through `update_meta.py`.
 
 ---
 
 ## Quick start (5 minutes)
 
 ### 1. Install the skills
+
+**Requirements:** the bundled scripts need **Python 3.9 or newer** (3.9 is macOS's own `python3`; CI
+compiles and tests every script on it) and git. Most scripts use the standard library only.
 
 Two ways in, two philosophies. The **plugin** subscribes you to the suite as a managed bundle that updates when we ship. **`install.sh`** copies the skill files so you can fork and hack on them — and it's the route for Codex / Copilot / Gemini / Cursor. Pick one; installing both leaves you with every skill twice.
 
@@ -110,7 +113,7 @@ cd dev-flow
 ./install.sh --list-platforms         # see all supported runtimes
 ```
 
-The script copies every skill folder into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and backs up any pre-existing version with the same name to `<skill>.bak`. To uninstall + restore backups: `./uninstall.sh --platform <same>`.
+The script copies every skill folder into the platform-appropriate location (e.g. `~/.claude/skills/`, `~/.codex/dev-flow-skills/`, `~/.gemini/skills/`), drops in the right bootstrap file (`AGENTS.md`, `GEMINI.md`, `.cursorrules`) when needed, and moves any pre-existing version of a skill, or a bootstrap file it did not write, to `<skills-dir>-backup-<timestamp>/` (outside the skills folder, so it is never loaded as a second copy; the newest 3 are kept, `DEV_FLOW_KEEP_BACKUPS=0` keeps all). `./uninstall.sh --platform <same>` removes the skills and only the bootstrap files still exactly as installed; add `--restore` to put back what the most recent install moved aside.
 
 **Portability**: dev-flow's skills are designed to be runtime-portable. See [Cross-platform support](#cross-platform-support) below.
 
@@ -596,19 +599,19 @@ dev-flow is designed to be **runtime-portable**. The contract (`.workflow/`) is 
 | **Cursor** | `~/.dev-flow-skills/` | `.cursorrules` (auto-copied) | 🧪 scaffolded |
 | **Generic** (any LLM agent) | `~/.dev-flow-skills/` | `system-prompt.md` (manual integration) | 🧪 scaffolded |
 
-`🧪 scaffolded` means: the install path + bootstrap file are wired and tested for shape (`./install.sh --platform codex` produces the right tree), but full end-to-end runs against the real runtime haven't been validated yet. If you try one and hit issues, please [file an issue](https://github.com/lukedj78/dev-flow/issues) — happy to iterate.
+`🧪 scaffolded` means: the install path + bootstrap file are wired and tested for shape — `scripts/test_install.py` installs, reinstalls and uninstalls on every runtime in the table, in CI on Linux and macOS — but full end-to-end runs against the real runtime haven't been validated yet. If you try one and hit issues, please [file an issue](https://github.com/lukedj78/dev-flow/issues) — happy to iterate.
 
 ### What makes it portable
 
 1. **Tool-name mapping** — the skill bodies use Claude Code names (`Bash`, `Read`, `Edit`, `Glob`, `Grep`). The `bootstrap/tool-mappings.md` reference (installed alongside the skills) is the canonical Claude → Codex → Copilot → Gemini → Cursor equivalence table. The LLM reads it once at session start and translates as it goes.
 
-2. **Bootstrap files** for runtimes that don't auto-discover skills:
+2. **Bootstrap files** for runtimes that don't auto-discover skills. They also say what does **not** port: the two guards that are Claude Code hooks (registry intake's install check, the write-time primitives guard) do not run on another runtime — the lint, `registry_intake.py check` and the `set-phase` gates still catch what lands, after the fact:
    - `bootstrap/templates/AGENTS.md` — Codex CLI entry point
    - `bootstrap/templates/GEMINI.md` — Gemini CLI entry point
    - `bootstrap/templates/.cursorrules` — Cursor entry point
    - `bootstrap/templates/system-prompt.md` — generic system-prompt fallback for custom agents
 
-3. **`dev-flow-contract` Python package** — the runtime-independent core. Any Python-capable agent can read/write `.workflow/` correctly without depending on any specific runtime:
+3. **`dev-flow-contract` Python package** — the contract as a library, independent of any runtime, for reading `.workflow/`, recording artifacts and checking drift. It does not run the phase gates, so phase moves still go through `update_meta.py` (item 4):
    ```python
    from dev_flow_contract import init_workflow, record_artifact, check_drift
    ```
@@ -890,7 +893,7 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 **Bundled scripts:**
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`.
 - `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step. On a project already past `scaffolded` without the design lint, it prints what is missing and the command that fixes it.
-- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds **two gates at `scaffolded`**. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. A third gate, for the same Next apps on a Tailwind UI, refuses `scaffolded` and every later phase until the design lint carries `design/no-handmade-ui` and the write-time primitives guard is installed (`scripts/primitives_guard_gate.py`, checked through `design-md-to-app/scripts/setup_primitives_guard.py --check`) or `stack.primitives_guard = "none"` is recorded with its reason. Skills move phase through it so the gates run.
+- `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds the **phase gates** (the same list for `append-history --phase-after`): the inventory to leave `idea_captured`, the wireframe canvas to reach `monorepo_initialized` or `scaffolded`, and three more at `scaffolded`. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. A third gate, for the same Next apps on a Tailwind UI, refuses `scaffolded` and every later phase until the design lint carries `design/no-handmade-ui` and the write-time primitives guard is installed (`scripts/primitives_guard_gate.py`, checked through `design-md-to-app/scripts/setup_primitives_guard.py --check`) or `stack.primitives_guard = "none"` is recorded with its reason. Skills move phase through it so the gates run.
 
 ### `prd-from-idea` — paragraph → PRD
 
@@ -1234,7 +1237,7 @@ Fixing annotix's sitemap then paid for a fourth. Listing the legal pages meant t
 
 **Why that reading step is the skill.** On the first real run, **only 2 of 9 `fix` items survived it.** shadscan invents nothing — every string it quoted was really in the file it named — but it cannot follow a prop across a component boundary, climb to a wrapper, see through a `render` prop, or know that a subtree renders to WebGL instead of the DOM. A suppressed focus ring whose wrapper carries `focus-within:ring`, a pending state lifted into the parent, a `fallback={null}` inside a `<Canvas>` — all reported, none defects. **The better-composed the codebase, the more false positives it produces.** The skill encodes which rule kinds to trust: *does this file exist?* is reliable, *is this component semantically complete?* is not.
 
-This is the **third pre-deploy gate**, and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
+This is one of the **four pre-deploy gates** (with `launch-audit`, which came later), and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
 
 **The discipline: never optimise for the score.** shadscan says this itself — *do not add unused infrastructure solely to increase the audit score*. A command menu nobody asked for is a regression that scores well. Web only (DOM/React rules); no phase bump; never blocks the deploy on its own.
 
@@ -1607,7 +1610,7 @@ stamp.
 An edit that reads well as prose can still be unmergeable here, because the invariants live outside the
 file it changed. Before accepting one:
 
-1. **`python3 scripts/lint_skills.py`** — 19 checks. The description cap in particular: over 1024
+1. **`python3 scripts/lint_skills.py`** — 21 checks. The description cap in particular: over 1024
    characters a conforming client **skips the skill**, so a "clearer" description that grew is a
    regression, not an improvement.
 2. **Regenerate in dependency order** — `build_skills_registry.py` **before** `build_site.py`, then
@@ -1651,13 +1654,19 @@ python3 scripts/sync_skill_map.py --check   # CI-style: fail if stale
 ```
 
 ```bash
-# Sanity-check every skill — 19 checks (frontmatter YAML + the 1024-char
+# Sanity-check every skill — 21 checks (frontmatter YAML + the 1024-char
 # description cap, portable paths, snake_case phases, sibling cross-references,
 # installer coverage, capability reachability, README catalogue coverage,
 # every skill count stated in prose, the skill map's per-skill meta, the number of
 # checks itself, whether a file a skill copies into a project still equals the one
-# CI tested, and whether what is installed still matches this repo)
+# CI tested, whether what is installed still matches this repo, and whether two skills that share a
+# trigger phrase name each other under `Not for:`; plus a note, never an error, for every dated
+# "verified / checked / as of" marker older than 60 days)
 python3 scripts/lint_skills.py
+
+# Run every skill's test suite (each <skill>/scripts/test_*.py tracked by git; a suite that runs
+# zero tests counts as a failure, and skipped node cases are printed)
+python3 scripts/run_skill_tests.py
 
 # Regenerate skills.json (the machine-readable registry of every skill)
 python3 scripts/build_skills_registry.py
@@ -1722,7 +1731,7 @@ grades the trace and the final tree deterministically. It reads level 2, where t
 with no reminder. The idea is ECC's `skill-comply`; the LLM judge is dropped, because our gates
 are named scripts and named paths.
 
-CI runs `lint_skills.py`, `build_skills_registry.py`, `build_agent_plugin.py --check` and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
+CI runs `lint_skills.py`, `run_skill_tests.py` (every skill's test suite, discovered rather than listed), `build_skills_registry.py`, `build_agent_plugin.py --check`, `build_skill_bundles.py --check` (the `dist/*.skill` bundles against their sources) and `build_site.py --check` on every PR (see `.github/workflows/lint-skills.yml`). A stale `skills.json`, an out-of-date plugin manifest, or a site that wasn't regenerated all fail the workflow.
 
 ⚠️ **Run the generators in dependency order: `build_skills_registry.py` *before* `build_site.py`.** The site pages embed values that come from `skills.json` (each skill's line count, among others), so `build_site.py --check` run *first* compares the site against the **old** registry and passes — then regenerating `skills.json` makes the site stale behind your back. A locally-green check followed by a red CI is this ordering, not a flaky runner.
 

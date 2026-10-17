@@ -850,8 +850,9 @@ changes nothing.
 naming the primitive from the library's mapping) and `design/no-card-in-card` (on unless DESIGN.md lets
 cards nest). Then the script calls `scripts/setup_primitives_guard.py`, which installs the **write-time
 guard**: `scripts/guard/primitives-guard.mjs` + `eslint.guard.mjs` (copied from `assets/guard/`),
-`scripts/guard/guard.json`, three hooks merged into `.claude/settings.json` (PreToolUse on
-`Write|Edit|MultiEdit`, `Stop`, `SubagentStop`), the «UI: only the primitives» section in `AGENTS.md`, and
+`scripts/guard/guard.json`, five hooks merged into `.claude/settings.json` (PreToolUse on
+`Write|Edit|MultiEdit`; PreToolUse + PostToolUse on `Bash`, which check the files a shell command touched
+right after it; `Stop`, `SubagentStop`), the «UI: only the primitives» section in `AGENTS.md`, and
 `stack.primitives_guard = "installed"`. A write that adds hand-made UI is refused with the primitive to use;
 only added findings count, so converting a legacy file is never blocked. `--check` fails if the rule or the
 guard is missing. Details and evidence: `references/design-system-lint.md` §Hand-made UI. Every rule it encodes was hit on a real project first

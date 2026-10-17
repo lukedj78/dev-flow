@@ -110,6 +110,14 @@
           "tool": "^(Write|Edit|MultiEdit)$",
           "input": "send-welcome|resend",
           "field": "file_path"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "(?:>{1,2}|\\btee(?:\\s+-a)?)\\s*['\\\"]?\\S*\\.tsx?\\b['\\\"]?[\\s\\S]*?from ['\\\"]resend['\\\"]"
+        },
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "input": "from ['\\\"]resend['\\\"]"
         }
       ]
     },

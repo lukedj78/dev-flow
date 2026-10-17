@@ -23,7 +23,13 @@ from dev_flow_contract import (
 )
 ```
 
-The runtime (`dev-flow/scripts/*.py`) is a thin wrapper around these primitives. Skills that don't run inside Claude Code can use the package directly.
+**Status: a reference implementation, not what the skills run.** The dev-flow skills call `dev-flow/scripts/*.py` (`update_meta.py`, `show_state.py`, `check_drift.py`), which are a separate implementation; the normative text is [`dev-flow/references/contracts.md`](../dev-flow/references/contracts.md). This README used to call the scripts "a thin wrapper" around the package — nothing imported it. Tests hold both to the contract: the phase enum here and the aliases are checked against the contract's table and against `dev-flow/scripts/phases.py`.
+
+What that means in practice:
+
+- **It does not run dev-flow's phase gates.** `set_phase()` enforces monotonicity only. `update_meta.py set-phase` also refuses a move until the inventory, the wireframe canvas, the data-residency decision, the design lint, registry intake and the primitives guard are on record. A tool that moves phase through this package walks past all six — move phase with `update_meta.py`.
+- **It keeps what it does not model.** Keys the dataclasses don't know (`inventory`, `wireframes`, `linear`, `stack.agent`, `stack.data_residency`, a history entry's `action`…) are written back untouched, and an entry no call changed is written back exactly as read.
+- **Writes are atomic**, like the scripts': a reader never sees a half-written `meta.json`. There is no lock, so two writers at once can still lose one's change; the scripts take one (`dev-flow/scripts/meta_io.py`).
 
 ## Installation
 

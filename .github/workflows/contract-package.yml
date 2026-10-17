@@ -9,6 +9,8 @@ on:
       # so in a comment. Without this path, changing the contract never re-ran
       # these tests — which is how the enum ended up four phases behind.
       - "dev-flow/references/contracts.md"
+      # test_aliases_match_dev_flow reads the scripts' phase table.
+      - "dev-flow/scripts/phases.py"
       - ".github/workflows/contract-package.yml"
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       # so in a comment. Without this path, changing the contract never re-ran
       # these tests — which is how the enum ended up four phases behind.
       - "dev-flow/references/contracts.md"
+      # test_aliases_match_dev_flow reads the scripts' phase table.
+      - "dev-flow/scripts/phases.py"
       - ".github/workflows/contract-package.yml"
 
 jobs:

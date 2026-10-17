@@ -1,3 +1,23 @@
+# Policy — Merge conflicts — intent first, derived files rebuilt
+
+When a merge or rebase stops on conflicts, follow **`references/merge-conflicts.md`**. The method is
+Matt Pocock's `resolving-merge-conflicts` (read both sides' primary sources, keep both intents, invent
+nothing, run the checks); the reference adds what a dev-flow project needs on top:
+
+- **Stage by name, never `git add -A`** — other agents share these trees — and commit only a merge the
+  user started or asked for. A conflict that is a product decision stops and asks; it is not aborted.
+- **Intent lives in** commit messages, the Linear issue, `.workflow/tasks.md`, `PRD.md`/`DESIGN.md`, `meta.json#history`.
+- **Derived files are regenerated, not merged**: `pnpm-lock.yaml`, `registry.json`, `registry-lock.json`
+  and its snapshots (re-approve), `AGENTS.md` managed blocks, generated migrations, and in `~/my-skills`
+  the vendored `contracts.md` copies and everything the repo's `regenerate.sh` builds.
+- **`meta.json` by field**: the further `phase` applied through `set-phase` so the gates run, `history`
+  unioned, `artifacts` re-checked with `check_drift.py`. A lint `--max-warnings` conflict takes the lower cap.
+
+Moved out of `dev-flow/SKILL.md` on 2026-10-17 to cut the router's every-turn cost; SKILL.md keeps an
+index line pointing here. The text is unchanged.
+
+---
+
 # Merge conflicts in a dev-flow project
 
 The method is not ours. [`mattpocock/skills` → `resolving-merge-conflicts`](https://github.com/mattpocock/skills/blob/main/skills/engineering/resolving-merge-conflicts/SKILL.md)
