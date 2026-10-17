@@ -370,6 +370,18 @@ if [ "${#PROJECT_DIRS[@]}" -gt 0 ]; then
         jobs+=("primitives-guard|$SKILLS_DIR/design-md-to-app/scripts/setup_primitives_guard.py|")
       fi
       [ "${#jobs[@]}" -gt 0 ] || continue
+      # The scan reaches every subfolder, cloned third-party repos included, and setup writes the hook copy,
+      # settings.json and AGENTS.md. A symlink at any of those paths would make it overwrite whatever file it
+      # points to, outside the project. Such a project is skipped, not followed.
+      linked=""
+      for rel in .claude .claude/hooks .claude/hooks/registry_intake.py .claude/settings.json AGENTS.md CLAUDE.md \
+                 scripts scripts/guard scripts/guard/primitives-guard.mjs .workflow .workflow/meta.json; do
+        if [ -L "$proj/$rel" ]; then linked="$rel"; break; fi
+      done
+      if [ -n "$linked" ]; then
+        echo "  ✗ $(basename "$proj"): skipped — $linked is a symlink; setup would write through it"
+        continue
+      fi
       touched=$((touched + 1))
       line="  ↻ $(basename "$proj"):"
       fails=""

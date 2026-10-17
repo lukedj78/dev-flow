@@ -259,6 +259,18 @@ class Projects(Fixture):
         self.assertIn("guarded: primitives-guard skipped (stack.framework=None", r.stdout)
         self.assertEqual((guarded / "scripts/guard/primitives-guard.mjs").read_text(), "// old\n")
 
+    def test_a_project_whose_hook_is_a_symlink_is_skipped(self) -> None:
+        # a cloned repo could point its hook path at a file of the user's; setup would overwrite it
+        victim = self.home / "precious.txt"
+        victim.write_text("mine\n")
+        cloned = self.projects / "cloned"
+        (cloned / ".claude/hooks").mkdir(parents=True)
+        (cloned / ".claude/hooks/registry_intake.py").symlink_to(victim)
+        r = self.install("--projects", str(self.projects))
+        self.assertEqual(victim.read_text(), "mine\n")
+        self.assertIn("cloned: skipped — .claude/hooks/registry_intake.py is a symlink", r.stdout)
+        self.assertIn("governed: registry-intake ✓", r.stdout)
+
     def test_a_missing_directory_is_refused_before_installing(self) -> None:
         r = self.sh("install.sh", "--projects", str(self.home / "nope"))
         self.assertEqual(r.returncode, 2)
