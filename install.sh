@@ -25,7 +25,7 @@
 #
 # Idempotent: an existing skill folder at the target is moved to a timestamped
 #   <skills-dir>-backup-YYYYmmdd-HHMMSS/ before it is overwritten — OUTSIDE the skills dir, so the
-#   backup is never itself registered as a skill. Each run makes a new one; `./uninstall.sh --restore`
+#   backup is never itself registered as a skill. The newest 3 are kept (DEV_FLOW_KEEP_BACKUPS=N, 0 = all); `./uninstall.sh --restore`
 #   puts back the most recent. A bootstrap file (AGENTS.md, GEMINI.md, .cursorrules, system-prompt.md,
 #   bootstrap/tool-mappings.md) that is not the one this installer wrote is saved there too, and every
 #   file it writes outside a skill folder is recorded with its hash in <skills-dir>/.dev-flow-installed,
@@ -314,6 +314,27 @@ if [ -f "$MANIFEST" ]; then
   rm -f "$NEW_MANIFEST"
 else
   mv "$NEW_MANIFEST" "$MANIFEST"
+fi
+
+# Keep the newest DEV_FLOW_KEEP_BACKUPS backups (default 3; 0 keeps them all). Each run used to add one,
+# about 7 MB, forever. Only folders with this installer's exact timestamp are counted or removed: a
+# `skills-backup-manual` of the user's own shares the prefix and must never match.
+KEEP="${DEV_FLOW_KEEP_BACKUPS:-3}"
+case "$KEEP" in ''|*[!0-9]*) KEEP=3 ;; esac
+if [ "$KEEP" -gt 0 ]; then
+  total=0
+  for d in "${SKILLS_DIR%/}"-backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
+    if [ -d "$d" ]; then total=$((total + 1)); fi
+  done
+  drop=$((total - KEEP))
+  for d in "${SKILLS_DIR%/}"-backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do   # the glob sorts oldest first
+    if [ "$drop" -le 0 ]; then break; fi
+    if [ -d "$d" ]; then
+      rm -rf "$d"
+      echo "  · removed an old backup: $d (keeping the newest $KEEP; DEV_FLOW_KEEP_BACKUPS=0 keeps all)"
+      drop=$((drop - 1))
+    fi
+  done
 fi
 
 echo

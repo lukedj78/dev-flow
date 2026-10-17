@@ -172,9 +172,11 @@ if [ -d "$SKILLS_DIR/bootstrap" ] && rmdir "$SKILLS_DIR/bootstrap" 2>/dev/null; 
 fi
 rm -f "$MANIFEST"
 
-# The most recent backup install.sh made. Timestamped names sort chronologically.
+# The most recent backup install.sh made. Timestamped names sort chronologically. The pattern is the exact
+# timestamp: `-backup-*` also matched a user's own `skills-backup-manual`, which sorts after every date and
+# so was picked as "the latest".
 LATEST=""
-for d in "${SKILLS_DIR%/}"-backup-*; do
+for d in "${SKILLS_DIR%/}"-backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
   [ -d "$d" ] && LATEST="$d"
 done
 

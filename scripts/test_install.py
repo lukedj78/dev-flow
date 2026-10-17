@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -124,6 +125,21 @@ class Claude(Fixture):
         self.assertEqual(notes.read_text(), "my notes")
         self.assertIn("restored", r.stdout)
         self.assertFalse((self.skills / "dev-flow").exists())  # had no previous version
+
+    def test_only_the_three_newest_backups_are_kept_and_a_hand_made_one_is_never_touched(self) -> None:
+        manual = self.skills.parent / "skills-backup-manual"   # a folder the user made: same prefix, no timestamp
+        (manual / "forms").mkdir(parents=True)
+        (manual / "forms" / "SKILL.md").write_text("mine")
+        self.install()
+        for _ in range(4):           # each run backs up the previous install into a new timestamped folder
+            time.sleep(1.1)          # the folder name has one-second resolution
+            self.install()
+        stamped = [b for b in self.backups(self.skills) if b.name != "skills-backup-manual"]
+        self.assertEqual(len(stamped), 3)
+        self.assertEqual((manual / "forms" / "SKILL.md").read_text(), "mine")
+        r = self.uninstall("--restore")
+        self.assertIn(stamped[-1].name, r.stdout)   # restores from the newest timestamped backup, not "manual"
+        self.assertEqual((manual / "forms" / "SKILL.md").read_text(), "mine")
 
     def test_without_restore_uninstall_says_where_the_backup_is(self) -> None:
         (self.skills / "forms").mkdir(parents=True)
