@@ -219,7 +219,35 @@ def ns_of(key: str) -> str:
 
 
 def is_bare(spec: str) -> bool:
-    return not (spec.startswith("@") or "://" in spec or spec.endswith(".json") or spec.startswith((".", "/", "~")))
+    return not (spec.startswith(("@", ".", "/", "~", "\\")) or "://" in spec or spec.lower().endswith(".json")
+                or "\\" in spec or re.match(r"^[A-Za-z]:", spec))
+
+
+def is_local(spec: str) -> bool:
+    """A registry item named by a file path rather than a namespace or a URL."""
+    return not is_bare(spec) and not split_ns(spec) and "://" not in spec
+
+
+def safe_item_name(name: str) -> bool:
+    """The part after `@ns/`, substituted into the registry URL and into the snapshot path: path
+    segments of word characters, never `..`, `.`, a backslash or an empty segment."""
+    return bool(re.fullmatch(r"[\w-][\w.-]*(/[\w-][\w.-]*)*", name)) and \
+        not any(seg in (".", "..") for seg in name.split("/"))
+
+
+def local_source(source: str, root: Path) -> Path:
+    """The file a local registry item names, only if it resolves inside the project. A registry item
+    is untrusted input: `~/.ssh/…`, `/etc/…`, `../../…` or a symlink out of the tree would put any
+    readable file on this machine into the report and, on approve, into a committed snapshot."""
+    if "\x00" in source or source.startswith("~") or re.match(r"^[A-Za-z]:", source) or "\\" in source:
+        raise SystemExit(f"{source}: not a project path — refusing")
+    real_root = root.resolve()
+    p = Path(source)
+    real = (p if p.is_absolute() else real_root / p).resolve()
+    if not real.is_relative_to(real_root):
+        raise SystemExit(f"{source}: resolves outside the project ({real}) — a local registry item must "
+                         "live inside the project root; refusing")
+    return real
 
 
 def ns_for_url(url: str, registries: dict[str, str]) -> str | None:
@@ -254,13 +282,15 @@ def fetch_json(source: str, root: Path) -> dict:
                     continue
                 raise SystemExit(f"{source}: HTTP {e.code}") from None
         raise SystemExit(f"{source}: too many redirects")
-    return json.loads((root / source).read_text() if not Path(source).is_absolute() else Path(source).read_text())
+    return json.loads(local_source(source, root).read_text())
 
 
 def resolve(spec: str, root: Path, registries: dict[str, str]) -> tuple[str, str]:
     """(key, source) for a governed item spec."""
     if (parts := split_ns(spec)) and "://" not in spec:
         ns, name = parts
+        if not safe_item_name(name):
+            raise SystemExit(f"{spec}: {name!r} is not a registry item name (path segments, no `..`) — refusing")
         if ns not in registries:
             raise SystemExit(f"{spec}: namespace {ns} is not in components.json nor in the allowlist — "
                              f"`registry_intake.py allow <root> {ns} <url-with-{{name}}> --reason ...` first")
@@ -269,9 +299,12 @@ def resolve(spec: str, root: Path, registries: dict[str, str]) -> tuple[str, str
         ns = ns_for_url(spec, registries)
         if ns:
             pre, _, post = registries[ns].partition("{name}")
-            return f"{ns}/{spec[len(pre):len(spec) - len(post) if post else None]}", spec
+            name = spec[len(pre):len(spec) - len(post) if post else None]
+            if not safe_item_name(name):
+                raise SystemExit(f"{spec}: {name!r} is not a registry item name (path segments, no `..`) — refusing")
+            return f"{ns}/{name}", spec
         return spec, spec
-    return spec, str((root / spec).resolve())
+    return spec, str(local_source(spec, root))
 
 
 def closure(spec: str, root: Path, registries: dict[str, str], limit: int = 40) -> list[Item]:
@@ -289,6 +322,11 @@ def closure(spec: str, root: Path, registries: dict[str, str], limit: int = 40) 
         data = fetch_json(source, root)
         it = Item(key=key, source=source, data=data)
         for dep in data.get("registryDependencies") or []:
+            if not isinstance(dep, str) or "\x00" in dep:
+                raise SystemExit(f"{key}: a registryDependency is not a plain string — refusing")
+            if is_local(dep) and ("://" in source or Path(dep).is_absolute() or dep.startswith("~")):
+                raise SystemExit(f"{key}: registryDependency {dep!r} points at a file on this machine — only a "
+                                 "project-local item may name another local item, by a relative path; refusing")
             if is_bare(dep):
                 it.first_party.append(dep)
             else:
@@ -364,6 +402,32 @@ def object_keys(src: str, call: str) -> list[list[str]]:
     return results
 
 
+def target_escape(f: dict, root: Path) -> str | None:
+    """Why a file's install target could land outside the project, or None. shadcn reads `~/` as
+    the project root; every other spelling of "somewhere else" is refused, and the target is resolved
+    against the real tree so a symlinked directory cannot carry it out."""
+    raw = f.get("target") or f.get("path") or ""
+    if not isinstance(raw, str):
+        return "not a string"
+    if "\x00" in raw:
+        return "NUL byte"
+    if "\\" in raw:
+        return "backslash"
+    if re.match(r"^[A-Za-z]:", raw):
+        return "drive letter"
+    rel = raw[2:] if raw.startswith("~/") else raw
+    if rel.startswith("~"):
+        return "home directory"
+    if rel.startswith("/"):
+        return "absolute path"
+    if ".." in rel.split("/"):
+        return "`..` segment"
+    real_root = root.resolve()
+    if rel and not (real_root / rel).resolve().is_relative_to(real_root):
+        return "resolves outside the project through a symlink"
+    return None
+
+
 def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[list[Finding], bool]:
     out: list[Finding] = []
     high = False
@@ -373,8 +437,8 @@ def check_files(it: Item, root: Path, eve_keys: tuple[str, list[str]]) -> tuple[
     for f in files:
         tgt = target_of(f)
         content = f.get("content") or ""
-        if tgt.startswith("/") or ".." in tgt.split("/"):
-            add("T1", "block", f"target escapes the project: {tgt}", tgt)
+        if escape := target_escape(f, root):
+            add("T1", "block", f"target escapes the project: {tgt} ({escape})", tgt)
         elif any(re.search(p, tgt.removeprefix("~/")) for p in SENSITIVE_TARGETS):
             add("T1", "block", f"target is a config/tooling file: {tgt}", tgt)
         if any(re.search(p, tgt) for p in SERVER_SURFACE) or re.search(r"^['\"]use server['\"]|server-only", content, re.M):
@@ -473,7 +537,9 @@ def owners(d: dict) -> set[str]:
 def changed_hands(name: str, before_version: str, now: dict) -> bool:
     """A long gap alone is a paused project (clsx: 2020 → 2022, same repo, same maintainer). A reused name
     also has a different repository and no maintainer in common across the gap."""
-    r = subprocess.run(["npm", "view", f"{name}@{before_version}", "repository.url", "maintainers", "--json"],
+    if not is_npm_name(name) or not re.fullmatch(r"[\w.+-]+", before_version or ""):
+        return False
+    r = subprocess.run(["npm", "view", "--json", "--", f"{name}@{before_version}", "repository.url", "maintainers"],
                        capture_output=True, text=True, check=False, timeout=60)
     try:
         old = json.loads(r.stdout or "{}") if not r.returncode else {}
@@ -497,10 +563,27 @@ def current_line(times: dict) -> tuple[str | None, dict | None]:
     return start, gap
 
 
+# npm package names (scoped or not) and an optional version/range/tag. Dependency specs come from the
+# registry item, i.e. from whoever wrote it: anything else (a leading "-", "--registry=…", a URL, a path,
+# "../x") is refused before it reaches `npm view` or a node_modules path.
+NPM_NAME = re.compile(r"(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*", re.I)
+NPM_SPEC = re.compile(r"(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*(@[\w.^~<>=*| -]+)?", re.I)
+
+
+def is_npm_name(name: str) -> bool:
+    return bool(name) and len(name) <= 214 and not name.startswith("-") and bool(NPM_NAME.fullmatch(name))
+
+
+def is_npm_spec(spec: str) -> bool:
+    return bool(spec) and not spec.startswith("-") and ".." not in spec and bool(NPM_SPEC.fullmatch(spec))
+
+
 def npm_facts(spec: str) -> dict | None:
     name = re.sub(r"(?<=.)@[^/]*$", "", spec)
-    r = subprocess.run(["npm", "view", name, "name", "license", "time", "scripts", "version", "repository.url",
-                        "maintainers", "--json"], capture_output=True, text=True, check=False, timeout=60)
+    if not is_npm_name(name):
+        return None
+    r = subprocess.run(["npm", "view", "--json", "--", name, "name", "license", "time", "scripts", "version",
+                        "repository.url", "maintainers"], capture_output=True, text=True, check=False, timeout=60)
     if r.returncode:
         return {"missing": "E404" in (r.stdout + r.stderr), "name": name}
     try:
@@ -554,6 +637,9 @@ def check_deps(items: list[Item], npm=None, root: Path | None = None) -> tuple[l
     npm = npm or npm_facts
     for it in items:
         for dep in (it.data.get("dependencies") or []) + (it.data.get("devDependencies") or []):
+            if not isinstance(dep, str) or not is_npm_spec(dep):
+                out.append(Finding("D1", "block", it.key, f"{dep!r} is not an npm package spec"))
+                continue
             f = npm(dep)
             name = re.sub(r"(?<=.)@[^/]*$", "", dep)
             declared = dep[len(name) + 1:] if len(dep) > len(name) else ""
@@ -667,9 +753,20 @@ def print_report(rep: Report, diffs: dict[str, str]) -> None:
 
 
 def snapshot_rel(key: str) -> str:
-    safe = key.lstrip("@") if key.startswith("@") else re.sub(r"[^\w.-]+", "_", key.split("://")[-1])
-    safe = re.sub(r"\.json$", "", safe)
+    """Where an item's snapshot lives, always under VENDOR: every segment is sanitised and a `.`/`..`
+    segment refused, because the key comes from registry content (`registryDependencies`)."""
+    if key.startswith("@"):
+        segs = [re.sub(r"[^\w.-]+", "_", seg) for seg in key[1:].split("/")]
+    else:
+        segs = [re.sub(r"[^\w.-]+", "_", key.split("://")[-1])]
+    if any(seg in ("", ".", "..") for seg in segs):
+        raise SystemExit(f"{key}: cannot be stored as a snapshot (empty, `.` or `..` path segment) — refusing")
+    safe = re.sub(r"\.json$", "", "/".join(segs))
     return f"{VENDOR}/{safe}.json"
+
+
+def in_vendor(root: Path, rel: str) -> bool:
+    return (root / rel).resolve().is_relative_to((root / VENDOR).resolve())
 
 
 def local_dep(dep: str, items_by_source_key: dict[str, str]) -> str:
@@ -742,6 +839,9 @@ def cmd_approve(args) -> int:
         if snap.get("registryDependencies"):
             snap["registryDependencies"] = [local_dep(d, by_source_key) for d in snap["registryDependencies"]]
         rel = snapshot_rel(it.key)
+        if not in_vendor(root, rel):
+            print(f"\nrefused: the snapshot path of {it.key} resolves outside {VENDOR}/", file=sys.stderr)
+            return 1
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(json.dumps(snap, indent=2) + "\n")
         mine = [f for f in rep.findings if f.item == it.key]
@@ -776,6 +876,8 @@ def verify_entry(root: Path, key: str, lock: dict) -> str | None:
     entry = (lock.get("items") or {}).get(key)
     if not entry:
         return f"{key} is not approved"
+    if not isinstance(entry.get("snapshot"), str) or not in_vendor(root, entry["snapshot"]):
+        return f"{key}: snapshot path {entry.get('snapshot')!r} is outside {VENDOR}/"
     snap = root / entry["snapshot"]
     if not snap.exists():
         return f"{key}: snapshot {entry['snapshot']} is missing"
@@ -1927,63 +2029,323 @@ def cmd_deny(args) -> int:
 # hook
 
 
-RUNNERS = {"npx", "pnpx", "bunx", "dlx", "exec"}
+# The hook reads a shell command the way a shell would, closely enough that the forms an install can
+# take do not slip past it: quotes and backslashes glued into the program name (`npx sha''dcn`),
+# ANSI-C strings (`$'\x73hadcn'`), a second shell (`sh -c "…"`, `bash -lc`, `eval`, `$(…)`,
+# backticks, `python -c "os.system('…')"`), any chain (`;` `&&` `||` `|` `&` newline), runners
+# (`npx`, `pnpm dlx|exec`, `bunx --bun`, `yarn dlx`, `npm exec`, a path into node_modules), the old
+# `shadcn-ui` package and any letter case. What it cannot resolve without running the shell — an
+# item, a program or a verb held in a variable, a glob, items piped in through `xargs` — is refused,
+# not guessed. It is a guard on what the agent types, not a sandbox: a script the agent writes and
+# then runs is the review's and `check`'s job.
+
+_OPS = ("<<<", "&&", "||", "|&", "&>", ">>", "<<", ">&", "<&", "$(", "<(", ">(",
+        ";", "|", "&", "(", ")", "<", ">", "\n", "`")
+_REDIRECTS = {"<<<", "&>", ">>", "<<", ">&", "<&", "<", ">"}
+_NESTED = re.compile(r"[\s;&|`()<>]|\$\(")  # a quoted word that a second shell would read as a command
+_EXPANDS = re.compile(r"[$`*?\[]|\{[^{}]*(,|\.\.)[^{}]*\}")
+_MAX_DEPTH = 6
 
 
-# Shells whose -c runs a command string (`env` is not one: `env bash -c` reaches bash as its own token).
-C_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
+class Word(str):
+    """A shell word after quote removal. `expand` is set when the shell would still rewrite it
+    (a variable, a command substitution, a glob, a brace list), so its value is not known here.
+    `quoted` keeps the literal text of a quoted word, which another shell may run as a command."""
+    expand: bool = False
+    nested: str = ""
 
 
-def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]:
-    """[(tool, items, --cwd, read_only)] for every `shadcn add` / `eve add` / `eve registry add`."""
-    out = []
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
-        try:
-            toks = shlex.split(seg)
-        except ValueError:
-            toks = seg.split()
-        for i, t in enumerate(toks):
-            base = t.split("/")[-1]
-            # `bash -xc "npx shadcn add …"` carries the whole install in one token: find the shell's -c
-            # (alone or in a flag cluster, after any long option) and parse its argument as a command.
-            if base in C_SHELLS:
-                # Modelling every option a shell takes is a race this parser loses (`-o pipefail -c …`,
-                # `-oc pipefail …`, `--rcfile x -c …`). When any option cluster after the shell holds a
-                # `c`, scan every later argument as a possible command string instead of guessing which.
-                rest_args = toks[i + 1:]
-                if any(re.match(r"^[-+][A-Za-z]*c[A-Za-z]*$", a) for a in rest_args):
-                    for a in rest_args:
-                        out.extend(governed_adds(a))
-                    break
-            tool = "shadcn" if re.match(r"^shadcn(@[\w.-]+)?$", base) else "eve" if re.match(r"^eve(@[\w.-]+)?$", base) else None
+class Op(str):
+    pass
+
+
+class Unparsable(Exception):
+    pass
+
+
+def _ansi_c(body: str) -> str:
+    try:
+        return body.encode("latin-1", "backslashreplace").decode("unicode_escape")
+    except (UnicodeDecodeError, ValueError):
+        raise Unparsable(f"cannot decode $'{body}'") from None
+
+
+def shell_lex(s: str) -> list[str]:
+    """Words and operators, quote removal applied, in the order a POSIX shell sees them."""
+    toks: list[str] = []
+    buf: list[str] = []
+    state = {"word": False, "expand": False, "nested": []}
+
+    def put(text: str, expand: bool = False, nested: str = "") -> None:
+        buf.append(text)
+        state["word"] = True
+        state["expand"] = state["expand"] or expand
+        if nested:
+            state["nested"].append(nested)
+
+    def flush() -> None:
+        if state["word"]:
+            w = Word("".join(buf))
+            w.expand = state["expand"]
+            w.nested = "\n".join(state["nested"])
+            toks.append(w)
+        buf.clear()
+        state.update(word=False, expand=False, nested=[])
+
+    i, n = 0, len(s)
+    while i < n:
+        c = s[i]
+        if c in " \t\r":
+            flush()
+            i += 1
+        elif c == "\\":
+            if s.startswith("\\\n", i):
+                i += 2
+            else:
+                put(s[i + 1:i + 2])
+                i += 2
+        elif s.startswith("$'", i):
+            j, body = i + 2, []
+            while j < n and s[j] != "'":
+                body.append(s[j:j + 2] if s[j] == "\\" else s[j])
+                j += 2 if s[j] == "\\" else 1
+            if j >= n:
+                raise Unparsable("unterminated $'…'")
+            text = _ansi_c("".join(body))
+            put(text, nested=text if _NESTED.search(text) else "")
+            i = j + 1
+        elif c == "'":
+            j = s.find("'", i + 1)
+            if j < 0:
+                raise Unparsable("unterminated '…'")
+            text = s[i + 1:j]
+            put(text, nested=text if _NESTED.search(text) else "")
+            i = j + 1
+        elif c == '"':
+            j, body = i + 1, []
+            while j < n and s[j] != '"':
+                if s[j] == "\\" and j + 1 < n and s[j + 1] in '$`"\\\n':
+                    body.append(s[j + 1] if s[j + 1] != "\n" else "")
+                    j += 2
+                else:
+                    body.append(s[j])
+                    j += 1
+            if j >= n:
+                raise Unparsable('unterminated "…"')
+            text = "".join(body)
+            put(text, expand="$" in text or "`" in text, nested=text if _NESTED.search(text) else "")
+            i = j + 1
+        elif c == "#" and not state["word"]:
+            j = s.find("\n", i)
+            i = n if j < 0 else j
+        else:
+            op = next((o for o in _OPS if s.startswith(o, i)), None)
+            if op:
+                flush()
+                toks.append(Op(op))
+                i += len(op)
+                continue
+            put(c, expand=c in "$*?[" or (c == "{" and bool(re.match(r"\{[^{}\s]*(,|\.\.)[^{}\s]*\}", s[i:]))))
+            i += 1
+    flush()
+    return toks
+
+
+def _loose(text: str) -> Word:
+    w = Word(text)
+    w.expand = bool(_EXPANDS.search(text))
+    return w
+
+
+def shell_segments(command: str, depth: int = 0) -> list[list[Word]]:
+    """Every simple command in `command`, including the ones a nested shell would run, in order."""
+    if depth > _MAX_DEPTH:
+        raise Unparsable("commands nested deeper than the hook reads")
+    try:
+        toks = shell_lex(command)
+    except Unparsable:
+        if depth:
+            raise
+        # An unbalanced quote the shell would refuse, or a heredoc body: read it with the quotes
+        # dropped, which over-reads (a refusal too many) and never under-reads.
+        toks = shell_lex(re.sub(r"[\"']", " ", command.replace("$'", "'")))
+    segs: list[list[Word]] = [[]]
+    nested: list[list[Word]] = []
+    skip_next = False
+    # `$(…)`, `<(…)` and backticks run a command AND put its output in the enclosing one, so the
+    # enclosing command gets an argument whose value only the shell knows.
+    outer: list[tuple[list[Word], str]] = []
+    for t in toks:
+        if isinstance(t, Op):
+            if t in _REDIRECTS:
+                skip_next = True
+            elif t in ("$(", "<(", ">(") or (t == "`" and not (outer and outer[-1][1] == "`")):
+                computed = Word("$(…)")
+                computed.expand = True
+                if skip_next:
+                    skip_next = False
+                else:
+                    segs[-1].append(computed)
+                outer.append((segs[-1], "`" if t == "`" else ")"))
+                segs.append([])
+            elif outer and t == outer[-1][1]:
+                segs.append(outer.pop()[0])  # the enclosing command continues after the substitution
+            elif segs[-1]:
+                segs.append([])
+            continue
+        if skip_next:
+            skip_next = False
+            continue
+        segs[-1].append(t)
+        if t.nested:
+            try:
+                nested += shell_segments(t.nested, depth + 1)
+            except Unparsable:
+                if depth + 1 > _MAX_DEPTH:
+                    raise
+                nested.append([_loose(x) for x in re.split(r"[\s;&|`()<>\"']+", t.nested) if x])
+    unique = list({id(seg): seg for seg in segs if seg}.values())
+    return unique + nested
+
+
+_WRAPPERS = {"sudo", "env", "command", "builtin", "exec", "time", "nice", "nohup", "stdbuf", "timeout", "caffeinate"}
+_LAUNCHERS = {"npx", "pnpx", "bunx", "npm", "pnpm", "yarn", "bun", "corepack"}
+_LAUNCHER_VERBS = {"exec", "dlx", "x", "run"}
+_FANOUT = {"xargs", "parallel", "-exec", "-execdir", "-ok", "-okdir"}
+_CWD_FLAGS = {"-C", "--dir", "--prefix", "--chdir", "--cwd"}
+
+
+def program_index(seg: list[Word]) -> int:
+    """Index of the word the shell would run, past `VAR=x`, wrappers and package runners."""
+    i = 0
+    while i < len(seg):
+        w = seg[i]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w):
+            i += 1
+        elif w.split("/")[-1] in _WRAPPERS | _LAUNCHERS | _LAUNCHER_VERBS or (w.startswith("-") and i):
+            i += 2 if w in ("-p", "--package", "-u", "-n", "-C", "--dir") else 1
+        else:
+            return i
+    return len(seg)
+
+
+def tool_of(word: str) -> str | None:
+    """`shadcn` / `eve` when this word launches one: the bare name, `name@version`, any letter case
+    (APFS and NTFS resolve `SHADCN`), the old `shadcn-ui` package, or a path into its package."""
+    parts = [p for p in re.split(r"[/\\]", word.lower()) if p]
+    for p in parts:
+        if re.fullmatch(r"shadcn(-ui)?(@[\w.^~<>=*-]*)?", p):
+            return "shadcn"
+    if parts and re.fullmatch(r"eve(@[\w.^~<>=*-]*)?", parts[-1]):
+        return "eve"
+    if len(parts) > 1 and "node_modules" in parts and any(re.fullmatch(r"eve(@[\w.^~<>=*-]*)?", p) for p in parts):
+        return "eve"
+    return None
+
+
+GOVERNED_VERBS = {"shadcn": {"add", "init"}, "eve": {"add", "registry"}}
+
+
+@dataclass
+class Add:
+    tool: str                 # shadcn | eve | eve-registry
+    items: list[Word]
+    cwd: str | None = None
+    read_only: bool = False
+    registry: list[str] = field(default_factory=list)
+    unknown: str = ""         # why the invocation cannot be read without running the shell
+    moved: bool = False       # something in the command changes the directory relative paths resolve from
+
+
+def governed_adds(command: str) -> list[Add]:
+    """Every `shadcn add|init`, `eve add`, `eve registry add` the command would run."""
+    out: list[Add] = []
+    segs = shell_segments(command)
+    moved = any(s[program_index(s):][:1] and s[program_index(s)] in ("cd", "pushd", "popd") for s in segs)
+    for seg in segs:
+        p = program_index(seg)
+        if p < len(seg) and seg[p].expand and any(w in ("add", "init") for w in seg[p + 1:p + 4]):
+            out.append(Add("?", [], unknown=f"the program `{seg[p]}` is computed by the shell"))
+            continue
+        for i, w in enumerate(seg):
+            tool = tool_of(w)
             if not tool:
                 continue
-            rest = toks[i + 1:]
-            while rest and rest[0] == "--":  # `npm exec shadcn -- add …`: the separator npm needs
-                rest = rest[1:]
-            if tool == "eve" and rest[:2] == ["registry", "add"]:
-                out.append(("eve-registry", [a for a in rest[2:] if not a.startswith("-")], None, False))
-                break
-            if not rest or rest[0] != "add":
-                break
-            items, cwd, ro, j = [], None, False, 1
-            while j < len(rest):
-                a = rest[j]
-                if a in ("-c", "--cwd", "-p", "--path"):
-                    if a in ("-c", "--cwd") and j + 1 < len(rest):
-                        cwd = rest[j + 1]
-                    j += 2
-                    continue
-                if a.startswith("--cwd="):
-                    cwd = a.split("=", 1)[1]
-                elif a in ("--dry-run", "--view", "--diff") or a.startswith(("--view=", "--diff=")):
-                    ro = True
-                elif not a.startswith("-"):
-                    items.append(a)
+            j = i + 1
+            while j < len(seg) and seg[j].startswith("-") and not seg[j].expand:
                 j += 1
-            out.append((tool, items, cwd, ro))
-            break
+            if j >= len(seg):
+                continue
+            verb = seg[j]
+            if verb.expand:
+                out.append(Add(tool, [], unknown=f"the subcommand `{verb}` of {tool} is computed by the shell"))
+                continue
+            if verb not in GOVERNED_VERBS[tool]:
+                continue
+            rest = seg[j + 1:]
+            a = Add(tool, [], moved=moved or any(x in _CWD_FLAGS or x.startswith(("--dir=", "--prefix=", "--chdir="))
+                                                 for x in seg[:i]))
+            if any(x in _FANOUT for x in seg[:i]):
+                a.unknown = "its items come from `xargs`/`find -exec`, which the hook cannot read"
+            if tool == "eve" and verb == "registry":
+                if rest[:1] != ["add"]:
+                    continue
+                a.tool = "eve-registry"
+                a.items = [x for x in rest[1:] if not x.startswith("-")]
+                out.append(a)
+                continue
+            k, positional = 0, False
+            while k < len(rest):
+                x = rest[k]
+                if positional or not x.startswith("-") or x == "-":
+                    a.items.append(x)
+                elif x == "--":
+                    positional = True
+                elif x in ("-c", "--cwd", "-p", "--path", "-t", "--template", "-b", "--base-color", "--base"):
+                    if x in ("-c", "--cwd") and k + 1 < len(rest):
+                        a.cwd = rest[k + 1]
+                    k += 2
+                    continue
+                elif x.startswith(("--cwd=", "-c=")):
+                    a.cwd = x.split("=", 1)[1]
+                elif x in ("-r", "--registry"):
+                    if k + 1 < len(rest):
+                        a.registry.append(rest[k + 1])
+                    k += 2
+                    continue
+                elif x.startswith(("--registry=", "-r=")):
+                    a.registry.append(x.split("=", 1)[1])
+                elif x == "--preset" or x.startswith("--preset="):
+                    # a preset code is shadcn's; a preset given as a URL or a file is a registry item
+                    value = x.split("=", 1)[1] if "=" in x else (rest[k + 1] if k + 1 < len(rest) else "")
+                    if value and not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+                        a.items.append(value if isinstance(value, Word) else Word(value))
+                    k += 1 if "=" in x else 2
+                    continue
+                elif x in ("--dry-run", "--view", "--diff") or x.startswith(("--view=", "--diff=")):
+                    a.read_only = True
+                elif x.expand:
+                    a.unknown = f"the flag `{x}` is computed by the shell"
+                k += 1
+            if a.cwd is not None and (getattr(a.cwd, "expand", False) or "\x00" in a.cwd):
+                a.unknown = f"--cwd `{a.cwd}` is computed by the shell"
+            out.append(a)
     return out
+
+
+def shadcn_bare(item: str) -> bool:
+    """shadcn's own registry: a lowercase kebab name and nothing else. Anything else — a URL, a path,
+    a `.JSON`, an uppercase or spaced name — is treated as third-party and refused unless approved."""
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*", item))
+
+
+def eve_catalog(item: str) -> bool:
+    """eve's official catalog: `connection/stripe`, `tool/x` — never a scope, URL, path or .json."""
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9._-]*)*", item)) and not item.lower().endswith(".json")
+
+
+def safe_name(name: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9_][\w.-]*(/[\w.-]+)*", name)) and ".." not in name.split("/")
 
 
 def skill_installs(command: str) -> list[str]:
@@ -1991,17 +2353,14 @@ def skill_installs(command: str) -> list[str]:
     `skills update`, `gh skill install`. The agent never runs these: a skill is instructions it would
     then obey, so the person installs it after reading the review (external-skills.md rule 1)."""
     out = []
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
-        try:
-            toks = shlex.split(seg)
-        except ValueError:
-            toks = seg.split()
+    for toks in shell_segments(command):
         for i, t in enumerate(toks):
-            base = t.split("/")[-1]
-            if re.match(r"^skills(@[\w.-]+)?$", base) and toks[i + 1:i + 2] and toks[i + 1] in ("add", "update"):
+            base = t.split("/")[-1].lower()
+            nxt = toks[i + 1:i + 2]
+            if re.match(r"^skills(@[\w.^~-]+)?$", base) and nxt and (nxt[0] in ("add", "update") or nxt[0].expand):
                 out.append(" ".join(toks[i:i + 3]))
                 break
-            if base == "gh" and toks[i + 1:i + 3] == ["skill", "install"]:
+            if base == "gh" and [x.lower() for x in toks[i + 1:i + 3]] == ["skill", "install"]:
                 out.append(" ".join(toks[i:i + 4]))
                 break
     return out
@@ -2011,14 +2370,10 @@ def mcp_installs(command: str) -> list[str]:
     """`claude mcp add` and its variants. An MCP server is a set of tools the agent may call, and
     their descriptions are instructions it reads — the same reason a skill install is the user's."""
     out = []
-    for seg in re.split(r"&&|\|\||;|\n", command):
-        try:
-            toks = shlex.split(seg)
-        except ValueError:
-            toks = seg.split()
+    for toks in shell_segments(command):
         for i, t in enumerate(toks):
-            if t.split("/")[-1] == "claude" and toks[i + 1:i + 2] == ["mcp"] and \
-                    toks[i + 2:i + 3] and toks[i + 2] in ("add", "add-json"):
+            if t.split("/")[-1].lower() == "claude" and toks[i + 1:i + 2] == ["mcp"] and \
+                    toks[i + 2:i + 3] and (toks[i + 2] in ("add", "add-json", "add-from-claude-desktop") or toks[i + 2].expand):
                 out.append(" ".join(toks[i:i + 4]))
                 break
     return out
@@ -2029,6 +2384,8 @@ def hook_decision(payload: dict) -> str | None:
     if payload.get("tool_name") != "Bash":
         return None
     command = (payload.get("tool_input") or {}).get("command") or ""
+    if not isinstance(command, str):
+        raise TypeError("tool_input.command is not a string")
     for inv in mcp_installs(command):
         return (f"`{inv}` registers an MCP server — a process whose tools this agent may call, and "
                 "whose tool descriptions it reads as instructions. The user registers it; then "
@@ -2039,8 +2396,6 @@ def hook_decision(payload: dict) -> str | None:
                 "with no review and no hash. Read it first with `registry_intake.py skill-review <root> "
                 "<name|url>`, show the report, and let the user run the install themselves; "
                 "`skill-approve` then pins the text that landed.")
-    # No substring short-circuit: `shad""cn` and `shad\\cn` both run shadcn while the raw string never
-    # contains it. governed_adds() tokenises like the shell does, and it is cheap enough for every call.
     adds = governed_adds(command)
     if not adds:
         return None
@@ -2048,28 +2403,46 @@ def hook_decision(payload: dict) -> str | None:
     root = find_root(cwd)
     lock = load_lock(root) if root else None
     how = "Use registry intake: `registry_intake.py review|approve|install <root> <item>` (see AGENTS.md)."
-    for tool, items, add_cwd, read_only in adds:
-        where = (cwd / add_cwd).resolve() if add_cwd else cwd
-        if tool == "eve-registry":
-            for a in items:
-                ns = a.split("=", 1)[0]
+    literal = "Write the command out literally (no variables, globs, xargs or nested shells around it)."
+    for a in adds:
+        verb = "registry add" if a.tool == "eve-registry" else "add"
+        tool = "eve" if a.tool == "eve-registry" else a.tool
+        if a.unknown:
+            return f"registry intake cannot tell what this command installs: {a.unknown}. {literal} {how}"
+        if a.registry:
+            return (f"`{tool} add --registry {a.registry[0]}` points item resolution at a registry outside "
+                    f"the intake allowlist. {how}")
+        where = (cwd / a.cwd).resolve() if a.cwd else cwd
+        for it in a.items:
+            if it.expand or "\x00" in it:
+                return f"`{tool} {verb} {it}`: the item is computed by the shell. {literal} {how}"
+        if a.tool == "eve-registry":
+            for it in a.items:
+                ns = it.split("=", 1)[0]
                 if lock is None or ns not in (lock.get("registries") or {}):
-                    return f"`eve registry add {a}`: {ns} is not in the registry-intake allowlist. {how}"
+                    return f"`eve registry add {it}`: {ns} is not in the registry-intake allowlist. {how}"
             continue
-        for it in items:
-            if tool == "eve" and not it.startswith("@") and "://" not in it:
+        for it in a.items:
+            if a.tool == "eve" and eve_catalog(it):
                 continue  # eve's official catalog: `eve add connection/x`
-            if tool == "shadcn" and is_bare(it):
+            if a.tool == "shadcn" and shadcn_bare(it):
                 continue  # shadcn's own registry
-            if read_only:
+            if a.read_only:
                 continue  # --dry-run / --view / --diff write nothing
+            parts = split_ns(it) if "://" not in it else None
             ns = ns_of(it)
-            if lock and ((lock.get("registries") or {}).get(ns) or {}).get("trust") == "live":
+            if parts and safe_name(parts[1]) and lock and \
+                    ((lock.get("registries") or {}).get(ns) or {}).get("trust") == "live":
                 continue  # the project's own UI system, allowlisted as live with its reason
             if lock is None:
                 return (f"`{tool} add {it}` installs third-party source and this project has no {LOCK}. "
                         f"Set up intake first (`registry_intake.py setup <root>`), then review and approve the item.")
-            if it.endswith(".json") and "://" not in it:
+            if it.lower().endswith(".json") and "://" not in it:
+                if it.startswith("~") or re.match(r"^[A-Za-z]:", it) or "\\" in it:
+                    return f"`{tool} add {it}`: not a project path. {how}"
+                if a.moved and not Path(it).is_absolute():
+                    return (f"`{tool} add {it}`: the command changes directory first, so the hook cannot tell "
+                            f"which file this relative path is. Use `registry_intake.py install` instead. {how}")
                 target = (where / it).resolve()
                 for key, entry in (lock.get("items") or {}).items():
                     if (root / entry["snapshot"]).resolve() == target:
@@ -2116,21 +2489,49 @@ def hook_ask(payload: dict) -> str | None:
             ". Confirm only if you said yes to this — the lock will say you did.")
 
 
+def may_install(command: str) -> bool:
+    """Could this command be an install the hook governs? Used only when it could not be read: quotes,
+    backslashes and case are stripped first, so `sha''dcn` or `SHADCN` still count."""
+    flat = re.sub(r"[\"'\\\s]", "", command).lower()
+    return bool(re.search(r"shadcn|\beve\b|eve(@|add|registry)|skills?|mcp|registry|\$'|\\x[0-9a-f]{2}", flat)
+                or re.search(r"\beve\b", command.lower()))
+
+
+def deny(reason: str) -> None:
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                             "permissionDecisionReason": reason}}))
+
+
 def cmd_hook(_args) -> int:
+    """PreToolUse contract: read the payload on stdin, answer with a JSON decision on stdout, exit 0.
+    It fails closed: a payload it cannot parse, or an error while deciding, is a deny — unless the
+    command plainly names nothing this hook governs. A crash would exit 1, which Claude Code treats
+    as a non-blocking error and runs the command anyway."""
+    command = ""
     try:
-        payload = json.loads(sys.stdin.read() or "{}")
-    except json.JSONDecodeError:
+        raw = sys.stdin.read()
+        payload = json.loads(raw or "{}")
+        if not isinstance(payload, dict):
+            raise ValueError("the hook payload is not a JSON object")
+        tool_input = payload.get("tool_input") or {}
+        command = tool_input.get("command") if isinstance(tool_input, dict) else ""
+        command = command if isinstance(command, str) else ""
+        try:
+            hook_pre_snapshot(payload)  # the baseline for hook-post; never allowed to break the decision below
+        except Exception:  # noqa: BLE001
+            pass
+        reason = hook_decision(payload)
+        ask = None if reason else hook_ask(payload)
+    except Exception as e:  # noqa: BLE001 — every failure is a decision, never a silent allow
+        if command and not may_install(command):
+            return 0
+        deny(f"registry intake could not evaluate this command ({type(e).__name__}: {e}), so it refuses "
+             "rather than let a possible third-party install through. Write the command plainly, or run "
+             "`registry_intake.py check <root>` to see what is broken.")
         return 0
-    try:
-        hook_pre_snapshot(payload)  # for hook-post; never allowed to break the decision below
-    except Exception:  # noqa: BLE001
-        pass
-    reason = hook_decision(payload)
     if reason:
-        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
-                                                 "permissionDecisionReason": reason}}))
+        deny(reason)
         return 0
-    ask = hook_ask(payload)
     if ask:
         # "ask": the reason is shown to the user, not to Claude (hooks docs, PreToolUse decision control)
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
