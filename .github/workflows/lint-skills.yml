@@ -35,6 +35,7 @@ on:
       - "*/assets/**"
       - "dist/*.skill"
       - "scripts/build_skill_bundles.py"
+      - "scripts/sync_routing_table.py"
       # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
       - "scripts/test_*.py"
       - "scripts/run_skill_tests.py"
@@ -75,6 +76,7 @@ on:
       - "*/assets/**"
       - "dist/*.skill"
       - "scripts/build_skill_bundles.py"
+      - "scripts/sync_routing_table.py"
       # The repo's own tests (the installers) and the runner, and the templates install.sh copies.
       - "scripts/test_*.py"
       - "scripts/run_skill_tests.py"
@@ -126,6 +128,10 @@ jobs:
 
       # Only the pre-commit hook rebuilt the bundles, and it runs only in clones that installed it.
       # On 2026-10-03 twelve of fifty-one were wrong. This compares their content with the sources.
+      # The routing table lives in show_state.py; SKILL.md carries a rendering of it, never a second copy.
+      - name: Check dev-flow's routing table in SKILL.md matches show_state.py
+        run: python3 scripts/sync_routing_table.py --check
+
       - name: Check the dist/*.skill bundles match their sources
         run: python3 scripts/build_skill_bundles.py --check
 

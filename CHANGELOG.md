@@ -19,6 +19,13 @@ What a bump means here:
 - **`shipped source` is now the top evidence type**, above "official source", in `before-you-build.md` — with the three conditions that make it mandatory rather than preferred: the claim concerns what leaves the user's machine, it is a default, or it is a version floor. `npm pack` needs no install and carries the compiled `dist`, the `.d.ts`, `engines`, `peerDependencies` and usually the `CHANGELOG`. Vendored into golden rule 4 and into the changelog-watch routine.
 
 ### Changed
+- **dev-flow has one routing table, and the two copies it used to have disagreed.** `show_state.py`'s `PHASE_NEXT_BY_STACK` printed the proposal, and `SKILL.md` restated it by hand under a "keep the two in sync" comment (`AUDIT.md` §6.6). They had drifted:
+  - The code sent next, expo-rn and monorepo projects from `prd_drafted` and `tasks_split` straight to the scaffold, which the wireframe gate refuses.
+  - The prose sent expo-rn to `rn-eas-deploy` with no compliance gate.
+  - The code's `deployed` row named only `compliance-audit` on every stack.
+  - The agent stack had a `module_added` row for a phase the contract says it never reaches.
+
+  The dict is now **the** table, corrected with the better half of each: wireframes before every scaffold, the gates before every deploy, a maintenance row per stack, and the agent's "advance to `feature_complete`" moved to `scaffolded`. New `scripts/sync_routing_table.py` renders it into `SKILL.md` between markers and lists the phases a stack never reaches. The three hand-kept per-stack lists are gone; the notes that are not routing (the Python service, "don't offer the web skills" on agent) stay as prose. The web table in Step 2 is now labelled for what it is: how to carry each step out, not a second routing source. `--check` runs in CI, and `regenerate.sh` and the pre-commit hook run the generator. 3 new tests, including a hand-edit inside the block being caught.
 - **`dev-flow/SKILL.md` is half the size, and a routing turn no longer reads the whole contract.** The router loaded 500 lines (64 KB) every turn and told the agent to read all of `contracts.md` (67 KB) "before doing anything". That is about 33k tokens before a single project file, measured as characters ÷ 4 (`AUDIT.md` §6.6). Sections the router needs only in one situation moved out **verbatim**, each with an index line saying when to read it:
   - the Step 2 policies, "Shipping the product's own agent-skill" and "Resources the user hands over" → new `references/policies.md`;
   - stack decisions, the Topology policy and the shadcn create parameters → new `references/stack-decisions.md`;
