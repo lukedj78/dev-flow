@@ -113,6 +113,7 @@ The codebase doesn't exist until `design-md-to-app` runs. Until then, the projec
   "created_at": "2026-04-25T14:00:00Z",
   "updated_at": "2026-04-25T15:30:00Z",
   "phase": "design_extracted",
+  "contract_version": 1,
   "stack": {
     "framework": "next",
     "ui": "shadcn",
@@ -370,3 +371,12 @@ Skills do **not** decide where the project lives. The user (via `dev-flow`) choo
 If a skill encounters a `meta.json` with an unknown `phase` value, it must not crash — it logs a warning and treats it as `empty` for routing purposes. New phases can be added to this contract; old skills will simply skip them.
 
 If a skill encounters fields in `meta.json` it doesn't recognize, preserve them verbatim when rewriting the file.
+
+**`contract_version`** (integer) is the contract version the file conforms to, stamped by every write
+through `meta_io.py` (`CONTRACT_VERSION`, today `1`). A file without it predates the field and is
+version-1 compatible; it gains the field on its next write. It changes only with a **breaking** contract
+change, and then together with the migration that brings older files up to it — additive changes (a new
+optional field, a phase appended to the enum) leave it alone. A script never rewrites a file whose
+version is higher than the one it knows: it refuses with exit 2 and leaves the file untouched, since it
+would save back fields whose meaning it does not have. Reading such a file is allowed, with a warning
+(`show_state.py`).

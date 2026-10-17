@@ -192,6 +192,9 @@ def main() -> int:
     meta = meta_io.load_or_exit(meta_path)
     print(f"Project:  {meta.get('project_name')!r}  ({meta.get('project_slug')!r})")
     print(f"Phase:    {meta.get('phase')}")
+    if (meta.get('contract_version') or 0) > meta_io.CONTRACT_VERSION:
+        print(f"⚠ meta.json was written under a newer contract (version {meta['contract_version']}; this dev-flow "
+              f"knows {meta_io.CONTRACT_VERSION}). Update the dev-flow skills before any script writes it.")
     if meta.get('phase') and phases.index(meta.get('phase')) is None:
         print(f"⚠ {meta.get('phase')!r} is not a phase of the contract — routed as 'empty'. update_meta.py refuses to")
         print(f"  move it without --allow-regress; valid phases: {', '.join(phases.PHASES)}")

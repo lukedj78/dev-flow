@@ -60,6 +60,7 @@ def _init(root: Path, meta_path: Path, name: str | None) -> int:
         "created_at": now,
         "updated_at": now,
         "phase": "empty",
+        "contract_version": meta_io.CONTRACT_VERSION,
         "stack": {
             "framework": None, "ui": None, "auth": None, "db": None,
             "payments": None, "deploy": None,

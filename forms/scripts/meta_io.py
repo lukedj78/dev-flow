@@ -39,6 +39,13 @@ except ImportError:  # Windows
     fcntl = None  # type: ignore[assignment]
 
 
+# The contract version a meta.json conforms to, recorded in it as `contract_version` on every write. Bump it
+# only with a breaking contract change, together with the migration that brings older files up to it. A file
+# without the field predates it and is version 1-compatible. A script never rewrites a file whose version is
+# higher than the one it knows: it would save back fields whose meaning it does not have.
+CONTRACT_VERSION = 1
+
+
 class InvalidMeta(ValueError):
     """meta.json is not something a script can safely read or rewrite."""
 
@@ -70,6 +77,9 @@ def read_meta(path: Path) -> dict[str, Any]:
         if key in meta and not isinstance(meta[key], kind):
             raise InvalidMeta(f"`{key}` is {_JSON_TYPES.get(type(meta[key]), type(meta[key]).__name__)}, "
                               f"not {_JSON_TYPES[kind]}")
+    version = meta.get("contract_version")
+    if "contract_version" in meta and (not isinstance(version, int) or isinstance(version, bool) or version < 1):
+        raise InvalidMeta(f"`contract_version` is {version!r}, not a positive integer")
     for key, entry in (meta.get("artifacts") or {}).items():
         if not isinstance(entry, dict):
             raise InvalidMeta(f"artifact `{key}` is {_JSON_TYPES.get(type(entry), type(entry).__name__)}, "
@@ -133,5 +143,14 @@ def write_text(path: Path, text: str) -> None:
 
 
 def write_json(path: Path, data: Any) -> None:
-    """Write `data` in meta.json's usual layout (2-space indent, UTF-8, trailing newline), atomically."""
+    """Write `data` in meta.json's usual layout (2-space indent, UTF-8, trailing newline), atomically,
+    stamped with CONTRACT_VERSION. A file written under a newer contract is refused with exit 2, untouched."""
+    if isinstance(data, dict):
+        version = data.get("contract_version")
+        if isinstance(version, int) and not isinstance(version, bool) and version > CONTRACT_VERSION:
+            sys.stderr.write(
+                f"{path} was written under a newer dev-flow contract (version {version}; this script knows "
+                f"{CONTRACT_VERSION}).\n  Nothing was changed. Update the dev-flow skills, then run this again.\n")
+            sys.exit(2)
+        data["contract_version"] = CONTRACT_VERSION
     write_text(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
