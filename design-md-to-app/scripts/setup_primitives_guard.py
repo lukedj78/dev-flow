@@ -10,6 +10,8 @@ finds hand-made UI after the fact; this guard refuses it **while the agent write
 
   scripts/guard/primitives-guard.mjs   PreToolUse on Write|Edit|MultiEdit — refuses (exit 2) a write that
                                        adds a design/no-handmade-ui or design/no-card-in-card finding;
+                                       Pre/PostToolUse on Bash — the same on the files a shell command
+                                       touched, right after it (agents write with `cat > … <<'EOF'` too);
                                        Stop / SubagentStop — the same on every changed .tsx against HEAD
   scripts/guard/eslint.guard.mjs       the two rules only, imported from the project's preset (~1 s a file)
   scripts/guard/guard.json             the units: app dir, preset, primitives dir, ignores, rules
@@ -43,12 +45,21 @@ ASSETS = HERE.parent / "assets" / "guard"
 GUARD_DIR = Path("scripts") / "guard"
 COPIED = ("primitives-guard.mjs", "eslint.guard.mjs")
 CMD = 'node "$CLAUDE_PROJECT_DIR"/scripts/guard/primitives-guard.mjs'
-HOOKS = {
-    "PreToolUse": {"matcher": "Write|Edit|MultiEdit",
-                   "hooks": [{"type": "command", "command": f"{CMD} pre", "timeout": 30}]},
-    "Stop": {"hooks": [{"type": "command", "command": f"{CMD} stop", "timeout": 60}]},
-    "SubagentStop": {"hooks": [{"type": "command", "command": f"{CMD} stop", "timeout": 60}]},
-}
+# (event, matcher, mode, timeout). The two Bash hooks check a shell write right after the command that made
+# it: in the 2026-10-17 compliance trial every agent wrote its files with `cat > … <<'EOF'`, which the Write
+# hook never sees, so until then only `stop` caught it, at the end of the turn (AUDIT.md P1-32).
+HOOKS = [
+    ("PreToolUse", "Write|Edit|MultiEdit", "pre", 30),
+    ("PreToolUse", "Bash", "bash-pre", 30),
+    ("PostToolUse", "Bash", "bash-post", 60),
+    ("Stop", None, "stop", 60),
+    ("SubagentStop", None, "stop", 60),
+]
+
+
+def hook_entry(matcher: str | None, mode: str, timeout: int) -> dict:
+    entry = {"hooks": [{"type": "command", "command": f"{CMD} {mode}", "timeout": timeout}]}
+    return {"matcher": matcher, **entry} if matcher else entry
 BEGIN = "<!-- BEGIN:primitives-first -->"
 END = "<!-- END:primitives-first -->"
 
@@ -128,16 +139,21 @@ def copy_assets(root: Path) -> list[str]:
     return changed
 
 
-def has_guard_hook(entries: list, event: str) -> bool:
+def has_guard_hook(entries: list, mode: str, matcher: str | None) -> bool:
+    """Whether a guard hook in `mode` is registered, with a matcher covering the tool it is for. Matched by
+    mode, not by the first guard command found: with a Write and a Bash PreToolUse entry, order must not matter."""
+    tool = None if matcher is None else matcher.split("|")[0]
     for e in entries or []:
         for h in (e or {}).get("hooks", []) or []:
-            if "primitives-guard.mjs" in (h or {}).get("command", ""):
-                return event != "PreToolUse" or re.search(r"\bWrite\b", (e or {}).get("matcher", "")) is not None
+            cmd = (h or {}).get("command", "")
+            if "primitives-guard.mjs" in cmd and cmd.split()[-1:] == [mode]:
+                if tool is None or re.search(rf"\b{tool}\b", (e or {}).get("matcher", "")):
+                    return True
     return False
 
 
 def merge_settings(root: Path) -> bool:
-    """Add the three hooks to .claude/settings.json without removing or reordering anything."""
+    """Add the guard's hooks to .claude/settings.json without removing or reordering anything."""
     p = root / ".claude" / "settings.json"
     try:
         data = json.loads(p.read_text()) if p.exists() else {}
@@ -145,10 +161,10 @@ def merge_settings(root: Path) -> bool:
         raise SystemExit(f"{p} is not valid JSON ({e}) — fix it by hand; the guard's hooks were not merged")
     hooks = data.setdefault("hooks", {})
     changed = False
-    for event, entry in HOOKS.items():
+    for event, matcher, mode, timeout in HOOKS:
         entries = hooks.setdefault(event, [])
-        if not has_guard_hook(entries, event):
-            entries.append(json.loads(json.dumps(entry)))
+        if not has_guard_hook(entries, mode, matcher):
+            entries.append(hook_entry(matcher, mode, timeout))
             changed = True
     if changed:
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -260,9 +276,10 @@ def check(root: Path) -> tuple[bool, list[str]]:
         hooks = json.loads((root / ".claude" / "settings.json").read_text()).get("hooks", {})
     except (OSError, json.JSONDecodeError):
         hooks = {}
-    for event in HOOKS:
-        if not has_guard_hook(hooks.get(event, []), event):
-            problems.append(f".claude/settings.json has no {event} hook running primitives-guard.mjs")
+    for event, matcher, mode, _ in HOOKS:
+        if not has_guard_hook(hooks.get(event, []), mode, matcher):
+            problems.append(f".claude/settings.json has no {event}{f' ({matcher})' if matcher else ''} hook "
+                            f"running primitives-guard.mjs {mode}")
     text = "".join((root / f).read_text() for f in ("AGENTS.md", "CLAUDE.md") if (root / f).exists())
     if BEGIN not in text and not re.search(r"^#+\s*UI: only the .*primitives", text, re.M):
         problems.append("AGENTS.md has no primitives-first section")

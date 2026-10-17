@@ -348,7 +348,7 @@
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1324,
+      "skill_md_lines": 1325,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
