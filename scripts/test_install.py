@@ -292,6 +292,28 @@ class Projects(Fixture):
         self.assertEqual((elsewhere / ".claude/hooks/registry_intake.py").read_text(), "# old\n")
         self.assertIn("linked: skipped — the project folder itself", r.stdout)
 
+    def test_a_chain_of_in_project_links_ending_outside_deep_down_is_caught(self) -> None:
+        # .claude -> a/b/c/d, and a/b/c/d/hooks -> outside: the outside link sits four levels down
+        victim = self.home / "precious"
+        victim.mkdir()
+        cloned = self.projects / "cloned"
+        deep = cloned / "a/b/c/d"
+        deep.mkdir(parents=True)
+        (deep / "hooks").symlink_to(victim)
+        (cloned / ".claude").symlink_to(deep)
+        (victim / "registry_intake.py").write_text("mine\n")
+        r = self.install("--projects", str(self.projects))
+        self.assertEqual((victim / "registry_intake.py").read_text(), "mine\n")
+        self.assertIn("cloned: skipped — a/b/c/d/hooks", r.stdout)
+
+    def test_a_link_into_an_unscanned_folder_is_caught(self) -> None:
+        cloned = self.projects / "cloned"
+        (cloned / "node_modules/pkg/hooks").mkdir(parents=True)
+        (cloned / "node_modules/pkg/hooks/registry_intake.py").write_text("# old\n")
+        (cloned / ".claude").symlink_to(cloned / "node_modules/pkg")
+        r = self.install("--projects", str(self.projects))
+        self.assertIn("cloned: skipped — .claude", r.stdout)
+
     def test_symlinks_inside_the_project_and_in_node_modules_are_fine(self) -> None:
         (self.governed / "docs").mkdir()
         (self.governed / "README.md").write_text("x")
