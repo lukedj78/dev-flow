@@ -426,6 +426,32 @@ class Hook(Base):
         snap.write_text(snap.read_text() + " ")
         self.assertIn("changed after approval", self.decide("npx shadcn add ./vendor/registry/x/pdf/card.json"))
 
+    def test_the_other_spellings_an_honest_agent_writes(self) -> None:
+        # The hook matched `shadcn` followed by `add`. `npm exec shadcn -- add` puts `--` in between and walked
+        # through; so did a quote inside the name (the raw-string short-circuit never saw "shadcn") and an
+        # install wrapped in `sh -c "…"` (one token, never split). AUDIT.md §6.8.
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+        denied = [
+            "npm exec shadcn -- add @mapcn/map",
+            "npm exec -- shadcn@latest add @mapcn/map",
+            'npx shad""cn add @mapcn/map',
+            "npx 'shadcn'@latest add @mapcn/map",
+            'sh -c "npx shadcn add @mapcn/map"',
+            "bash -lc 'cd web && pnpm dlx shadcn add @mapcn/map'",
+        ]
+        allowed = [
+            "npm exec shadcn -- add button",
+            'sh -c "ls && git status"',
+            "bash -c 'npx shadcn@latest add button'",
+        ]
+        for c in denied:
+            with self.subTest(deny=c):
+                self.assertIsNotNone(self.decide(c))
+        for c in allowed:
+            with self.subTest(allow=c):
+                self.assertIsNone(self.decide(c))
+
     def test_coss_is_live_only_when_the_stack_chose_it(self) -> None:
         project(self.root, ui="shadcn", registries={"@coss": "https://coss.com/ui/r/{name}.json"})
         quiet(ri.main, ["setup", str(self.root)])

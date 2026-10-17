@@ -1863,11 +1863,18 @@ def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]
         except ValueError:
             toks = seg.split()
         for i, t in enumerate(toks):
+            # `sh -c "npx shadcn add …"` carries the whole install in one token: parse it as a command.
+            if t in ("-c", "-lc", "-ic") and i > 0 and toks[i - 1].split("/")[-1] in ("sh", "bash", "zsh") \
+                    and i + 1 < len(toks):
+                out.extend(governed_adds(toks[i + 1]))
+                break
             base = t.split("/")[-1]
             tool = "shadcn" if re.match(r"^shadcn(@[\w.-]+)?$", base) else "eve" if re.match(r"^eve(@[\w.-]+)?$", base) else None
             if not tool:
                 continue
             rest = toks[i + 1:]
+            while rest and rest[0] == "--":  # `npm exec shadcn -- add …`: the separator npm needs
+                rest = rest[1:]
             if tool == "eve" and rest[:2] == ["registry", "add"]:
                 out.append(("eve-registry", [a for a in rest[2:] if not a.startswith("-")], None, False))
                 break
@@ -1946,7 +1953,9 @@ def hook_decision(payload: dict) -> str | None:
                 "with no review and no hash. Read it first with `registry_intake.py skill-review <root> "
                 "<name|url>`, show the report, and let the user run the install themselves; "
                 "`skill-approve` then pins the text that landed.")
-    if "shadcn" not in command and "eve" not in command:
+    # Quotes stripped first: `npx shad""cn add` runs shadcn, and the raw string never contains "shadcn".
+    unquoted = command.replace('"', "").replace("'", "")
+    if "shadcn" not in unquoted and "eve" not in unquoted:
         return None
     adds = governed_adds(command)
     if not adds:
