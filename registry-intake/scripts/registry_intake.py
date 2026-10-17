@@ -1863,13 +1863,20 @@ C_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
 def shell_c_payload(args: list[str]) -> str | None:
     """The command string a shell runs with -c, or None. `-c`, `-lc`, `-xec`: any short-option cluster
     holding `c`; long options (`--norc`) are skipped. The first plain argument means a script, not -c."""
-    for j, a in enumerate(args):
+    j = 0
+    while j < len(args):
+        a = args[j]
+        if a in ("-o", "+o", "-O", "+O"):  # `bash -o pipefail -c …`: the option's value is not a script
+            j += 2
+            continue
         if a.startswith("--"):
+            j += 1
             continue
         if re.match(r"^-[A-Za-z]*c[A-Za-z]*$", a):
             return args[j + 1] if j + 1 < len(args) else None
-        if not a.startswith("-"):
+        if not a.startswith(("-", "+")):
             return None
+        j += 1
     return None
 
 

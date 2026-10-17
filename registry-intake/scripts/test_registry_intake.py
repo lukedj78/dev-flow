@@ -446,6 +446,8 @@ class Hook(Base):
             'dash -c "npx shadcn add @mapcn/map"',
             'env bash -c "npx shadcn add @mapcn/map"',
             '/bin/zsh -ec "npx shadcn add @mapcn/map"',
+            'bash -o pipefail -c "npx shadcn add @mapcn/map"',     # an option that takes a value
+            'bash -O extglob -lc "npx shadcn add @mapcn/map"',
         ]
         allowed = [
             "npm exec shadcn -- add button",
