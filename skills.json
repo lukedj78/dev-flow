@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T16:06:45Z",
+  "generated_at": "2026-10-17T16:12:27Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -99,7 +99,10 @@
         "eu-data-sovereignty.md",
         "external-skills.md",
         "merge-conflicts.md",
+        "policies.md",
         "resources.md",
+        "scripts.md",
+        "stack-decisions.md",
         "stack-expo-rn.md",
         "stack-monorepo.md"
       ],
@@ -132,7 +135,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 500,
+      "skill_md_lines": 254,
       "bundle": "dist/dev-flow.skill"
     },
     {

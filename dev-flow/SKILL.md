@@ -19,7 +19,7 @@ If the user is clearly inside one phase (e.g., "improve the auth module", "regen
 
 ## The contract
 
-`.workflow/` is the load-bearing convention. Read **`references/contracts.md`** before doing anything — it defines the folder layout, the `meta.json` schema, the `phase` enum, and which skill owns which file. **Do not improvise.** If a skill behaves in a way the contract doesn't describe, fix the contract or fix the skill — never silently diverge.
+`.workflow/` is the load-bearing convention. **`references/contracts.md`** defines the folder layout, the `meta.json` schema, the `phase` enum, and which skill owns which file. Read the part you are about to act on before acting — the phase enum and the folder layout on a routing turn, §stack at the stack decision, the owning skill's rows before invoking it — rather than the whole file every turn. **Do not improvise.** If a skill behaves in a way the contract doesn't describe, fix the contract or fix the skill — never silently diverge.
 
 ## Golden rules (enforced on every project)
 
@@ -141,31 +141,20 @@ Read `.workflow/meta.json`. Branch on `phase`:
 | `deployed` | Maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` after material changes; telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
 
-**Inventory policy — before you build, look.** The cheapest step in the flow and the one most often skipped: **does this already exist?** Follow **`references/before-you-build.md`** — the house first (installed skills and commands, scripts on disk, `references/resources.md`, the project's own `.workflow/`), then **the tools already paid for**, then the Claude ecosystem, then outside with the evidence typed as *shipped source · code · official source · experience* — and **for a default, a limit or anything about what leaves the machine, the shipped artefact outranks the page describing it** (`npm pack` needs no install; the page states the intent, the compiled `dist` states the behaviour). It runs **before** `prd-from-idea` on a new idea, **before** `module-add` on a new capability, and **before** writing a new skill — and it closes with a verdict in one line: *we already have it · it exists outside and adapts · it exists halfway · it does not exist*. **"We already have it" is the best outcome and the most frequent**, and it is written down anyway, because in six months it saves doing the search again. The verdict lands in `resources.md` when it is a third-party resource, or in the PRD under *what exists already* when it is a build.
+**Policies** — each lives in **`references/policies.md`**; read the one that applies before acting on it:
 
-**Wireframe policy — every screen before any code.** The user's standing rule (2026-10-10), for every project with a UI. Between `design_extracted` and the scaffold, `wireframe-canvas` builds `docs/wireframes/screen-inventory.md` (every route and screen of every epic, mapped to the PRD's `US-N` stories, with roles and loading/empty/error/success states; every story maps to ≥1 screen), then draws one **desktop (1440)** and one **phone (390)** artboard per screen on a claude.ai **Design** canvas (`Artifact action:"quickstart" intent:"design"`), high fidelity in DESIGN.md with real copy in the user's language, one canvas page per area, reviewed by the user area by area. **No feature code and no scaffold until the user explicitly approves the canvas**: `update_meta.py set-phase` refuses `monorepo_initialized` / `scaffolded` until `meta.json#wireframes` is approved, or skipped with a reason. After approval, a PNG of every artboard goes to `docs/wireframes/png/` and is commented on each GitHub or Linear issue whose story maps to the screen (`wireframes.screenshots_posted_at`). Agent-only projects have no screens and are not affected.
-
-**Infrastructure policy.** `project-infra-setup` sets up the project's **third-party environments from the CLI**: the GitHub repo, the Vercel project and its region, marketplace connectors (Neon, Blob, Resend), DNS and domains, environment variables and secrets, and the sub-processor register. Propose it **when a module is about to need an account that does not exist yet** (`module-add db | email | storage | deploy`), or when the user asks to configure Vercel, Neon, Resend or a domain. It is **outward-facing**: each repo, project, database, DNS record and key is confirmed with the user one at a time; secrets never go through chat; the region of every service is checked before and after creating it; anything a tool installs on its own (integrations drop third-party agent skills into the repo) is reviewed first. It does not bump `phase`; it appends `history`. Code that uses the services stays with `module-add`; deploying stays with `vercel-deploy`.
-
-**Project-management policy (Linear + scrum).** Every project is run in **Linear with agile scrum** unless the user explicitly opts out. When `tasks.md` exists (phase `tasks_split`, or `prd_drafted` once tasks are generated), propose `linear-scrum` **Setup**. `linear-scrum` is also a **horizontal capability** — invoke it any time for **Sync** (push new tasks, plan the sprint, report velocity), regardless of `phase`. It records `meta.json#linear` + `#scrum` and appends `history`, but never bumps `phase` and never gates progression. For an existing project already partly in Linear, `linear-scrum` **Adopt** backfills the link.
-
-**Compliance policy (GDPR + EU AI Act).** `compliance-audit` is a **horizontal capability** — invoke it any time to audit an existing project against the 10-point GDPR/AI-Act risk register (DSAR, consent, EU data residency, retention/PII, AI-transparency, high-risk, sub-processors…) and, on request, apply the **safe** remediations while flagging the legal decisions. dev-flow **proposes it as a pre-deploy gate**: when a project reaches `feature_complete` (before `vercel-deploy` / `rn-eas-deploy` / `eve deploy`), and again in the `deployed` maintenance loop (re-audit after material changes). It records `meta.json#compliance` + appends `history`, **never bumps `phase`**, and never *blocks* deploy on its own — it surfaces findings so the user decides. Especially relevant when `stack.agent = "eve"` (AI-transparency + memory/residency risks) or the product handles user accounts (DSAR + Apple/Play deletion). Not legal advice — it produces engineering findings + a DPIA template, a DPO/counsel confirms.
-
-**Cost/perf policy (Vercel).** `vercel-doctor` is the **cost/performance sibling** of `compliance-audit` — a horizontal pre-deploy gate for web projects on Vercel. It wraps the third-party `vercel-doctor` CLI (scans a Next.js codebase for costly Vercel patterns — caching that defeats the CDN, dead code, function duration, image waste, excessive invocations, config), applies the safe mechanical fixes, and **routes the real fixes to the owning skill** (`data-fetching` for caching/invocations, `design-md-to-app` for images). Proposed at `feature_complete` (beside `compliance-audit`) and in the `deployed` loop. Records `meta.json#vercel_doctor` + `history`, **never bumps `phase`**, never blocks deploy on its own. Refuses for non-Vercel/non-Next targets.
-
-**Review policy (spec + conventions).** `spec-review` reads the **change**, not the finished artefact — which is what separates it from the four pre-deploy gates. Two axes in parallel sub-agents, **never merged**: *Spec* (does the diff implement what `.workflow/PRD.md` + `tasks.md` asked?) and *Standards* (does it obey the golden rules, the declared `meta.json#stack`, and the discipline skills — with a Fowler smell baseline as the floor). One combined verdict would let either axis hide behind the other: code can follow every convention and build the wrong feature, or build exactly the right feature ignoring the stack the project declared. Propose it **when a chunk of work lands — a page, a module, a PR, a batch of agent branches — regardless of the phase recorded in `meta.json`**, not only before shipping and not only at `page_generated` / `module_added`: a spec finding is cheapest while the branch is open, and a phase left behind must not switch the review off (smart-travel built for three days at `design_extracted`, and `spec-review` was never proposed). Records `meta.json#spec_review`; **never bumps `phase`**; never blocks. It is **not** Claude Code's built-in `/code-review`: that one reviews code generically and knows nothing about `.workflow/`. Without a `.workflow/`, `spec-review` refuses and points there instead.
-
-**Parallel build policy (several agents at once).** When the orchestrator fans a build out to sub-agents or worktrees — one PR per screen, one branch per issue — the speed multiplies whatever each agent gets wrong, because every agent copies the neighbouring file. smart-travel, one night: 24 PRs, 57 of the 71 hand-made buttons the later audit found, each PR adding 1–9 elements copied from the file next to it; an agent's report even said the badge was a span «because Badge has no variant», and the orchestrator read it and merged. So, every time:
-1. **Every brief carries golden rule 3 and its lint rule, verbatim**: «Every piece of UI is a primitive from `components/ui/` (read `design-md-to-app/references/primitives-first.md` first). When the board differs, tune the primitive's `cva` variant and DESIGN.md tokens until it matches pixel by pixel — never accept the drift, never rebuild the look with call-site classes; a new variant goes into DESIGN.md first. No raw `<button>`/`<label>`/`<a>`/`<hr>`/`<img>`/`<details>`, no hand-written role, no `div`/`span` redrawing a Card/Badge/Alert/Separator — `design/no-handmade-ui` reports it and the write-time guard refuses it. If no primitive can render it without a fork, stop and report it; do not write it by hand and do not `eslint-disable` it. Converting an existing screen: screenshot before and after, and the pixel diff must be zero.» The guard must be installed before the fan-out (`setup_design_lint.py --check`): it is what stops a sub-agent while it writes.
-2. **Before accepting any PR or agent diff, the orchestrator runs on it**: the project's lint on the changed files (`design/no-handmade-ui` must be zero on them), **`spec-review`'s Standards axis**, and a search for raw elements in the added lines — `git diff <base>... -U0 -- '*.tsx' | grep -E '^\+.*<(button|label|input|select|textarea|hr|details|summary|dialog|progress|meter|table|img|a)[ >/]|^\+.*role="(tab|radio|checkbox|switch|menu|menuitem|listbox|option|dialog|tooltip|progressbar|separator)"'`. Any hit is sent back, not merged.
-3. **An agent report that says a primitive "had no variant" is a stop, not a note**: nothing that works around it is merged; the variant is added (DESIGN.md first, then the `cva`) and the user is told which one.
-4. **A green lint and screenshots that match the boards are never accepted as proof of conformity to the primitives** — a hand-made button identical to the board passes both. The proof is the rule at zero on the diff and no raw element in it — **and**, for a converted or new screen, a pixel diff at zero against the board or the before-screenshot: primitives used as they ship pass the lint while the screen drifts (smart-travel, 2026-10-12: the user rejected the converted screens).
-
-**UI-quality policy (accessibility + fundamentals).** `shadscan` is one of the **four pre-deploy gates**: `compliance-audit` reads the **legal** surface, `vercel-doctor` the **cost** surface, `shadscan` the **UI** one, and `launch-audit` the **commercial** one (can a stranger find it, trust it, buy from it). It wraps the third-party `@shadscan/cli` — a deterministic, read-only static audit of a React/shadcn app across six categories (Foundation, Interaction, States, Accessibility, Forms, Production Polish) scored out of 100 with file:line evidence — applies the high-confidence fixes, surfaces the product `decide` items to the user, and **routes the real corrections to the owning skill** (`forms` for form wiring, `transitions` for reduced-motion, `data-fetching` for Suspense/loading boundaries, `design-md-to-app` for shell/empty-state/metadata, `composition-patterns-guide` for anatomy). It is the only thing in dev-flow that can **mechanically verify our own contract landed** — that the `prefers-reduced-motion` guard `transitions` mandates and the error association `forms` prescribes are actually in the built UI. Proposed at `feature_complete` and in the `deployed` loop. Records `meta.json#shadscan` + `history`, **never bumps `phase`**, never blocks deploy on its own. **Never optimise for the score** — adding unused infrastructure to raise the number is a regression that scores well. Web only (DOM/React rules); refuses for `expo-rn`.
-
-**Animated icons.** `animated-icons` adds one Motion-animated Heroicon from the `@heroicons-animated/*` shadcn registry (ecosystem-first: don't hand-animate an SVG). It requires the `motion` runtime (`module-add motion`) and enforces the `transitions` reduced-motion discipline the raw components lack. Web only; horizontal; no phase bump.
-
-The orchestrator must propose, not impose. After deciding, **tell the user the proposed next step in one sentence**, and ask for confirmation before invoking (in an autonomous run — §Autonomous runs — write the proposal into the report and continue). Example: *"You're at `design_extracted` (DESIGN.md + 6 screenshots in place). I propose running `design-md-to-app` to scaffold a Next.js + shadcn project. OK to proceed, or do you want to add modules / change stack first?"*
+- **Inventory** — before building anything new, look for what already exists (Step 0, and each new capability).
+- **Wireframes** — every screen drawn and approved before any code, on every project with a UI.
+- **Infrastructure** — `project-infra-setup` before a module needs an account that does not exist yet.
+- **Project management** — every project runs in Linear with agile scrum unless the user opts out.
+- **Compliance** — `compliance-audit` any time, and as a pre-deploy gate.
+- **Cost/perf** — `vercel-doctor`, the pre-deploy gate for web projects on Vercel.
+- **Review** — `spec-review` on every change that lands, whatever the phase.
+- **Parallel builds** — the brief every sub-agent gets and the checks its diff passes before it is accepted.
+- **UI quality** — `shadscan`, one of the four pre-deploy gates.
+- **Animated icons** — `animated-icons`, web only, horizontal, no phase bump.
+- **The product's own agent-skill** — when the product exposes an API another agent could drive.
+- **Resources the user hands over** — analyse, record in `references/resources.md`, then actually use them.
 
 ### Step 3 — Invoke the right skill
 
@@ -185,91 +174,10 @@ Most projects need multiple specialists in sequence. The orchestrator's job is t
 
 ## Stack decisions
 
-When transitioning out of `prd_drafted` and into scaffolding, the user has to choose a stack. The orchestrator should ask once and persist in `meta.json#stack`. Sensible default-bundle suggestions:
-
-| Profile | framework | ui | auth | db | payments | deploy |
-|---|---|---|---|---|---|---|
-| **SaaS B2B** (web, distinctive brand) | next | shadcn | better-auth | neon-drizzle | stripe | vercel |
-| **SaaS B2B** (web, low-maintenance UI) | next | base-ui | better-auth | neon-drizzle | stripe | vercel |
-| **B2C consumer** (web) | next | shadcn | clerk | supabase | stripe | vercel |
-| **Marketing site** | next | shadcn | null | null | null | vercel |
-| **Internal tool / enterprise** (web) | next | mui | better-auth | neon-drizzle | null | null |
-| **Editorial / distinctive brand** (web) | next | shadcn | better-auth | neon-drizzle | null | vercel |
-| **Headless + a11y-first** (web) | next | base-ui | better-auth | neon-drizzle | null | vercel |
-| **Mobile app (iOS+Android)** | expo-rn | nativewind | supabase | supabase | revenuecat | eas |
-| **Mobile app, custom backend** | expo-rn | nativewind | custom-rest | custom-rest | revenuecat | eas |
-| **Monorepo (web + mobile)** *(planned)* | monorepo | `{web: <shadcn\|base-ui\|mui>, mobile: nativewind}` | supabase | supabase | revenuecat + stripe | eas + vercel |
-
-Ask the user the project type, propose the bundle, let them override individual choices. Don't ask 6 separate questions when one ("what kind of app?") plus a confirmation gets you there.
-
-**Optional agent engine.** As part of the same decision, ask once whether the product needs an **AI agent engine** (an agentic core: tools the model calls, an agent backend, an assistant surface). Default `stack.agent = null`. If yes → set `stack.agent = "eve"`. The user can also opt in later on demand — see "Agent engine (eve)" below. This is a scope decision, not a pipeline phase.
-
-**Optional content layer (CMS).** In the same breath, ask once whether the product has **content a non-developer edits and the app only reads** — a catalogue, pages, articles, FAQs, pricing copy. If yes → `stack.cms = "sanity"` (contract §Recommended default libraries), wired later by `module-add cms` (web) or `rn-module-add cms` (mobile): the hosted **Sanity Studio is the admin panel**, so the project builds **no admin CRUD screens and no admin roles in the transactional database** for that content. User-owned data (accounts, orders, bookings) is never CMS content — it stays in `db` behind RLS. Default `null`; the user can opt in later on demand ("add a CMS", "aggiungi un CMS").
-
-**Where the data lives — asked in the same decision, never deferred.** Once the bundle is agreed, ask the four questions in `references/eu-data-sovereignty.md` §The four questions: (a) does the product process data of people in the EU? (b) which sensitive categories — identity documents, tax, health, biometrics, minors, financial? (c) do customers or sectors impose residency (public administration, healthcare, finance)? (d) must exposure to the US CLOUD Act be avoided? Record them with `scripts/data_residency.py decide` — it writes `stack.data_residency` (`"eu"` | `"eu-sovereign"` | `"none"`), `compliance.data_categories` and the answers. Then, when residency is not `"none"`, walk the bundle through the reference's service table and **propose, for each service, its EU region and the European alternative** — the user picks; the defaults stay available. `set-phase scaffolded` refuses an undecided residency; it never refuses a provider. A service with no EU option is **flagged in the sub-processor register with its transfer basis, and the work goes on**.
-
-### Topology policy — app first, monorepo next, agent-only for the rare case
-
-⚠️ **At init, if the shape is not specified, ASK. Do not derive it.** This is a blocking question,
-not a default to apply quietly: the answer changes the directory layout, every command the user will
-type, and how much scaffolding stands between them and the first line of product code. Deriving it —
-"two roles, so two agents, so a monorepo" — reaches an answer without ever asking what the second
-consumer is, which is the only question that decides it.
-
-The question is short and it is one question, not six:
-
-> Is this one app, or does the agent have a life of its own — its own deploy cadence, channels beyond
-> the web UI, or a second consumer that shares its types? If there is no second consumer, it is one app.
-
-Then say the shape out loud, with its reason, and let the user correct it before anything is
-scaffolded. Getting this wrong is cheap to fix on day one and expensive on day ten.
-
-When an agent is in scope, **three shapes are possible and the project decides which**. Propose in this order, and say which one you are proposing and why:
-
-| Shape | `stack` | Choose it when |
-|---|---|---|
-| **1 · Single web app** *(default)* | `framework: "next"`, `agent: "eve"` (agent inside the app) | The product **is** the interface. One deploy, no workspace overhead — the ordinary case, and where a frontend developer does their actual work. |
-| **2 · Monorepo** | `framework: "monorepo"`, `agent: "eve"` → `apps/web` + `apps/agent` | The agent has a life of its own — its own deploy cadence, channels beyond the web UI, or a second consumer (mobile, a second app) that must share types/tokens. |
-| **3 · Agent only** | `framework: "agent"`, `agent: "eve"`, no web app | Every surface is somewhere else — Slack, email, GitHub, Linear — and **nothing needs rendering**. Vercel Labs' `kody-eve-template` is this shape. |
-
-**The house default is 1, then 2.** Reach for 3 only when the product genuinely has no UI, not because the agent feels architecturally tidy on its own.
-
-**Don't fossilise the choice** — it follows the product, not a habit. Two directions matter:
-- A single app **can become** a monorepo later: that is `monorepo-bootstrap`'s job, and moving `agent/` into `apps/agent/` is a directory move, not a rewrite. Starting at 1 does not cost you 2.
-- Choosing 2 up front costs workspace overhead on every command for a second app that may never ship. Ask what the *second* consumer is; if there is no answer, it is 1.
-
-Say the shape out loud when you propose the stack — "single Next.js app with the agent inside it" is a different project from "monorepo with two deploys", and the user should be agreeing to one of them, not discovering it at scaffold time.
-
-### shadcn create parameters (only when `ui = "shadcn"`)
-
-shadcn CLI v4 scaffolds via `shadcn create`/`init` with several parameters (the same ones the <https://ui.shadcn.com/create> wizard asks). When `stack.ui = "shadcn"`, capture them into `meta.json#stack` so `design-md-to-app` can pass them to the CLI.
-
-**First, offer the preset path.** Ask once: *"Hai un preset shadcn da ui.shadcn.com/create? (incolla il codice, es. `b5owWMfJ8l`)"*. A preset packs the whole shadcn visual system — style, base color, theme, icons, fonts, radius — into one code, made to hand off to agents.
-- **If yes** → set `stack.shadcn_preset = <code>`. The preset owns the visual layer: **don't** ask base color / theme / icons, and the scaffold will pass `--preset` and skip the DESIGN.md token install for visuals. Still ask `ui_base` (the preset may not encode Radix-vs-Base-UI). You can `shadcn preset decode <code>` to show the user what it contains.
-- **If no** → DESIGN.md-first path with the hybrid asking below.
-
-**Hybrid policy (no-preset path): explicitly ask only the parameters that matter and that DESIGN.md does NOT own; leave the visual ones to DESIGN.md without asking.**
-
-| Parameter | Stack key | Ask? | Values / default |
-|---|---|---|---|
-| **Primitive base** | `ui_base` | **ASK** | `base` (default — Base UI, shadcn's default since 2026-07) \| `radix` \| `aria` (React Aria). DESIGN.md does NOT override it. |
-| Icon library | `icon_library` | **ASK** | lucide (default) \| radix-icons \| tabler \| hugeicons \| phosphor — and note the shadcn **style** sets it: `maia`/`mira` → hugeicons, `lyra` → phosphor |
-| RTL | `rtl` | **ASK only if i18n/RTL relevant** | `false` (default) |
-| Template / framework | (uses `stack.framework`) | already chosen | `next` — the only web framework dev-flow's skills accept (shadcn also offers vite, start, react-router, laravel and astro templates; a project on one of those is outside dev-flow's web family) |
-| Base color | `base_color` | **don't ask** — DESIGN.md owns it | scaffold default `neutral`; DESIGN.md tokens are the real palette |
-| Starting theme | `ui_theme` | **don't ask** — DESIGN.md owns it | default `null`; DESIGN.md tokens override |
-| CSS variables | `css_variables` | **don't ask** | stays `true` (required for token theming) |
-| Monorepo | (uses `stack.framework="monorepo"`) | already chosen | — |
-
-So in practice you ask **two** things (plus RTL only when relevant): *"shadcn su Base UI (default), Radix o React Aria?"* (`ui_base`) and *"icone: lucide o altro?"* (`icon_library`). Don't prompt for base color / theme — those come from the DESIGN.md tokens; setting `css_variables=true` silently. Record the answers in `meta.json#stack`; `base_color` defaults to `neutral` and `ui_theme` to `null` for the initial scaffold.
-
-Just before scaffolding, `design-md-to-app` prints a **recap of the full resolved shadcn create config and asks for confirmation** (its Step 4 confirmation gate) — including the values derived from DESIGN.md — so nothing is scaffolded on assumed config.
-
-> `ui = "base-ui"` (standalone Base UI, no shadcn CLI) is a **different** choice from `ui = "shadcn"` + `ui_base = "base"`. The latter keeps shadcn's component set + blocks on Base UI primitives and is usually preferable; pick standalone Base UI only when the user explicitly wants no shadcn CLI. See `design-md-to-app/references/library-choice.md`.
-
-**`ui = "coss"` (Coss/UI — the Cal.com design system).** A fourth UI choice inside the shadcn/Base-UI family: Coss/UI is installed through the shadcn CLI's `@coss/*` registry, is built on Base UI, and ships CSS-variable tokens **with the same names as shadcn/ui**, so the DESIGN.md → tokens pipeline works unchanged. When the user picks Coss (`stack.ui = "coss"`, implies `ui_base = "base"`), route to the **`coss-ui`** skill, which owns the Coss-specific install/add and token reconciliation; `design-md-to-app` still owns the generic scaffold. It is a deliberate choice with two caveats — **Tailwind CSS v4 required** and a **mixed MIT/AGPLv3 license** — so don't default to it; offer it when the user wants the Cal.com aesthetic/DX or an AI-first Base-UI kit. See `coss-ui/SKILL.md`.
-
-For mobile profiles (`framework: "expo-rn"`), see `references/stack-expo-rn.md` for the canonical wiring; the actual modules are wired by `rn-module-add` after `rn-bootstrap` scaffolds.
+When a project leaves `prd_drafted` for scaffolding, the user chooses a stack once and it is persisted in
+`meta.json#stack`. The default bundles per product profile, the **Topology policy** (single app first,
+monorepo next, agent-only for the rare case) and the shadcn create parameters are in
+**`references/stack-decisions.md`** — read it at that transition, or when an agent comes into scope.
 
 ## Discipline skills (Next.js 16 web) — horizontal, trigger-driven
 
@@ -286,136 +194,21 @@ All four append a `history` entry per run (no phase bump) and have `audit-recipe
 
 ## Agent engine (eve) — an optional, on-demand component
 
-`eve-agent` is **not** a discipline skill and **not** a phase stage. It is an **optional product component** — a scope decision, like "does this product take payments?". The user opts in, and from then on the project has an agent (an **eve** agent — Vercel's filesystem-first agent framework) that the web app consumes as its AI engine. Where it lives follows the Topology policy above: `agent/` beside `app/` in the single app (shape 1, the default), `apps/agent/` in a monorepo (shape 2), or `agent/` at the repo root when there is no web app (shape 3). It is the agent counterpart to `design-md-to-app` + `module-add`: where those build/grow the Next.js app, `eve-agent` builds/grows `apps/agent`.
+`eve-agent` is **not** a discipline skill and **not** a phase stage. It is an **optional product component** — a scope decision, like "does this product take payments?". The user opts in, and from then on the project has an agent (an **eve** agent — Vercel's filesystem-first agent framework) that the web app consumes as its AI engine. Where it lives follows the Topology policy (`references/stack-decisions.md`): `agent/` beside `app/` in the single app (shape 1, the default), `apps/agent/` in a monorepo (shape 2), or `agent/` at the repo root when there is no web app (shape 3). It is the agent counterpart to `design-md-to-app` + `module-add`: where those build/grow the Next.js app, `eve-agent` builds/grows `apps/agent`.
 
 There are **two moments** to opt in:
 
-1. **At analysis time** — during the stack/scope decision (see "Stack decisions" below), ask once: *"Does this product need an AI agent engine (eve)?"* If yes, set `meta.json#stack.agent = "eve"`. This does **not** by itself make the project a monorepo: pick the shape with the Topology policy (default: the agent inside the single app; a monorepo only when the agent has its own deploy cadence or a second consumer).
+1. **At analysis time** — during the stack/scope decision (§Stack decisions), ask once: *"Does this product need an AI agent engine (eve)?"* If yes, set `meta.json#stack.agent = "eve"`. This does **not** by itself make the project a monorepo: pick the shape with the Topology policy in `references/stack-decisions.md` (default: the agent inside the single app; a monorepo only when the agent has its own deploy cadence or a second consumer).
 2. **Later, on demand** — the user says "add an agent / agent backend / AI core" or names "eve". Same effect: flip `stack.agent` to `"eve"` and bring in `eve-agent`.
 
 Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaffold mode** if the agent's folder doesn't exist yet (sets up the engine once), **Capability mode** if it does (add one tool / skill / channel / connection / schedule / subagent / hook / eval, idempotently).
 
 Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns the agent's folder exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app through the `withEve()` proxy — plus, in a monorepo, `packages/types` (re-exported eve session/event types). eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
 
-## Shipping the product's own agent-skill
+## External skills, merge conflicts
 
-Every product this flow builds may end up with an API. One that only its own
-frontend calls is an implementation detail. One that **somebody else's coding
-agent could drive** is a distribution channel — and it needs a single artefact to
-be usable: a skill file telling that agent how the product works.
-
-**Raise it once, at `feature_complete` → `deployed`,** when all three hold:
-
-1. the product has a callable surface that is not only its own frontend —
-   route handlers under `app/api/`, an OpenAPI spec, a public eve agent
-   (`stack.agent = "eve"`), or an MCP server; **and**
-2. there is a deployed origin to put in the file; **and**
-3. `meta.json#stack.agent_skill` is not set yet.
-
-Then say it plainly, once: *"your product is something a coding agent could
-drive — want me to write its agent-skill, so your users can install it and use
-`<product>` from Claude Code or Cursor?"* If yes, route to
-**`product-to-agent-skill`**.
-
-⚠️ **What it produces belongs to the product, not to dev-flow.** The file lands
-in `<product-repo>/skills/`, ships and versions with that product, and is aimed
-at whoever installs *that* repo. It is never added to dev-flow's own skills,
-never copied into `~/.claude/skills/`, and never listed in `install.sh` —
-the same relationship dev-flow has with the `app/` it builds and does not own.
-
-Don't raise it when the API exists only to serve the product's own pages: a
-skill describing an internal route handler is a lie with a nice table in it.
-
-## Resources the user hands over — analyse, record, then actually use
-
-The user pastes a URL: a component registry, a library, an agent skill, a mod, a service, an article.
-That is not small talk and it is not a request for a summary — it is **material for the product**, and
-it is handed over for one reason: **so that nobody has to search the web or build the same thing from
-scratch a second time.** The work has two halves. Documenting it is the first. Using it when the need
-arrives is the second, and the one that gets skipped.
-
-**`references/resources.md` is the index of everything already analysed** — every registry, library,
-skill, mod, provider and model, with its verdict, its date and which file carries the detail. **Read
-it before a `WebSearch`, before opening a vendor's page, and before hand-rolling** a component, a
-provider comparison or a motion scale: the answer is often already there, read against primary
-sources, with the traps written down. This rule is retroactive — it covers everything analysed in
-past months, not only the resource that arrived today.
-
-Every new resource ends with **a row in that index**, whatever the verdict. A refusal is worth as much
-as an adoption: Arc UI's row exists so nobody re-reads it in three months and reaches the same
-conclusion from zero.
-
-**On arrival.**
-
-1. **Classify it**, because the gate differs: a shadcn-format registry → `registry-intake review`; a
-   third-party agent skill → `registry-intake skill-review`; a **mod** (a Claude Code plugin) → not dev-flow's:
-   mods are built and reviewed in their own session, and no intake gate exists for them — say both; a paid service → the three-option comparison (DIY / self-hosted / managed),
-   price first, privacy separated from lock-in; a technique or article → no code, so a reference or
-   nothing.
-2. **Read primary sources, never the landing page.** The registry item's own JSON, the `LICENSE` file
-   rather than GitHub's badge (gauge-ui and audiocn are MIT in a lowercase `license.md`, which GitHub
-   reports as *"Other"*), the DPA's sub-processor annex, the pricing page as served.
-3. **Record it where the need will arise**, not in a general list. A component domain →
-   `design-md-to-app/references/<domain>-<name>.md` **plus a row in that skill's routing table**; a
-   motion catalogue → `transitions/references/motion-catalogues.md`; a provider that processes personal
-   data → `dev-flow/references/eu-data-sovereignty.md`; a third-party skill → `external-skills.md`. The
-   test is simple: the next person meets it **when they need it**, not when they go browsing. Then the
-   row in `references/resources.md`, which is what makes it findable at all.
-4. **Price first, licence as a dated fact you checked.**
-
-**When the need arrives — this is the half that matters.**
-
-5. **Do not stop at "it is an option".** Carry the work to the point where **only one yes is missing**:
-   the review run, the report shown, and the traps already resolved — the `aria-label` gauge-ui's
-   read-only gauge does not carry, audiocn's twelve tokens re-derived from DESIGN.md. Then ask the one
-   question the gate requires, install, and **show the thing working**.
-6. **The gates do not move.** `allow`, `approve` and `skill-approve` stay the user's decisions and the
-   hook still asks — that rule was measured and it holds. What changes is that the request arrives with
-   everything else already done, never as *"shall I start?"*.
-7. **If it is the wrong answer here, say so in one line and proceed** with the alternative. Do not
-   reopen the analysis each time the subject comes up.
-
-A resource analysed and never applied is research nobody bought. The reference is the means; the
-working result is the deliverable.
-
-## External skills — suggest, never install
-
-dev-flow ships its skills free. It is also allowed to **mention that
-somebody else's skill exists** when a project reaches a point where one would
-help — the way a colleague tells you which tool down the hall does the thing you
-just asked for.
-
-`references/external-skills.md` holds the list: what each one does, the single
-moment in a project when it is worth raising, what it costs, and what dev-flow
-already does for free instead.
-
-Four rules keep this from turning dev-flow into a paid product:
-
-1. **Suggest; the user installs.** Never run `npx skills add` on their behalf,
-   never add one to `install.sh`, never let a dev-flow skill import or require one.
-2. **Say the price in the same breath**, before the user goes anywhere near a
-   signup page. A payment step must never arrive as a surprise.
-3. **Name the free path we already have**, and let the user choose. The suggestion
-   is an option, not a recommendation.
-4. **Only when the work reaches it** — never as a menu of possibilities at kickoff.
-
-Nothing in that file is a dependency: delete every row and dev-flow does exactly
-what it did before.
-
-## Merge conflicts — intent first, derived files rebuilt
-
-When a merge or rebase stops on conflicts, follow **`references/merge-conflicts.md`**. The method is
-Matt Pocock's `resolving-merge-conflicts` (read both sides' primary sources, keep both intents, invent
-nothing, run the checks); the reference adds what a dev-flow project needs on top:
-
-- **Stage by name, never `git add -A`** — other agents share these trees — and commit only a merge the
-  user started or asked for. A conflict that is a product decision stops and asks; it is not aborted.
-- **Intent lives in** commit messages, the Linear issue, `.workflow/tasks.md`, `PRD.md`/`DESIGN.md`, `meta.json#history`.
-- **Derived files are regenerated, not merged**: `pnpm-lock.yaml`, `registry.json`, `registry-lock.json`
-  and its snapshots (re-approve), `AGENTS.md` managed blocks, generated migrations, and in `~/my-skills`
-  the vendored `contracts.md` copies and everything the repo's `regenerate.sh` builds.
-- **`meta.json` by field**: the further `phase` applied through `set-phase` so the gates run, `history`
-  unioned, `artifacts` re-checked with `check_drift.py`. A lint `--max-warnings` conflict takes the lower cap.
+- **External skills — suggest, never install**: `references/external-skills.md`.
+- **Merge conflicts — intent first, derived files rebuilt**: `references/merge-conflicts.md`.
 
 ## Autonomous runs — when nobody can answer
 
@@ -429,7 +222,7 @@ In an autonomous run every skill follows the same four rules:
 2. **Default only where the contract has one.** Locales `["en", "it"]`, the i18n library per stack, the stack bundle for the product type (§Stack decisions), `cms = null`, `agent = null`. A default the contract does not name is an invention.
 3. **Write every derived or defaulted answer down as an assumption**, in the artefact it shaped — `PRD.md` §Open questions as `Assumed: <answer> — because <source | contract default>`, and in the `history` entry as `inputs.assumptions: [...]`. Never silently: the user reviews assumptions, not transcripts.
 4. **Some questions are never derived.** They stop the run with one line — *"needs a human: <question>"* — and the skill finishes everything that does not depend on the answer:
-   - the topology shape (§Topology policy: single app / monorepo / agent-only) — deriving it reaches an answer without asking what the second consumer is;
+   - the topology shape (`references/stack-decisions.md` §Topology policy: single app / monorepo / agent-only) — deriving it reaches an answer without asking what the second consumer is;
    - approving the wireframe canvas — the run draws every area and stops at *"needs a human: approve the wireframe canvas"*;
    - anything outward-facing or hard to undo: `vercel-deploy`, `rn-eas-deploy` and store submission, `eve deploy`, paid services, deleting data;
    - credentials and accounts (Supabase, Sanity, Stripe, Apple, Linear): the skill writes `.env.example` and the out-of-band steps, and stops before the step that needs the key.
@@ -448,53 +241,14 @@ The report of an autonomous run opens with the assumptions made — count, then 
 
 ## Bundled scripts
 
-- `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`. Use when the user opts into the orchestrator on an empty directory.
-- `scripts/show_state.py <project-root>` — prints the current `phase`, the files present, and the proposed next step. Use early in every conversation when the user asks "what's next". On a project already at or past `scaffolded` without the design lint, the **primitives guard**, registry intake or an approved wireframe canvas — it predates the gates, or its phase was edited by hand — it prints what is missing and the command that fixes it. **When the app already has routes or components but the phase is still before `scaffolded`, it prints PHASE BEHIND THE CODE**, shows the gates anyway, and replaces the proposal with the realignment (retrofit → `set-phase page_generated` → `spec-review` + `shadscan`). When you see either warning, run the fix before proposing the next step. Projects started before the guard existed get it with one command, `design-md-to-app/scripts/setup_design_lint.py <root>` (lint rule + guard + AGENTS.md section); show_state proposes it, nothing installs it unasked.
-- `scripts/update_meta.py <project-root> <op>` — mutate `meta.json` from a skill. Three operations:
-  - `record-artifact --path <p> --produced-by <skill> [--derived-from <p1> <p2> …]` — hash a file and record it under `meta.json#artifacts`. Skills call this after writing/updating contract files (DESIGN.md, registry.json, generated pages, schema, etc).
-  - `set-phase <phase> [--skill <name>]` — bump phase forward (refuses regression unless `--allow-regress`)
-    and record the change in `history` (`action: "set-phase"`; a reset carries `allow_regress: true`). **Also the
-    design-lint gate**: moving a Next web app on a Tailwind UI (shadcn, base-ui, coss) into
-    `scaffolded` is refused until `design-md-to-app/scripts/setup_design_lint.py --check` passes, or an
-    opt-out is recorded — `stack.design_lint = "none"` with `stack_config.design_lint_reason`. Mobile,
-    agent-only and MUI projects are not affected. **And the registry-intake gate** at the same
-    crossing: a Next app on a Tailwind UI or an eve agent needs `registry-intake/scripts/registry_intake.py
-    check` to pass (lock, hook, nothing installed around them), or `stack.registry_intake = "none"` with
-    `stack_config.registry_intake_reason`. **And the wireframe gate**, one step earlier for a monorepo:
-    crossing into `monorepo_initialized` or `scaffolded` needs `meta.json#wireframes` approved by the user
-    (`wireframe-canvas`), or skipped with a reason — every stack except agent-only (`scripts/wireframes_gate.py`).
-    **And the primitives-guard gate (golden rule 3) at
-    `scaffolded` and every later phase**: a Next web app on a Tailwind UI needs `design/no-handmade-ui` at
-    `error` in the preset and the write-time guard installed (`scripts/primitives_guard_gate.py`, which runs
-    `design-md-to-app/scripts/setup_primitives_guard.py --check`), or `stack.primitives_guard = "none"` with
-    `stack_config.primitives_guard_reason`; from then on the design-lint gate is re-checked at every phase
-    change too. Skills move phase through this command so the gates run; a phase written by hand skips them.
-  - `append-history --skill <name> --inputs <json> --outputs <json> --phase-after <phase>` — append a skill run to history.
-    When `--phase-after` moves the phase forward, every gate above runs, the same list as `set-phase`
-    (`gate_refusal()`). A run recorded at the current phase is not gated. A `--phase-after` behind the
-    current phase is not applied: the entry records the phase the project has, plus `phase_requested`.
-- `scripts/data_residency.py <decide|add|check|render> <project-root>` — the data-residency decision (four answers → `stack.data_residency`, `compliance.data_categories`), the sub-processor register (`meta.json#compliance.sub_processors`, rendered to `docs/compliance/subprocessors.md`), and `check`: register vs. declared stack, regions in `vercel.json` and `.env*.example`. Flags inform and never fail; only an undecided residency does. How-to: `references/eu-data-sovereignty.md`.
-- `scripts/inventory.py <scan|record>` — step 1 of the inventory as a command (`scan`: installed skills, plugins, the other projects on this machine, `resources.md`; prints what it searched and what it could not read) and the record of the verdict in `meta.json#inventory` (`record`). `scripts/inventory_gate.py` is what `set-phase` and `append-history --phase-after` check before a project leaves `idea_captured`. Stdlib only; `scan` writes nothing.
-- `scripts/research.py <status|repos|reddit|thread|hn|post|read|papers>` — the outside half of the inventory step: GitHub through `gh`, plus the four channels a `WebSearch` reads badly (a whole Reddit thread, an X post, a paper, a page as markdown). Stdlib only, no API key, nothing written. Exit `0` answered · `3` answered and empty · `4` could not look, and a `4` goes into the plan as a channel **not covered**. `read` refuses loopback, private IPv4 and `.local`/`.internal`/`.test`, because it renders through a third party. How-to: `references/before-you-build.md` §4.
-- `scripts/check_drift.py <project-root>` — diagnostic command. Compares `meta.json#artifacts` against the on-disk files and reports:
-  - **fresh**: file matches its recorded hash, all upstreams match too.
-  - **self-drift**: the file has been edited since the producing skill last hashed it.
-  - **upstream-stale**: the file is unchanged but a `derived_from` input has drifted (e.g., `DESIGN.md` was edited → `registry.json` is now derived from a stale snapshot).
-  - **missing**: the file was recorded but no longer exists on disk.
-  Exit code is always 0 unless `--exit-nonzero-on-drift` is passed (use in CI).
+The full reference — every flag, the phase gates `set-phase` holds, the drift states, and when to record
+an artifact — is **`references/scripts.md`**.
 
-These scripts are JSON readers/writers; running them doesn't make decisions for the user. The artifact-hashing model is the foundation for **drift detection** — when the user later edits `DESIGN.md` by hand, `check_drift.py` surfaces what's now stale, and you (or the user) decide whether to re-run the relevant skills.
-
-### When to record an artifact
-
-Record an artifact whenever a skill writes a file that:
-- Is part of the dev-flow contract (`.workflow/DESIGN.md`, `.workflow/PRD.md`, etc.), OR
-- Is a generated config that downstream skills depend on (`registry.json`, `lib/db/schema.ts` initial scaffold, `app/showcase/page.tsx`), OR
-- Is a derivative of an upstream artifact (record `derived_from` so drift detection can chain).
-
-Don't record:
-- Temporary files, cache, build artifacts.
-- Files the user is expected to hand-edit freely (they'd always show as "self-drift").
-- Files produced by external tools (`pnpm-lock.yaml`, `node_modules`).
-
-The cost of recording is one shell-out per file; the benefit is a foundation for resumability and drift checks. Err on the side of recording when in doubt for contract-shaped files.
+- `scripts/init_workflow.py <root> [--name …]` — create `.workflow/` with a fresh `meta.json`.
+- `scripts/show_state.py <root>` — current phase, files present, the proposed next step and any missing gate.
+- `scripts/update_meta.py <root> record-artifact | set-phase | append-history` — the only way to change
+  `meta.json`; `set-phase` and `append-history --phase-after` hold the phase gates.
+- `scripts/data_residency.py <decide|add|check|render> <root>` — the residency decision and the sub-processor register.
+- `scripts/inventory.py <scan|record>` — the inventory step as a command.
+- `scripts/research.py <status|repos|reddit|thread|hn|post|read|papers>` — the outside half of the inventory.
+- `scripts/check_drift.py <root>` — which recorded artifacts are fresh, drifted, stale upstream or missing.
