@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Run every skill's test suite: each `<skill>/scripts/test_*.py` tracked by git.
+"""Run every skill's test suite: each `<skill>/scripts/test_*.py` tracked by git, plus the repo's own
+`scripts/test_*.py` (the installers).
 
     python3 scripts/run_skill_tests.py            # all of them
     python3 scripts/run_skill_tests.py dev-flow   # only the suites of these skills
@@ -29,10 +30,11 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def suites(only: list[str]) -> list[Path]:
-    out = subprocess.run(["git", "ls-files", "*/scripts/test_*.py"], cwd=ROOT,
+    out = subprocess.run(["git", "ls-files", "*/scripts/test_*.py", "scripts/test_*.py"], cwd=ROOT,
                          capture_output=True, text=True, check=True).stdout.split()
-    paths = [ROOT / p for p in out if p.count("/") == 2]  # <skill>/scripts/test_x.py, nothing deeper
-    return [p for p in paths if not only or p.parts[-3] in only]
+    # <skill>/scripts/test_x.py or scripts/test_x.py, nothing deeper; `scripts` selects the repo's own
+    paths = [ROOT / p for p in sorted(set(out)) if p.count("/") in (1, 2)]
+    return [p for p in paths if not only or (p.parts[-3] if p.parent.parent != ROOT else "scripts") in only]
 
 
 def run(path: Path) -> tuple[bool, str]:

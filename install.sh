@@ -3,7 +3,7 @@
 # runtime-appropriate bootstrap file.
 #
 # dev-flow's skills format is Claude Code-native, but the SKILL.md content is
-# generic markdown that any agent can follow. This installer supports five
+# generic markdown that any agent can follow. This installer supports six
 # runtimes — pick yours with --platform.
 #
 # Stacks (see the SKILLS array below for the authoritative, up-to-date list —
@@ -39,10 +39,13 @@
 #
 #   CLAUDE_SKILLS_DIR=/custom/path ./install.sh --platform claude   # override
 #
-# Idempotent-ish: an existing install at the target is moved to a timestamped
-#   <skills-dir>-backup-YYYYmmdd-HHMMSS/ — OUTSIDE the skills dir, so the backup
-#   is never itself registered as a skill — before
-# overwrite (one level only — running twice loses the second-most-recent).
+# Idempotent: an existing skill folder at the target is moved to a timestamped
+#   <skills-dir>-backup-YYYYmmdd-HHMMSS/ before it is overwritten — OUTSIDE the skills dir, so the
+#   backup is never itself registered as a skill. Each run makes a new one; `./uninstall.sh --restore`
+#   puts back the most recent. A bootstrap file (AGENTS.md, GEMINI.md, .cursorrules, system-prompt.md,
+#   bootstrap/tool-mappings.md) that is not the one this installer wrote is saved there too, and every
+#   file it writes outside a skill folder is recorded with its hash in <skills-dir>/.dev-flow-installed,
+#   so uninstall.sh removes only what is still exactly as installed.
 
 set -euo pipefail
 
@@ -282,15 +285,51 @@ for s in "${SKILLS[@]}"; do
   echo "  ✓ $s"
 done
 
+# Files written OUTSIDE a skill folder share the skills dir with whatever the user keeps there — a skill
+# of their own called `bootstrap`, an AGENTS.md they edited. uninstall.sh used to delete all of them by
+# name. Now each one is recorded with its hash, and one the installer did not write is saved first.
+MANIFEST="$SKILLS_DIR/.dev-flow-installed"
+NEW_MANIFEST="$(mktemp)"
+
+sha256_of() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  else sha256sum "$1" | cut -d' ' -f1; fi
+}
+
+recorded_sha() {
+  if [ -f "$MANIFEST" ]; then awk -v p="$1" '$2 == p { h = $1 } END { print h }' "$MANIFEST"; fi
+}
+
+install_file() {   # <source> <path relative to SKILLS_DIR>
+  local src="$1" rel="$2" dest="$SKILLS_DIR/$2"
+  if [ -f "$dest" ] && ! cmp -s "$src" "$dest" && [ "$(sha256_of "$dest")" != "$(recorded_sha "$rel")" ]; then
+    mkdir -p "$(dirname "$BACKUP_DIR/$rel")"
+    cp "$dest" "$BACKUP_DIR/$rel"
+    echo "  ⚠ $rel — the existing file is not the one dev-flow installed; saved to $BACKUP_DIR/$rel"
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  echo "$(sha256_of "$dest")  $rel" >> "$NEW_MANIFEST"
+  echo "  ✓ $rel"
+}
+
 # Copy the cross-platform tool mappings — useful regardless of platform.
-mkdir -p "$SKILLS_DIR/bootstrap"
-cp "$SCRIPT_DIR/bootstrap/tool-mappings.md" "$SKILLS_DIR/bootstrap/tool-mappings.md"
-echo "  ✓ bootstrap/tool-mappings.md"
+install_file "$SCRIPT_DIR/bootstrap/tool-mappings.md" "bootstrap/tool-mappings.md"
 
 # Copy the platform-specific bootstrap if there is one.
 if [ -n "$BOOTSTRAP_TEMPLATE" ] && [ -f "$BOOTSTRAP_TEMPLATE" ]; then
-  cp "$BOOTSTRAP_TEMPLATE" "$BOOTSTRAP_TARGET"
-  echo "  ✓ $(basename "$BOOTSTRAP_TARGET")  (bootstrap for $PLATFORM)"
+  install_file "$BOOTSTRAP_TEMPLATE" "$(basename "$BOOTSTRAP_TARGET")"
+  echo "    (bootstrap for $PLATFORM)"
+fi
+
+# Keep the records of files this run did not touch (cursor and generic share a folder), then add ours.
+if [ -f "$MANIFEST" ]; then
+  awk 'NR == FNR { mine[$2] = 1; next } !($2 in mine)' "$NEW_MANIFEST" "$MANIFEST" > "$NEW_MANIFEST.all"
+  cat "$NEW_MANIFEST" >> "$NEW_MANIFEST.all"
+  mv "$NEW_MANIFEST.all" "$MANIFEST"
+  rm -f "$NEW_MANIFEST"
+else
+  mv "$NEW_MANIFEST" "$MANIFEST"
 fi
 
 echo
