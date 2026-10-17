@@ -881,8 +881,10 @@ def post_hook_installed(root: Path) -> bool:
 # hook also records the registry problems before the command, and `hook-post` reports only the ones the
 # command introduced. What it cannot see is an install from a URL: the files and dependencies it leaves are
 # indistinguishable from shadcn's own components. Only a network-level barrier stops that one.
-def _effect_snapshot(payload: dict) -> Path:
-    key = hashlib.sha1(f"{payload.get('cwd') or ''}|{payload.get('session_id') or ''}".encode()).hexdigest()[:16]
+def _effect_snapshot(root: Path, payload: dict) -> Path:
+    # Keyed on the project root, not the raw cwd: PostToolUse carries the cwd *after* the command, so a
+    # `cd sub` inside it looked for another snapshot, found none, and the check said nothing.
+    key = hashlib.sha1(f"{root}|{payload.get('session_id') or ''}".encode()).hexdigest()[:16]
     # TMPDIR, not tempfile: this runs before and after every shell command, and importing tempfile cost ~40 ms.
     return Path(os.environ.get("TMPDIR") or "/tmp") / f"registry-intake-{key}.json"
 
@@ -891,23 +893,29 @@ def hook_pre_snapshot(payload: dict) -> None:
     root = find_root(Path(payload.get("cwd") or ".").resolve())
     lock = load_lock(root) if root else None
     if lock is not None:
-        _effect_snapshot(payload).write_text(json.dumps(registry_problems(root, lock)))
+        _effect_snapshot(root, payload).write_text(json.dumps(registry_problems(root, lock)))
 
 
 def hook_post_report(payload: dict) -> str | None:
-    path = _effect_snapshot(payload)
-    try:
-        before = set(json.loads(path.read_text()))
-    except (OSError, json.JSONDecodeError):
-        return None  # no snapshot from the PreToolUse hook: stay out of the way; `check` still runs at the gate
-    path.unlink(missing_ok=True)
     root = find_root(Path(payload.get("cwd") or ".").resolve())
     lock = load_lock(root) if root else None
     if lock is None:
         return None
-    new = [p for p in registry_problems(root, lock) if p not in before]
+    path = _effect_snapshot(root, payload)
+    try:
+        before: set[str] | None = set(json.loads(path.read_text()))
+        path.unlink(missing_ok=True)
+    except (OSError, json.JSONDecodeError):
+        before = None  # a missing baseline is not a clean one: deleting it must not hide what the command did
+    now = registry_problems(root, lock)
+    new = now if before is None else [p for p in now if p not in before]
     if not new:
         return None
+    if before is None:
+        return ("Registry intake has no snapshot from before this command, so these are all the current "
+                "registry problems, not only the ones it introduced:\n"
+                + "".join(f"  - {p}\n" for p in new)
+                + "Fix them, or go through registry intake (see AGENTS.md).")
     return ("The shell command just run changed governed registry state:\n"
             + "".join(f"  - {p}\n" for p in new)
             + "Put it back, or go through registry intake: `registry_intake.py review|approve|install <root> <item>` "

@@ -1158,8 +1158,27 @@ class AfterTheCommand(Base):
         write(self.root, "components/other.tsx", "export const O = 1\n")
         self.assertIsNone(ri.hook_post_report(self.event()))
 
-    def test_without_a_snapshot_it_stays_out_of_the_way(self) -> None:
+    def test_without_a_snapshot_a_clean_project_stays_silent(self) -> None:
         self.assertIsNone(ri.hook_post_report(self.event("never-pre")))
+
+    def test_without_a_snapshot_every_current_problem_is_reported(self) -> None:
+        # A missing baseline is not a clean one: deleting the snapshot must not hide what the command did.
+        snap = next((self.root / "vendor/registry").rglob("*.json"))
+        snap.write_text(snap.read_text() + " ")
+        report = ri.hook_post_report(self.event("never-pre"))
+        self.assertIn("edited after approval", report or "")
+        self.assertIn("no snapshot", report or "")
+
+    def test_a_cd_inside_the_command_does_not_lose_the_snapshot(self) -> None:
+        # The PostToolUse payload carries the cwd *after* the command; keyed on the raw cwd, a `cd sub`
+        # looked for another snapshot, found none and stayed silent.
+        (self.root / "app").mkdir(exist_ok=True)
+        ri.hook_pre_snapshot(self.event())
+        cfg = json.loads((self.root / "components.json").read_text())
+        cfg["registries"]["@evil"] = "https://evil.example/r/{name}.json"
+        write(self.root, "components.json", cfg)
+        after = {**self.event(), "cwd": str(self.root / "app")}
+        self.assertIn("@evil", ri.hook_post_report(after) or "")
 
     def test_setup_wires_the_post_hook_and_check_requires_it(self) -> None:
         settings = json.loads((self.root / ".claude/settings.json").read_text())
