@@ -152,7 +152,7 @@ def phase_behind_code(meta: dict, root: Path) -> tuple[int, int] | None:
 
 
 def next_step(phase: object, framework: str | None) -> str:
-    phase = routing_phase(phase)
+    phase = routing_phase(phase) or 'empty'
     if phase in COMMON_NEXT:
         return COMMON_NEXT[phase]
     fw = framework or "next"
@@ -161,7 +161,11 @@ def next_step(phase: object, framework: str | None) -> str:
         return f"(stack.framework={fw!r} is not recognized — dev-flow refuses to guess; ask the user which stack)"
     if phase in table:
         return table[phase]
-    return "(unknown phase — treat as empty: prd-from-idea)"
+    # A real phase this stack does not pass through (agent-only has no page_generated, a single app no
+    # monorepo_initialized). It used to say "unknown phase — treat as empty: prd-from-idea", which sent a
+    # built project back to the PRD.
+    return (f"(no step for {phase!r} on stack {fw!r} — this stack does not pass through it; "
+            "check the phase with the user before moving on)")
 
 
 def main() -> int:

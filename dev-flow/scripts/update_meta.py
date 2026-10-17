@@ -84,6 +84,15 @@ def save_meta(meta_path: Path, meta: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def inside(root: Path, path: Path) -> str | None:
+    """`path` relative to the project root, or None when it resolves outside it (absolute, `..`, a symlink
+    out). Artifact keys stay relative so meta.json is portable; this used to raise a bare ValueError."""
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return None
+
+
 def cmd_record_artifact(args: argparse.Namespace) -> int:
     """Hash a file and record it under meta.json#artifacts.
 
@@ -101,7 +110,10 @@ def cmd_record_artifact(args: argparse.Namespace) -> int:
         sys.stderr.write(f"Cannot record artifact — file does not exist: {target_abs}\n")
         return 1
 
-    rel_path = str(target_abs.relative_to(root))
+    rel_path = inside(root, target_abs)
+    if rel_path is None:
+        sys.stderr.write(f"Cannot record artifact — {target_abs} is outside the project ({root})\n")
+        return 1
     sha = sha256_file(target_abs)
 
     artifacts = meta.setdefault("artifacts", {})
@@ -120,8 +132,12 @@ def cmd_record_artifact(args: argparse.Namespace) -> int:
             if not dep_abs.exists():
                 sys.stderr.write(f"Cannot derive from missing file: {dep_abs}\n")
                 return 1
+            dep_rel = inside(root, dep_abs)
+            if dep_rel is None:
+                sys.stderr.write(f"Cannot derive from {dep_abs} — it is outside the project ({root})\n")
+                return 1
             deps.append({
-                "path": str(dep_abs.relative_to(root)),
+                "path": dep_rel,
                 "sha256": sha256_file(dep_abs),
             })
         entry["derived_from"] = deps
