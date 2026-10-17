@@ -448,6 +448,8 @@ class Hook(Base):
             '/bin/zsh -ec "npx shadcn add @mapcn/map"',
             'bash -o pipefail -c "npx shadcn add @mapcn/map"',     # an option that takes a value
             'bash -O extglob -lc "npx shadcn add @mapcn/map"',
+            'bash -oc pipefail "npx shadcn add @mapcn/map"',      # the value after a cluster holding o and c
+            'bash --rcfile x.rc -c "npx shadcn add @mapcn/map"',  # a long option that takes a value
         ]
         allowed = [
             "npm exec shadcn -- add button",

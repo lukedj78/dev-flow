@@ -1860,26 +1860,6 @@ RUNNERS = {"npx", "pnpx", "bunx", "dlx", "exec"}
 C_SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
 
 
-def shell_c_payload(args: list[str]) -> str | None:
-    """The command string a shell runs with -c, or None. `-c`, `-lc`, `-xec`: any short-option cluster
-    holding `c`; long options (`--norc`) are skipped. The first plain argument means a script, not -c."""
-    j = 0
-    while j < len(args):
-        a = args[j]
-        if a in ("-o", "+o", "-O", "+O"):  # `bash -o pipefail -c …`: the option's value is not a script
-            j += 2
-            continue
-        if a.startswith("--"):
-            j += 1
-            continue
-        if re.match(r"^-[A-Za-z]*c[A-Za-z]*$", a):
-            return args[j + 1] if j + 1 < len(args) else None
-        if not a.startswith(("-", "+")):
-            return None
-        j += 1
-    return None
-
-
 def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]:
     """[(tool, items, --cwd, read_only)] for every `shadcn add` / `eve add` / `eve registry add`."""
     out = []
@@ -1893,9 +1873,13 @@ def governed_adds(command: str) -> list[tuple[str, list[str], str | None, bool]]
             # `bash -xc "npx shadcn add …"` carries the whole install in one token: find the shell's -c
             # (alone or in a flag cluster, after any long option) and parse its argument as a command.
             if base in C_SHELLS:
-                payload = shell_c_payload(toks[i + 1:])
-                if payload is not None:
-                    out.extend(governed_adds(payload))
+                # Modelling every option a shell takes is a race this parser loses (`-o pipefail -c …`,
+                # `-oc pipefail …`, `--rcfile x -c …`). When any option cluster after the shell holds a
+                # `c`, scan every later argument as a possible command string instead of guessing which.
+                rest_args = toks[i + 1:]
+                if any(re.match(r"^[-+][A-Za-z]*c[A-Za-z]*$", a) for a in rest_args):
+                    for a in rest_args:
+                        out.extend(governed_adds(a))
                     break
             tool = "shadcn" if re.match(r"^shadcn(@[\w.-]+)?$", base) else "eve" if re.match(r"^eve(@[\w.-]+)?$", base) else None
             if not tool:

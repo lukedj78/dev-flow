@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-17T16:59:39Z",
+  "generated_at": "2026-10-17T17:02:32Z",
   "generated_by": "scripts/build_skills_registry.py",
   "skill_count": 52,
   "families": {
@@ -120,6 +120,7 @@
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
+        "test_contract_version.py",
         "test_data_residency.py",
         "test_gate_doors.py",
         "test_history.py",
