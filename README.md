@@ -164,7 +164,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `prd-to-tasks` | `PRD.md` → `tasks.md` (importable into beads / Linear / GitHub Issues) |
 | `wireframe-canvas` | Screen inventory → every screen as a desktop + phone artboard on a Design canvas, approved before any scaffold; then the PNGs on the issues |
 | `project-infra-setup` | GitHub repo, Vercel project, Neon / Blob / Resend connectors, DNS and secrets, set up from the CLI |
-| `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
+| `scrum` | Run a project with agile scrum on the tracker chosen at design time — Linear, Jira or GitHub: sprints, estimates, planning, velocity, bug triage; the tracker as source of truth |
 | `compliance-audit` | GDPR + EU AI Act audit of an existing project (11-point risk register) + safe auto-remediation; flags legal decisions. Horizontal; proposed as a pre-deploy gate |
 | `app-security` | Can this code be attacked? Vulnerable dependencies, secrets in code and git history, Server Actions and routes with no session or ownership check (IDOR), data over-exposure — scanned, then read against an OWASP checklist; an opt-in Strix level proves exploits. The fifth pre-deploy gate |
 | `app-verification` | A manual, written once into the project (`.claude/skills/verify-<app>/`), for proving features on the real app: launch until usable, a doctor check, the real selectors, what counts as proof, cleanup of only what the run started; one feature file per PRD story, seeded from the wireframe inventory. Proven live once; a maintain pass keeps it true |
@@ -859,7 +859,7 @@ README.md · CONTEXT.md (glossary) · CHANGELOG.md · install.sh · uninstall.sh
 
 ## The skills, in detail
 
-> 9 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `project-infra-setup`, `linear-scrum`, `compliance-audit`, `spec-review`, `product-to-agent-skill`, and `registry-intake` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
+> 9 skills are **stack-agnostic core**: `dev-flow`, `prd-from-idea`, `prd-to-tasks`, `project-infra-setup`, `scrum`, `compliance-audit`, `spec-review`, `product-to-agent-skill`, and `registry-intake` — all three stacks use them. The 15 web-stack skills assume `meta.json#stack.framework="next"` (and `stack.nextjs_version="16"` — Pages Router and pre-16 are refused); the 2 agent-engine skills (`eve-agent`, `eve-registry-porting`) assume `stack.agent="eve"`; the 16 mobile-stack skills assume `"expo-rn"`; the 4 monorepo-stack skills assume `"monorepo"`. The 2 refactor skills (`promote-component`, `composition-patterns-guide`) are stack-agnostic and work across all three. `dev-flow` reads that key and routes.
 
 ### Web stack (Next.js + shadcn/ui)
 
@@ -940,7 +940,7 @@ The step between `design_extracted` and the scaffold, on every project with a UI
 
 ⚠️ **The output belongs to the product, not to this repo.** It ships and versions with that product and is aimed at whoever installs *it*. It is never added to dev-flow's own skills, never copied into `~/.claude/skills/`, never listed in `install.sh` — the same relationship dev-flow has with the `app/` it builds and does not own. `dev-flow` raises it once, at `feature_complete` → `deployed`, and only when the surface is genuinely public: a skill describing an internal route handler is a lie with a nice table in it.
 
-### `linear-scrum` — Linear + agile scrum for a dev-flow project
+### `scrum` — agile scrum on Linear, Jira or GitHub
 
 **Input**: `.workflow/meta.json` (+ `.workflow/tasks.md` for first setup) and a connected Linear MCP.
 **Output**: a Linear Project with issues (estimates, `area:web`/`area:agent` labels, milestones) and cycles, plus the `linear`/`scrum` blocks in `meta.json`. Linear is treated as the source of truth: sync only pushes new tasks, pulls status/velocity, plans the active sprint up to the velocity target, and reports — it never bumps `phase`.

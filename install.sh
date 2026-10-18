@@ -154,7 +154,7 @@ SKILLS=(
   prd-to-tasks
   wireframe-canvas
   project-infra-setup
-  linear-scrum
+  scrum
   compliance-audit
   app-security
   app-verification

@@ -1,5 +1,5 @@
 ---
-name: linear-scrum
+name: scrum
 description: 'Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprint to the velocity target. Triggers: "porta il progetto in Linear", "crea le issue in Linear", "setup scrum", "pianifica lo sprint", "report di velocity", "adotta questo progetto in Linear", or dev-flow routing from `prd_drafted`/`tasks_split`. Modes: Setup, Adopt, Sync. Not for: writing or estimating the tasks themselves (use `prd-to-tasks`), building the app or agent (design-md-to-app / eve-agent), or the headless server loop (docs/loop-engineering.md).'
 ---
 

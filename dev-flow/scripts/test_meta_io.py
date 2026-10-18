@@ -146,7 +146,7 @@ class Concurrency(Fixture):
         procs = [run(str(HERE / "update_meta.py"), root, "append-history", "--skill", f"s-{i}") for i in range(N)]
         procs += [
             run(str(repo / "wireframe-canvas/scripts/wireframes.py"), "skip", root, "--reason", "test"),
-            run(str(repo / "linear-scrum/scripts/meta_linear.py"), meta_path, "ensure-scrum"),
+            run(str(repo / "scrum/scripts/meta_tracker.py"), meta_path, "ensure-scrum"),
             call("forms", f"import scaffold_lib_forms as m; m.append_history(Path({meta_path!r}), 'tanstack', [])"),
             call("design-md-to-app", f"import setup_design_lint as m; m.record(Path({root!r}))"),
             call("design-md-to-app", f"import setup_primitives_guard as m; m.record(Path({root!r}))"),

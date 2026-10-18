@@ -9,12 +9,12 @@
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
-      "linear-scrum",
       "prd-from-idea",
       "prd-to-tasks",
       "product-to-agent-skill",
       "project-infra-setup",
       "registry-intake",
+      "scrum",
       "spec-review",
       "wireframe-canvas"
     ],
@@ -213,26 +213,6 @@
       "bundle": "dist/founder-intelligence.skill"
     },
     {
-      "name": "linear-scrum",
-      "family": "core",
-      "role": "operative",
-      "description": "Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprin...",
-      "skill_file": "linear-scrum/SKILL.md",
-      "references": [
-        "contracts.md",
-        "linear-mcp.md",
-        "scrum-model.md"
-      ],
-      "scripts": [
-        "meta_io.py",
-        "meta_linear.py",
-        "task_key.py",
-        "test_scripts.py"
-      ],
-      "skill_md_lines": 78,
-      "bundle": "dist/linear-scrum.skill"
-    },
-    {
       "name": "prd-from-idea",
       "family": "core",
       "role": "discovery",
@@ -309,6 +289,26 @@
       ],
       "skill_md_lines": 334,
       "bundle": "dist/registry-intake.skill"
+    },
+    {
+      "name": "scrum",
+      "family": "core",
+      "role": "operative",
+      "description": "Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprin...",
+      "skill_file": "scrum/SKILL.md",
+      "references": [
+        "contracts.md",
+        "linear-mcp.md",
+        "scrum-model.md"
+      ],
+      "scripts": [
+        "meta_io.py",
+        "meta_tracker.py",
+        "task_key.py",
+        "test_scripts.py"
+      ],
+      "skill_md_lines": 78,
+      "bundle": "dist/scrum.skill"
     },
     {
       "name": "spec-review",
