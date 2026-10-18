@@ -244,3 +244,50 @@ class FounderPath(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Verification(unittest.TestCase):
+    """app-verification: a manual once there is something to drive, and a note when it is older than the code."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def line(self, **meta):
+        meta.setdefault("history", [])
+        return ss.verification_line(meta, self.root)
+
+    def test_no_note_before_there_is_something_to_drive(self) -> None:
+        self.assertIsNone(self.line(phase="scaffolded", stack={"framework": "next"}))
+
+    def test_missing_manual_is_noted(self) -> None:
+        self.assertIn("app-verification create", self.line(phase="page_generated", stack={"framework": "next"}))
+
+    def test_manual_on_disk_without_meta_is_not_missing(self) -> None:
+        skill = self.root / ".claude" / "skills" / "verify-web" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: verify-web\n---\n")
+        self.assertNotIn("create", self.line(phase="page_generated", stack={"framework": "next"}) or "")
+
+    def test_stale_manual_is_noted(self) -> None:
+        out = self.line(phase="module_added", stack={"framework": "next"},
+                        verification={"skill": ".claude/skills/verify-web", "proven_at": "2026-10-01T00:00:00Z"},
+                        history=[{"skill": "module-add", "ran_at": "2026-10-10T00:00:00Z"}])
+        self.assertIn("maintain", out)
+
+    def test_fresh_manual_is_silent(self) -> None:
+        self.assertIsNone(self.line(phase="module_added", stack={"framework": "next"},
+                                    verification={"proven_at": "2026-10-01T00:00:00Z", "maintained_at": "2026-10-12T00:00:00Z"},
+                                    history=[{"skill": "module-add", "ran_at": "2026-10-10T00:00:00Z"},
+                                             {"skill": "spec-review", "ran_at": "2026-10-13T00:00:00Z"}]))
+
+    def test_agent_projects_from_scaffolded(self) -> None:
+        self.assertIn("create", self.line(phase="scaffolded", stack={"framework": "agent"}))
+
+    def test_routing_mentions_verification(self) -> None:
+        self.assertIn("app-verification", ss.next_step("page_generated", "next"))
+        for fw in ss.PHASE_NEXT_BY_STACK:
+            self.assertIn("app-verification", ss.next_step("feature_complete", fw), fw)

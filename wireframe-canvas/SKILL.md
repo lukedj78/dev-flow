@@ -135,6 +135,10 @@ against it pixel by pixel; a difference is closed by tuning the primitive, not b
 artboard changes only when the user decides to change the design — then re-render its PNG, re-run `approve`,
 and update DESIGN.md if a measure changed.
 
+The inventory has one more reader: `app-verification` seeds its feature map from it — one file per story, with
+the screens, routes, roles and states listed here — so a row added here reaches the verification manual on its
+next `scaffold`.
+
 ## Bundled
 
 `scripts/wireframes.py` (`coverage`, `approve`, `skip`, `pngs`, `targets`, `comments`, `posted`; stdlib

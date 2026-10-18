@@ -178,7 +178,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 305,
+      "skill_md_lines": 306,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -305,7 +305,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 248,
+      "skill_md_lines": 250,
       "bundle": "dist/spec-review.skill"
     },
     {
@@ -322,7 +322,7 @@
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 142,
+      "skill_md_lines": 146,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {
@@ -658,7 +658,7 @@
         "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 172,
+      "skill_md_lines": 173,
       "bundle": "dist/write-tests.skill"
     },
     {
