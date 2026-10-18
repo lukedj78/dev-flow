@@ -366,3 +366,13 @@ class Scope(unittest.TestCase):
     def test_complete_rules_are_silent(self) -> None:
         self.prd("# PRD\n\n" + self.RULES)
         self.assertIsNone(ss.scope_line({"phase": "module_added"}, self.root))
+
+    def test_i1_show_state_and_scope_check_agree(self) -> None:
+        # final review: two implementations disagreed on TBD, …, an empty line, a partly edited placeholder
+        values = [" TBD", " …", "", " <evidence> or three users", ' <the evidence, e.g. "x > y">', " tbd", " three users ask"]
+        for value in values:
+            text = "# PRD\n\n" + self.RULES.replace("- **A new feature enters the MVP when**: three users ask.",
+                                                 f"- **A new feature enters the MVP when**:{value}")
+            self.prd(text)
+            noted = ss.scope_line({"phase": "module_added"}, self.root) is not None
+            self.assertEqual(noted, value.strip() not in ("three users ask",), value)

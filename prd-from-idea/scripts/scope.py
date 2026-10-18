@@ -29,9 +29,20 @@ CHANGES_HEADING = "## Scope changes"
 TABLE_HEAD = "| Date | Request | Decision | Evidence / reason | Decided by |\n|---|---|---|---|---|"
 
 
+def _heading(prd: str, heading: str):
+    """`## Scope rules`, `## Scope rules (MVP)`: the heading, with or without trailing words."""
+    return re.search(rf"^{re.escape(heading)}\b[^\n]*$", prd, re.M)
+
+
+def unfilled(value: str) -> bool:
+    """A rule line not yet written: empty, a template placeholder anywhere (`<…>`, even partly edited), TBD/TODO/…"""
+    v = value.strip()
+    return not v or re.search(r"<[^<>\n]*>|<[^\n]*$", v) is not None or re.match(r"(?i)(tbd|todo|…|\.\.\.)(\b|$)", v) is not None
+
+
 def _section(prd: str, heading: str) -> str | None:
     """The body of a `## …` section, up to the next `## ` heading; None when the section is absent."""
-    m = re.search(rf"^{re.escape(heading)}\s*$", prd, re.M)
+    m = _heading(prd, heading)
     if not m:
         return None
     nxt = re.search(r"^## ", prd[m.end():], re.M)
@@ -45,11 +56,10 @@ def check(prd: str) -> list[str]:
                 "(prd-from-idea, revise mode; on the founder path, copy Playbook §12)"]
     problems = []
     for label in RULE_LINES:
-        m = re.search(rf"^\s*-\s*\*\*{re.escape(label)}\*\*\s*:(.*)$", body, re.M)
-        value = m.group(1).strip() if m else ""
+        m = re.search(rf"^[ \t]*-[ \t]*\*\*{re.escape(label)}\*\*[ \t]*:([^\n]*)$", body, re.M)
         if not m:
             problems.append(f"`{RULES_HEADING}`: the line `{label}` is missing")
-        elif not value or re.fullmatch(r"<[^>]*>|TBD.*|…", value):
+        elif unfilled(m.group(1)):
             problems.append(f"`{RULES_HEADING}`: `{label}` is still to fill")
     return problems
 
@@ -63,16 +73,22 @@ def record(prd: str, date: str, request: str, decision: str, reason: str, by: st
     if decision not in DECISIONS:
         raise ValueError(f"decision is one of {', '.join(DECISIONS)}, not {decision!r}")
     row = f"| {_cell(date)} | {_cell(request)} | {decision} | {_cell(reason)} | {_cell(by)} |"
-    m = re.search(rf"^{re.escape(CHANGES_HEADING)}\s*$", prd, re.M)
+    m = _heading(prd, CHANGES_HEADING)
     if not m:
         return prd.rstrip("\n") + f"\n\n{CHANGES_HEADING}\n\n{TABLE_HEAD}\n{row}\n"
     nxt = re.search(r"^## ", prd[m.end():], re.M)
     end = m.end() + nxt.start() if nxt else len(prd)
-    body = prd[m.end():end].rstrip("\n")
-    if "| Date |" not in body:
-        body = body + f"\n\n{TABLE_HEAD}"
-    tail = prd[end:]
-    return prd[:m.end()] + body + "\n" + row + "\n" + ("\n" + tail if tail else "")
+    lines = prd[m.end():end].split("\n")
+    head = next((i for i, line in enumerate(lines) if line.startswith("| Date |")), None)
+    if head is None:   # the section exists without its table: the table goes at the end of the section
+        body = "\n".join(lines).rstrip("\n") + f"\n\n{TABLE_HEAD}\n{row}\n"
+        tail = prd[end:]
+        return prd[:m.end()] + body + ("\n" + tail if tail else "")
+    last = head
+    while last + 1 < len(lines) and lines[last + 1].startswith("|"):   # the row goes right after the table, before any note
+        last += 1
+    lines.insert(last + 1, row)
+    return prd[:m.end()] + "\n".join(lines) + prd[end:]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -83,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--decision", choices=DECISIONS)
     ap.add_argument("--reason")
     ap.add_argument("--by", default="user")
-    ap.add_argument("--date", default=_date.today().isoformat())
+    ap.add_argument("--date", default=_date.today().isoformat(), help="YYYY-MM-DD")
     a = ap.parse_args(argv)
     path = a.project_root / ".workflow" / "PRD.md"
     if not path.is_file():
@@ -98,6 +114,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if problems else 0
     if not (a.request and a.decision and a.reason):
         print("record needs --request, --decision and --reason", file=sys.stderr)
+        return 2
+    try:
+        _date.fromisoformat(a.date)
+    except ValueError:
+        print(f"--date must be YYYY-MM-DD, not {a.date!r}", file=sys.stderr)
         return 2
     path.write_text(record(prd, a.date, a.request, a.decision, a.reason, a.by), encoding="utf-8")
     print(f"recorded in {CHANGES_HEADING}: {a.decision} — {a.request}. Append history: "

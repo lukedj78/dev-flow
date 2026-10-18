@@ -114,3 +114,51 @@ class Cli(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewFixes(unittest.TestCase):
+    """The final review of 2026-10-18, one test per finding."""
+
+    def with_first(self, value: str) -> str:
+        return PRD.replace("- **A new feature enters the MVP when**: three test users hit the same wall.",
+                           f"- **A new feature enters the MVP when**:{value}")
+
+    def test_i2_any_placeholder_is_unfilled(self) -> None:
+        for value in (" TBD", " tbd", " …", " ...", " TODO", " <evidence> or three users", ' <the evidence, e.g. "x > y">'):
+            self.assertTrue(any("A new feature enters the MVP when" in p for p in sc.check(self.with_first(value))), value)
+
+    def test_i2_an_empty_line_never_borrows_the_next(self) -> None:
+        problems = sc.check(self.with_first(""))
+        self.assertTrue(any("A new feature enters the MVP when" in p for p in problems), problems)
+
+    def test_unfilled_predicate_is_exported(self) -> None:
+        self.assertTrue(sc.unfilled("<x>"))
+        self.assertFalse(sc.unfilled("three users ask for it"))
+
+    def test_i3_a_row_lands_right_after_the_table(self) -> None:
+        prd = PRD + ("\n## Scope changes\n\n| Date | Request | Decision | Evidence / reason | Decided by |\n|---|---|---|---|---|\n"
+                     "| 2026-10-01 | a | defer | r | user |\n\nNote: rows are newest last.\n\n## Tech\n\nx\n")
+        out = sc.record(prd, "2026-10-18", "b", "add", "r2", "user")
+        section = out.split("## Scope changes")[1].split("## Tech")[0]
+        self.assertIn("| 2026-10-01 | a | defer | r | user |\n| 2026-10-18 | b | add | r2 | user |\n", section)
+        self.assertIn("Note: rows are newest last.", section)
+
+    def test_i4_a_heading_with_extra_text_is_the_same_section(self) -> None:
+        prd = PRD + ("\n## Scope changes (log)\n\n| Date | Request | Decision | Evidence / reason | Decided by |\n"
+                     "|---|---|---|---|---|\n| 2026-10-01 | a | defer | r | user |\n")
+        out = sc.record(prd, "2026-10-18", "b", "add", "r2", "user")
+        self.assertEqual(out.count("## Scope changes"), 1)
+        rules = PRD.replace("## Scope rules", "## Scope rules (MVP)")
+        self.assertEqual(sc.check(rules), [])
+
+    def test_m8_the_date_is_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".workflow").mkdir()
+            (root / ".workflow" / "PRD.md").write_text(PRD, encoding="utf-8")
+            err = io.StringIO()
+            from contextlib import redirect_stderr
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                code = sc.main(["record", str(root), "--request", "x", "--decision", "add", "--reason", "r", "--date", "foo"])
+            self.assertEqual(code, 2)
+            self.assertNotIn("| foo |", (root / ".workflow" / "PRD.md").read_text(encoding="utf-8"))

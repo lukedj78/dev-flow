@@ -25,7 +25,8 @@ Linear. Whichever way it comes, it passes this check before anyone builds it. Th
 | **experiment** | It becomes a bounded trial with scope, objective, constraints and acceptance, the same shape as `founder-intelligence`'s `approved_experiment`. |
 
 **"Do it anyway."** If the user overrides the check, the outcome is **add**, with the user's reason recorded word
-for word. The check never becomes an obstacle.
+for word. The check never becomes an obstacle. On the founder path, neither the override nor editing the "Not
+before launch" line reaches a decision the Playbook locks in §18: that goes back to `founder-intelligence`.
 
 ## Record it, once
 
@@ -36,7 +37,7 @@ python3 <skills>/dev-flow/scripts/update_meta.py <root> append-history --skill p
   --inputs '{"scope_change": "export to CSV"}' --outputs '["PRD.md"]'
 ```
 
-`record` adds one row to `## Scope changes` at the end of the PRD, creating the section the first time. It escapes
+`record` adds one row to `## Scope changes`, right after the table's last row, even when a note follows it. The first time, it creates the section at the end of the PRD. It escapes
 `|` and folds newlines, so the table holds. That row is the only place the decision is written. There is no
 `meta.json` field, so there is no second register to fall out of step.
 
@@ -53,7 +54,8 @@ reports the same as a note. Neither blocks anything.
 
 ## Founder path
 
-The rules come from Playbook §12, copied without changes. A request that touches a decision the Playbook locks in
+The evidence that lets a feature in, and the exclusions, come from Playbook §12, copied without changes. `Who decides` is
+the founder: the path fixes it, and §12 does not say it. A request that touches a decision the Playbook locks in
 §18 (segment, MVP scope and exclusions, metrics, constraints) does not go through this check: it goes back to
 `founder-intelligence` (`dev-flow/references/policies.md`), because a revision needs a new approval from the
 founder.
