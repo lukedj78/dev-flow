@@ -303,10 +303,12 @@
       ],
       "scripts": [
         "github_sync.py",
+        "jira_estimate.py",
         "meta_io.py",
         "meta_tracker.py",
         "task_key.py",
         "test_github_sync.py",
+        "test_jira_estimate.py",
         "test_scripts.py"
       ],
       "skill_md_lines": 78,
