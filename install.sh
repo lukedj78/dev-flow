@@ -295,12 +295,15 @@ RETIRED=(
 )
 for pair in "${RETIRED[@]}"; do
   old="${pair%%:*}"; new="${pair#*:}"
-  if [ -d "$SKILLS_DIR/$old" ]; then
-    mkdir -p "$BACKUP_DIR"
-    rm -rf "$BACKUP_DIR/$old"
-    mv "$SKILLS_DIR/$old" "$BACKUP_DIR/$old"
-    echo "  · removed retired skill $old (now $new) — moved to $BACKUP_DIR/$old"
-  fi
+  # `<old>.bak` is what installs before 2026-08-28 left inside the skills dir — registered as a skill too
+  for d in "$old" "$old.bak"; do
+    if [ -d "$SKILLS_DIR/$d" ]; then
+      mkdir -p "$BACKUP_DIR"
+      rm -rf "${BACKUP_DIR:?}/${d:?}"
+      mv "$SKILLS_DIR/$d" "$BACKUP_DIR/$d"
+      echo "  · removed retired skill $d (now $new) — moved to $BACKUP_DIR/$d"
+    fi
+  done
 done
 
 # Files written OUTSIDE a skill folder share the skills dir with whatever the user keeps there — a skill

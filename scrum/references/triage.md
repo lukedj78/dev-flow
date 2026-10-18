@@ -25,7 +25,7 @@ them) and `scrum.bug_label`. When unsure between two, take the higher one and sa
    *Expected*, *Observed*, *Evidence* (log lines, a screenshot, the `request_id` from observability), *Severity
    because*. **Never an end user's personal data**: an id, not an email; no screenshot with real data; redact log
    lines. The tracker is the team's tool, not a place the product's users agreed their data would go.
-4. **Place it**: S1/S2 into the current sprint, S3/S4 into the backlog. History entry
+4. **Place it**: S1/S2 into the current sprint; S3 in the backlog, raised at the next sprint planning; S4 in the backlog. History entry
    `{skill: "scrum", action: "triage"}`.
 
 ## Where Triage stops

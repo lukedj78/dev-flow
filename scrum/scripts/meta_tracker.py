@@ -102,8 +102,16 @@ def migrate(meta: dict, root: Path) -> tuple[dict, list[str]]:
     """Every older tracker shape → the current one. Never drops a key."""
     notes: list[str] = []
     t = dict(meta.get("tracker") or {})
+    if "kind" in t:
+        kind = t.pop("kind")
+        t.setdefault("provider", KIND_TO_PROVIDER.get(str(kind), str(kind)))
+        notes.append(f"`kind: {kind}` → `provider: {t['provider']}`")
     legacy = meta.pop("linear", None)
-    if isinstance(legacy, dict):
+    if isinstance(legacy, dict) and t.get("provider") not in (None, "linear"):
+        # another tracker was chosen: Linear's ids and keys must not leak into its map
+        t.setdefault("legacy_linear", legacy)
+        notes.append(f"the `linear` block is kept apart in tracker.legacy_linear — the project uses {t['provider']}")
+    elif isinstance(legacy, dict):
         t.setdefault("provider", "linear")
         project = dict(t.get("project") or {})
         for k in LINEAR_PROJECT_KEYS:
@@ -121,16 +129,15 @@ def migrate(meta: dict, root: Path) -> tuple[dict, list[str]]:
         notes.append("moved the `linear` block into `tracker`")
     elif legacy is not None:
         t.setdefault("legacy_linear", legacy)
-    if "kind" in t:
-        kind = t.pop("kind")
-        t.setdefault("provider", KIND_TO_PROVIDER.get(str(kind), str(kind)))
-        notes.append(f"`kind: {kind}` → `provider: {t['provider']}`")
     if "repo" in t:
         t.setdefault("project", {}).setdefault("repo", t.pop("repo"))
     if "map" not in t and (root / GITHUB_MAP).is_file():
-        t["map"] = GITHUB_MAP
-        t.setdefault("provider", "github")
-        notes.append(f"folded {GITHUB_MAP} (make_issues.py's map, not recorded in meta.json) into tracker.issue_map")
+        if t.get("provider") in (None, "github"):
+            t["map"] = GITHUB_MAP
+            t.setdefault("provider", "github")
+            notes.append(f"folded {GITHUB_MAP} (make_issues.py's map, not recorded in meta.json) into tracker.issue_map")
+        else:
+            notes.append(f"{GITHUB_MAP} ignored: the project uses {t['provider']}, not GitHub")
     provider = t.get("provider")
     raw = dict(t.get("issue_map") or {})
     map_file = t.get("map")
@@ -172,7 +179,8 @@ def migrate(meta: dict, root: Path) -> tuple[dict, list[str]]:
 def legacy_shape(meta: dict, root: Path | None = None) -> str | None:
     """Why the tracker block is in an older shape, or None."""
     t0 = meta.get("tracker") if isinstance(meta.get("tracker"), dict) else {}
-    if root is not None and (root / GITHUB_MAP).is_file() and "map" not in t0:
+    if root is not None and (root / GITHUB_MAP).is_file() and "map" not in t0 \
+            and t0.get("provider") in (None, "github") and "kind" not in t0:
         return f"a {GITHUB_MAP} that meta.json#tracker does not record"
     if "linear" in meta:
         return "a legacy `linear` block (linear-scrum)"

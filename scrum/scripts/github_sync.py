@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta_io  # noqa: E402
-from meta_tracker import record_issues  # noqa: E402
+from meta_tracker import legacy_shape, migrate, record_issues  # noqa: E402
 from task_key import task_key  # noqa: E402
 
 PALETTE = ["0b5d57", "1d76db", "4a3fc9", "9a5b00", "0e8a16", "5319e7", "b60205", "d93f0b", "fbca04", "c5def5", "bfd4f2", "6e7781", "000000"]
@@ -95,10 +95,14 @@ def gh(*args):
     return subprocess.run(["gh", *args], capture_output=True, text=True)
 
 
-def _record(meta_path: Path, mapping: dict) -> None:
+def _record(meta_path: Path, mapping: dict, repo: str) -> None:
+    """The issue, and — when not yet recorded — that the project is on GitHub, in this repo."""
     with meta_io.locked(meta_path.parent):
-        meta = meta_io.read_meta(meta_path)
-        meta_io.write_json(meta_path, record_issues(meta, mapping))
+        meta = record_issues(meta_io.read_meta(meta_path), mapping)
+        t = meta["tracker"]
+        t.setdefault("provider", "github")
+        t.setdefault("project", {}).setdefault("repo", repo)
+        meta_io.write_json(meta_path, meta)
 
 
 def main(argv=None):
@@ -114,7 +118,28 @@ def main(argv=None):
     meta_path = a.root / ".workflow" / "meta.json"
     tasks_path = a.root / ".workflow" / "tasks.md"
     meta = meta_io.load_or_exit(meta_path)
-    issue_map = (meta.get("tracker") or {}).get("issue_map") or {}
+    why = legacy_shape(meta, a.root)
+    if why:
+        # an older map (make_issues.py's file, a title-keyed or `linear` block) must be read first, or every issue
+        # already on GitHub would be created again; --dry-run migrates in memory only
+        print(f"meta.json has {why} — migrating it first (nothing is dropped)")
+        if a.dry_run:
+            meta, notes = migrate(meta, a.root)
+        else:
+            with meta_io.locked(meta_path.parent):
+                meta, notes = migrate(meta_io.read_meta(meta_path), a.root)
+                meta_io.write_json(meta_path, meta)
+        for n in notes:
+            print(f"  · {n}")
+    t = meta.get("tracker") or {}
+    if t.get("provider") not in (None, "github"):
+        print(f"refused: this project's tracker is {t['provider']} (meta.json#tracker.provider), not GitHub", file=sys.stderr)
+        return 2
+    repo = (t.get("project") or {}).get("repo")
+    if repo and repo.lower() != a.repo.lower():
+        print(f"refused: meta.json#tracker.project.repo is {repo}, not {a.repo}", file=sys.stderr)
+        return 2
+    issue_map = t.get("issue_map") or {}
     tasks = [t for t in parse(tasks_path.read_text(encoding="utf-8")) if not t["done"]]
     todo = [t for t in tasks if task_key(t["line"]) not in issue_map]
     epics = list(dict.fromkeys(t["epic"] for t in tasks))
@@ -134,23 +159,36 @@ def main(argv=None):
 
     wanted: dict = {}
     plans = []
+    defaulted = []
     for t in todo:
         names = [label(*area_label(epics, t["epic"]), wanted), label(*type_of(t), wanted)]
         pts = points(_hint(t, "Estimated") or "")
         if pts:
             names.append(label(f"estimate: {pts}", "c5def5", wanted))
+        if not _hint(t, "Priority"):
+            defaulted.append(t["title"])
         prio = (_hint(t, "Priority") or "P2").split()[0].upper()
         names.append(label(f"priority: {prio if re.fullmatch(r'P[0-3]', prio) else 'P2'}", "d93f0b", wanted))
         plans.append((t, names))
 
     milestone_missing = False
     if a.milestone:
-        r = gh("api", f"repos/{a.repo}/milestones?state=all&per_page=100")
-        titles = {m.get("title") for m in json.loads(r.stdout or "[]")} if r.returncode == 0 else set()
-        milestone_missing = a.milestone not in titles
+        r = gh("api", "--paginate", "--jq", ".[].title", f"repos/{a.repo}/milestones?state=all&per_page=100")
+        if r.returncode:
+            print("could not list milestones:", r.stderr.strip())
+            return 1
+        milestone_missing = a.milestone not in {line.strip() for line in r.stdout.splitlines()}
 
     print(f"{len(tasks)} open tasks, {len(issue_map)} already on GitHub, {len(todo)} to create; "
           f"{len(wanted)} label(s) to create" + (f"; milestone {a.milestone!r} to create" if milestone_missing else ""))
+    if defaulted:
+        print(f"⚠ {len(defaulted)} task(s) have no `Priority:` hint and get priority: P2 — set the bands (P1–P3) "
+              "in tasks.md or on the issues: " + ", ".join(defaulted[:10]) + (" …" if len(defaulted) > 10 else ""))
+    unmatched = (meta.get("tracker") or {}).get("unmatched") or {}
+    if unmatched:
+        print(f"⚠ {len(unmatched)} issue(s) whose title is no longer in tasks.md (tracker.unmatched) — an edited title "
+              "would be created again: link each with meta_tracker.py record-issues first: "
+              + ", ".join(f"{k} → {v}" for k, v in list(unmatched.items())[:10]))
     if a.dry_run:
         for t, names in plans:
             print(f"  + {t['title']}  [{', '.join(names)}]")
@@ -182,7 +220,7 @@ def main(argv=None):
                       "Everything created so far is recorded: run again to resume.")
                 return 1
             number = r.stdout.strip().rsplit("/", 1)[-1]
-            _record(meta_path, {task_key(t["line"]): f"#{number}"})
+            _record(meta_path, {task_key(t["line"]): f"#{number}"}, a.repo)
             print(f"{i}/{len(plans)} #{number} {t['title']}", flush=True)
             if a.pause:
                 time.sleep(a.pause)

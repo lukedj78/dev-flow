@@ -289,7 +289,8 @@ def tracker_line(meta: dict, root: Path | None = None) -> str | None:
         return None
     t = meta.get("tracker") if isinstance(meta.get("tracker"), dict) else {}
     why = None
-    if root is not None and (root / ".workflow" / "github-issues.json").is_file() and "map" not in t:
+    if root is not None and (root / ".workflow" / "github-issues.json").is_file() and "map" not in t \
+            and t.get("provider") in (None, "github") and "kind" not in t:
         why = "a .workflow/github-issues.json that meta.json#tracker does not record (make_issues.py's map)"
     elif "linear" in meta:
         why = "a legacy `linear` block (linear-scrum)"

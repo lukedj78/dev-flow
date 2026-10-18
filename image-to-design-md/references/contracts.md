@@ -213,7 +213,8 @@ S1–S4). On GitHub a sprint is a milestone named by its goal and every issue ca
 
 **Older shapes** — the `linear` block written by the former `linear-scrum`, and hand-written blocks with `kind`, `repo`, a map
 keyed by task title (inline or in `.workflow/github-issues.json`) or a nested `scrum` — stay readable and are
-migrated by `meta_tracker.py migrate` without dropping a key; `show_state.py` notes them until then.
+migrated by `meta_tracker.py migrate` without dropping a key; `show_state.py` notes them until then. A migrated block keeps its other keys verbatim (`map`, `bodies`, `issues`, a `linear` opt-out note, …), and a
+`linear` block found under another provider is kept apart in `legacy_linear`.
 
 ### `wireframes` field (optional, owned by `wireframe-canvas`)
 

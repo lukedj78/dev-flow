@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """task_key.py — derive a stable identity key for a tasks.md checkbox line.
 
-The key goes into meta.json#linear.issue_map so re-running Setup/Sync never
-creates a duplicate Linear issue for the same task. It is derived from the task
+The key goes into meta.json#tracker.issue_map so re-running Setup/Sync never
+creates a duplicate issue for the same task, on Linear, Jira or GitHub. It is derived from the task
 TITLE only (the text before the ` — ` body separator), normalized so that
 checkbox state, bold markers, case, and whitespace do not change it.
 """

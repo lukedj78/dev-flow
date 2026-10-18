@@ -239,7 +239,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 135,
+      "skill_md_lines": 137,
       "bundle": "dist/prd-to-tasks.skill"
     },
     {
@@ -315,7 +315,7 @@
         "test_jira_estimate.py",
         "test_scripts.py"
       ],
-      "skill_md_lines": 110,
+      "skill_md_lines": 115,
       "bundle": "dist/scrum.skill"
     },
     {

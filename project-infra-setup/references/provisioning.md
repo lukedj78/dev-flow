@@ -10,9 +10,9 @@ The user is logged in; check with `vercel whoami`, `vercel teams ls`, `vercel do
 ```bash
 gh repo create <owner>/<name> --private --description "…" --source . --remote origin --push
 ```
-Initial commit by file name (never `git add -A`: other files may sit in the tree). **Scan the staged diff for secrets first**: key-looking assignments, `eyJ…`, `sk-`, `re_`, `npg_`, `ghp_`, `xox`; and check `git ls-files` shows no `.env`, `.env.local` or `.vercel`. `.gitignore` needs `.env*` **and** `!.env.example`, or the example is ignored. Optional, when the tracker is GitHub: `python3 scripts/make_issues.py --repo <owner>/<name> --tasks .workflow/tasks.md --map .workflow/github-issues.json` (one issue per task, resumable, 2 s apart, labels by area and type), then verify the totals from GitHub itself.
+Initial commit by file name (never `git add -A`: other files may sit in the tree). **Scan the staged diff for secrets first**: key-looking assignments, `eyJ…`, `sk-`, `re_`, `npg_`, `ghp_`, `xox`; and check `git ls-files` shows no `.env`, `.env.local` or `.vercel`. `.gitignore` needs `.env*` **and** `!.env.example`, or the example is ignored.
 
-Two things to know about `make_issues.py`. ① **It sets no milestones.** Assign them afterwards from each epic's `Milestone:` line in `tasks.md`: create the milestone, then `gh issue edit <n> --milestone "<title>"` per issue. ② **A comma breaks a label**: GitHub answers HTTP 422 to a label name containing `,`, so `area_label` strips commas from the epic name (`Epic: Search, filters` → `area: search filters`).
+The issues come next, from the `scrum` skill's Setup on the chosen tracker (on GitHub `scrum/scripts/github_sync.py`, which records each issue in `meta.json#tracker.issue_map` and migrates an old `.workflow/github-issues.json` first, so nothing is created twice). The old `make_issues.py` command still works and runs it. A comma breaks a GitHub label (HTTP 422), so area labels strip commas from the epic name (`Epic: Search, filters` → `area: search filters`).
 
 ## Issues and sprints
 

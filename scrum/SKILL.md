@@ -60,9 +60,13 @@ Record it: `meta_tracker.py <meta> choose --provider linear|jira|github`.
    `manageJiraSprint`; GitHub: the milestone named by the sprint goal), the states.
 3. Labels: **discover, don't assume.** Map the buckets (web / agent / scaffold) and the severity labels onto what the
    tracker already has; create only what is missing (`scrum-model.md`).
-4. Push `tasks.md` → issues, one per open task: estimate from the `Estimated:` hint (Fibonacci), priority, labels,
-   sprint. GitHub: `scripts/github_sync.py <root> --repo O/N --milestone "<Sprint 1 — goal>"`. Linear and Jira: the
-   reference's tools, then `meta_tracker.py <meta> record-issues --mapping '{"<task_key>": "<KEY>"}'`.
+4. Push `tasks.md` → issues, one per open task: estimate from the `Estimated:` hint (Fibonacci), priority from the
+   `Priority:` hint, labels. GitHub: `scripts/github_sync.py <root> --repo O/N` (it migrates an older map first and
+   names the tasks with no priority). Linear and Jira: the reference's tools, then `meta_tracker.py <meta>
+   record-issues --mapping '{"<task_key>": "<KEY>"}'`. **Then pack the sprints** (`scrum-model.md`: by priority band
+   and capacity, spare capacity kept at the end of a release) and assign each issue to its sprint — on GitHub
+   `gh issue edit <n> --milestone "<Sprint N — goal>"`, with the plan in `.workflow/sprints.md`. Never every task into
+   Sprint 1.
 5. Write the bodies to `references/issue-standard.md` — one sample first, approved by the user.
 6. Persist: `meta_tracker.py <meta> upsert --provider P --project '<json ids>' --url <url>` (it also ensures the
    `scrum` defaults), then a history entry through `dev-flow/scripts/update_meta.py append-history --skill scrum`
@@ -78,7 +82,7 @@ Record it: `meta_tracker.py <meta> choose --provider linear|jira|github`.
 ## Sync (ongoing)
 
 - **Push new tasks**: each `tasks.md` line whose `task_key` is not in `issue_map` (GitHub: `github_sync.py` does
-  exactly this). Never edit or re-push existing issues — the tracker owns status, ordering, estimates.
+  exactly this; `--milestone` puts that run's new issues straight into the current sprint). Never edit or re-push existing issues — the tracker owns status, ordering, estimates.
 - **Pull status and velocity** from the tracker (the reference says how).
 - **Plan the sprint** up to `scrum.velocity_target` (`scrum-model.md`).
 - **Report to chat**: committed vs done, carry-over, blocked, open bugs by severity. No report file.
@@ -91,7 +95,8 @@ Record it: `meta_tracker.py <meta> choose --provider linear|jira|github`.
 
 `references/triage.md`: reproduce on the real app (`verify-<app>`), give the severity (S1–S4) with a one-line
 reason, create the issue (`bug` + severity, steps, expected, observed, evidence — **never an end user's personal
-data**), put S1/S2 in the current sprint and S3/S4 in the backlog, history `action: triage`. **Triage stops there**:
+data**), put S1/S2 in the current sprint, S3 up for the next sprint planning and S4 in the backlog, history
+`action: triage`. **Triage stops there**:
 the fix is the normal path — a test that reproduces it (red → green), the skill that owns the code, a PR that cites
 the issue, verification on the app, then the issue closed with the commit.
 

@@ -160,6 +160,24 @@ class Claude(Fixture):
         self.assertIn("linear-scrum", r.stdout)
         self.assertIn("scrum", r.stdout)
 
+    def test_a_retired_bak_inside_the_skills_dir_goes_too(self) -> None:
+        # installs before 2026-08-28 left `<name>.bak` inside the skills dir, registered as a duplicate skill
+        bak = self.skills / "linear-scrum.bak"
+        bak.mkdir(parents=True)
+        (bak / "SKILL.md").write_text("---\nname: linear-scrum\n---\n")
+        self.install()
+        self.assertFalse(bak.exists())
+
+    def test_uninstall_removes_a_retired_name_and_restore_brings_it_back(self) -> None:
+        old = self.skills / "linear-scrum"
+        old.mkdir(parents=True)
+        (old / "SKILL.md").write_text("---\nname: linear-scrum\n---\n")
+        self.install()                       # moves linear-scrum into the backup
+        (self.skills / "linear-scrum").mkdir()   # a stray copy left by something else
+        r = self.uninstall("--restore")
+        self.assertIn("linear-scrum", r.stdout)
+        self.assertTrue((self.skills / "linear-scrum" / "SKILL.md").is_file())   # the backed-up version, restored
+
     def test_installing_twice_is_clean(self) -> None:
         self.install()
         self.install()

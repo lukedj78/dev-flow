@@ -79,6 +79,7 @@ Use this exact format:
   - Acceptance: <bulleted criteria pulled from PRD>
   - Files likely touched: `<best-guess paths>`
   - Estimated: <2-8h>
+  - Priority: <P1|P2|P3>
 - [ ] **<Imperative title>** — …
 
 ### US-2: ...
@@ -100,8 +101,9 @@ Rules:
 - One `- [ ]` per concrete task. Sub-bullets under it are details, not separate tasks.
 - The `*(addressed by …)*` annotation marks tasks that are owned by another dev-flow skill — the user (or orchestrator) doesn't have to write code for these, just invoke the right skill. **Always tag scaffolding/setup tasks** with which skill owns them.
 - Order: **Setup first** (foundation), then epics in priority order from the PRD.
+- `Priority:` on every task — **P1** what the first release cannot ship without (Setup and the MVP's must-have stories), **P2** the rest of the MVP, **P3** what can slip past it. `scrum` turns it into the tracker's priority (on GitHub the `priority: Pn` label, the user's rule) and packs the sprints by it.
 - Don't enumerate `[ ]` checkboxes for sub-bullets — they're details, not actionable items.
-- **The `- [ ] **<Title>** — <body>` format (with the em-dash ` — ` separator) is load-bearing.** `scrum/scripts/task_key.py` parses each task line with `split(" — ")[0]` to derive the title it hashes for dedup (`meta.json#linear.issue_map`). Do not swap the em-dash for a hyphen, colon, or any other separator — doing so breaks re-run idempotency in `scrum`.
+- **The `- [ ] **<Title>** — <body>` format (with the em-dash ` — ` separator) is load-bearing.** `scrum/scripts/task_key.py` parses each task line with `split(" — ")[0]` to derive the title it hashes for dedup (`meta.json#tracker.issue_map`). Do not swap the em-dash for a hyphen, colon, or any other separator — doing so breaks re-run idempotency in `scrum`.
 
 ### Step 4 — Update state and report
 
@@ -122,9 +124,9 @@ Update `.workflow/meta.json`:
 Tell the user:
 - Number of epics + tasks generated.
 - Any open questions still flagged.
-- Next-step proposal: usually `figma-to-design-md` (if not yet run and Figma exists) or `design-md-to-app` (if DESIGN.md is in place), or `scrum` (Setup) if they want to run the project as agile scrum in Linear.
+- Next-step proposal: usually `figma-to-design-md` (if not yet run and Figma exists) or `design-md-to-app` (if DESIGN.md is in place), or `scrum` (Setup) to run the project as agile scrum on the tracker chosen in the PRD (Linear, Jira or GitHub).
 
-If the user wants to move tasks into beads/GitHub Issues/Linear, point at the file — it's already in the right shape. They can use `gh issue create` per task, `ralph-tui-create-beads` / `ralph-tui-create-json` skills if installed, or invoke `scrum` (Setup mode) to push `tasks.md` into Linear via MCP — not a CSV import.
+If the user wants to move tasks into beads/GitHub Issues/Linear, point at the file — it's already in the right shape. They can use `gh issue create` per task, `ralph-tui-create-beads` / `ralph-tui-create-json` skills if installed, or invoke `scrum` (Setup mode) to push `tasks.md` to the chosen tracker (Linear, Jira or GitHub) — not a CSV import.
 
 ## Important constraints
 

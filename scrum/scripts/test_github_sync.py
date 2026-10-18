@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import stat
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -41,8 +43,11 @@ with open(os.path.join(d, "calls.log"), "a") as f:
     f.write(json.dumps(args) + "\n")
 if args[:2] == ["label", "list"]:
     print(json.dumps([{"name": n} for n in json.loads(os.environ.get("FAKE_GH_LABELS", "[]"))]))
-elif args[:1] == ["api"] and "milestones" in args[1] and "-f" not in args:
-    print(json.dumps([{"title": t, "number": i + 1} for i, t in enumerate(json.loads(os.environ.get("FAKE_GH_MILESTONES", "[]")))]))
+elif args[:1] == ["api"] and any("milestones" in x for x in args) and "-f" not in args:
+    if os.environ.get("FAKE_GH_MILESTONES_FAIL"):
+        sys.stderr.write("HTTP 500\n"); sys.exit(1)
+    for t in json.loads(os.environ.get("FAKE_GH_MILESTONES", "[]")):
+        print(t)
 elif args[:2] == ["issue", "create"]:
     counter = os.path.join(d, "n")
     n = int(open(counter).read()) if os.path.exists(counter) else 100
@@ -151,6 +156,55 @@ class Sync(unittest.TestCase):
         os.environ["FAKE_GH_FAIL_ON"] = "0"
         self.assertEqual(self.run_sync(), 0)
         self.assertEqual(len(self.issue_map()), 2)
+
+    # final review, 2026-10-18
+    def test_an_unmigrated_map_creates_no_duplicates(self) -> None:
+        (self.root / ".workflow/github-issues.json").write_text(json.dumps({"Login": 7, "Logout": 8}))
+        meta_io.write_json(self.root / ".workflow/meta.json", {"phase": "tasks_split"})
+        self.assertEqual(self.run_sync(), 0)
+        self.assertEqual([c for c in self.calls() if c[:2] == ["issue", "create"]], [])
+        self.assertEqual(self.issue_map(), {task_key("- [ ] **Login** — x"): "#7", task_key("- [ ] **Logout** — x"): "#8"})
+
+    def test_dry_run_on_an_unmigrated_map_writes_nothing(self) -> None:
+        (self.root / ".workflow/github-issues.json").write_text(json.dumps({"Login": 7, "Logout": 8}))
+        meta_io.write_json(self.root / ".workflow/meta.json", {"phase": "tasks_split"})
+        before = (self.root / ".workflow/meta.json").read_text()
+        self.assertEqual(self.run_sync("--dry-run"), 0)
+        self.assertEqual((self.root / ".workflow/meta.json").read_text(), before)
+        self.assertEqual(self.writes(), [])
+
+    def test_another_tracker_is_refused(self) -> None:
+        meta_io.write_json(self.root / ".workflow/meta.json", {"tracker": {"provider": "linear", "issue_map": {}}})
+        self.assertEqual(self.run_sync(), 2)
+        self.assertEqual(self.writes(), [])
+
+    def test_another_repo_is_refused(self) -> None:
+        meta_io.write_json(self.root / ".workflow/meta.json", {"tracker": {"provider": "github", "project": {"repo": "o/other"}}})
+        self.assertEqual(self.run_sync(), 2)
+
+    def test_the_provider_and_repo_are_recorded(self) -> None:
+        meta_io.write_json(self.root / ".workflow/meta.json", {"phase": "tasks_split"})
+        self.run_sync()
+        t = meta_io.read_meta(self.root / ".workflow/meta.json")["tracker"]
+        self.assertEqual((t["provider"], t["project"]["repo"]), ("github", "o/r"))
+
+    def test_defaulted_priorities_and_unmatched_titles_are_named(self) -> None:
+        meta_io.write_json(self.root / ".workflow/meta.json",
+                           {"tracker": {"provider": "github", "unmatched": {"Old login": "#3"}}})
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.run_sync("--dry-run")
+        text = out.getvalue()
+        self.assertIn("Logout", text[text.index("priority"):])   # no Priority: hint → named as defaulted to P2
+        self.assertIn("Old login", text)
+
+    def test_a_failed_milestone_listing_stops_before_anything(self) -> None:
+        os.environ["FAKE_GH_MILESTONES_FAIL"] = "1"
+        try:
+            self.assertEqual(self.run_sync("--milestone", "Sprint 1 — sign in"), 1)
+        finally:
+            os.environ.pop("FAKE_GH_MILESTONES_FAIL")
+        self.assertEqual(self.writes(), [])
 
     def test_make_issues_shim_still_works(self) -> None:
         shim = HERE.parents[1] / "project-infra-setup/scripts/make_issues.py"

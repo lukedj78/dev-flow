@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import math
 import os
 import re
 import sys
@@ -84,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     if absent:
         print(f"meta.json#tracker.project has no {' or '.join(absent)} — the scrum Setup records them "
               "(listJiraBoards gives the board id)", file=sys.stderr)
+        return 2
+    if not math.isfinite(a.points) or a.points < 0:
+        print("--points must be a finite number, zero or more", file=sys.stderr)
         return 2
     if not re.fullmatch(r"[A-Z][A-Z0-9_]*-\d+", a.key) or not re.fullmatch(r"\d+", str(project["board_id"])):
         print("the key must look like ABC-12 and board_id must be a number", file=sys.stderr)

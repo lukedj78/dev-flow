@@ -132,6 +132,23 @@ class Tracker(unittest.TestCase):
         self.assertIsNone(mt.legacy_shape({"tracker": {"provider": "github", "map": ".workflow/github-issues.json",
                                                        "issue_map": {}}}, self.root))
 
+    def test_a_linear_block_is_kept_apart_under_another_provider(self):
+        meta = {"tracker": {"provider": "github"}, "linear": {"team_id": "T", "issue_map": {LOGIN: "LUC-1"}}}
+        out, notes = mt.migrate(meta, self.root)
+        t = out["tracker"]
+        self.assertEqual(t["legacy_linear"]["issue_map"], {LOGIN: "LUC-1"})
+        self.assertNotIn(LOGIN, t.get("issue_map", {}))
+        self.assertNotIn("team_id", t.get("project", {}))
+        self.assertTrue(any("legacy_linear" in n for n in notes), notes)
+
+    def test_a_lone_github_file_is_not_folded_into_another_tracker(self):
+        (self.root / ".workflow/github-issues.json").write_text(json.dumps({"Login": 7}), encoding="utf-8")
+        out, notes = mt.migrate({"tracker": {"provider": "linear", "issue_map": {}}}, self.root)
+        self.assertEqual(out["tracker"]["issue_map"], {})
+        self.assertNotIn("map", out["tracker"])
+        self.assertTrue(any("github-issues.json" in n for n in notes), notes)
+        self.assertIsNone(mt.legacy_shape(out, self.root))
+
     def test_migrate_keeps_unmatched_titles(self):
         meta = {"tracker": {"kind": "github", "repo": "o/r", "issue_map": {"Login": 7, "Gone": 9}}}
         out, notes = mt.migrate(meta, self.root)

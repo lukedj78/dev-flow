@@ -22,9 +22,9 @@ GitHub Projects v2 is **not** used: the rule is milestones, and the projects alr
 | Operation | How |
 |---|---|
 | The container | the repository (`project-infra-setup` creates it); `tracker.project = {"repo": "owner/name"}`, `url` its address |
-| Push issues | `github_sync.py <root> --repo O/N --milestone "<Sprint N — goal>"` — creates the open tasks missing from `issue_map`, with `area:`, `tipo:`, `estimate: N`, `priority: Pn`; reuses the repo's labels (case-insensitive); records each issue in `meta.json#tracker.issue_map` as soon as it exists. `--dry-run` reads only |
+| Push issues | `github_sync.py <root> --repo O/N` (`--milestone` only to drop that run's new issues into the current sprint) — creates the open tasks missing from `issue_map`, with `area:`, `tipo:`, `estimate: N`, `priority: Pn`; reuses the repo's labels (case-insensitive); records each issue in `meta.json#tracker.issue_map` as soon as it exists. `--dry-run` reads only |
 | Bodies | one file per task under `.workflow/issue-bodies/<slug>.md`, applied with `gh issue edit <n> --body-file <file>`, 1 s apart |
-| Move into a sprint | `gh issue edit <n> --milestone "<title>"` |
+| Move into a sprint | `gh issue edit <n> --milestone "<title>"`, sprint by sprint from `.workflow/sprints.md` |
 | States | open / closed, plus the labels `status: in progress`, `status: in review` and `blocked` (`scrum.states`) |
 | Estimate | the label `estimate: N` (Fibonacci) |
 | Comment | `gh issue comment <n> --body-file <file>` |

@@ -122,6 +122,12 @@ class FakeJira(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(self.seen, [])
 
+    def test_points_must_be_a_finite_non_negative_number(self) -> None:
+        os.environ.update({"JIRA_EMAIL": "me@example.com", "JIRA_API_TOKEN": TOKEN})
+        for bad in ("nan", "inf", "-1"):
+            self.assertEqual(self.run_cli("--key", "ABC-1", "--points", bad)[0], 2, bad)
+        self.assertEqual(self.seen, [])
+
     def test_missing_board_in_meta_is_explained(self) -> None:
         meta_io.write_json(self.root / ".workflow/meta.json", {"tracker": {"provider": "jira", "project": {"site": self.site}}})
         os.environ.update({"JIRA_EMAIL": "me@example.com", "JIRA_API_TOKEN": TOKEN})
