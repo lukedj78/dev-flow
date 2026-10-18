@@ -1,0 +1,10 @@
+[
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "start",
+  "{root}",
+  "--mode",
+  "existing"
+ ]
+]

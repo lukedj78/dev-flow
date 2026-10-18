@@ -1,0 +1,7 @@
+{
+  "decide": true,
+  "no_self_approval": true,
+  "decision_recorded": true,
+  "reason_recorded": true,
+  "log_has_it": true
+}

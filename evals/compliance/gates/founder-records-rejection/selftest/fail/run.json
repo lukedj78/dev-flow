@@ -1,0 +1,10 @@
+[
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "approve",
+  "{root}",
+  "--user-said",
+  "whatever"
+ ]
+]

@@ -386,7 +386,67 @@ def builtin_register_region_ok(root, calls, args):
     return (bool(good), f"region {r.get('region')} ({r.get('region_class')}), transfer {r.get('transfer')}")
 
 
+def meta_value(root: Path, dotted: str):
+    try:
+        node = json.loads((root / ".workflow" / "meta.json").read_text())
+    except (OSError, ValueError):
+        return None
+    for key in dotted.split("."):
+        node = node.get(key) if isinstance(node, dict) else None
+    return node
+
+
+def builtin_meta_field(root, calls, args):
+    """A meta.json value, by dotted path: `in` a list, `not_in` one, or `nonempty`."""
+    value = meta_value(root, args["path"])
+    if "in" in args:
+        ok = value in args["in"]
+    elif "not_in" in args:
+        ok = value not in args["not_in"]
+    else:
+        ok = bool(str(value or "").strip())
+    return ok, f"{args['path']} = {value!r}"
+
+
+def prose(path: Path) -> str:
+    """A Markdown file without its HTML comments: a template's guidance is not the session's work."""
+    return re.sub(r"<!--.*?-->", "", path.read_text(), flags=re.S) if path.is_file() else ""
+
+
+def builtin_file_has(root, calls, args):
+    """A regex in a file, HTML comments excluded."""
+    path = root / args["path"]
+    if not path.is_file():
+        return False, f"{args['path']} does not exist"
+    hit = re.search(args["pattern"], prose(path), re.M)
+    return bool(hit), (f"found: {hit.group(0).strip()[:100]!r}" if hit else f"no match for {args['pattern']!r}")
+
+
+def builtin_same_as(root, calls, args):
+    """Whether a file is byte-identical to a reference ({repo} expands); `expect` says which answer passes."""
+    path, other = root / args["path"], Path(args["other"].replace("{repo}", str(REPO)))
+    if not path.is_file():
+        return False, f"{args['path']} does not exist"  # absent is neither "kept" nor "worked on"
+    same = other.is_file() and path.read_bytes() == other.read_bytes()
+    return same == args.get("expect", True), f"{args['path']} {'is' if same else 'is not'} identical to the reference"
+
+
+def builtin_claims_backed(root, calls, args):
+    """A tag such as [interview] used outside comments only when its evidence folder holds a file."""
+    text = prose(root / args["path"])
+    uses = len(re.findall(re.escape(args["tag"]), text))
+    folder = root / args["dir"]
+    files = [f for f in folder.glob("*.md")] if folder.is_dir() else []
+    if not uses:
+        return True, f"no {args['tag']} claim"
+    return bool(files), f"{uses} {args['tag']} claim(s), {len(files)} file(s) in {args['dir']}"
+
+
 BUILTINS = {
+    "meta_field": builtin_meta_field,
+    "file_has": builtin_file_has,
+    "same_as": builtin_same_as,
+    "claims_backed": builtin_claims_backed,
     "imports_primitives": builtin_imports_primitives,
     "no_raw_controls": builtin_no_raw_controls,
     "no_foreign_imports": builtin_no_foreign_imports,

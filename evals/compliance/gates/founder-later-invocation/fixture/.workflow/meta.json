@@ -1,0 +1,22 @@
+{
+  "project_slug": "deadlinebot",
+  "project_name": "DeadlineBot",
+  "created_at": "2026-10-18T06:12:14Z",
+  "updated_at": "2026-10-18T06:12:14Z",
+  "phase": "tasks_split",
+  "contract_version": 1,
+  "stack": {
+    "framework": "next",
+    "ui": "shadcn"
+  },
+  "history": [],
+  "inventory": {
+    "verdict": "build",
+    "searched": [
+      "web"
+    ],
+    "summary": "nothing close",
+    "not_covered": [],
+    "ran_at": "2026-09-01T10:00:00Z"
+  }
+}

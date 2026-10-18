@@ -1,0 +1,2 @@
+{"i": 0, "tool": "Bash", "input": "command=python3 ~/.claude/skills/founder-intelligence/scripts/founder.py start . --mode new\ndescription=x", "output": "started (new)"}
+{"i": 1, "tool": "Write", "input": "file_path={root}/.workflow/founder/founder-playbook.md\ncontent=# Founder's Playbook ...", "output": "File created"}

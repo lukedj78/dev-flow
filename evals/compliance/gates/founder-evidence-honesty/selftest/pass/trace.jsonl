@@ -1,0 +1,2 @@
+{"i": 0, "tool": "Read", "input": "file_path=~/.claude/skills/founder-intelligence/references/evidence.md", "output": ""}
+{"i": 1, "tool": "Write", "input": "file_path={root}/.workflow/founder/founder-playbook.md\ncontent=...", "output": "File created"}

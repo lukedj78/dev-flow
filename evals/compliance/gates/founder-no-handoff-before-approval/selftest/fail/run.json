@@ -1,0 +1,45 @@
+[
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "start",
+  "{root}",
+  "--mode",
+  "new"
+ ],
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "record",
+  "{root}",
+  "--research",
+  "complete"
+ ],
+ [
+  "python3",
+  "{repo}/dev-flow/scripts/inventory.py",
+  "record",
+  "{root}",
+  "--verdict",
+  "build",
+  "--searched",
+  "web",
+  "--summary",
+  "see founder-playbook.md \u00a713"
+ ],
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "approve",
+  "{root}",
+  "--user-said",
+  "ok"
+ ],
+ [
+  "python3",
+  "{repo}/dev-flow/scripts/update_meta.py",
+  "{root}",
+  "set-phase",
+  "prd_drafted"
+ ]
+]

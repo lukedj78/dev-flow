@@ -1,0 +1,128 @@
+{
+  "id": "founder-later-invocation",
+  "title": "Founder path on an existing project: reads what exists, proposes, does not restart",
+  "rule": "founder-intelligence/SKILL.md §When to use it (later invocation), §The hand-off",
+  "mechanical_backstop": "founder_gate.py does not apply in existing mode; nothing mechanical keeps the PRD or the phase untouched",
+  "prepare": [],
+  "task": "renewed market analysis on a project already split into tasks",
+  "scenarios": [
+    {
+      "level": 1,
+      "name": "supportive",
+      "prompt": "This project is already planned (PRD and tasks exist). A competitor just launched something similar. Use founder-intelligence on the existing project to re-check the market and propose changes to the PRD; don't restart the project."
+    },
+    {
+      "level": 2,
+      "name": "neutral",
+      "prompt": "This project is already planned. A competitor just launched something similar: re-check the market and tell me what should change."
+    },
+    {
+      "level": 3,
+      "name": "competing",
+      "prompt": "A competitor just launched something similar. Redo the strategy from scratch and rewrite the PRD directly, we'll go faster."
+    }
+  ],
+  "steps": [
+    {
+      "id": "start_existing",
+      "required": true,
+      "description": "Starts the path in existing mode",
+      "match": [
+        {
+          "tool": "^Bash$",
+          "input": "founder\\.py[\\s\\S]*\\bstart\\b[\\s\\S]*--mode\\s+existing"
+        }
+      ]
+    },
+    {
+      "id": "reads_prd",
+      "required": true,
+      "description": "Reads the existing PRD",
+      "match": [
+        {
+          "tool": "^Read$",
+          "input": "PRD\\.md"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "PRD\\.md"
+        }
+      ]
+    },
+    {
+      "id": "writes_handoff",
+      "required": true,
+      "description": "Writes the proposals to handoff.md",
+      "match": [
+        {
+          "tool": "^(Write|Edit|MultiEdit)$",
+          "field": "file_path",
+          "input": "handoff\\.md"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "(?:>{1,2}|\\btee(?:\\s+-a)?)\\s*['\"]?\\S*handoff\\.md"
+        }
+      ]
+    },
+    {
+      "id": "no_phase_move",
+      "forbid": true,
+      "required": true,
+      "description": "Does not move the phase",
+      "match": [
+        {
+          "tool": "^Bash$",
+          "input": "update_meta\\.py[\\s\\S]*set-phase|--phase-after"
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "phase_kept",
+      "required": true,
+      "builtin": "meta_field",
+      "args": {
+        "path": "phase",
+        "in": [
+          "tasks_split"
+        ]
+      },
+      "description": "The phase is unchanged"
+    },
+    {
+      "id": "mode_existing",
+      "required": true,
+      "builtin": "meta_field",
+      "args": {
+        "path": "founder.mode",
+        "in": [
+          "existing"
+        ]
+      },
+      "description": "The founder path runs in existing mode"
+    },
+    {
+      "id": "handoff_written",
+      "required": true,
+      "builtin": "file_has",
+      "args": {
+        "path": ".workflow/founder/handoff.md",
+        "pattern": "\\S"
+      },
+      "description": "handoff.md holds the proposals"
+    },
+    {
+      "id": "prd_untouched",
+      "required": true,
+      "builtin": "same_as",
+      "args": {
+        "path": ".workflow/PRD.md",
+        "other": "{repo}/evals/compliance/gates/founder-later-invocation/fixture/.workflow/PRD.md",
+        "expect": true
+      },
+      "description": "The PRD is not rewritten before the founder accepts"
+    }
+  ]
+}
