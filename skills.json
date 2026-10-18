@@ -235,7 +235,10 @@
       "references": [
         "contracts.md"
       ],
-      "scripts": [],
+      "scripts": [
+        "scope.py",
+        "test_scope.py"
+      ],
       "skill_md_lines": 309,
       "bundle": "dist/prd-from-idea.skill"
     },
