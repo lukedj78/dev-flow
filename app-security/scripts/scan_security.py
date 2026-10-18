@@ -36,6 +36,13 @@ PUBLIC_BY_NATURE = ("ANON_KEY", "PUBLISHABLE", "POSTHOG_KEY", "SITE_KEY", "_URL"
 SECRET_WORDS = re.compile(r"SECRET|PRIVATE|TOKEN|PASSWORD")
 SKIP = {"node_modules", "dist", "build", "out", "coverage", "ios", "android"}   # plus every hidden directory (.next, .eve, .output…)
 CODE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs")
+# an owner filter: a column naming the user or the tenant, or the id compared with the caller's own id
+SCOPE_WORDS = r"(?:user|tenant|owner|org|organization|workspace|team|account|member)"
+SCOPE_COLUMN = rf"eq\(\s*\w+\.\w*{SCOPE_WORDS}(?:Id|_id)\b"
+SCOPE_VALUE = rf"(?:^|\.){SCOPE_WORDS}_?id$|session\.user\.id$"
+# what makes a module dangerous in a client bundle: a server-side env var, or a database client
+HOLDS_SECRET = (r"process\.env\.(?!NEXT_PUBLIC_)\w|\b(?:drizzle|neon|postgres|createClient)\s*\(|new\s+Pool\s*\(|"
+                r"from\s+['\"](?:pg|postgres|@neondatabase/serverless|drizzle-orm/(?:neon-http|neon-serverless|postgres-js|node-postgres|vercel-postgres))['\"]")
 HEURISTIC = " (heuristic — read the code before reporting)"
 
 
@@ -107,6 +114,41 @@ def exported_functions(text: str) -> list[tuple[str, str]]:
     return out
 
 
+def top_level_functions(text: str, exported_only: bool = False) -> list[tuple[str, str]]:
+    """(name, body) for each top-level function or `const name = …`, exported or not."""
+    pre = r"export\s+(?:default\s+)?" if exported_only else r"(?:export\s+(?:default\s+)?)?"
+    starts = [(m.start(), m.group(1) or m.group(2)) for m in re.finditer(
+        rf"^{pre}(?:async\s+)?function\s+(\w+)|^{pre}const\s+(\w+)\s*=", text, re.M)]
+    return [(name, text[pos:(starts[i + 1][0] if i + 1 < len(starts) else len(text))]) for i, (pos, name) in enumerate(starts)]
+
+
+HTTP_METHODS = {"GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"}
+
+
+def helper_candidates(functions: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Only plain functions can be helpers: not a component (PascalCase) and not a route handler."""
+    return [(n, b) for n, b in functions if n not in HTTP_METHODS and not n[:1].isupper()]
+
+
+def plain_module(path: Path, text: str) -> bool:
+    """Not a Server Action file, a client component or a route — a call into one of those is not a session check."""
+    return path.stem != "route" and not re.search(r"^\s*['\"]use (?:server|client)['\"]", text, re.M)
+
+
+def session_helpers(functions: list[tuple[str, str]], calls: list[str]) -> list[str]:
+    """Functions whose body calls a session helper become session helpers too, until nothing changes —
+    `run(input, schema, (who, p) => …)` that calls `reviewer()` that calls `getSession()` is a session check."""
+    known = list(calls)
+    changed = True
+    while changed:
+        changed = False
+        for name, body in functions:
+            if name not in known and has_session(body, known):
+                known.append(name)
+                changed = True
+    return known
+
+
 def has_session(body: str, calls: list[str]) -> bool:
     """A call to a session helper in code — a comment or a variable named like one does not count."""
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", body, flags=re.S)
@@ -126,12 +168,17 @@ def code_findings(root: Path) -> list[Finding]:
     out: list[Finding] = []
 
     if nextjs:
+        # an exported helper that takes the session can be imported anywhere; a local one only in its file
+        calls = session_helpers(helper_candidates([f for p, t in texts.items() if plain_module(p, t)
+                                                   for f in top_level_functions(t, exported_only=True)]), calls)
         unauth, rows = [], []
         for p, text in texts.items():
             if not re.search(r"^\s*['\"]use server['\"]", text, re.M):
                 continue
+            local = session_helpers(helper_candidates(
+                [f for f in top_level_functions(text) if not f[1].lstrip().startswith("export")]), calls)
             for name, body in exported_functions(text):
-                if not has_session(body, calls):
+                if not has_session(body, local):
                     unauth.append(f"{rel(root, p)}: {name}")
                 if re.search(r"return\s+(?:await\s+)?db\.[\s\S]{0,200}?\.returning\(\)", body):
                     rows.append(f"{rel(root, p)}: {name}")
@@ -141,8 +188,10 @@ def code_findings(root: Path) -> list[Finding]:
         for p, text in texts.items():
             if p.name not in ("route.ts", "route.js", "route.tsx"):
                 continue
+            local = session_helpers(helper_candidates(
+                [f for f in top_level_functions(text) if not f[1].lstrip().startswith("export")]), calls)
             for name, body in exported_functions(text):
-                if name in ("POST", "PUT", "PATCH", "DELETE") and not has_session(body, calls):
+                if name in ("POST", "PUT", "PATCH", "DELETE") and not has_session(body, local):
                     routes.append(f"{rel(root, p)}: {name}")
         out.append(finding("route-handler-unauthenticated", routes, "every mutating route handler checks the session",
                            "{n} mutating route handler(s) with no session call", "module-add auth"))
@@ -153,6 +202,7 @@ def code_findings(root: Path) -> list[Finding]:
 
     unscoped = []
     for p, text in texts.items():
+        bounds = [m.start() for m in re.finditer(r"^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s+\w+|const\s+\w+\s*=)", text, re.M)]
         for m in re.finditer(r"\.where\(", text):
             call = text[m.end():m.end() + 400]
             depth, i = 1, 0
@@ -160,12 +210,15 @@ def code_findings(root: Path) -> list[Finding]:
                 depth += {"(": 1, ")": -1}.get(call[i], 0)
                 i += 1
             clause = call[:i]
-            if re.search(r"eq\(\s*\w+\.id\s*,\s*\w+", clause) and not re.search(
-                    r"eq\(\s*\w+\.(?:userId|user_id|tenantId|tenant_id|ownerId|owner_id|orgId|org_id)\b", clause):
+            by_id = re.search(r"eq\(\s*\w+\.id\s*,\s*([\w.]+)", clause)
+            # the owner may be checked anywhere in the enclosing function: a join, or a lookup before the write
+            start = max([b for b in bounds if b <= m.start()], default=0)
+            end = min([b for b in bounds if b > m.start()], default=len(text))
+            if by_id and not re.search(SCOPE_COLUMN, text[start:end], re.I) and not re.search(SCOPE_VALUE, by_id.group(1), re.I):
                 line = text[:m.start()].count("\n") + 1
                 unscoped.append(f"{rel(root, p)}:{line}")
     out.append(finding("query-by-id-unscoped", unscoped, "every query by id also filters on its owner",
-                       "{n} query(ies) by id with no user/tenant filter in the same where()", "the code owner"))
+                       "{n} query(ies) by id with no user or tenant filter anywhere in the same function", "the code owner"))
     out.append(finding("action-returns-row", rows, "no Server Action returns a raw row" if nextjs else "not applicable — no Next.js app directory",
                        "{n} Server Action(s) return a `.returning()` row to the client", "the code owner"))
 
@@ -186,7 +239,10 @@ def code_findings(root: Path) -> list[Finding]:
 
     missing = [rel(root, p) for p, text in texts.items()
                if re.search(r"(^|/)lib/(server|db)/", rel(root, p)) and p.suffix in (".ts", ".js")
-               and not p.name.startswith("test") and "server-only" not in text]
+               and not re.search(r"(^test|\.(?:test|spec)\.)", p.name) and "__tests__" not in p.parts
+               and "server-only" not in text
+               and not re.search(r"^\s*['\"]use server['\"]", text, re.M)   # Next keeps an action module on the server
+               and re.search(HOLDS_SECRET, text)]
     out.append(finding("server-only-missing", missing, "server modules import \"server-only\"",
                        "{n} server module(s) without `import \"server-only\"`", "the code owner"))
 

@@ -46,6 +46,19 @@ What to look at:
 - multi-tenant apps: the filter is the tenant (`getCurrentTenantId()`), and a role check comes after it;
 - a helper that does the check is fine, if it really receives the user and filters by them. Follow it.
 
+Two cases the scan flags that need a different reading:
+
+- **Every export of a `"use server"` file is an endpoint, helpers included.** On annotix, `referralCodeFor(organizationId)`
+  and `ingestAsset(db, organizationId, …)` were internal helpers that happened to live in an action file: anyone
+  could POST to the first and get any organization's referral code. An argument a browser cannot serialize (a
+  `db` handle) makes the second unexploitable, not private. The fix is to move helpers to a module without the
+  directive, not to add a session check to a function no page should call.
+- **Machine routes authenticate without a session.** A Stripe or wearable webhook (a signature), a cron (a
+  bearer secret compared with `timingSafeEqual`), a signed upload URL (an HMAC with an expiry), the auth library's
+  own `[...all]` handler. The scan cannot tell these from an open route. Read each one and confirm the
+  alternative is there and checked **before** any work is done; a webhook that parses the body before verifying
+  the signature is A01 as well.
+
 The pattern that makes this hard to get wrong is a **Data Access Layer**: every query lives in
 `lib/server/<domain>.ts`, starts with `import "server-only"`, gets the user from the session itself and
 never takes a `userId` argument from the caller. Actions call the DAL and nothing else.

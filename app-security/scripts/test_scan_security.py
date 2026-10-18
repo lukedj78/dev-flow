@@ -71,6 +71,34 @@ class ServerActions(Fixture):
         self.write(".workflow/meta.json", json.dumps({"stack_config": {"security_session_calls": ["requireOwner"]}}))
         self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
 
+    def test_a_local_helper_that_takes_the_session_counts(self) -> None:
+        # found on fit-coach: run(input, schema, (who, p) => ...) takes the session; reviewer() calls getSession
+        self.next_app()
+        self.write("lib/server/media.ts", '''"use server"
+async function reviewer() {
+  const s = await getSession()
+  return s?.user.id
+}
+async function run(input: unknown, act: (who: string) => Promise<void>) {
+  const who = await reviewer()
+  if (!who) return
+  await act(who)
+}
+export async function approveMediaAction(input: unknown) {
+  return run(input, (who) => approve(db, who))
+}
+''')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
+        self.write("lib/server/media.ts", '''"use server"
+async function run(input: unknown, act: () => Promise<void>) {
+  await act()
+}
+export async function approveMediaAction(input: unknown) {
+  return run(input, () => approve(db))
+}
+''')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.FOUND)
+
     def test_action_returning_a_row_is_found(self) -> None:
         self.next_app()
         self.write("app/actions.ts", '"use server"\nexport async function create(v: V) {\n  const u = await getCurrentUserId()\n  return await db.insert(x).values(v).returning()\n}\n')
@@ -82,6 +110,18 @@ class RouteHandlers(Fixture):
         self.next_app()
         self.write("app/api/items/route.ts", "export async function POST(req: Request) {\n  return Response.json(await req.json())\n}\n")
         self.assertEqual(self.find("route-handler-unauthenticated").status, ss.FOUND)
+
+    def test_an_action_or_component_is_not_a_session_helper(self) -> None:
+        # found on fit-coach: every component that called an action, and every POST that called apiUser,
+        # became a "session helper" — and an unrelated cron POST then passed as authenticated
+        self.next_app()
+        self.write("app/api/v1/route.ts", "export async function POST(r: Request) {\n  const u = await getSession()\n  return Response.json(u)\n}\n")
+        self.write("app/actions.ts", '"use server"\nexport async function saveAction(v: V) {\n  await getCurrentUserId()\n}\n')
+        self.write("app/form.tsx", '"use client"\nexport function runReminders() {\n  return saveAction(1)\n}\n')
+        self.write("app/api/cron/route.ts", "export async function POST(r: Request) {\n  return Response.json(await runReminders())\n}\n")
+        f = self.find("route-handler-unauthenticated")
+        self.assertEqual(f.status, ss.FOUND)
+        self.assertTrue(any("cron" in w for w in f.where), f.where)
 
     def test_route_get_is_not_judged(self) -> None:
         self.next_app()
@@ -96,6 +136,35 @@ class Queries(Fixture):
         self.assertEqual(self.find("query-by-id-unscoped").status, ss.FOUND)
         self.write("lib/server/invoices.ts", "export async function get(id: string, userId: string) {\n  return db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)))\n}\n")
         self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+
+    def test_a_workspace_filter_or_the_user_itself_is_scoped(self) -> None:
+        # found on fit-coach: eq(clients.workspaceId, …) is a tenant filter; eq(user.id, userId) is the user
+        self.next_app()
+        self.write("lib/clients/a.ts", "export const a = (i: I) => db.select().from(clients).where(and(eq(clients.id, i.clientId), eq(clients.workspaceId, i.workspaceId)))\n"
+                   "export const b = (userId: string) => db.select().from(user).where(eq(user.id, userId))\n"
+                   "export const c = (s: S) => db.select().from(user).where(eq(user.id, session.user.id))\n")
+        self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+
+    def test_an_owner_check_elsewhere_in_the_function_counts(self) -> None:
+        # found on fit-coach: the owner is checked in a join, or verified earlier in the same function
+        self.next_app()
+        self.write("lib/w.ts", '''export async function log(db: D, link: L, input: I) {
+  const [day] = await db.select().from(planDays)
+    .innerJoin(planAssignments, and(eq(planAssignments.planId, planDays.planId), eq(planAssignments.workspaceId, link.workspaceId)))
+    .where(eq(planDays.id, input.dayId))
+}
+export async function rename(db: D, input: I) {
+  const [p] = await db.select().from(plans).where(and(eq(plans.id, input.planId), eq(plans.workspaceId, input.workspaceId)))
+  if (!p) throw new Error("not_found")
+  await db.update(plans).set({ name: input.name }).where(eq(plans.id, input.planId))
+}
+''')
+        self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+        self.write("lib/sex.ts", "export async function getClientSex(db: D, clientId: string) {\n"
+                   "  const [c] = await db.select({ sex: clients.sex }).from(clients).where(eq(clients.id, clientId))\n}\n")
+        f = self.find("query-by-id-unscoped")
+        self.assertEqual(f.status, ss.FOUND)
+        self.assertEqual([w.split(":")[0] for w in f.where], ["lib/sex.ts"])
 
     def test_raw_sql(self) -> None:
         self.next_app()
@@ -125,10 +194,21 @@ class Environment(Fixture):
 
     def test_server_only_missing(self) -> None:
         self.next_app()
-        self.write("lib/db/index.ts", "export const db = createDb()\n")
+        self.write("lib/db/index.ts", "export const db = drizzle(neon(process.env.DATABASE_URL!))\n")
         self.assertEqual(self.find("server-only-missing").status, ss.FOUND)
-        self.write("lib/db/index.ts", 'import "server-only"\nexport const db = createDb()\n')
+        self.write("lib/db/index.ts", 'import "server-only"\nexport const db = drizzle(neon(process.env.DATABASE_URL!))\n')
         self.assertEqual(self.find("server-only-missing").status, ss.OK)
+
+    def test_server_only_is_asked_only_of_modules_that_hold_a_secret_or_the_database(self) -> None:
+        # found on fit-coach: 34 of 35 were Server Action files (already server-only), Drizzle schemas or types
+        self.next_app()
+        self.write("lib/server/notes.ts", '"use server"\nexport async function save() { await db.insert(notes) }\n')
+        self.write("lib/db/notes-schema.ts", "import { pgTable, text } from \"drizzle-orm/pg-core\"\nexport const notes = pgTable(\"notes\", { id: text(\"id\") })\n")
+        self.write("lib/db/__tests__/notes.test.ts", "const url = process.env.TEST_DATABASE_URL\n")
+        self.write("lib/server/result.ts", "export type Result<T> = { ok: true; data: T } | { ok: false }\n")
+        self.assertEqual(self.find("server-only-missing").status, ss.OK)
+        self.write("lib/server/mail.ts", "export const send = (to: string) => fetch(URL, { headers: { key: process.env.RESEND_API_KEY! } })\n")
+        self.assertEqual(self.find("server-only-missing").where, ["lib/server/mail.ts"])
 
     def test_security_headers(self) -> None:
         self.next_app()
