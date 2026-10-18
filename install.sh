@@ -157,6 +157,7 @@ SKILLS=(
   linear-scrum
   compliance-audit
   app-security
+  app-verification
   spec-review
   product-to-agent-skill
   registry-intake

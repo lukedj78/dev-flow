@@ -1,10 +1,11 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 54,
+  "skill_count": 55,
   "families": {
     "core": [
       "app-security",
+      "app-verification",
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
@@ -88,6 +89,25 @@
       ],
       "skill_md_lines": 141,
       "bundle": "dist/app-security.skill"
+    },
+    {
+      "name": "app-verification",
+      "family": "core",
+      "role": "operative",
+      "description": "Give a project a manual for proving its features on the real app, written once and kept true: `.claude/skills/verify-<app>/` with how to launch it until it is usable, a read-only doctor check, how to drive it with the repo's real selectors, what counts as proof and where it goes, how to stop only wh...",
+      "skill_file": "app-verification/SKILL.md",
+      "references": [
+        "contracts.md",
+        "maintain.md",
+        "manual.md",
+        "stack-recipes.md"
+      ],
+      "scripts": [
+        "test_verify_map.py",
+        "verify_map.py"
+      ],
+      "skill_md_lines": 116,
+      "bundle": "dist/app-verification.skill"
     },
     {
       "name": "compliance-audit",

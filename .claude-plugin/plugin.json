@@ -2,7 +2,7 @@
   "name": "dev-flow",
   "displayName": "dev-flow",
   "version": "1.0.0",
-  "description": "An end-to-end product-development skill suite: one filesystem contract (.workflow/meta.json) and 54 skills that take an idea to production \u2014 web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, plus five pre-deploy gates: GDPR/AI-Act, Vercel cost, UI quality, launch readiness and app security.",
+  "description": "An end-to-end product-development skill suite: one filesystem contract (.workflow/meta.json) and 55 skills that take an idea to production \u2014 web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, plus five pre-deploy gates: GDPR/AI-Act, Vercel cost, UI quality, launch readiness and app security.",
   "author": {
     "name": "lucadigerlando",
     "url": "https://github.com/lukedj78"
@@ -25,6 +25,7 @@
   ],
   "skills": [
     "./app-security",
+    "./app-verification",
     "./compliance-audit",
     "./dev-flow",
     "./founder-intelligence",

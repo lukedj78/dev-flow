@@ -258,6 +258,23 @@ Research and decision are two axes, because a Playbook can be approved with hypo
 
 **Applies only when present.** A project without the field is on the direct path and nothing here concerns it. With `mode: "new"`, **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `prd_drafted` unless the decision is `approved` or `approved_experiment` with the founder's quote and a Playbook whose sha256 still matches, or `bypassed` with a reason** (`dev-flow/scripts/founder_gate.py`). A Playbook edited after approval needs a new `founder.py approve`. With `mode: "existing"` (invoked on a project already past the PRD) the gate does not apply; the result is `handoff.md`, applied with `prd-from-idea` / `prd-to-tasks` once the founder agrees. Approval is not product-market fit: open hypotheses stay listed.
 
+### `verification` field (owned by `app-verification`)
+
+A project's manual for proving its features on the real app — `.claude/skills/verify-<app>/`, with launch, doctor, drive, evidence, cleanup and isolation, and one feature file per PRD story seeded from the wireframe inventory (`docs/superpowers/specs/2026-10-18-app-verification-design.md`). Written by `app-verification` after it has proven the manual live once:
+
+```json
+"verification": {
+  "skill": ".claude/skills/verify-web",
+  "features": 12,
+  "source": "wireframes | routes",
+  "proven_at": "<ISO-8601 UTC>", "proven_feature": "US-1",
+  "evidence": ".verification/evidence/<timestamp>/",
+  "maintained_at": "<ISO-8601 UTC>" | null, "maintain_outcome": "clean | changed | blocked" | null
+}
+```
+
+In a monorepo `skill` is a list, one manual per app. `source` says whether the map came from the screen inventory or from the routes. Never bumps `phase`; always a `history` entry. The manual and its evidence stay in the project's working tree — `.verification/` is git-ignored, and nothing is committed on the user's behalf. `show_state.py` notes a project past its first screen without a manual, and a manual older than the last material change.
+
 ### `security` field (owned by `app-security`)
 
 The fifth pre-deploy gate — **can someone use this app to read or change what is not theirs?** Written by `app-security` after each run (`docs/superpowers/specs/2026-10-18-app-security-design.md`):
