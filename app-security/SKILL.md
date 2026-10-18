@@ -36,7 +36,7 @@ sends a POST.
    ```
 
    It finds the app at the root and in `apps/*` and `packages/*` of a monorepo. Each check reports
-   **found**, **ok**, or **not checked**. A missing tool, no network, a timeout or output that does not
+   **found**, **ok**, **not checked**, or **not applicable** (the Next.js checks on an Expo app). A missing tool, no network, a timeout or output that does not
    parse is *not checked*, never ok, and the report never calls a project clean. A secret found in git
    history comes first: it must be **rotated**, because deleting the file leaves it in every clone.
 

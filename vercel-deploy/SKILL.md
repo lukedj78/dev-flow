@@ -71,7 +71,7 @@ Never `vercel link` from this skill. Re-linking silently repoints the directory 
 
 ### Step 2 — Confirm the five gates ran (propose, never block)
 
-Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf), `meta.json#shadscan` (UI quality + a11y) `meta.json#launch_audit` (commercial readiness: metadata, legal and identity pages, a reachable CTA) and `meta.json#security` (can the code be attacked: dependencies, secrets, authorization).
+Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf), `meta.json#shadscan` (UI quality + a11y), `meta.json#launch_audit` (commercial readiness: metadata, legal and identity pages, a reachable CTA) and `meta.json#security` (can the code be attacked: dependencies, secrets, authorization).
 
 - Missing → tell the user which gate has never run and offer to run it now.
 - Present but older than the last material change (compare against `history`) → offer a re-run.
@@ -81,7 +81,7 @@ No gate blocks a deploy. Report and let the user decide — that is the existing
 
 #### Also check the Next.js security floor
 
-The five gates read the *code*. None of them reads the *version* — `app-security` points here for it — and since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.
+The five gates read the *code*. `app-security`'s dependency scan sees `next` among the packages, but it reports advisories, not which support line you are on or the floor below — that check is here, and `app-security` points to it. Since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.
 
 ```bash
 pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"

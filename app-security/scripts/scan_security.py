@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -26,7 +27,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-OK, FOUND, NOT_CHECKED = "ok", "found", "not checked"
+OK, FOUND, NOT_CHECKED, NOT_APPLICABLE = "ok", "found", "not checked", "not applicable"
 
 CODE_CHECKS = ("server-action-unauthenticated", "route-handler-unauthenticated", "query-by-id-unscoped",
                "action-returns-row", "public-env-secret", "server-only-missing", "raw-sql",
@@ -64,17 +65,25 @@ def source_roots(root: Path) -> list[Path]:
     return out
 
 
+def walk_sources(base: Path, root: Path, nested: tuple = ()):
+    """(directory, file names) under one source root, pruning skipped directories before entering them —
+    filtering after the walk read all of node_modules first."""
+    for d, dirs, files in os.walk(base):
+        here = Path(d)
+        top = here == base
+        dirs[:] = [x for x in dirs if x not in SKIP_ANYWHERE and not x.startswith(".")
+                   and not (top and x in SKIP_TOP) and here / x not in nested]
+        yield here, files
+
+
 def code_files(root: Path):
     roots = source_roots(root)
     for base in roots:
-        nested = [r for r in roots if base in r.parents]   # each app and package is walked from its own root
-        for p in base.rglob("*"):
-            if not p.is_file() or p.suffix not in CODE_SUFFIXES or any(n in p.parents for n in nested):
-                continue
-            parts = p.relative_to(base).parts[:-1]
-            if (parts and parts[0] in SKIP_TOP) or any(x in SKIP_ANYWHERE or x.startswith(".") for x in parts):
-                continue
-            yield p
+        nested = tuple(r for r in roots if base in r.parents)   # each app and package is walked from its own root
+        for d, files in walk_sources(base, root, nested):
+            for name in files:
+                if Path(name).suffix in CODE_SUFFIXES:
+                    yield d / name
 
 
 def read(p: Path) -> str:
@@ -223,11 +232,21 @@ def session_helpers(functions: list[tuple[str, str]], calls: list[str], trusted:
     return known
 
 
+def strip_comments(code: str) -> str:
+    return re.sub(r"/\*.*?\*/|(?<![:'\"])//[^\n]*", "", code, flags=re.S)
+
+
+def strip_strings(code: str) -> str:
+    """Empty every string literal; a template literal keeps its `${…}` expressions, which are code."""
+    code = re.sub(r"'(?:\\.|[^'\\\n])*'|\"(?:\\.|[^\"\\\n])*\"", "''", code)
+    return re.sub(r"`(?:\\.|\$\{[^}]*\}|[^`\\])*`", lambda m: " ".join(re.findall(r"\$\{([^}]*)\}", m.group(0))), code)
+
+
 def has_session(body: str, calls: list[str], trusted: tuple = DEFAULT_SESSION_CALLS) -> bool:
     """A call to a session helper in code — a comment or a variable named like one does not count. A trusted name
     (the defaults and the project's declared ones) may be a method — `auth.api.getSession(` is better-auth's own
     call; a helper deduced from the project's code must be a bare call — `db.update(` is not a helper `update`."""
-    code = re.sub(r"/\*.*?\*/|//[^\n]*", "", body, flags=re.S)
+    code = strip_strings(strip_comments(body))
     method, bare = r"(?<![\w$])", r"(?<![\w.$])"
     return any(re.search((method if c in trusted else bare) + re.escape(c.rstrip("(")) + r"\s*\(", code) for c in calls)
 
@@ -288,7 +307,7 @@ def code_findings(root: Path) -> list[Finding]:
                            "{n} mutating route handler(s) with no session call", "module-add auth"))
     else:
         for check in ("server-action-unauthenticated", "route-handler-unauthenticated"):
-            out.append(Finding(check, OK, "not applicable — no Next.js app directory"))
+            out.append(Finding(check, NOT_APPLICABLE, "not applicable — no Next.js app directory"))
         rows = []
 
     unscoped = []
@@ -317,8 +336,9 @@ def code_findings(root: Path) -> list[Finding]:
     out.append(finding("query-by-id-unscoped", unscoped, "every query by id also filters on its owner",
                        "{n} query(ies) by id with no owner filter on that table, and no id taken from the session",
                        "the code owner"))
-    out.append(finding("action-returns-row", rows, "no Server Action returns a raw row" if nextjs else "not applicable — no Next.js app directory",
-                       "{n} Server Action(s) return a `.returning()` row to the client", "the code owner"))
+    out.append(finding("action-returns-row", rows, "no Server Action returns a raw row",
+                       "{n} Server Action(s) return a `.returning()` row to the client", "the code owner") if nextjs
+               else Finding("action-returns-row", NOT_APPLICABLE, "not applicable — no Next.js app directory"))
 
     leaked = []
     for base in source_roots(root):
@@ -349,15 +369,16 @@ def code_findings(root: Path) -> list[Finding]:
     out.append(finding("raw-sql", raw, "no SQL built from strings", "{n} file(s) build SQL from strings", "the code owner"))
 
     if nextjs:
-        configs = [p for base in source_roots(root) for p in base.glob("next.config.*")]
-        everywhere = "".join(texts.values()) + "".join(read(p) for p in configs)
-        headers = re.search(r"Content-Security-Policy", everywhere, re.I) is not None
+        # only where a header can be set — next.config headers(), the proxy (ex middleware) — and only in code
+        places = [p for base in source_roots(root) for pat in ("next.config.*", "proxy.*", "middleware.*", "src/proxy.*", "src/middleware.*")
+                  for p in base.glob(pat) if p.suffix in CODE_SUFFIXES]
+        headers = any(re.search(r"['\"`]Content-Security-Policy['\"`]", strip_comments(read(p)), re.I) for p in places)
         out.append(Finding("security-headers-missing", OK if headers else FOUND,
                            "a Content-Security-Policy is set" if headers
                            else "no Content-Security-Policy header found (next.config headers() or the proxy)" + HEURISTIC,
                            [], None if headers else "vercel-deploy"))
     else:
-        out.append(Finding("security-headers-missing", OK, "not applicable — no Next.js app directory"))
+        out.append(Finding("security-headers-missing", NOT_APPLICABLE, "not applicable — no Next.js app directory"))
     return out
 
 
@@ -392,6 +413,8 @@ def dependency_finding(root: Path, run, which) -> Finding:
             return Finding("dependencies", FOUND if hits else OK,
                            f"OSV-Scanner: {len(hits)} vulnerable package(s)" if hits else "OSV-Scanner: no known vulnerability",
                            hits[:20], "the user — upgrade, or record why not" if hits else None)
+        if r and r.returncode == 128:
+            return Finding("dependencies", NOT_CHECKED, "OSV-Scanner found no lockfile to read (exit 128) — install the dependencies first")
         return Finding("dependencies", NOT_CHECKED, f"OSV-Scanner did not answer (exit {r.returncode if r else 'none'})")
     pnpm = (root / "pnpm-lock.yaml").is_file() and which("pnpm")
     tool = ["pnpm", "audit", "--json", "--prod"] if pnpm else (["npm", "audit", "--json", "--omit=dev"] if which("npm") else None)
@@ -458,9 +481,14 @@ def scan(root: Path, run=subprocess.run, which=shutil.which) -> list[Finding]:
     return tool_findings(root, run, which) + code_findings(root)
 
 
+def ordered(findings: list[Finding]) -> list[Finding]:
+    """A secret in git history comes first, in the report and in --json: it must be rotated before anything else."""
+    return sorted(findings, key=lambda f: (f.check != "secrets-history" or f.status != FOUND))
+
+
 def print_report(root: Path, findings: list[Finding]) -> None:
-    order = sorted(findings, key=lambda f: (f.check != "secrets-history" or f.status != FOUND))
-    mark = {OK: "·", FOUND: "!", NOT_CHECKED: "?"}
+    order = ordered(findings)
+    mark = {OK: "·", FOUND: "!", NOT_CHECKED: "?", NOT_APPLICABLE: "–"}
     print(f"app-security signals for {root}\n")
     for f in order:
         print(f"  {mark[f.status]} {f.check}: {f.detail}")
@@ -485,7 +513,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     findings = scan(root)
     if a.json:
-        print(json.dumps([f.__dict__ for f in findings], indent=2))
+        print(json.dumps([f.__dict__ for f in ordered(findings)], indent=2))
         return 0
     print_report(root, findings)
     return 0

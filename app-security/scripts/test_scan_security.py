@@ -233,7 +233,7 @@ class Layouts(Fixture):
         self.write(".env", "EXPO_PUBLIC_SECRET=abc\n")
         found = {f.check: f for f in ss.code_findings(self.root)}
         for check in ("server-action-unauthenticated", "route-handler-unauthenticated", "security-headers-missing"):
-            self.assertEqual(found[check].status, ss.OK)
+            self.assertEqual(found[check].status, ss.NOT_APPLICABLE)
             self.assertIn("not applicable", found[check].detail)
         self.assertEqual(found["public-env-secret"].status, ss.FOUND)
 
@@ -507,3 +507,56 @@ class FinalReview(Fixture):
                    "  const session = await auth.api.getSession({ headers: await headers() })\n}\n")
         self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
         self.assertEqual(self.find("route-handler-unauthenticated").status, ss.OK)
+
+
+class Minors(Fixture):
+    """The six minor findings of the final review, closed rather than deferred."""
+
+    def test_m1_a_helper_named_in_a_string_is_not_a_call(self) -> None:
+        self.next_app()
+        self.write("app/actions.ts", '"use server"\nexport async function wipe() {\n'
+                   '  console.log("TODO: call getSession() here")\n  await db.delete(all)\n}\n')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.FOUND)
+
+    def test_m1_a_call_inside_a_template_expression_still_counts(self) -> None:
+        self.next_app()
+        self.write("app/actions.ts", '"use server"\nexport async function hi() {\n  return `hi ${(await getSession())?.user.name}`\n}\n')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
+
+    def test_m2_json_puts_a_secret_in_history_first(self) -> None:
+        fs = [ss.Finding("dependencies", ss.OK, "x"), ss.Finding("secrets-history", ss.FOUND, "rotate")]
+        self.assertEqual(ss.ordered(fs)[0].check, "secrets-history")
+
+    def test_m3_osv_exit_128_says_no_lockfile(self) -> None:
+        self.next_app()
+        fake = FakeTools({"osv-scanner"}, {"osv-scanner": (128, "")})
+        f = next(x for x in ss.tool_findings(self.root, run=fake.run, which=fake.which) if x.check == "dependencies")
+        self.assertEqual(f.status, ss.NOT_CHECKED)
+        self.assertIn("no lockfile", f.detail)
+
+    def test_m4_a_csp_in_a_comment_or_a_test_is_not_a_header(self) -> None:
+        self.next_app()
+        self.write("app/x.test.ts", "// TODO add Content-Security-Policy\n")
+        self.write("next.config.ts", "// Content-Security-Policy: later\nexport default {}\n")
+        self.assertEqual(self.find("security-headers-missing").status, ss.FOUND)
+        self.write("next.config.ts", "export default { async headers() { return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: \"default-src 'self'\" }] }] } }\n")
+        self.assertEqual(self.find("security-headers-missing").status, ss.OK)
+        (self.root / "next.config.ts").unlink()
+        self.write("proxy.ts", "export function proxy(r) { const h = new Headers(); h.set('Content-Security-Policy', csp) }\n")
+        self.assertEqual(self.find("security-headers-missing").status, ss.OK)
+
+    def test_m6_not_applicable_is_its_own_status(self) -> None:
+        self.write("app.json", '{"expo": {"name": "x"}}')
+        self.write("app/index.tsx", "export default function Home() { return null }\n")
+        self.assertEqual(self.find("security-headers-missing").status, ss.NOT_APPLICABLE)
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.NOT_APPLICABLE)
+
+    # found timing annotix: the walk entered node_modules and filtered afterwards — 90 s to list 439 files
+    def test_m7_skipped_directories_are_never_entered(self) -> None:
+        self.next_app()
+        for d in ("node_modules/react", ".next/server", "build/x", "app/build"):
+            self.write(f"{d}/f.ts", "export const a = 1\n")
+        visited = [d for d, _ in ss.walk_sources(self.root, self.root)]
+        self.assertFalse([d for d in visited if {"node_modules", ".next"} & set(d.parts)], visited)
+        self.assertFalse([d for d in visited if d.relative_to(self.root).parts[:1] == ("build",)], visited)
+        self.assertIn(self.root / "app" / "build", visited)
