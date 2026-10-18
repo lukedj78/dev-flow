@@ -52,7 +52,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 **`next` (the default when `stack.framework` is missing)**
 
 - `prd_drafted` → prd-to-tasks  OR  figma-to-design-md / image-to-design-md / a hand-written DESIGN.md  THEN  wireframe-canvas  THEN  design-md-to-app
-- `tasks_split` → linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app
+- `tasks_split` → scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app
 - `design_extracted` → wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app
 - `scaffolded` → primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)
 - `page_generated` → spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)
@@ -64,7 +64,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 **`expo-rn`**
 
 - `prd_drafted` → prd-to-tasks  OR  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap
-- `tasks_split` → linear-scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap
+- `tasks_split` → scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap
 - `design_extracted` → wireframe-canvas (every screen, desktop + phone, approved)  THEN  rn-bootstrap
 - `scaffolded` → rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)
 - `page_generated` → spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once
@@ -76,7 +76,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 **`monorepo`**
 
 - `prd_drafted` → prd-to-tasks  OR  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap
-- `tasks_split` → linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap
+- `tasks_split` → scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap
 - `design_extracted` → wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap
 - `monorepo_initialized` → monorepo-bootstrap continues (design-md-to-app in apps/web, rn-bootstrap in apps/mobile)
 - `scaffolded` → web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types
@@ -88,7 +88,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 **`agent` (shape ③ — no web app)**
 
 - `prd_drafted` → eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)
-- `tasks_split` → linear-scrum (Setup)  THEN  eve-agent (bootstrap)
+- `tasks_split` → scrum (Setup)  THEN  eve-agent (bootstrap)
 - `scaffolded` → eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy
 - `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes
@@ -180,7 +180,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 | `empty` | **`references/before-you-build.md` first** (does it exist already?), then `prd-from-idea` (capture idea + draft PRD). If the user already has a Figma URL handy, can also detour via `figma-to-design-md` first — but PRD usually comes first for clarity. |
 | `idea_captured` | **`references/before-you-build.md` first if `PROJECT.md` carries no *what exists already* section** — an idea captured by someone else, or imported from a brief, has never been through it; then `prd-from-idea` (expand `PROJECT.md` into a `PRD.md`). |
 | `prd_drafted` | `prd-to-tasks` if user wants explicit task breakdown; OR `figma-to-design-md` if user has a Figma; OR `image-to-design-md` if user has 1+ raster images (PNG/JPG screenshots, mockups, Pinterest pins); OR, for a simple project whose DESIGN.md will be hand-written, write it, then `wireframe-canvas`, then `design-md-to-app`. |
-| `tasks_split` | **Propose `linear-scrum` (Setup)** to take the project into Linear + set up scrum (default, skip only on explicit opt-out — the user may choose **GitHub Issues** instead; `project-infra-setup` creates the repo and the issues; record the opt-out in `history`); then `figma-to-design-md` or `image-to-design-md`, then `wireframe-canvas` before any scaffold. |
+| `tasks_split` | **Propose `scrum` (Setup)** on the tracker chosen at design time (`meta.json#tracker.provider`: Linear, Jira or GitHub — `show_state.py` notes when none was chosen); `project-infra-setup` creates the repo, `scrum` the issues and the sprints; then `figma-to-design-md` or `image-to-design-md`, then `wireframe-canvas` before any scaffold. |
 | `design_extracted` | **`wireframe-canvas`** — the screen inventory, then every screen as a desktop + phone artboard on a Design canvas, reviewed area by area; the user approves it. Then `design-md-to-app` (web) / `rn-bootstrap` (mobile) / `monorepo-bootstrap`. `set-phase` refuses the scaffold before the approval. |
 | *code exists, phase is before `scaffolded` / `page_generated`* | **Realign first** — `show_state.py` prints **PHASE BEHIND THE CODE**: no check has been proposed for anything built so far. Run the retrofit (`design-md-to-app/scripts/setup_design_lint.py <root>`: lint rule + write-time guard + AGENTS.md section), then `update_meta.py set-phase page_generated` (or `module_added`), then `spec-review` on everything built and `shadscan`. Only then resume building. |
 | `scaffolded` | **Check the primitives guard first** (`show_state.py` flags it; `setup_design_lint.py --check`): without it no write is refused and `set-phase` will not move on. Then `screenshot-to-page` if `screenshots/` has unmapped images; **`project-infra-setup` first when a module needs an account that does not exist yet** (Vercel project, Neon, Resend, Blob, DNS); then `module-add` to wire auth/db/etc. (**the inventory step first** when the capability is new — a subscription already paid for may cover it); `forms` for any form-building request; iterate. |
@@ -195,7 +195,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 - **Inventory** — before building anything new, look for what already exists (Step 0, and each new capability).
 - **Wireframes** — every screen drawn and approved before any code, on every project with a UI.
 - **Infrastructure** — `project-infra-setup` before a module needs an account that does not exist yet.
-- **Project management** — every project runs in Linear with agile scrum unless the user opts out.
+- **Project management** — every project runs with agile scrum on the tracker chosen at design time (Linear unless the project or client already uses Jira or GitHub); bugs go through `scrum` Triage, by severity.
 - **Compliance** — `compliance-audit` any time, and as a pre-deploy gate.
 - **Cost/perf** — `vercel-doctor`, the pre-deploy gate for web projects on Vercel.
 - **Review** — `spec-review` on every change that lands, whatever the phase.
@@ -257,7 +257,7 @@ There are **two moments** to opt in:
 
 Once opted in, route to `eve-agent` and let it pick its mode from state: **Scaffold mode** if the agent's folder doesn't exist yet (sets up the engine once), **Capability mode** if it does (add one tool / skill / channel / connection / schedule / subagent / hook / eval, idempotently).
 
-Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by Linear issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns the agent's folder exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app through the `withEve()` proxy — plus, in a monorepo, `packages/types` (re-exported eve session/event types). eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
+Why it sits **outside** the `phase` line: `phase` tracks the web app's linear build; the agent has its own cadence (an open-ended "add one capability" loop, often driven by tracker issues, not by dev-flow). So `eve-agent` records existence in `stack.agent` and appends to `history`, but never bumps `phase`. It owns the agent's folder exclusively (the orchestrator and the web/mobile skills never write there), and meets the web app through the `withEve()` proxy — plus, in a monorepo, `packages/types` (re-exported eve session/event types). eve's model calls bill through the Vercel AI Gateway, separate from the build tooling. Choosing the AI Gateway **service tier** (priority/flex/default) is `eve-agent`'s call, not dev-flow's — see `eve-agent/references/eve-scaffold.md` §3.
 
 ## External skills, merge conflicts
 
@@ -279,7 +279,7 @@ In an autonomous run every skill follows the same four rules:
    - the topology shape (`references/stack-decisions.md` §Topology policy: single app / monorepo / agent-only) — deriving it reaches an answer without asking what the second consumer is;
    - approving the wireframe canvas — the run draws every area and stops at *"needs a human: approve the wireframe canvas"*;
    - anything outward-facing or hard to undo: `vercel-deploy`, `rn-eas-deploy` and store submission, `eve deploy`, paid services, deleting data;
-   - credentials and accounts (Supabase, Sanity, Stripe, Apple, Linear): the skill writes `.env.example` and the out-of-band steps, and stops before the step that needs the key.
+   - credentials and accounts (Supabase, Sanity, Stripe, Apple, Linear, Jira): the skill writes `.env.example` and the out-of-band steps, and stops before the step that needs the key.
 
 The report of an autonomous run opens with the assumptions made — count, then the list — before anything else: that list is what the user has to check, and it is short when the brief was good.
 
@@ -308,7 +308,7 @@ material change.
    their violations to `.workflow/debt/manual.json` in the same shape; then `collect` again.
 4. **Report** to the user in their language: the before-release band first, then what was not checked.
 5. **Propose the before-release band as tasks.** With a yes, `prd-to-tasks` revise mode adds them, each citing
-   `debt:<id>`; Linear, when active, receives them through its sync.
+   `debt:<id>`; the project's tracker receives them through `scrum` Sync.
 
 Formats, the band table and the coverage commands: **`references/debt-audit.md`**. `scripts/debt_audit.py show
 <root>` prints the last report without re-running. The `deployed` row of the routing table always names the audit

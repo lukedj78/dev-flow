@@ -6,7 +6,7 @@ nothing, run the checks); the reference adds what a dev-flow project needs on to
 
 - **Stage by name, never `git add -A`** — other agents share these trees — and commit only a merge the
   user started or asked for. A conflict that is a product decision stops and asks; it is not aborted.
-- **Intent lives in** commit messages, the Linear issue, `.workflow/tasks.md`, `PRD.md`/`DESIGN.md`, `meta.json#history`.
+- **Intent lives in** commit messages, the tracker issue, `.workflow/tasks.md`, `PRD.md`/`DESIGN.md`, `meta.json#history`.
 - **Derived files are regenerated, not merged**: `pnpm-lock.yaml`, `registry.json`, `registry-lock.json`
   and its snapshots (re-approve), `AGENTS.md` managed blocks, generated migrations, and in `~/my-skills`
   the vendored `contracts.md` copies and everything the repo's `regenerate.sh` builds.
@@ -52,7 +52,7 @@ Read these before the diff, in this order — the first that names the change wi
 | Source | What it tells you |
 |---|---|
 | Commit messages on each side (`git log --merge -p <file>`) | this repo's commits explain *why*; quote them |
-| The Linear issue (`LUC-…` in branch or commit) when `meta.json#linear` is set | the scope that was agreed — Linear is the source of truth under `linear-scrum` |
+| The tracker issue (`LUC-…`, `ABC-…`, `#123` in branch or commit) when `meta.json#tracker` is set | the scope that was agreed — the tracker is the source of truth under `scrum` |
 | `.workflow/tasks.md` | which task the change belongs to, and whether it was checked off |
 | `.workflow/PRD.md`, `.workflow/DESIGN.md` | product and visual intent; a hunk that contradicts them is the wrong side, whichever branch it came from |
 | `meta.json#history` | which skill produced the file and when (`skill`, `ran_at`, `outputs`) |

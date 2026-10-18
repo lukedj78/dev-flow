@@ -1,8 +1,8 @@
 # The scope check — before a new request becomes work
 
 A request the PRD does not contain can arrive in several ways: a feature asked in chat, a story added in revise
-mode, a task added to `tasks.md`, a `scope_creep` finding from `spec-review`, or an issue created mid-sprint in
-Linear. Whichever way it comes, it passes this check before anyone builds it. The point is not to say no. It is that
+mode, a task added to `tasks.md`, a `scope_creep` finding from `spec-review`, or an issue created mid-sprint on
+the tracker. Whichever way it comes, it passes this check before anyone builds it. The point is not to say no. It is that
 "the code is cheap" is not a reason by itself, the same rule `founder-intelligence` already applies at stage 9.
 
 ## Four questions, one line each
@@ -50,7 +50,7 @@ reports the same as a note. Neither blocks anything.
   **reject**).
 - Its tasks in `tasks.md` stay, struck through: `~~…~~ cut <date>: <reason>`. Nobody loses track of what was
   planned.
-- Its Linear issues go back to the backlog with the reason in a comment (`linear-scrum`, Sync mode).
+- Its tracker issues go back to the backlog with the reason in a comment (`scrum`, Sync mode).
 
 ## Founder path
 

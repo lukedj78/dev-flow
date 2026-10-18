@@ -226,7 +226,7 @@
         "scope.py",
         "test_scope.py"
       ],
-      "skill_md_lines": 326,
+      "skill_md_lines": 330,
       "bundle": "dist/prd-from-idea.skill"
     },
     {

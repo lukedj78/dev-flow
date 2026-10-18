@@ -179,25 +179,41 @@ Skills update this via `dev-flow/scripts/update_meta.py record-artifact …`. Th
 
 The `artifacts` field is the foundation for resumability and drift detection: re-running a skill is safe if all its inputs are fresh; necessary if any are stale.
 
-### `linear` and `scrum` fields (optional, owned by `linear-scrum`)
+### `tracker` and `scrum` fields (optional, owned by `scrum`)
 
-Present once a project is taken into Linear. Written only by the `linear-scrum` skill; other skills must not touch them.
+The project's tracker — chosen at design time by `prd-from-idea` (`provider` alone), filled by the `scrum` skill at
+Setup. Written only by `scrum/scripts/meta_tracker.py` (through `meta_io`'s lock) and `scrum/scripts/github_sync.py`;
+other skills read it and must not write it.
 
 ```json
-"linear": {
-  "team_id": "…", "team_name": "…", "project_id": "…", "url": "…",
-  "issue_map": { "<task_key>": "LUC-123" },
+"tracker": {
+  "provider": "linear | jira | github",
+  "project": { "team_id": "…", "team_name": "…", "project_id": "…" },
+  "url": "…",
+  "issue_map": { "<task_key>": "LUC-123 | ABC-123 | #123" },
+  "unmatched": { "<old title>": "#45" },
   "last_synced_at": "<ISO-8601 UTC>"
 },
 "scrum": {
   "cadence_weeks": 2, "estimate_scale": "fibonacci", "velocity_target": null,
   "states": { "backlog": "Backlog", "todo": "Todo", "in_progress": "In Progress",
               "in_review": "In Review", "done": "Done", "blocked_label": "blocked" },
-  "labels": { "web": "frontend", "agent": "agent-eve", "scaffold": "setup" }
+  "labels": { "web": "frontend", "agent": "agent-eve", "scaffold": "setup" },
+  "severity_labels": { "S1": "severity: S1", "S2": "severity: S2", "S3": "severity: S3", "S4": "severity: S4" },
+  "bug_label": "bug"
 }
 ```
 
-`issue_map` keys are `task_key()` digests of `tasks.md` lines (see `linear-scrum/scripts/task_key.py`) so re-syncing never duplicates issues. Linear is the source of truth for status/ordering/estimates after Setup; `tasks.md` stays the append-only intake for new work.
+`project` holds the tracker's own ids: `team_id` / `team_name` / `project_id` (Linear), `site` / `project_key` /
+`board_id` (Jira), `repo` (GitHub). `issue_map` keys are `task_key()` digests of `tasks.md` lines (see
+`scrum/scripts/task_key.py`) so re-syncing never duplicates issues; `unmatched` keeps old title-keyed entries whose
+title is no longer in `tasks.md`. The tracker is the source of truth for status/ordering/estimates after Setup;
+`tasks.md` stays the append-only intake for new work; bugs go straight to the tracker (`scrum` Triage, severity
+S1–S4). On GitHub a sprint is a milestone named by its goal and every issue carries `priority: Pn`.
+
+**Older shapes** — the `linear` block written by the former `linear-scrum`, and hand-written blocks with `kind`, `repo`, a map
+keyed by task title (inline or in `.workflow/github-issues.json`) or a nested `scrum` — stay readable and are
+migrated by `meta_tracker.py migrate` without dropping a key; `show_state.py` notes them until then.
 
 ### `wireframes` field (optional, owned by `wireframe-canvas`)
 
@@ -351,7 +367,7 @@ Captures user choices that downstream skills need. Keys:
 
   `"agent"` is the **agent-only topology** (shape ③ in `dev-flow/references/stack-decisions.md` §Topology policy): an eve agent at the repo root with **no web app**, whose surfaces are elsewhere — Slack, email, GitHub, Linear. Always paired with `agent: "eve"`; `ui`, `forms`, `nextjs_version`, `locales` stay `null` (there is no frontend, so golden rule ② does not apply — agent *output* is localised by instructions, not by an i18n bundle).
 
-  **The 17 skills that guard on `framework` need no change: refusing is the correct answer.** `forms`, `data-fetching`, `design-md-to-app`, `shadscan` and the rest exist to build and audit a web UI, and an agent-only project has none. The only skills that apply are `eve-agent` (which owns the whole repo root here, not `apps/agent/`), `eve-registry-porting`, `compliance-audit`, `prd-from-idea` / `prd-to-tasks` / `linear-scrum`, and `vercel-deploy` only insofar as `eve deploy` is the ship step.
+  **The 17 skills that guard on `framework` need no change: refusing is the correct answer.** `forms`, `data-fetching`, `design-md-to-app`, `shadscan` and the rest exist to build and audit a web UI, and an agent-only project has none. The only skills that apply are `eve-agent` (which owns the whole repo root here, not `apps/agent/`), `eve-registry-porting`, `compliance-audit`, `prd-from-idea` / `prd-to-tasks` / `scrum`, and `vercel-deploy` only insofar as `eve deploy` is the ship step.
 - `ui`: `"shadcn"` | `"base-ui"` | `"coss"` | `"mui"` | `"chakra"` | `"radix-vanilla"` | `"nativewind"` (mobile) | string. **Note**: `"base-ui"` here means *standalone* Base UI (headless library, no shadcn CLI). With shadcn CLI v4 you can also run shadcn **on top of** Base UI — that is `ui="shadcn"` + `ui_base="base"` (below), and is usually the better way to get "shadcn philosophy on Base UI" because you keep the shadcn component set + blocks. `"coss"` = **Coss/UI** (the Cal.com design system on Base UI, installed via the shadcn `@coss/*` registry; implies `ui_base="base"`, requires Tailwind v4) — owned by the `coss-ui` skill.
 - `ui_base` (web, only when `ui="shadcn"`): `"radix"` | `"base"` | `"aria"`. The primitive library shadcn builds on (`shadcn create --base`). **Default `"base"`** (Base UI — shadcn's default for new projects since 2026-07). `"radix"` is the long-standing base (still fully supported); `"aria"` = React Aria (`--base aria`, Adobe's a11y-first primitives, first-class since 2026-07). Every shadcn block/component ships in all variants; `shadcn add` pulls the matching one.
 - `shadcn_preset` (web, optional, only when `ui="shadcn"`): a **shadcn preset code** (short string, e.g. `"b5owWMfJ8l"`) built on <https://ui.shadcn.com/create>. Encodes style, base color, theme, chart palette, icon library, fonts (body/heading), and radius — the whole shadcn visual system in one token, designed to hand off to coding agents. When set, the **preset is the source of truth for the shadcn visual layer** (passed as `--preset`), and the DESIGN.md token-first install (`registry.json`) is **skipped** for the visual layer — preset XOR DESIGN.md-tokens, never both. `null`/unset → DESIGN.md-first (default). Decode/inspect with `shadcn preset decode <code>`; `ui_base` is still set separately (the preset may not encode the primitive base).

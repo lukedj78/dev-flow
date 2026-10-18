@@ -62,7 +62,7 @@ and HDS (French health data) answer other questions. Never write "sovereign" fro
 
 1. **Set the EU region explicitly on every service.** Vendor defaults are usually US (Vercel `iad1`,
    Firebase Cloud Functions `us-central1`). Several regions are **fixed at creation**: Vercel Blob store,
-   Neon project, Supabase project, Sentry org, Grafana stack, Linear workspace, Axiom dataset, OpenAI project.
+   Neon project, Supabase project, Sentry org, Grafana stack, Linear workspace, Jira site, Axiom dataset, OpenAI project.
 2. **Every module updates the register** (`data_residency.py add … --by module-add`): name, service,
    personal data it receives, region, transfer basis (`none` / `adequacy` / `dpf` / `scc` / …), DPA link,
    EU alternative. EDPB Opinion 22/2024: the identity of **every processor and sub-processor down the chain**
@@ -252,7 +252,9 @@ The model call is the transfer that matters: self-hosting the eve runtime does n
 | Firebase | alternative | Firestore / Storage / RTDB location per resource; **set Cloud Functions region** (default `us-central1`) | **Firebase Authentication runs only in US data centres**; services without location selection may process anywhere | [locations](https://firebase.google.com/docs/projects/locations) · [privacy](https://firebase.google.com/support/privacy) |
 | Expo Push Service | Default | **no EU option** (GCP US) | stores push tokens, not content; `getDevicePushTokenAsync` sends to FCM/APNs directly and skips Expo | [push FAQ](https://docs.expo.dev/push-notifications/faq/) |
 | RevenueCat | Default | **no EU option** | as §4.8 | [DPA](https://www.revenuecat.com/dpa/) |
-| Linear (`linear-scrum`) | Default | choose **European Union at workspace creation** — not self-serve to change | workspace info, **all user accounts and API keys**, notification emails and usage data stay in the US | [security](https://linear.app/docs/security) · [EU hosting](https://linear.app/changelog/2024-05-23-european-union-data-hosting) |
+| Linear (`scrum`) | Default | choose **European Union at workspace creation** — not self-serve to change | workspace info, **all user accounts and API keys**, notification emails and usage data stay in the US | [security](https://linear.app/docs/security) · [EU hosting](https://linear.app/changelog/2024-05-23-european-union-data-hosting) |
+| Jira (`scrum`) | alternative | data residency **EU or Germany on Standard, Premium, Enterprise** (Free not listed); pin it in the admin settings | issues, comments, attachments; the Rovo MCP's own coverage is not stated | [data residency](https://support.atlassian.com/security-and-access-policies/docs/understand-data-residency/) |
+| GitHub Issues (`scrum`) | alternative | **github.com is US**; EU only with GitHub Enterprise Cloud with data residency (`*.ghe.com`, its own API host) | issues, comments, labels, milestones | [GHE.com data residency](https://docs.github.com/en/enterprise-cloud@latest/admin/data-residency/about-github-enterprise-cloud-with-data-residency) |
 
 ---
 
