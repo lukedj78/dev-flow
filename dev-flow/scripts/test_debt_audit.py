@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import debt_model as dm  # noqa: E402
 import debt_sources as ds  # noqa: E402
+import debt_tests as dt  # noqa: E402
 
 
 def F(source: str, check: str, **kw) -> dm.Finding:
@@ -290,6 +291,123 @@ class Sources(Tmp):
                             {"skill": "spec-review", "ran_at": "2026-10-05T00:00:00Z"}]}
         self.assertEqual(ds.last_material_change(meta), ("2026-10-01T00:00:00Z", "module-add"))
         self.assertEqual(ds.last_material_change({}), (None, None))
+
+
+ACTION = '"use server"\nimport { db } from "@/lib/db"\nexport async function createPlan() { await db.insert(plans).values({}) }\n'
+
+
+class TestCheck(Tmp):
+    def web(self, base: str = "") -> None:
+        pre = f"{base}/" if base else ""
+        self.write(f"{pre}package.json", json.dumps({"dependencies": {"next": "16.3.8"}}))
+        self.write(f"{pre}app/page.tsx", "export default function P() { return null }\n")
+
+    def untested(self, meta: dict | None = None, authz: set | None = None) -> list[str]:
+        fs, _ = dt.check(self.root, meta or {}, authz or set())
+        return [f.file for f in fs]
+
+    def test_server_action_without_test_is_found(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.assertEqual(self.untested(), ["app/actions/plan.ts"])
+
+    def test_unit_import_counts(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("tests/plan.test.ts", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.assertEqual(self.untested(), [])
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "unit")
+
+    def test_relative_import_counts(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/actions/plan.test.ts", 'import { createPlan } from "./plan"\n')
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "unit")
+
+    def test_e2e_visit_counts(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/[locale]/(app)/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/plans.spec.ts", 'await page.goto("/plans")\n')
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "e2e")
+        self.assertEqual(self.untested(), [])
+
+    def test_e2e_visit_to_another_page_does_not_count(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/[locale]/(app)/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/home.spec.ts", 'await page.goto("/plansx")\nawait page.goto("/")\n')
+        self.assertIsNone(dt.tested_by(self.root, "app/actions/plan.ts"))
+
+    def test_page_url(self) -> None:
+        self.assertEqual(dt.page_url("app/[locale]/(marketing)/plans/[id]/page.tsx"), "/plans/[id]")
+        self.assertEqual(dt.page_url("app/page.tsx"), "/")
+        self.assertEqual(dt.page_url("src/app/(app)/settings/page.tsx"), "/settings")
+
+    def test_dynamic_segment_matches_any_value(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/plans/[id]/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/plan.spec.ts", "await page.goto(`/plans/42`)\n")
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "e2e")
+
+    def test_read_only_route_is_not_a_mutation(self) -> None:
+        self.web()
+        self.write("app/api/health/route.ts", "export async function GET() { return Response.json({}) }\n")
+        self.write("app/api/items/route.ts", "export async function POST() { return Response.json({}) }\n")
+        self.assertEqual(dt.mutations(self.root), ["app/api/items/route.ts"])
+
+    def test_a_drizzle_write_outside_actions_is_a_mutation(self) -> None:
+        self.web()
+        self.write("lib/plans.ts", "export const save = () => db.update(plans).set({})\n")
+        self.write("lib/read.ts", "export const list = () => db.select().from(plans)\n")
+        self.assertEqual(dt.mutations(self.root), ["lib/plans.ts"])
+
+    def test_authz_on_the_same_file_raises_severity(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        fs, _ = dt.check(self.root, {}, {"app/actions/plan.ts"})
+        self.assertEqual(fs[0].severity, "authz")
+
+    def test_coverage_summary_is_read(self) -> None:
+        self.web()
+        self.write("coverage/coverage-summary.json", json.dumps({
+            "total": {"lines": {"pct": 61.5}}, str(self.root / "app/a.ts"): {"lines": {"pct": 0}}}))
+        cov, why = dt.coverage(self.root)
+        self.assertEqual((cov, why), ({"total": 61.5, "files": {"app/a.ts": 0}}, ""))
+
+    def test_no_coverage_names_the_command(self) -> None:
+        self.web()
+        _, srcs = dt.check(self.root, {"stack": {"test": "vitest+playwright"}}, set())
+        cov = {s.name: s for s in srcs}["coverage"]
+        self.assertEqual(cov.status, "not checked")
+        self.assertIn("@vitest/coverage-v8", cov.reason)
+        self.assertIn("json-summary", cov.reason)
+
+    def test_jest_command(self) -> None:
+        self.web()
+        _, srcs = dt.check(self.root, {"stack": {"test": "jest-expo+rntl"}}, set())
+        self.assertIn("--coverageReporters=json-summary", {s.name: s for s in srcs}["coverage"].reason)
+
+    def test_each_web_surface_is_checked(self) -> None:
+        self.write("package.json", json.dumps({"private": True}))
+        for app in ("web", "admin"):
+            self.web(f"apps/{app}")
+            self.write(f"apps/{app}/app/actions/x.ts", ACTION)
+        self.assertEqual(sorted(self.untested()), ["apps/admin/app/actions/x.ts", "apps/web/app/actions/x.ts"])
+
+    def test_node_modules_and_tests_are_not_mutations(self) -> None:
+        self.web()
+        self.write("node_modules/pkg/a.ts", ACTION)
+        self.write("app/actions/plan.test.ts", ACTION)
+        self.assertEqual(dt.mutations(self.root), [])
+
+    def test_mobile_is_not_applicable(self) -> None:
+        self.write("package.json", json.dumps({"dependencies": {"expo": "58.0.0"}}))
+        self.write("app.json", '{"expo": {"name": "m"}}')
+        fs, srcs = dt.check(self.root, {}, set())
+        self.assertEqual(fs, [])
+        self.assertEqual({s.name: s for s in srcs}["tests"].status, "not applicable")
 
 
 if __name__ == "__main__":
