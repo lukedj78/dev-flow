@@ -139,6 +139,19 @@ class Check(unittest.TestCase):
             rc, _ = run("check", str(root))
             self.assertEqual(rc, 0, "warnings inform; they do not fail")
 
+    def test_analytics_provider_is_implied(self) -> None:
+        for provider, name in (("posthog", "PostHog"), ("openpanel", "OpenPanel")):
+            with self.subTest(provider=provider), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                project(root, data_residency="eu", analytics=["traffic", "advanced"], analytics_provider=provider)
+                self.assertIn(f"implies {name}", "\n".join(dr.check(root)["warnings"]))
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            project(root, data_residency="eu", analytics=["product"])
+            text = "\n".join(dr.check(root)["warnings"])
+            self.assertNotIn("PostHog", text)
+            self.assertNotIn("OpenPanel", text)
+
     def test_undecided_fails(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             root = Path(d); project(root)

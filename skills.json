@@ -473,6 +473,7 @@
       "skill_file": "module-add/SKILL.md",
       "references": [
         "contracts.md",
+        "module-analytics.md",
         "module-auth.md",
         "module-ci.md",
         "module-cms.md",
@@ -835,6 +836,7 @@
       "references": [
         "contracts.md",
         "decision-tree.md",
+        "module-analytics.md",
         "module-cms-sanity.md",
         "module-matrix.md"
       ],

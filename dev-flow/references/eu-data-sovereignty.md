@@ -180,13 +180,25 @@ For an EU-controlled auth stack: better-auth in an EU database, or self-hosted K
 
 ### 4.9 Product analytics · logging and observability
 
+Measurement is opt-in and comes in levels (`module-add/references/module-analytics.md`). The **product** level —
+activation and D7/D30 retention — is computed from the project's own database, so it follows the database's
+region and adds no row here. The table below is for the **traffic** and **advanced** levels. Retention across days
+needs a stable identifier: a provider that rotates its visitor hash daily cannot compute it (checked 2026-10-18).
+
+| Option | Role | US control | EU setting | Retention D7/D30 | Notes | Source |
+|---|---|---|---|---|---|---|
+| Vercel Web Analytics | Default (traffic) | Vercel Inc. (US) | already a sub-processor when deploying on Vercel; data region not verified | **no** — visitor hash discarded after 24 h | cookieless; custom events only on Pro | [privacy](https://vercel.com/docs/analytics/privacy-policy) |
+| PostHog Cloud EU | Default (advanced) | PostHog, Inc. (SF) | sign up at `eu.posthog.com` (AWS Frankfurt), separate account per region; write `eu.i.posthog.com` explicitly — `@posthog/next` defaults to US | yes | EU sub-processors are US companies; cookies by default, `cookieless_mode` available | [data storage](https://posthog.com/docs/privacy/data-storage) |
+| OpenPanel (self-hosted) | Default (advanced, `eu-sovereign`) | OpenPanel AB (SE) | self-host; the cloud stores at Hetzner (DE) with Cloudflare (US) at the edge | yes | cookieless; consent mode optional | [privacy](https://openpanel.dev/privacy) |
+| Umami (self-hosted) | alternative | MIT | wherever you run it | yes (Cloud: daily cohort grid) | documented cookieless | [docs](https://docs.umami.is/docs/) |
+| Plausible | EU alternative (traffic) | Estonian entity, bootstrapped | Hetzner Falkenstein, EU by default | **no** — salt rotated every 24 h | cookieless | [data policy](https://plausible.io/data-policy) |
+| Pirsch | EU alternative (traffic) | Emvi Software GmbH (DE) | Hetzner (DE) | not advertised | cookie-free, hashed IPs | [privacy](https://pirsch.io/privacy) |
+| Matomo | alternative (NZ company, adequacy) | InnoCraft (NZ) | Cloud in Frankfurt, or self-host | yes (cohorts) | ISO 27001 | [cloud](https://matomo.org/matomo-cloud/) |
+
+Logging and observability:
+
 | Option | Role | US control | EU setting | Notes | Source |
 |---|---|---|---|---|---|
-| PostHog Cloud EU | Default | PostHog, Inc. (SF) | sign up at `eu.posthog.com` (AWS Frankfurt), separate account per region | EU sub-processors are US companies | [data storage](https://posthog.com/docs/privacy/data-storage) |
-| Umami (self-hosted) | Default | MIT | wherever you run it | documented cookieless | [docs](https://docs.umami.is/docs/) |
-| Plausible | EU alternative | Estonian entity, bootstrapped | Hetzner Falkenstein, EU by default | cookieless | [data policy](https://plausible.io/data-policy) |
-| Pirsch | EU alternative | Emvi Software GmbH (DE) | Hetzner (DE) | cookie-free, hashed IPs | [privacy](https://pirsch.io/privacy) |
-| Matomo | alternative (NZ company, adequacy) | InnoCraft (NZ) | Cloud in Frankfurt, or self-host | ISO 27001 | [cloud](https://matomo.org/matomo-cloud/) |
 | Sentry EU | Default | Functional Software, Inc. (SF) | pick EU (Frankfurt, `de.sentry.io`) **at org creation**, not changeable | **user accounts, org settings, tokens, audit logs, integration metadata stay in the US** | [data storage location](https://docs.sentry.io/organization/data-storage-location/) |
 | Axiom | Default (logs) | US | EU edge `eu-central-1.aws.edge.axiom.co`, per dataset, fixed | account management through US infrastructure | [regions](https://axiom.co/docs/reference/regions) |
 | Better Stack | Default (logs) | Better Stack, Inc. (DE, USA) | `data_region: germany` per source | independent controller for account data | [create source](https://betterstack.com/docs/logs/api/create-a-source/) |
