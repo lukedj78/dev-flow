@@ -101,5 +101,5 @@ Preconditions:
 - The list is paginated at 20; search for the email instead of scrolling.
 ```
 
-The four H2s are fixed and in this order; `check` refuses anything else. A story whose precondition the seed cannot
+The four H2s are fixed and in this order; `check` refuses anything else. A story that does not apply to this surface (a web-only story in `verify-mobile`) keeps its file, with one line under Gotchas saying so and why: the map stays complete and nothing is driven in its name. A story whose precondition the seed cannot
 provide is not shortened to pass: the journey reports the failure and the reason goes in Gotchas.

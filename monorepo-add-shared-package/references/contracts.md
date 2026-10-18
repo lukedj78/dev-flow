@@ -273,7 +273,7 @@ A project's manual for proving its features on the real app — `.claude/skills/
 }
 ```
 
-In a monorepo `skill` is a list, one manual per app. `source` says whether the map came from the screen inventory or from the routes. Never bumps `phase`; always a `history` entry. The manual and its evidence stay in the project's working tree — `.verification/` is git-ignored, and nothing is committed on the user's behalf. `show_state.py` notes a project past its first screen without a manual, and a manual older than the last material change.
+In a monorepo `skill` is a list, one manual per surface (web, mobile, agent, api, cli, other — `dev-flow/scripts/surfaces.py` decides, for every skill). `source` says whether the map came from the screen inventory, the routes, or an agent's tools. Written by `verify_map.py record`, through `meta_io`'s lock. A shared package in `packages/*` is not a surface unless **`stack_config.verification_surfaces`** lists its path (an array of paths relative to the root). Never bumps `phase`; always a `history` entry. The manual and its evidence stay in the project's working tree — `.verification/` is git-ignored, and nothing is committed on the user's behalf. `show_state.py` notes a project past its first screen without a manual, and a manual older than the last material change.
 
 ### `security` field (owned by `app-security`)
 

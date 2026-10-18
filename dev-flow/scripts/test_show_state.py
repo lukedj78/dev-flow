@@ -296,6 +296,29 @@ class Verification(unittest.TestCase):
         self.assertIn("verify-agent", out)
         self.assertNotIn("verify-web", out.split("missing")[-1] if "missing" in out else out)
 
+    def manual(self, name: str) -> None:
+        skill = self.root / ".claude" / "skills" / f"verify-{name}" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text(f"---\nname: verify-{name}\n---\n")
+
+    def test_i5_an_orphaned_manual_is_named(self) -> None:
+        # final review: apps/web renamed to apps/site — the filled verify-web must not sit there unmentioned
+        (self.root / "package.json").write_text('{"dependencies": {"next": "16"}}')
+        (self.root / "app").mkdir()
+        self.manual("web")
+        self.manual("old-admin")
+        out = self.line(phase="page_generated", stack={"framework": "next"},
+                        verification={"proven_at": "2026-10-18T00:00:00Z"})
+        self.assertIn("verify-old-admin", out)
+        self.assertIn("no surface", out)
+
+    def test_m11_a_manual_never_proven_is_a_draft(self) -> None:
+        (self.root / "package.json").write_text('{"dependencies": {"next": "16"}}')
+        (self.root / "app").mkdir()
+        self.manual("web")
+        out = self.line(phase="page_generated", stack={"framework": "next"})
+        self.assertIn("not proven", out)
+
     def test_agent_projects_from_scaffolded(self) -> None:
         self.assertIn("create", self.line(phase="scaffolded", stack={"framework": "agent"}))
 

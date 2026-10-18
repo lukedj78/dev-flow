@@ -298,3 +298,126 @@ class Surfaces(Fixture):
         index = (self.root / ".claude/skills/verify-agent/features/README.md").read_text(encoding="utf-8")
         self.assertIn("tool-measure.md", index)
         self.assertEqual(index.count("tool-current-studio.md"), 1)
+
+
+class ReviewFixes(Fixture):
+    """The final review of 2026-10-18: one test per finding, each reproduced before the fix."""
+
+    def monorepo(self) -> None:
+        self.write(".workflow/PRD.md", PRD)
+        self.write("package.json", '{"private": true}')
+        self.write("apps/web/package.json", '{"dependencies": {"next": "16"}}')
+        self.write("apps/web/app/dashboard/page.tsx", "")
+        self.write("apps/mobile/package.json", '{"dependencies": {"expo": "58"}}')
+        self.write("apps/mobile/app.json", '{"expo": {}}')
+        self.write("apps/mobile/app/index.tsx", "")
+        self.write("apps/mobile/app/settings.tsx", "")
+
+    def test_i3_routes_are_read_per_surface(self) -> None:
+        self.monorepo()
+        vm.scaffold_all(self.root)
+        web = (self.root / ".claude/skills/verify-web/features/README.md").read_text(encoding="utf-8")
+        mobile = (self.root / ".claude/skills/verify-mobile/features/README.md").read_text(encoding="utf-8")
+        self.assertIn("`/dashboard`", web)
+        self.assertIn("`/settings`", mobile)
+        self.assertIn("`/`", mobile)
+
+    def test_i4_check_refuses_stories_it_could_not_read(self) -> None:
+        self.complete_manual()
+        self.write(".workflow/PRD.md", PRD + "\n| US-7 | only in a table |\n")
+        problems = vm.check(self.root)
+        self.assertTrue(any("US-7" in p and "not read" in p for p in problems), problems)
+
+    def test_i4_star_bullets_and_sub_numbers_are_stories(self) -> None:
+        prd = "* **US-4.** As a user, I want to log in.\n- **US-3.1** As a user, I want to reset it.\n"
+        self.assertEqual([sid for sid, _ in vm.stories(prd)], ["US-4", "US-3.1"])
+
+    def test_i5_an_orphaned_manual_is_reported(self) -> None:
+        self.monorepo()
+        vm.scaffold_all(self.root)
+        (self.root / "apps/web").rename(self.root / "apps/site")
+        problems = vm.check_all(self.root)
+        self.assertTrue(any("verify-web" in p and "no surface" in p for p in problems), problems)
+
+    def test_m1_a_tool_named_index_something_is_a_tool(self) -> None:
+        self.write("package.json", '{"dependencies": {"eve": "1"}}')
+        self.write("agent/agent.ts", "")
+        self.write("agent/tools/indexDocuments.ts", "")
+        self.write("agent/tools/index.ts", "")
+        vm.scaffold_all(self.root)
+        names = sorted(p.name for p in (self.root / ".claude/skills/verify-agent/features").glob("tool-*.md"))
+        self.assertEqual(names, ["tool-indexdocuments.md"])
+
+    def test_m2_parallel_intercepting_and_private_segments_are_not_routes(self) -> None:
+        for p in ("app/@modal/(.)photo/page.tsx", "app/photo/page.tsx", "app/_lib/page.tsx", "app/(..)x/page.tsx"):
+            self.write(p, "")
+        self.write("package.json", '{"dependencies": {"next": "16"}}')
+        self.assertEqual(vm.routes(self.root), ["/photo"])
+
+    def test_m3_the_no_stories_placeholder_goes_when_stories_arrive(self) -> None:
+        self.write(".workflow/PRD.md", "# PRD\n")
+        vm.scaffold(self.root)
+        self.write(".workflow/PRD.md", PRD)
+        vm.scaffold(self.root)
+        index = (self.manual() / "features" / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("(no stories in the PRD)", index)
+        self.assertIn("US-2", index)
+
+    def test_m4_gitignore_variants_git_accepts(self) -> None:
+        import subprocess
+        self.complete_manual()
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        for pattern in ("/.verification/*\n", ".verification/evidence/\n"):
+            self.write(".gitignore", pattern)
+            self.assertFalse(any(".verification" in p and "gitignore" in p for p in vm.check(self.root)), pattern)
+
+    def test_m6_an_unknown_app_name_is_refused(self) -> None:
+        self.monorepo()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = vm.main(["scaffold", str(self.root), "--app", "wbe"])
+        self.assertEqual(code, 2)
+        self.assertIn("web", out.getvalue())
+        self.assertFalse((self.root / ".claude/skills/verify-wbe").exists())
+
+    def test_m7_a_story_file_without_a_slug_counts(self) -> None:
+        self.complete_manual()
+        f = self.manual() / "features"
+        (f / "US-2-log-workout.md").rename(f / "US-2.md")
+        self.edit_index("US-2-log-workout.md", "US-2.md")
+        self.assertEqual([p for p in vm.check(self.root) if "US-2" in p], [])
+        vm.scaffold(self.root)
+        self.assertEqual(sorted(p.name for p in f.glob("US-2*")), ["US-2.md"])
+
+    def edit_index(self, old: str, new: str) -> None:
+        p = self.manual() / "features" / "README.md"
+        p.write_text(p.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+
+    def test_m9_the_gitignore_problem_is_reported_once(self) -> None:
+        self.monorepo()
+        vm.scaffold_all(self.root)
+        problems = [p for p in vm.check_all(self.root) if ".gitignore" in p]
+        self.assertEqual(len(problems), 1, problems)
+
+    def test_m10_placeholders_in_any_text_file(self) -> None:
+        self.complete_manual()
+        self.write(".claude/skills/verify-web/scripts/flow.yaml", "appId: <fill: bundle id>\n")
+        self.write(".claude/skills/verify-web/scripts/helper.mjs", "// <fill: helper>\n")
+        problems = vm.check(self.root)
+        self.assertTrue(any("flow.yaml" in p and "<fill:" in p for p in problems), problems)
+        self.assertTrue(any("helper.mjs" in p and "<fill:" in p for p in problems), problems)
+
+    def test_m14_record_writes_meta_json_through_the_lock(self) -> None:
+        self.write(".workflow/meta.json", json.dumps({"project_name": "Notes", "history": []}))
+        block = {"skill": ".claude/skills/verify-web", "features": 2, "source": "routes", "proven_at": "2026-10-18T00:00:00Z",
+                 "proven_feature": "US-1", "evidence": ".verification/evidence/x/", "maintained_at": None, "maintain_outcome": None}
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(vm.main(["record", str(self.root), "--json", json.dumps(block)]), 0)
+        meta = json.loads((self.root / ".workflow/meta.json").read_text(encoding="utf-8"))
+        self.assertEqual(meta["verification"]["proven_feature"], "US-1")
+        self.assertIn("meta_digest", meta)   # written by meta_io, so show_state does not flag an outside edit
+
+    def test_m14_record_refuses_a_block_without_the_contract_keys(self) -> None:
+        self.write(".workflow/meta.json", json.dumps({"history": []}))
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(vm.main(["record", str(self.root), "--json", '{"skill": "x"}']), 2)

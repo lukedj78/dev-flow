@@ -40,16 +40,35 @@ monorepo): `references/stack-recipes.md`.
    python3 <skills>/app-verification/scripts/verify_map.py scaffold <project-root>
    ```
 
-   **One manual per surface the project has**, found by `surfaces.py` — the one module that decides what a project
-   is made of (canonical in `dev-flow/scripts/`, vendored here): `web`, `mobile`, `agent`, `api`, `cli`, or `other`
-   for anything in `apps/*` / `packages/*` that can be started. No list to keep up to date: a project with a Next app,
-   an eve agent it serves and a Python service gets `verify-web`, `verify-agent` and `verify-ml`. An agent mounted in
-   the web app (`withEve()`) gets a manual whose Launch points to the web's: it never starts on its own. `--app
-   <name>` forces one surface. For a UI surface, one feature file per `- **US-N.** …` story in `.workflow/PRD.md`;
-   for an agent, one per tool; for an api, cli or other surface, one journey file to fill. With `docs/wireframes/screen-inventory.md` the
-   files arrive with their screens, routes, roles and states (loading, empty, error, success); without it the index
-   lists the app's routes and says so. Everything that needs the code is a `<fill: …>`. Re-running never overwrites:
-   a filled file is kept, a new story gets its file.
+   **One manual per surface the project has**, found by `surfaces.py`, the one module that decides what a project
+   is made of (canonical in `dev-flow/scripts/`, vendored here). It walks the root, the declared workspaces
+   (`pnpm-workspace.yaml`, `package.json#workspaces`) and `apps/*` / `packages/*`:
+
+   | Kind | What counts |
+   |---|---|
+   | `web` | a route directory (`app/`, `src/app/`, `pages/`) with `next` |
+   | `mobile` | Expo |
+   | `agent` | eve |
+   | `api` | a non-JS service listed in `stack.monorepo.services` (the meta.json list `monorepo-add-python-service` writes) |
+   | `cli` | a `bin`, in an app or at the root |
+   | `other` | an app with a `start` or `dev` script |
+
+   A shared package in `packages/*` (a component library, a db package with a migration `bin`, anything whose `dev`
+   is `tsc -w`) is not a surface unless `stack_config.verification_surfaces` lists its path. A single app is named
+   after its kind (`verify-web`); an app in a workspace is named after its directory (`verify-admin`), and the agent
+   it serves becomes `verify-admin-agent`. Two surfaces never share a name. An agent mounted in the web app
+   (`withEve()`) gets a manual whose Launch points to the web's: it never starts on its own.
+
+   `--app <name>` forces one surface, and a name the project does not have is refused with the list of the ones it
+   has. For a UI surface, scaffold writes one feature file per story in `.workflow/PRD.md` (`- **US-N.** …`, `*`
+   bullets and sub-numbers like `US-3.1` too). A story that does not apply to this surface, such as a web-only story
+   in `verify-mobile`, keeps a one-line file saying so. For an agent it writes one file per tool; for an api, cli or
+   other surface, one journey file to fill.
+
+   With `docs/wireframes/screen-inventory.md` the files arrive with their screens, routes, roles and states
+   (loading, empty, error, success). Without it, the index lists the surface's own routes and says so. Everything
+   that needs the code is a `<fill: …>`. Re-running never overwrites: a filled file is kept, and a new story or tool
+   gets its file and its line in the index.
 4. **Fill** the six sections, the index's baseline, and the first 3–5 features — US-1 first — from the code: the real
    command, the real accessible names, the real end state. Add the launch command to the project's `.claude/launch.json` under the
    name the Launch section gives, so Claude Code's preview tools and the manual start the app the same way. ⚠ The
@@ -73,8 +92,14 @@ monorepo): `references/stack-recipes.md`.
    It refuses a `<fill: …>` left anywhere, a missing section, a story without a file, a feature file out of shape or
    missing from the index, a script that is not executable or that SKILL.md never names, an evidence directory git
    does not ignore. Unfilled features beyond the first few stay as they are and fail the check: say how many remain.
-7. **Record** the `verification` block by editing `.workflow/meta.json` directly, then append the run:
-   `python3 dev-flow/scripts/update_meta.py <root> append-history --skill app-verification`.
+7. **Record** the `verification` block through the contract's lock, then append the run:
+
+   ```bash
+   python3 <skills>/app-verification/scripts/verify_map.py record <project-root> --json '<the block below>'
+   python3 dev-flow/scripts/update_meta.py <project-root> append-history --skill app-verification
+   ```
+
+   `record` refuses a block that is missing any of the contract's keys.
 
    ```json
    "verification": { "skill": ".claude/skills/verify-web", "features": 12, "source": "routes",

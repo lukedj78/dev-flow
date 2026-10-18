@@ -64,22 +64,48 @@ def is_expo(base: Path) -> bool:
             or ((base / "app.json").is_file() and '"expo"' in _read(base / "app.json")))
 
 
+ROUTE_DIRS = ("app", "src/app", "pages", "src/pages")
+
+
 def is_next(base: Path) -> bool:
-    """A Next.js app in this directory (not anywhere below it)."""
-    return "next" in dependencies(base) and not is_expo(base)
+    """A Next.js app in this directory: a route directory, and next declared (or a next.config, or no package.json
+    at all). `next` alone is not enough — a shared UI package lists it for its types (final review, 2026-10-18)."""
+    if is_expo(base) or not any((base / d).is_dir() for d in ROUTE_DIRS):
+        return False
+    return "next" in dependencies(base) or any(base.glob("next.config.*")) or not (base / "package.json").is_file()
 
 
 def is_eve(base: Path) -> bool:
     return (base / "agent" / "agent.ts").is_file() or (base / "agent" / "agent.js").is_file()
 
 
+def _workspace_globs(root: Path) -> list[str]:
+    """The workspace globs the project declares: pnpm-workspace.yaml `packages:`, package.json `workspaces`."""
+    globs: list[str] = []
+    in_packages = False
+    for line in _read(root / "pnpm-workspace.yaml").splitlines():
+        if re.match(r"^packages\s*:", line):
+            in_packages = True
+            continue
+        if in_packages:
+            m = re.match(r"^\s+-\s*['\"]?([^'\"#]+?)['\"]?\s*(#.*)?$", line)
+            if m:
+                globs.append(m.group(1).strip())
+            elif line.strip() and not line.startswith((" ", "\t")):
+                in_packages = False
+    ws = package(root).get("workspaces")
+    globs += ws if isinstance(ws, list) else list((ws or {}).get("packages") or []) if isinstance(ws, dict) else []
+    return [g for g in globs if isinstance(g, str) and not g.startswith("!")]
+
+
 def source_roots(root: Path) -> list[Path]:
-    """The project root, plus every app and package directory of a monorepo."""
-    out = [root]
-    for group in ("apps", "packages"):
-        if (root / group).is_dir():
-            out += sorted(p for p in (root / group).iterdir() if p.is_dir() and not p.name.startswith("."))
-    return out
+    """The project root, plus every workspace directory: the declared workspace globs, and apps/* and packages/*."""
+    found: set[Path] = set()
+    for g in _workspace_globs(root) + ["apps/*", "packages/*"]:
+        for p in root.glob(g.rstrip("/")):
+            if p.is_dir() and not p.name.startswith(".") and "node_modules" not in p.parts and p != root:
+                found.add(p)
+    return [root] + sorted(found)
 
 
 def _services(meta: dict | None) -> dict[str, dict]:
@@ -92,7 +118,7 @@ def _mounts_eve(base: Path) -> bool:
     return any(re.search(r"\bwithEve\s*\(", _read(p)) for p in base.glob("next.config.*"))
 
 
-def _one(base: Path, rel: str, services: dict[str, dict]) -> list[Surface]:
+def _one(base: Path, rel: str, services: dict[str, dict], opted: set[str] = frozenset()) -> list[Surface]:
     """The surfaces one directory provides: usually one, two when a Next app serves an eve agent. A single app at
     the root is named after its kind (verify-web); an app in apps/* after its directory (verify-admin)."""
     root = rel == "."
@@ -110,11 +136,15 @@ def _one(base: Path, rel: str, services: dict[str, dict]) -> list[Surface]:
         return [web, agent]
     if is_eve(base):
         return [Surface("agent", named("agent"), rel)]
+    # a shared package (packages/*) is a library — its `dev` is `tsc -w`, its `bin` a migration — unless the project
+    # opts it in (stack_config.verification_surfaces); an app, or the root, is something to run
+    if rel.startswith("packages/") and rel not in opted:
+        return []
     pkg = package(base)
     if pkg.get("bin"):
         return [Surface("cli", named("cli"), rel)]
     scripts = pkg.get("scripts") or {}
-    if not root and ("dev" in scripts or "start" in scripts):
+    if not root and ("start" in scripts or "dev" in scripts):
         return [Surface("other", base.name, rel)]
     return []
 
@@ -128,8 +158,14 @@ def surfaces(root: Path, meta: dict | None = None) -> list[Surface]:
         except ValueError:
             meta = {}
     services = _services(meta)
+    opted = {str(x).strip("/") for x in (((meta or {}).get("stack_config") or {}).get("verification_surfaces") or [])}
     out = [s for base in source_roots(root)
-           for s in _one(base, "." if base == root else base.relative_to(root).as_posix(), services)]
+           for s in _one(base, "." if base == root else base.relative_to(root).as_posix(), services, opted)]
+    seen: dict[str, int] = {}
+    for s in sorted(out, key=lambda s: s.path):   # two surfaces never share a manual: the second takes its path's name
+        if s.name in seen:
+            s.name = s.path.replace("/", "-")
+        seen[s.name] = 1
     return sorted(out, key=lambda s: s.path)
 
 

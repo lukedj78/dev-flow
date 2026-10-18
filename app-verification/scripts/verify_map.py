@@ -29,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import surfaces as sf  # noqa: E402 — vendored copy of dev-flow/scripts/surfaces.py; lint_skills.py keeps it identical
+import meta_io  # noqa: E402 — vendored copy of dev-flow/scripts/meta_io.py: the lock every meta.json writer takes
 
 SECTIONS = ("Launch", "Doctor", "Drive", "Evidence", "Cleanup", "Isolation")
 FEATURE_SECTIONS = ("Sub-features", "How to get to it (user POV)", "Driving it with", "Gotchas")
@@ -36,8 +37,12 @@ FILL = re.compile(r"<fill:[^>]*>")
 LOCALE_SEGMENTS = {"[locale]", "[lang]", "[lng]"}
 STATE_NAMES = {"L": "loading", "E": "empty", "Er": "error", "S": "success"}
 EVIDENCE_DIR = ".verification/evidence"
-# `- **US-1.** …`, `- **US-1 (P1).** …`, `- **US-1:** …`, `- **US-1** …` — the PRD template and what projects wrote
-STORY = re.compile(r"^\s*-\s+\*\*(US-\d+)(?:\s*\([^)]*\))?[.:]?\*\*[.:]?\s+(.+?)\s*$", re.M)
+# `- **US-1.** …`, `- **US-1 (P1).** …`, `- **US-1:** …`, `* **US-3.1** …` — the PRD template and what projects wrote
+STORY = re.compile(r"^\s*[-*]\s+\*\*(US-\d+(?:\.\d+)*)(?:\s*\([^)]*\))?[.:]?\*\*[.:]?\s+(.+?)\s*$", re.M)
+STORY_ID = re.compile(r"\bUS-\d+(?:\.\d+)*\b")
+STORY_FILE = re.compile(r"^(US-\d+(?:\.\d+)*)(?:-.*)?\.md$")
+VERIFICATION_KEYS = {"skill", "features", "source", "proven_at", "proven_feature", "evidence", "maintained_at",
+                     "maintain_outcome"}
 
 FILL_TEXT = {
     "Launch": "<fill: the exact command that starts the app for verification, its port and env vars, and how to tell "
@@ -117,22 +122,10 @@ def inventory(text: str) -> list[Screen]:
     return out
 
 
-def is_expo(root: Path) -> bool:
-    """Expo Router has an app/ directory too: expo without next in package.json, app.config.*, or app.json."""
-    try:
-        pkg = json.loads(read(root / "package.json") or "{}")
-    except ValueError:
-        pkg = {}
-    deps = set(pkg.get("dependencies") or {}) | set(pkg.get("devDependencies") or {}) if isinstance(pkg, dict) else set()
-    if "next" in deps:
-        return False
-    return "expo" in deps or any(root.glob("app.config.*")) or '"expo"' in read(root / "app.json")
-
-
 def routes(root: Path) -> list[str]:
     """The app's routes when there is no inventory: Next `page.*` files, or Expo Router screens. Route groups
     `(x)` are dropped, dynamic segments `[x]` kept."""
-    expo = is_expo(root)
+    expo = sf.is_expo(root)
     found = set()
     for base in (root / "app", root / "src" / "app"):
         for p in (q for q in base.rglob("*") if q.is_file()) if base.is_dir() else []:
@@ -144,6 +137,9 @@ def routes(root: Path) -> list[str]:
                 if p.stem != "page" or p.suffix not in (".tsx", ".ts", ".jsx", ".js"):
                     continue
                 segments = list(p.relative_to(base).parts[:-1])
+            # a parallel slot (@modal), an intercepting route ((.)photo) or a private folder (_lib) is not a page
+            if any(x.startswith(("@", "_")) or re.match(r"^\(\.{1,3}\)", x) for x in segments):
+                continue
             segments = [x for x in segments if not (x.startswith("(") and x.endswith(")"))]
             if segments and segments[0] in LOCALE_SEGMENTS:   # the i18n prefix: next-intl serves the default without it
                 segments = segments[1:]
@@ -247,7 +243,7 @@ def _tools(root: Path, surface: "sf.Surface") -> list[tuple[str, str]]:
     tools_dir = base / "tools" if (base / "tools").is_dir() else base / "agent" / "tools"
     out = []
     for p in sorted(tools_dir.glob("*")) if tools_dir.is_dir() else []:
-        if p.suffix in (".ts", ".js", ".mjs") and not p.stem.startswith(("_", "index")) and ".test" not in p.name:
+        if p.suffix in (".ts", ".js", ".mjs") and not p.stem.startswith("_") and p.stem != "index" and ".test" not in p.name:
             out.append((f"tool-{re.sub(r'[^a-z0-9]+', '-', p.stem.lower()).strip('-')}", f"the `{p.stem}` tool"))
     return out
 
@@ -267,7 +263,7 @@ def scaffold(root: Path, app: str = "web") -> dict:
     inv_path = root / "docs" / "wireframes" / "screen-inventory.md"
     screens = inventory(read(inv_path)) if inv_path.is_file() else []
     source = "wireframes" if screens else "routes"
-    found_routes = [] if screens else routes(root)
+    found_routes = [] if screens else routes(root / surface.path)
     written, kept, entries = [], [], []
 
     def put(p: Path, text: str) -> None:
@@ -282,8 +278,8 @@ def scaffold(root: Path, app: str = "web") -> dict:
     project = _project(root)
     put(m / "SKILL.md", _skill_md(app, project, surface.kind, surface.mounted_in))
     features = m / "features"
-    existing = {p.name.split("-", 2)[0] + "-" + p.name.split("-", 2)[1]: p.name
-                for p in features.glob("US-*-*.md")} if features.is_dir() else {}
+    existing = {hit.group(1): p.name for p in (features.glob("US-*.md") if features.is_dir() else [])
+                if (hit := STORY_FILE.match(p.name))}
     for sid, sentence in story_list:
         name = existing.get(sid) or f"{sid}-{slug(sentence)}.md"
         entries.append((sid, sentence, name))
@@ -292,7 +288,8 @@ def scaffold(root: Path, app: str = "web") -> dict:
     if readme.exists():
         text = read(readme)
         missing = [e for e in entries if f"({'./' + e[2]})" not in text and f"]({e[2]})" not in text]
-        if missing:   # a new story joins the index; the filled part is left alone
+        if missing:   # a new story joins the index; the filled part is left alone, the "none yet" line goes
+            text = text.replace("- (no stories in the PRD)\n", "")
             readme.write_text(text.rstrip("\n") + "\n" + "\n".join(f"- [{s} — {t}](./{n})" for s, t, n in missing) + "\n",
                               encoding="utf-8")
         kept.append(str(readme.relative_to(root)))
@@ -330,6 +327,7 @@ def _scaffold_other(root: Path, surface: "sf.Surface") -> dict:
         text = read(readme)
         missing = [(f, t) for f, t in feats if f"{f}.md" not in text]
         if missing:
+            text = text.replace("- (no tools found)\n", "")
             readme.write_text(text.rstrip("\n") + "\n" + "\n".join(f"- [{t}](./{f}.md)" for f, t in missing) + "\n",
                               encoding="utf-8")
     put(readme,
@@ -366,7 +364,7 @@ def check(root: Path, app: str = "web") -> list[str]:
         if s not in heads:
             problems.append(f"SKILL.md: section `## {s}` is missing")
     for p in sorted(m.rglob("*")):
-        if p.is_file() and p.suffix in (".md", ".sh", ".py", ".ts", ".js", ".json", ".txt"):
+        if p.is_file() and b"\0" not in p.read_bytes()[:4096]:   # every text file: a Maestro .yaml, an .mjs helper
             for hit in FILL.findall(read(p)):
                 problems.append(f"{p.relative_to(m)}: still to fill — {hit[:70]}")
     features = m / "features"
@@ -376,9 +374,15 @@ def check(root: Path, app: str = "web") -> list[str]:
     surface = _surface(root, app)
     files = sorted(f for f in features.glob("*.md") if f.name != "README.md") if features.is_dir() else []
     if surface.kind in UI_KINDS:
-        for sid, _ in stories(read(root / ".workflow" / "PRD.md")):
-            if not any(f.name.startswith(f"{sid}-") for f in files):
+        prd = read(root / ".workflow" / "PRD.md")
+        parsed = stories(prd)
+        for sid, _ in parsed:
+            if not any(f.name.startswith(f"{sid}-") or f.name == f"{sid}.md" for f in files):
                 problems.append(f"features/: story {sid} has no feature file")
+        unread = sorted(set(STORY_ID.findall(prd)) - {sid for sid, _ in parsed}, key=lambda x: [int(n) for n in re.findall(r"\d+", x)])
+        if unread:   # a story only in a table, or in a shape the parser does not know, must not pass as covered
+            problems.append(f"PRD: {', '.join(unread)} mentioned but not read as stories — write each as "
+                            f"`- **US-N.** …` so the map covers it")
     elif surface.kind == "agent":
         for fid, _ in _tools(root, surface):
             if not (features / f"{fid}.md").is_file():
@@ -399,36 +403,95 @@ def check(root: Path, app: str = "web") -> list[str]:
                 problems.append(f"scripts/{s.name} is never named in SKILL.md — a helper nobody is told to run is not one")
     if EVIDENCE_DIR not in text:
         problems.append(f"SKILL.md: the evidence directory `{EVIDENCE_DIR}/` is never named")
-    ignore = read(root / ".gitignore")
-    if not re.search(r"^/?\.verification/?\s*$", ignore, re.M):
-        problems.append("`.verification/` is not in the project's .gitignore — the evidence would end up in git")
+    if not evidence_ignored(root):
+        problems.append("`.verification/` is not ignored by git (.gitignore) — the evidence would end up in the repository")
     return problems
 
 
+def evidence_ignored(root: Path) -> bool:
+    """git decides, in a repository (any .gitignore pattern, a global ignore, info/exclude); otherwise the
+    project's .gitignore must list .verification/."""
+    import subprocess
+    try:
+        inside = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+                                capture_output=True, text=True, timeout=10).stdout.strip() == "true"
+        if inside:
+            return subprocess.run(["git", "-C", str(root), "check-ignore", "-q", f"{EVIDENCE_DIR}/x"],
+                                  capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return re.search(r"^/?\.verification(/|/\*)?\s*$", read(root / ".gitignore"), re.M) is not None
+
+
+def orphans(root: Path, names: set[str]) -> list[str]:
+    """Manuals on disk for a surface the project no longer has — renamed or removed."""
+    base = root / ".claude" / "skills"
+    return sorted(p.name[len("verify-"):] for p in base.glob("verify-*") if (p / "SKILL.md").is_file()
+                  and p.name[len("verify-"):] not in names) if base.is_dir() else []
+
+
 def check_all(root: Path) -> list[str]:
-    """Every surface has its manual, and every manual is complete. Problems are prefixed by the manual."""
+    """Every surface has its manual, every manual is complete, and no manual is left for a surface that went.
+    Problems are prefixed by the manual; one about the whole project is reported once."""
     root = root.resolve()
     found = sf.surfaces(root) or [sf.Surface("web", "web", ".")]
-    problems = []
+    problems: list[str] = []
     for s in found:
         if not (manual_dir(root, s.name) / "SKILL.md").is_file():
             problems.append(f"verify-{s.name}: no manual for the {s.kind} surface at {s.path} — "
                             f"run `verify_map.py scaffold {root}`")
         else:
             problems += [f"verify-{s.name}: {p}" for p in check(root, s.name)]
-    return problems
+    for name in orphans(root, {s.name for s in found}):
+        problems.append(f"verify-{name}: no surface named {name} any more (renamed or removed?) — move what it says "
+                        f"into the new surface's manual, then delete it")
+    seen, out = set(), []
+    for p in problems:   # a project-wide problem (the PRD, .gitignore) would repeat once per manual
+        key = p.split(": ", 1)[1] if p.startswith("verify-") and ("PRD:" in p or ".gitignore" in p) else p
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
+
+
+def record(root: Path, block: dict) -> list[str]:
+    """Write meta.json#verification through meta_io's lock, as every writer of the contract does."""
+    missing = VERIFICATION_KEYS - set(block)
+    if missing:
+        return [f"the verification block needs {', '.join(sorted(missing))} (contract, `verification` field)"]
+    path = root / ".workflow" / "meta.json"
+    with meta_io.locked(root / ".workflow"):
+        meta = meta_io.read_meta(path)
+        meta["verification"] = block
+        from datetime import datetime, timezone
+        meta["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        meta_io.write_json(path, meta)
+    return []
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("op", choices=("scaffold", "check"))
+    ap.add_argument("op", choices=("scaffold", "check", "record"))
     ap.add_argument("project_root", type=Path)
     ap.add_argument("--app", default=None, help="one surface by name; every surface when omitted")
-    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--json", nargs="?", const=True, default=False,
+                    help="print JSON (scaffold, check); for record, the verification block as a JSON string")
     a = ap.parse_args(argv)
     root = a.project_root
     if not root.is_dir():
         print(f"not a directory: {root}", file=sys.stderr)
+        return 2
+    if a.op == "record":
+        try:
+            block = json.loads(a.json) if isinstance(a.json, str) else None
+        except ValueError:
+            block = None
+        problems = ["record needs --json '<the verification block>'"] if not isinstance(block, dict) else record(root, block)
+        print("\n".join(problems) if problems else "meta.json#verification recorded (through the meta_io lock).")
+        return 2 if problems else 0
+    names = [s.name for s in sf.surfaces(root.resolve())]
+    if a.app and names and a.app not in names:   # a typo must not create a manual for a surface that does not exist
+        print(f"no surface named {a.app!r} — this project has: {', '.join(names)}")
         return 2
     if a.op == "scaffold":
         results = [scaffold(root, a.app)] if a.app else scaffold_all(root)

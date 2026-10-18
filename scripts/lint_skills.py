@@ -745,7 +745,8 @@ VENDORED_SOURCE = [
     # import from dev-flow, so every skill that writes meta.json carries a copy. The lock only works
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
-      for skill in ("design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake", "wireframe-canvas")),
+      for skill in ("app-verification", "design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake",
+                    "wireframe-canvas")),
     # What a project is made of (web, mobile, agent, api, cli, other). One answer for every skill: app-security
     # had its own Next/Expo detection and missed Expo configured by app.config.ts (2026-10-18).
     *(("dev-flow/scripts/surfaces.py", f"{skill}/scripts/surfaces.py") for skill in ("app-security", "app-verification")),
@@ -778,7 +779,8 @@ def check_vendored_source(root: Path) -> None:
     for tested, vendored in pairs:
         a, b = root / tested, root / vendored
         if not a.exists() or not b.exists():
-            warn(f"vendored pair missing: {tested} / {vendored}")
+            # an error, not a warning: a deleted copy breaks the skill that imports it (final review, 2026-10-18)
+            err(f"vendored pair missing: {tested} / {vendored} — copy the canonical file across, or drop the pair")
             continue
         if a.read_bytes() != b.read_bytes():
             err(

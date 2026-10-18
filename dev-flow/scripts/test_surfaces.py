@@ -74,8 +74,9 @@ class Surfaces(Fixture):
 
     def test_package_with_bin_is_cli(self) -> None:
         self.pkg("", {}, private=True)
-        self.pkg("packages/tool", {}, name="@x/tool", bin={"tool": "bin/tool.js"})
-        self.assertEqual(self.kinds(), [("cli", "tool", "packages/tool", None)])
+        # an app with a bin is a tool to run; a package with one is a library unless it opts in (test_i2_*)
+        self.pkg("apps/tool", {}, name="@x/tool", bin={"tool": "bin/tool.js"})
+        self.assertEqual(self.kinds(), [("cli", "tool", "apps/tool", None)])
 
     def test_unknown_app_with_dev_script_is_other(self) -> None:
         self.pkg("", {}, private=True)
@@ -98,6 +99,7 @@ class Surfaces(Fixture):
 class Helpers(Fixture):
     def test_is_expo_and_is_next_per_directory(self) -> None:
         self.pkg("apps/web", {"next": "16.3.8"})
+        self.write("apps/web/app/page.tsx", "")   # a route directory is part of being a Next app (final review I1)
         self.pkg("apps/mobile", {"expo": "58.0.0"})
         self.assertTrue(sf.is_next(self.root / "apps/web"))
         self.assertFalse(sf.is_expo(self.root / "apps/web"))
@@ -112,3 +114,54 @@ class Helpers(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewFixes(Fixture):
+    """The final review of 2026-10-18, one test per finding, each reproduced before the fix."""
+
+    def test_i1_next_in_a_shared_package_is_not_a_web_app(self) -> None:
+        # Expo monorepo + packages/ui with next in devDependencies (for next/link types): no web surface
+        self.pkg("", {}, private=True)
+        self.pkg("apps/mobile", {"expo": "58.0.0"})
+        self.write("apps/mobile/app.json", '{"expo": {}}')
+        self.pkg("packages/ui", {}, devDependencies={"next": "16"})
+        self.assertEqual([k[0] for k in self.kinds()], ["mobile"])
+
+    def test_i1_an_app_router_without_package_json_is_web(self) -> None:
+        self.write("src/app/page.tsx", "export default function P() { return null }\n")
+        self.assertEqual(self.kinds(), [("web", "web", ".", None)])
+
+    def test_i2_shared_packages_are_not_surfaces(self) -> None:
+        self.pkg("", {}, private=True)
+        self.pkg("packages/ui", {"react": "19"}, scripts={"dev": "tsc -w"})
+        self.pkg("packages/db", {}, bin={"migrate": "bin/migrate.js"})
+        self.assertEqual(self.kinds(), [])
+
+    def test_i2_a_package_can_opt_in(self) -> None:
+        self.pkg("", {}, private=True)
+        self.pkg("packages/tool", {}, bin={"tool": "bin/tool.js"})
+        meta = {"stack_config": {"verification_surfaces": ["packages/tool"]}}
+        self.assertEqual(self.kinds(meta), [("cli", "tool", "packages/tool", None)])
+
+    def test_i6_pnpm_workspaces_outside_apps_and_packages(self) -> None:
+        self.pkg("", {}, private=True)
+        self.write("pnpm-workspace.yaml", "packages:\n  - 'web'\n  - \"admin\"\n  - tools/*\n")
+        for d in ("web", "admin"):
+            self.pkg(d, {"next": "16"})
+            self.write(f"{d}/app/page.tsx", "")
+        self.assertEqual(self.kinds(), [("web", "admin", "admin", None), ("web", "web", "web", None)])
+        self.assertEqual(sorted(p.relative_to(self.root).as_posix() for p in sf.source_roots(self.root)), [".", "admin", "web"])
+
+    def test_i6_package_json_workspaces(self) -> None:
+        self.pkg("", {}, private=True, workspaces=["sites/*"])
+        self.pkg("sites/shop", {"next": "16"})
+        self.write("sites/shop/app/page.tsx", "")
+        self.assertEqual(self.kinds(), [("web", "shop", "sites/shop", None)])
+
+    def test_m5_two_surfaces_never_share_a_name(self) -> None:
+        self.pkg("", {"next": "16"})
+        self.write("app/page.tsx", "")
+        self.pkg("apps/web", {"next": "16"})
+        self.write("apps/web/app/page.tsx", "")
+        names = [k[1] for k in self.kinds()]
+        self.assertEqual(len(names), len(set(names)), names)

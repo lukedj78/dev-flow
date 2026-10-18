@@ -204,9 +204,17 @@ def verification_line(meta: dict, root: Path) -> str | None:
                           for s in missing)
         return (f"Verification: missing manual for {names} — app-verification create (how to launch, drive and "
                 "prove each surface, written once into .claude/skills/)")
+    names = {s.name for s in found}
+    skills = root / ".claude" / "skills"
+    gone = sorted(d.name for d in skills.glob("verify-*") if (d / "SKILL.md").is_file()
+                  and d.name[len("verify-"):] not in names) if found and skills.is_dir() else []
+    if gone:   # a renamed or removed surface: the filled manual is the valuable part, say where it is
+        return (f"Verification: {', '.join(gone)} — no surface by that name any more (renamed or removed?); move "
+                "what it says into the new surface's manual, then delete it")
     block = meta.get("verification")
     if not isinstance(block, dict):
-        return None
+        return ("Verification: the manual is written but not proven (no meta.json#verification) — a manual never "
+                "run is a draft: prove it live, then `verify_map.py record` (app-verification)")
     seen = block.get("maintained_at") or block.get("proven_at") or ""
     changes = [h for h in meta.get("history") or [] if isinstance(h, dict) and h.get("skill") in MATERIAL_SKILLS
                and str(h.get("ran_at") or "") > seen]
