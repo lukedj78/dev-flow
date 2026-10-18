@@ -228,6 +228,7 @@ class Sources(Tmp):
         fs, srcs = self.run_only("observability")
         self.assertEqual(fs, [])
         self.assertIn("region", srcs["observability"].reason)
+        self.assertEqual(srcs["observability"].status, "partial")
 
     def test_compliance_findings_are_signals(self) -> None:
         self.fake("compliance", 'print(json.dumps({"signals": {}, "findings": [{"id": "R3", "severity": "H", "article": "44", "title": "residency"}]}))')
@@ -387,6 +388,8 @@ class TestCheck(Tmp):
         self.assertEqual(cov.status, "not checked")
         self.assertIn("@vitest/coverage-v8", cov.reason)
         self.assertIn("json-summary", cov.reason)
+        # found on fit-coach: one red test file and Vitest writes no summary at all
+        self.assertIn("--coverage.reportOnFailure=true", cov.reason)
 
     def test_jest_command(self) -> None:
         self.web()
@@ -406,6 +409,40 @@ class TestCheck(Tmp):
         self.write("app/actions/plan.test.ts", ACTION)
         self.assertEqual(dt.mutations(self.root), [])
 
+    # found by the real run on a copy of fit-coach (Task 6)
+    def test_generated_code_is_not_read(self) -> None:
+        self.web()
+        self.write(".eve/compile/authored-modules/x.mjs", ACTION)
+        self.write(".output/server/chunk.mjs", ACTION)
+        self.write(".vercel/output/fn.mjs", ACTION)
+        self.assertEqual(dt.mutations(self.root), [])
+
+    def test_seed_scripts_are_not_app_mutations(self) -> None:
+        self.web()
+        self.write("scripts/demo/seed.ts", "await db.insert(users).values([])\n")
+        self.write("drizzle/seed.ts", "await db.insert(users).values([])\n")
+        self.assertEqual(dt.mutations(self.root), [])
+
+    def test_e2e_reaches_a_library_through_the_action_a_page_uses(self) -> None:
+        self.web()
+        self.write("lib/server/plans.ts", "export const save = () => db.insert(plans).values({})\n")
+        self.write("app/actions/plan.ts", '"use server"\nimport { save } from "@/lib/server/plans"\nexport async function createPlan() { await save() }\n')
+        self.write("app/[locale]/(app)/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/plans.spec.ts", 'await page.goto("/plans")\n')
+        self.assertEqual(dt.tested_by(self.root, "lib/server/plans.ts"), "e2e")
+
+    def test_e2e_calling_a_route_directly_counts(self) -> None:
+        self.web()
+        self.write("app/api/items/[id]/route.ts", "export async function DELETE() { return new Response(null) }\n")
+        self.write("e2e/items.spec.ts", "await request.delete(`/api/items/${id}`)\n")
+        self.assertEqual(dt.tested_by(self.root, "app/api/items/[id]/route.ts"), "e2e")
+
+    def test_import_cycles_end(self) -> None:
+        self.web()
+        self.write("lib/a.ts", 'import { b } from "./b"\nexport const a = () => db.insert(t).values({})\n')
+        self.write("lib/b.ts", 'import { a } from "./a"\nexport const b = 1\n')
+        self.assertIsNone(dt.tested_by(self.root, "lib/a.ts"))
+
     def test_mobile_is_not_applicable(self) -> None:
         self.write("package.json", json.dumps({"dependencies": {"expo": "58.0.0"}}))
         self.write("app.json", '{"expo": {"name": "m"}}')
@@ -416,7 +453,7 @@ class TestCheck(Tmp):
 
 META_KEYS = {"last_run_at", "bands", "to_confirm", "not_checked", "sources", "new", "closed", "report"}
 HEADINGS = ["# Debt audit", "## Before the next release", "## With the features that touch these files", "## Later",
-            "## Not checked", "## Kept on purpose", "## Since the last audit"]
+            "## Tests", "## Not checked", "## Kept on purpose", "## Since the last audit"]
 
 
 class Collect(Tmp):
@@ -509,6 +546,39 @@ class Collect(Tmp):
         self.assertTrue((self.proj / "docs/debt/debt-audit.md").is_file())
         self.assertFalse((self.proj / ".workflow/meta.json").exists())
         self.assertEqual(set(block), META_KEYS)
+
+    def test_rows_with_the_same_id_are_merged(self) -> None:
+        # launch-audit reports one check with many `where` entries and no file: one finding, every place in its detail
+        self.write("skills/launch-audit/scripts/scan_launch.py", "import json\nprint(json.dumps([{'check': 'sitemap', "
+                   "'status': 'missing', 'detail': '3 routes', 'where': ['/a', '/b', '/c']}]))\n")
+        da.collect(self.proj)
+        data = json.loads((self.proj / ".workflow/debt/findings.json").read_text(encoding="utf-8"))
+        ids = [r["id"] for r in data["open"]]
+        self.assertEqual(len(ids), len(set(ids)), ids)
+        row = next(r for r in data["open"] if r["id"] == "launch-audit:sitemap:-")
+        for place in ("/a", "/b", "/c"):
+            self.assertIn(place, row["detail"])
+        self.assertEqual(row["detail"].count("3 routes"), 1, row["detail"])
+
+    def test_a_scanner_that_saw_only_part_is_partial(self) -> None:
+        # found on fit-coach: gitleaks and Semgrep missing inside app-security, and the report said nothing
+        self.write("skills/app-security/scripts/scan_security.py", "import json\nprint(json.dumps([{'check': 'secrets-history', "
+                   "'status': 'not checked', 'detail': 'gitleaks not installed', 'where': []}]))\n")
+        block = da.collect(self.proj)
+        self.assertEqual(block["sources"]["app-security"], "partial")
+        self.assertIn("app-security", block["not_checked"])
+        report = (self.proj / "docs/debt/debt-audit.md").read_text(encoding="utf-8")
+        nc = report[report.index("## Not checked"):report.index("## Kept on purpose")]
+        self.assertIn("gitleaks not installed", nc)
+
+    def test_the_report_shows_the_test_figures(self) -> None:
+        # found on fit-coach: coverage read "fresh" and its percentage appeared nowhere
+        self.write("proj/coverage/coverage-summary.json", json.dumps({"total": {"lines": {"pct": 42.3}}}))
+        da.collect(self.proj)
+        report = (self.proj / "docs/debt/debt-audit.md").read_text(encoding="utf-8")
+        tests = report[report.index("## Tests"):report.index("## Not checked")]
+        self.assertIn("42.3% lines", tests)
+        self.assertIn("files write data", tests)
 
     def test_show_without_a_run_says_so(self) -> None:
         out = io.StringIO()

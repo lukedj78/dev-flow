@@ -181,6 +181,15 @@ export async function rename(db: D, input: I) {
         self.assertEqual(self.find("raw-sql").status, ss.OK)
 
 
+    def test_test_files_are_not_app_code(self) -> None:
+        # found by dev-flow's debt audit on fit-coach: a test's fixture query was reported as an IDOR in the app
+        self.next_app()
+        q = "export async function get(id: string) {\n  return db.select().from(invoices).where(eq(invoices.id, id))\n}\n"
+        for f in ("lib/clients/__tests__/access.test.ts", "lib/a.test.ts", "lib/b.spec.ts", "e2e/flows.spec.ts", "tests/c.ts"):
+            self.write(f, q)
+        self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+
+
 class Environment(Fixture):
     def test_public_env_secret_is_found(self) -> None:
         self.next_app()

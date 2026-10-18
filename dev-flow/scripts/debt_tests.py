@@ -24,7 +24,9 @@ from debt_model import Finding  # noqa: E402
 from debt_sources import Source  # noqa: E402
 
 CODE = (".ts", ".tsx", ".js", ".jsx", ".mjs")
-SKIP = {"node_modules", ".next", ".git", "dist", "build", "out", "coverage", ".verification", ".workflow"}
+SKIP = {"node_modules", ".next", ".git", "dist", "build", "out", "coverage", ".verification", ".workflow",
+        ".eve", ".output", ".vercel", ".turbo", ".data"}   # generated code and runtime data, not source
+NOT_APP = {"scripts", "drizzle", "migrations", "seed", "seeds"}   # seeds and one-off scripts: no user reaches them
 TEST_FILE = re.compile(r"\.(test|spec)\.[a-z]+$")
 E2E_DIRS = ("e2e/", "tests/e2e/")
 USE_SERVER = re.compile(r"""^\s*(?:(?://[^\n]*|/\*.*?\*/)\s*)*['"]use server['"]""", re.S)
@@ -33,7 +35,7 @@ DRIZZLE_WRITE = re.compile(r"\b(?:db|tx)\s*\.\s*(?:insert|update|delete)\s*\(")
 IMPORT = re.compile(r"""(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]""")
 PATH_LITERAL = re.compile(r"""["'`](/[^"'`\s?#]*)""")
 COMMANDS = {
-    "vitest": "pnpm add -D @vitest/coverage-v8 (once), then pnpm vitest run --coverage --coverage.reporter=json-summary",
+    "vitest": "pnpm add -D @vitest/coverage-v8 (once), then pnpm vitest run --coverage --coverage.reporter=json-summary --coverage.reportOnFailure=true",
     "jest": "npx jest --coverage --coverageReporters=json-summary",
 }
 
@@ -63,7 +65,7 @@ def _is_test(rel: str) -> bool:
 def _mutations(files: dict[str, str]) -> list[str]:
     out = []
     for rel, text in files.items():
-        if _is_test(rel):
+        if _is_test(rel) or rel.split("/", 1)[0] in NOT_APP:
             continue
         route = posixpath.basename(rel).split(".")[0] == "route" and ("app/" in f"/{rel}")
         if USE_SERVER.match(text) or (route and WRITE_VERB.search(text)) or DRIZZLE_WRITE.search(text):
@@ -81,22 +83,45 @@ def _stem(rel: str) -> str:
     return stem[: -len("/index")] if stem.endswith("/index") else stem
 
 
-def _imports(text: str, from_rel: str, stem: str) -> bool:
+def _targets(text: str, from_rel: str) -> set[str]:
+    """The stems a file imports: `@/x` as `x` and `src/x`, a relative path resolved from the importing file."""
+    out: set[str] = set()
     for spec in IMPORT.findall(text):
         if spec.startswith("@/"):
-            target = spec[2:]
-            if stem in (target, f"src/{target}") or _stem(stem) == target:
-                return True
+            out |= {spec[2:], f"src/{spec[2:]}"}
         elif spec.startswith("."):
             target = posixpath.normpath(posixpath.join(posixpath.dirname(from_rel), spec))
-            if _stem(target + ".x") == stem or target == stem:
-                return True
-    return False
+            out |= {target, _stem(target + ".x")}
+    return out
+
+
+def _imports(text: str, from_rel: str, stem: str) -> bool:
+    return stem in _targets(text, from_rel)
+
+
+def _importers(files: dict[str, str], rel: str) -> set[str]:
+    """Every non-test file that imports `rel`, directly or through other files (a page → an action → a library)."""
+    reverse: dict[str, set[str]] = {}
+    stems = {_stem(f): f for f in files}
+    for f, text in files.items():
+        if _is_test(f):
+            continue
+        for t in _targets(text, f):
+            if t in stems:
+                reverse.setdefault(stems[t], set()).add(f)
+    seen: set[str] = set()
+    todo = [rel]
+    while todo:
+        for importer in reverse.get(todo.pop(), ()):
+            if importer not in seen:
+                seen.add(importer)
+                todo.append(importer)
+    return seen
 
 
 def page_url(rel_page: str) -> str:
     """`app/[locale]/(marketing)/plans/[id]/page.tsx` → `/plans/[id]`: groups dropped, leading dynamic segments
-    (the locale) dropped, inner ones kept to match any value."""
+    (the locale) dropped, inner ones kept to match any value. A `route.ts` reads the same way."""
     parts = rel_page.split("/")
     if parts and parts[0] == "src":
         parts = parts[1:]
@@ -116,9 +141,11 @@ def _tested_by(files: dict[str, str], rel: str) -> str | None:
     for t, text in files.items():
         if _is_test(t) and not _is_e2e(t) and (_imports(text, t, stem) or stem in text):
             return "unit"
-    pages = [p for p, text in files.items() if posixpath.basename(p).startswith("page.") and "app/" in f"/{p}"
-             and not _is_test(p) and _imports(text, p, stem)]
-    patterns = [_url_pattern(page_url(p)) for p in pages]
+    # a page that uses it (directly or through other files), or a route handler — itself or one that uses it —
+    # whose own URL an e2e spec calls (`request.post("/api/…")`)
+    reach = _importers(files, rel) | {rel}
+    entries = [p for p in reach if posixpath.basename(p).split(".")[0] in ("page", "route") and "app/" in f"/{p}"]
+    patterns = [_url_pattern(page_url(p)) for p in entries]
     for t, text in files.items():
         if _is_e2e(t) and any(pat.match(lit) for lit in PATH_LITERAL.findall(text) for pat in patterns):
             return "e2e"

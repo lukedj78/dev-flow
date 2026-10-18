@@ -59,6 +59,27 @@ class Finding:
         return f"{self.source}:{self.check}:{self.file or '-'}"
 
 
+def merge(findings: list[Finding]) -> list[Finding]:
+    """One finding per id: a check reported at several places without a file (launch-audit's routes, a level's
+    pieces) becomes one row listing every place, so a verdict, and new / closed, refer to one thing."""
+    out: dict[str, Finding] = {}
+    for f in findings:
+        first = out.get(f.id)
+        if first is None:
+            out[f.id] = f
+        else:
+            # "<what> — <where>" rows of one check: keep <what> once and list every <where>
+            head, _, tail = f.detail.partition(" — ")
+            if tail and first.detail.startswith(head + " — "):
+                if tail not in first.detail[len(head) + 3:].split("; "):
+                    first.detail += "; " + tail
+            elif f.detail not in first.detail.split("; "):
+                first.detail += "; " + f.detail
+            first.signal = first.signal or f.signal
+            first.stale = first.stale or f.stale
+    return list(out.values())
+
+
 def band_for(f: Finding) -> str:
     for source, check, severity, band in BAND_RULES:
         if source in ("*", f.source) and check in ("*", f.check) and severity in ("*", f.severity):

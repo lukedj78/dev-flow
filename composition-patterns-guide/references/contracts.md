@@ -310,8 +310,9 @@ collect` (`docs/superpowers/specs/2026-10-18-debt-audit-design.md`), through `me
 ```
 
 `bands` count **confirmed** findings only; `to_confirm` counts the scanners' signals (app-security, compliance) not
-yet reviewed in `.workflow/debt/reviewed.json`. `not_checked` lists the sources that could not see — never clean.
-`sources` is `fresh | stale | missing | not checked | not applicable` per source. Never bumps `phase`; always a
+yet reviewed in `.workflow/debt/reviewed.json`. `not_checked` lists the sources that could not see, or saw only in
+part — never clean. `sources` is `fresh | partial | stale | missing | not checked | not applicable` per source;
+`partial` is a scanner that ran but reported areas it could not check (gitleaks missing inside app-security). Never bumps `phase`; always a
 `history` entry (`{skill: "dev-flow", action: "debt-audit"}`). `show_state.py` proposes it from `deployed`, and again
 after a material change. How-to `dev-flow/references/debt-audit.md`.
 

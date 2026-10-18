@@ -33,7 +33,7 @@ AUTHZ_CHECKS = {"server-action-unauthenticated", "route-handler-unauthenticated"
 @dataclass
 class Source:
     name: str
-    status: str        # fresh | stale | missing | not checked | not applicable
+    status: str        # fresh | partial | stale | missing | not checked | not applicable
     reason: str = ""
 
 
@@ -143,15 +143,23 @@ def run_scanners(root: Path, meta: dict, skip: set[str], web: bool) -> tuple[lis
             tail = (out.stderr or out.stdout).strip().splitlines()[-1:] or [""]
             sources.append(Source(name, "not checked", f"unreadable output ({type(e).__name__}): {tail[0][:160]}"))
             continue
-        notes = ""
-        if name == "observability":
-            try:
-                notes = "; ".join(r.get("detail", "") for r in json.loads(out.stdout) if r.get("status") == "not checked")
-            except ValueError:
-                pass
         findings += got
-        sources.append(Source(name, "fresh", notes))
+        notes = _unseen(out.stdout)
+        sources.append(Source(name, "partial", notes) if notes else Source(name, "fresh"))
     return findings, sources
+
+
+def _unseen(stdout: str) -> str:
+    """What a scanner reported it could not check (gitleaks not installed, a region not visible): its source ran only
+    in part, and the report must say where it did not look."""
+    try:
+        rows = json.loads(stdout)
+    except ValueError:
+        return ""
+    if not isinstance(rows, list):
+        return ""
+    return "; ".join(f"{r.get('check') or r.get('level')}: {r.get('detail', '')}" for r in rows
+                     if isinstance(r, dict) and r.get("status") in ("not checked", "unknown"))
 
 
 def _older(ran_at: str | None, last_change: str | None) -> bool:

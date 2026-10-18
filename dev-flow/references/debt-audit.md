@@ -14,7 +14,7 @@ the reader.
 | **before the next release** | every app-security finding (secrets, authorization, vulnerable dependencies, exposed data); compliance `H`; a blocking registry-intake problem; observability `errors` missing — or never chosen, since an app online without error tracking does not know when it breaks; a file that writes data with no test **and** an authorization finding on the same file |
 | **with the features that touch these files** | compliance `M`; registry-intake review items; files that write data with no test; shadscan `fix`; vercel-doctor high and medium; launch-audit `missing`; recipe violations `HIGH` and `MEDIUM` |
 | **later** | observability `logs` / `uptime` missing; shadscan `verify` / `decide`; vercel-doctor low; promote-component candidates; recipe violations `LOW` |
-| *not checked* (apart) | each source or check that could not see: not installed, skipped, timed out, unreadable output, no coverage file. Listed, never ordered, never counted clean |
+| *not checked* (apart) | each source or check that could not see: not installed, skipped, timed out, unreadable output, no coverage file — and each source that saw only **part** (`partial`: app-security without gitleaks or Semgrep, observability without a visible DSN), with what it missed. Listed, never ordered, never counted clean |
 
 Inside a band, the files changed most often in the last 90 days come first (`git log --since=90.days`): "with the
 features" means that file will be reopened. Ties, and findings without a file, keep the source's order. Without git,
@@ -96,11 +96,12 @@ the line percentage per surface. Without it, *not checked*, with the command:
 
 ```bash
 pnpm add -D @vitest/coverage-v8            # once, with the user's yes
-pnpm vitest run --coverage --coverage.reporter=json-summary
+pnpm vitest run --coverage --coverage.reporter=json-summary --coverage.reportOnFailure=true
 npx jest --coverage --coverageReporters=json-summary   # Expo / Jest
 ```
 
-There is no threshold: a percentage is optimised against; a file that writes data with no test is not.
+`reportOnFailure` matters: without it, one red test file and Vitest writes no summary at all (found on fit-coach,
+where one hook timed out under instrumentation). There is no threshold: a percentage is optimised against; a file that writes data with no test is not.
 
 ## From findings to tasks
 

@@ -66,9 +66,11 @@ def _report(run_at: str, open_: list[dm.Finding], kept: list[dm.Finding], source
     for band in dm.BANDS:
         rows = [f for f in open_ if f.band == band]
         out += [f"## {TITLES[band]} ({len(rows)})", ""] + ([_row(f) for f in rows] or ["Nothing."]) + [""]
-    unseen = [s for s in sources if s.status == "not checked"]
+    figures = [s for s in sources if s.name in ("tests", "coverage") and s.status == "fresh"]
+    out += ["## Tests", ""] + ([f"- {s.name}: {s.reason}" for s in figures] or ["No test figure (see Not checked)."]) + [""]
+    unseen = [s for s in sources if s.status in ("not checked", "partial")]
     out += ["## Not checked", "", "What this audit could not see — not the same as clean.", ""]
-    out += [f"- {s.name}: {s.reason}" for s in unseen] or ["Every source ran."]
+    out += [f"- {s.name}{' (partly)' if s.status == 'partial' else ''}: {s.reason}" for s in unseen] or ["Every source ran."]
     stale = [s for s in sources if s.status in ("stale", "missing")]
     out += [f"- {s.name} ({s.status}): {s.reason or 'older than the last material change — re-run it'}" for s in stale]
     out += [f"- note: {n}" for n in notes] + [""]
@@ -91,7 +93,7 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
     man, man_source = ds.manual(root)
     authz = {f.file for f in findings if f.source == "app-security" and f.check in ds.AUTHZ_CHECKS and f.file}
     tests, test_sources = dt.check(root, meta, authz)
-    findings += rec + man + tests
+    findings = dm.merge(findings + rec + man + tests)
     sources += rec_sources + [man_source] + test_sources
 
     debt = root / ".workflow" / "debt"
@@ -112,7 +114,7 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
     debt.mkdir(parents=True, exist_ok=True)
     meta_io.write_text(debt / "findings.json", json.dumps({
         "run_at": run_at, "open": [dump(f) for f in open_], "kept": [dump(f) for f in kept],
-        "not_checked": [asdict(s) for s in sources if s.status == "not checked"],
+        "not_checked": [asdict(s) for s in sources if s.status in ("not checked", "partial")],
         "sources": {s.name: s.status for s in sources}, "notes": notes}, indent=2) + "\n")
     report = root / REPORT
     report.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +127,7 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
                   "with_features": sum(f.band == "with-features" for f in confirmed),
                   "later": sum(f.band == "later" for f in confirmed)},
         "to_confirm": sum(f.signal for f in open_),
-        "not_checked": [s.name for s in sources if s.status == "not checked"],
+        "not_checked": [s.name for s in sources if s.status in ("not checked", "partial")],
         "sources": {s.name: s.status for s in sources},
         "new": len(new), "closed": len(closed), "report": REPORT,
     }

@@ -34,6 +34,7 @@ import surfaces as sf  # noqa: E402 — vendored copy of dev-flow/scripts/surfac
 LEVELS = ("errors", "logs", "uptime")
 CODE = (".ts", ".tsx", ".js", ".jsx", ".mjs")
 SKIP = {"node_modules", ".next", ".git", "dist", "build", "out", ".verification",
+        ".eve", ".output", ".vercel", ".turbo", ".data",   # generated code and runtime data, not source
         "__tests__", "__mocks__", "e2e", "tests", "test", "fixtures"}   # tests may name what the app must not do
 TEST_FILE = re.compile(r"\.(test|spec|stories)\.[a-z]+$")
 LOOPBACK = re.compile(r"^(localhost|127\.0\.0\.1|\[?::1\]?)$")
@@ -106,35 +107,14 @@ def _allows(sources: list[str], host: str) -> bool:
     return False
 
 
+# a string (kept whole) or a comment (dropped). A quote or double-quote string must close on its line, so one
+# unmatched quote is read as a plain character and cannot swallow the rest of a file; a template literal may span lines.
+_TOKENS = re.compile(r"""("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*.*?\*/""", re.S)
+
+
 def _code(text: str) -> str:
-    """The text without comments. Strings are skipped whole, so `https://*.ingest…` opens no comment; a quote or
-    double-quote string ends at a newline, so one unmatched quote cannot swallow the rest of a file."""
-    out, i, n, quote = [], 0, len(text), None
-    while i < n:
-        c = text[i]
-        if quote:
-            out.append(c)
-            if c == "\\" and i + 1 < n:
-                out.append(text[i + 1])
-                i += 2
-                continue
-            if c == quote or (c == "\n" and quote != "`"):
-                quote = None
-            i += 1
-        elif c in "'\"`":
-            quote = c
-            out.append(c)
-            i += 1
-        elif text.startswith("//", i):
-            j = text.find("\n", i)
-            i = n if j < 0 else j
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            i = n if j < 0 else j + 2
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
+    """The text without comments. Strings are skipped whole, so `https://*.ingest…` opens no comment."""
+    return _TOKENS.sub(lambda m: m.group(1) or "", text)
 
 
 def _dsn_hosts(base: Path, root: Path, code: str) -> tuple[list[tuple[str, str]], list[str]]:

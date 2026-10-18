@@ -402,6 +402,13 @@ class FinalReview(Fixture):
         self.write("node_modules/x/index.js", "Sentry.init({ sendDefaultPii: true })\n")
         self.assertEqual(self.found(), [])
 
+    def test_generated_code_is_not_read(self) -> None:
+        # found by the debt audit's run on fit-coach: .eve/ snapshots made the check take 54 s, and are not source
+        self.complete_errors()
+        for d in (".eve/dev-runtime/snap", ".output/server", ".vercel/output", ".turbo/cache", ".data"):
+            self.write(f"{d}/x.mjs", "Sentry.init({ sendDefaultPii: true, integrations: [replayIntegration()] })\n")
+        self.assertEqual(self.found(), [])
+
     def test_with_sentry_config_required_from_the_root_is_found(self) -> None:
         self.complete_errors()
         self.write("next.config.js", 'const { withSentryConfig } = require("@sentry/nextjs")\nmodule.exports = withSentryConfig({}, {})\n')

@@ -38,8 +38,9 @@ CODE_CHECKS = ("server-action-unauthenticated", "route-handler-unauthenticated",
 DEFAULT_SESSION_CALLS = ("getSession", "getCurrentUserId", "getCurrentTenantId", "requireUser", "verifySession", "auth(")
 PUBLIC_BY_NATURE = ("ANON_KEY", "PUBLISHABLE", "POSTHOG_KEY", "SITE_KEY", "_URL", "REVENUECAT", "MAPS_API_KEY")
 SECRET_WORDS = re.compile(r"SECRET|PRIVATE|TOKEN|PASSWORD|API_KEY|SERVICE_ROLE|_KEY$")
-SKIP_ANYWHERE = {"node_modules"}   # plus every hidden directory (.next, .eve, .output…)
-SKIP_TOP = {"dist", "build", "out", "coverage", "ios", "android"}   # only right under a source root: app/build/ is a route
+SKIP_ANYWHERE = {"node_modules", "__tests__", "__mocks__", "e2e"}   # plus every hidden directory (.next, .eve, .output…)
+SKIP_TOP = {"dist", "build", "out", "coverage", "ios", "android", "tests"}   # only right under a source root: app/build/ is a route
+TEST_FILE = re.compile(r"\.(?:test|spec)\.[a-z]+$")   # a test's fixture query is not the app's code
 CODE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs")
 # an owner filter: a column naming the user or the tenant, or the id compared with the caller's own id
 SCOPE_WORDS = r"(?:user|tenant|owner|org|organization|workspace|team|account|member)"
@@ -81,7 +82,7 @@ def code_files(root: Path):
         nested = tuple(r for r in roots if base in r.parents)   # each app and package is walked from its own root
         for d, files in walk_sources(base, root, nested):
             for name in files:
-                if Path(name).suffix in CODE_SUFFIXES:
+                if Path(name).suffix in CODE_SUFFIXES and not TEST_FILE.search(name):
                     yield d / name
 
 
