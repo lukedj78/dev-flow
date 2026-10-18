@@ -884,6 +884,7 @@ phase=module-added     → write-tests / rn-write-tests  OR  iterate
                          → eventually the stack's deploy skill, once feature-complete
 phase=feature_complete → gates: compliance-audit (any stack)  +  vercel-doctor (web on Vercel)
                                 +  shadscan (web on shadcn)  +  launch-audit (web)
+                                +  app-security (any stack)
                          "next"    → vercel-deploy
                          "expo-rn" → rn-eas-deploy
                          eve agent → eve deploy
@@ -1253,7 +1254,7 @@ Fixing annotix's sitemap then paid for a fourth. Listing the legal pages meant t
 
 **Why that reading step is the skill.** On the first real run, **only 2 of 9 `fix` items survived it.** shadscan invents nothing — every string it quoted was really in the file it named — but it cannot follow a prop across a component boundary, climb to a wrapper, see through a `render` prop, or know that a subtree renders to WebGL instead of the DOM. A suppressed focus ring whose wrapper carries `focus-within:ring`, a pending state lifted into the parent, a `fallback={null}` inside a `<Canvas>` — all reported, none defects. **The better-composed the codebase, the more false positives it produces.** The skill encodes which rule kinds to trust: *does this file exist?* is reliable, *is this component semantically complete?* is not.
 
-This is one of the **four pre-deploy gates** (with `launch-audit`, which came later), and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
+This is one of the **five pre-deploy gates** (with `launch-audit` and `app-security`, which came later), and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
 
 **The discipline: never optimise for the score.** shadscan says this itself — *do not add unused infrastructure solely to increase the audit score*. A command menu nobody asked for is a regression that scores well. Web only (DOM/React rules); no phase bump; never blocks the deploy on its own.
 

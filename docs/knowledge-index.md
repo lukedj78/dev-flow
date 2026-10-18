@@ -70,7 +70,7 @@ when any of them moves:
 
 ## Pre-deploy gates (third-party CLIs)
 
-Four gates run at `feature_complete` — legal, cost, UI, commercial readiness. Two of them wrap an **external CLI whose flags and
+Five gates run at `feature_complete` — legal, cost, UI, commercial readiness, code security. Two of them wrap an **external CLI whose flags and
 report schema move independently of us**, so they belong in this index: a gate documented against a stale
 surface fails silently.
 

@@ -35,8 +35,8 @@ PHASE_NEXT_BY_STACK = {
         "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)",
         "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit  THEN  vercel-deploy",
-        "deployed":         "maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit after material changes",
+        "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy",
+        "deployed":         "maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes",
     },
     "expo-rn": {
         "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
@@ -45,8 +45,8 @@ PHASE_NEXT_BY_STACK = {
         "scaffolded":       "rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)",
         "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen",
         "module_added":     "spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gate: compliance-audit  THEN  rn-eas-deploy",
-        "deployed":         "maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit after material changes",
+        "feature_complete": "gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy",
+        "deployed":         "maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes",
     },
     "monorepo": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
@@ -56,15 +56,15 @@ PHASE_NEXT_BY_STACK = {
         "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types",
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
-        "deployed":         "maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit after material changes",
+        "feature_complete": "gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
+        "deployed":         "maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes",
     },
     "agent": {
         "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)",
         "tasks_split":      "linear-scrum (Setup)  THEN  eve-agent (bootstrap)",
         "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting — set phase feature_complete when the build is done",
-        "feature_complete": "gate: compliance-audit  THEN  eve deploy",
-        "deployed":         "maintenance loop — more capabilities (eve-agent), compliance-audit after material changes",
+        "feature_complete": "gates: compliance-audit + app-security  THEN  eve deploy",
+        "deployed":         "maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes",
     },
 }
 
