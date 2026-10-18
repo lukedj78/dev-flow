@@ -46,8 +46,8 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 
 **Every stack**
 
-- `empty` → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea
-- `idea_captured` → prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'
+- `empty` → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea  — optional alternative for a commercial idea whose market is not settled: founder-intelligence instead of the inventory
+- `idea_captured` → prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'; optional alternative for a commercial idea: founder-intelligence
 
 **`next` (the default when `stack.framework` is missing)**
 
