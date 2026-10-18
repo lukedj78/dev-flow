@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +49,13 @@ class Refused(Exception):
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def text_arg(value: str) -> str:
+    """A command-line text as the founder typed it. Under an ASCII locale (LC_ALL=C on Linux) Python decodes argv
+    as ASCII with surrogateescape, so "sì" arrives as surrogates that UTF-8 refuses to write; the original bytes
+    are recovered and decoded as UTF-8. On macOS argv is always UTF-8 and this changes nothing."""
+    return os.fsencode(value).decode("utf-8", errors="replace")
 
 
 def confined(root: Path, path: Path) -> Path:
@@ -149,7 +157,7 @@ def cmd_start(a: argparse.Namespace, p: Project) -> int:
             keep.write_text("", encoding="utf-8")
         playbook = confined(p.root, p.root / PLAYBOOK)
         if not playbook.exists():
-            playbook.write_text(TEMPLATE.read_text(encoding="utf-8"))
+            playbook.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
         sources = confined(p.root, folder / "sources.md")
         if not sources.exists():
             sources.write_text(SOURCES_HEAD, encoding="utf-8")
@@ -214,13 +222,13 @@ def approval_block(version: int, at: str, quote: str, experiment: dict | None) -
 
 
 def cmd_approve(a: argparse.Namespace, p: Project) -> int:
-    quote = (a.user_said or "").strip()
+    quote = text_arg(a.user_said or "").strip()
     if not quote:
         raise Refused("--user-said must quote the founder's own approval; nobody else can give it.")
     if BEGIN in quote or END in quote:
         raise Refused(f"--user-said contains an approval marker ({BEGIN} or {END}); it would break the next approval. "
                       "Quote the founder's words without it.")
-    given = {k: (getattr(a, f"experiment_{k}") or "").strip() for k in EXPERIMENT}
+    given = {k: text_arg(getattr(a, f"experiment_{k}") or "").strip() for k in EXPERIMENT}
     if any(given.values()) and not all(given.values()):
         missing = ", ".join(f"--experiment-{k}" for k, v in given.items() if not v)
         raise Refused(f"a limited experiment needs all four of scope, objective, constraints, acceptance: missing {missing}")
@@ -262,7 +270,7 @@ def cmd_approve(a: argparse.Namespace, p: Project) -> int:
 
 
 def cmd_decide(a: argparse.Namespace, p: Project) -> int:
-    reason = (a.reason or "").strip()
+    reason = text_arg(a.reason or "").strip()
     if not reason:
         raise Refused("--reason is required: the founder's decision is kept with why they took it")
     with meta_io.locked(p.meta_path.parent):
@@ -275,7 +283,7 @@ def cmd_decide(a: argparse.Namespace, p: Project) -> int:
 
 
 def cmd_bypass(a: argparse.Namespace, p: Project) -> int:
-    reason = (a.reason or "").strip()
+    reason = text_arg(a.reason or "").strip()
     if not reason:
         raise Refused("--reason is required: leaving the founder path is kept with why")
     with meta_io.locked(p.meta_path.parent):
@@ -310,6 +318,9 @@ def main(argv: list[str] | None = None) -> int:
         elif name == "bypass":
             sp.add_argument("--reason", required=True)
     a = ap.parse_args(argv)
+    for stream in (sys.stdout, sys.stderr):  # an ASCII locale must not crash on an em dash or the founder's words
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     try:
         return a.func(a, Project(a.root))
     except Refused as e:

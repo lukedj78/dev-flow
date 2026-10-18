@@ -47,7 +47,7 @@ class Fixture(unittest.TestCase):
         self._tmp.cleanup()
 
     def run_founder(self, *argv: str) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, str(FOUNDER), *argv], capture_output=True, text=True)
+        return subprocess.run([sys.executable, str(FOUNDER), *argv], capture_output=True, text=True, encoding="utf-8")
 
     def ok(self, *argv: str) -> subprocess.CompletedProcess:
         r = self.run_founder(*argv)
@@ -55,7 +55,7 @@ class Fixture(unittest.TestCase):
         return r
 
     def meta(self) -> dict:
-        return json.loads(self.meta_path.read_text())
+        return json.loads(self.meta_path.read_text(encoding="utf-8"))
 
     def founder(self) -> dict:
         return self.meta()["founder"]
@@ -63,7 +63,7 @@ class Fixture(unittest.TestCase):
     def set_meta(self, **changes) -> None:
         meta = self.meta()
         meta.update(changes)
-        self.meta_path.write_text(json.dumps(meta))
+        self.meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
     def ready(self) -> None:
         """Started, research complete, inventory recorded: what approve needs."""
@@ -81,13 +81,13 @@ class Start(Fixture):
         f = self.founder()
         self.assertEqual((f["mode"], f["research"], f["decision"], f["playbook"], f["version"]),
                          ("new", "in_progress", "pending", PLAYBOOK, 0))
-        self.assertEqual(self.playbook().read_text(), (HERE.parent / "assets/founder-playbook.md").read_text())
+        self.assertEqual(self.playbook().read_text(encoding="utf-8"), (HERE.parent / "assets/founder-playbook.md").read_text(encoding="utf-8"))
         self.assertTrue((self.root / ".workflow/founder/sources.md").is_file())
         self.assertTrue((self.root / ".workflow/founder/interviews").is_dir())
 
     def test_start_twice_is_a_no_op(self) -> None:
         self.ok("start", str(self.root), "--mode", "new")
-        self.playbook().write_text("# my work\n")
+        self.playbook().write_text("# my work\n", encoding="utf-8")
         before = (self.meta_path.read_bytes(), self.playbook().read_bytes())
         self.ok("start", str(self.root), "--mode", "new")
         self.assertEqual((self.meta_path.read_bytes(), self.playbook().read_bytes()), before)
@@ -139,7 +139,7 @@ class Approve(Fixture):
                 meta.pop("inventory", None)
                 if inventory:
                     meta["inventory"] = inventory
-                self.meta_path.write_text(json.dumps(meta))
+                self.meta_path.write_text(json.dumps(meta), encoding="utf-8")
                 r = self.run_founder("approve", str(self.root), "--user-said", "sì")
                 self.assertEqual(r.returncode, 1)
                 self.assertIn("inventory.py record", r.stderr)
@@ -154,7 +154,7 @@ class Approve(Fixture):
         self.ready()
         self.ok("approve", str(self.root), "--user-said", "sì, procedi con lo sviluppo")
         f = self.founder()
-        text = self.playbook().read_text()
+        text = self.playbook().read_text(encoding="utf-8")
         block = text.split("<!-- founder:approval -->")[1].split("<!-- /founder:approval -->")[0]
         self.assertIn("sì, procedi con lo sviluppo", block)
         self.assertIn("v1", block)
@@ -179,7 +179,7 @@ class Approve(Fixture):
 
     def test_approve_refuses_without_markers(self) -> None:
         self.ready()
-        self.playbook().write_text("# Playbook without the approval markers\n")
+        self.playbook().write_text("# Playbook without the approval markers\n", encoding="utf-8")
         before = self.playbook().read_bytes()
         r = self.run_founder("approve", str(self.root), "--user-said", "sì")
         self.assertEqual(r.returncode, 1)
@@ -190,7 +190,7 @@ class Approve(Fixture):
     def test_edit_after_approval_needs_reapproval(self) -> None:
         self.ready()
         self.ok("approve", str(self.root), "--user-said", "sì")
-        self.playbook().write_text(self.playbook().read_text() + "\none more line\n")
+        self.playbook().write_text(self.playbook().read_text(encoding="utf-8") + "\none more line\n", encoding="utf-8")
         self.assertFalse(gate.verify(self.root, self.meta())[0])
         self.ok("approve", str(self.root), "--user-said", "sì, anche con la modifica")
         self.assertTrue(gate.verify(self.root, self.meta())[0])
@@ -221,6 +221,16 @@ class Approve2(Fixture):
                 self.assertIn("marker", r.stderr)
                 self.assertEqual(self.founder()["decision"], "pending")
 
+    def test_argv_decoded_under_an_ascii_locale_is_recovered(self) -> None:
+        # Linux under LC_ALL=C hands Python its arguments decoded as ASCII with surrogateescape: "sì" arrives as
+        # "s\udcc3\udcac", which UTF-8 refuses to write. macOS always decodes argv as UTF-8, so simulate it here.
+        spec = importlib.util.spec_from_file_location("founder_mod2", FOUNDER)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mangled = "sì, è così".encode("utf-8").decode("ascii", "surrogateescape")
+        self.assertEqual(mod.text_arg(mangled), "sì, è così")
+        self.assertEqual(mod.text_arg("plain"), "plain")
+
     def test_text_is_utf8_whatever_the_locale(self) -> None:
         # A C/POSIX locale with UTF-8 mode and locale coercion off makes Python's default encoding ASCII;
         # the approval record writes curly quotes and the founder's own (often accented) words.
@@ -231,6 +241,11 @@ class Approve2(Fixture):
                            capture_output=True, text=True, env=env, encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("sì, è così", self.playbook().read_text(encoding="utf-8"))
+        # its own messages carry an em dash: printing them must not crash under the same locale
+        r = subprocess.run([sys.executable, str(FOUNDER), "decide", str(self.root), "revise", "--reason", "è il segmento sbagliato"],
+                           capture_output=True, text=True, env=env, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.founder()["reason"], "è il segmento sbagliato")
 
 
 class Decide(Fixture):
