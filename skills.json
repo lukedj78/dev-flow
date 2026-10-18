@@ -152,6 +152,7 @@
         "check_drift.py",
         "data_residency.py",
         "data_residency_gate.py",
+        "debt_audit.py",
         "debt_model.py",
         "debt_sources.py",
         "debt_tests.py",

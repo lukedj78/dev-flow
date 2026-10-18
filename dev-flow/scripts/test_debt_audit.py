@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import debt_model as dm  # noqa: E402
 import debt_sources as ds  # noqa: E402
 import debt_tests as dt  # noqa: E402
+import debt_audit as da  # noqa: E402
+import meta_io  # noqa: E402
 
 
 def F(source: str, check: str, **kw) -> dm.Finding:
@@ -408,6 +412,117 @@ class TestCheck(Tmp):
         fs, srcs = dt.check(self.root, {}, set())
         self.assertEqual(fs, [])
         self.assertEqual({s.name: s for s in srcs}["tests"].status, "not applicable")
+
+
+META_KEYS = {"last_run_at", "bands", "to_confirm", "not_checked", "sources", "new", "closed", "report"}
+HEADINGS = ["# Debt audit", "## Before the next release", "## With the features that touch these files", "## Later",
+            "## Not checked", "## Kept on purpose", "## Since the last audit"]
+
+
+class Collect(Tmp):
+    """The sibling scanners are fakes in a tmp SKILLS_ROOT; only app-security is installed."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.skills = self.root / "skills"
+        self.proj = self.root / "proj"
+        self._saved = ds.SKILLS_ROOT
+        ds.SKILLS_ROOT = self.skills
+        self.write("proj/package.json", json.dumps({"dependencies": {"next": "16.3.8"}}))
+        self.write("proj/app/page.tsx", "export default function P() { return null }\n")
+        self.meta = {"phase": "deployed", "stack": {"framework": "next", "observability": ["errors"]},
+                     "history": [{"skill": "module-add", "ran_at": "2026-10-01T00:00:00Z"}], "custom": {"keep": 1}}
+        (self.proj / ".workflow").mkdir()
+        meta_io.write_json(self.proj / ".workflow/meta.json", self.meta)
+        self.security([("server-action-unauthenticated", "app/actions/plan.ts:3")])
+
+    def tearDown(self) -> None:
+        ds.SKILLS_ROOT = self._saved
+        super().tearDown()
+
+    def security(self, hits: list[tuple[str, str]]) -> None:
+        rows = [{"check": c, "status": "found", "detail": "no session check", "where": [w]} for c, w in hits]
+        self.write("skills/app-security/scripts/scan_security.py", f"import json\nprint(json.dumps({rows!r}))\n")
+
+    def meta_now(self) -> dict:
+        return meta_io.read_meta(self.proj / ".workflow/meta.json")
+
+    def test_collect_writes_the_three_outputs(self) -> None:
+        block = da.collect(self.proj, now="2026-10-18T12:00:00Z")
+        self.assertEqual(set(block), META_KEYS)
+        self.assertEqual(self.meta_now()["debt_audit"], block)
+        data = json.loads((self.proj / ".workflow/debt/findings.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(data), {"run_at", "open", "kept", "not_checked", "sources", "notes"})
+        report = (self.proj / "docs/debt/debt-audit.md").read_text(encoding="utf-8")
+        positions = [report.find(h) for h in HEADINGS]
+        self.assertTrue(all(p >= 0 for p in positions), positions)
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("[to confirm] app/actions/plan.ts:3", report)
+
+    def test_meta_is_written_under_the_lock(self) -> None:
+        calls = []
+        real = meta_io.locked
+        def spy(d):
+            calls.append(d)
+            return real(d)
+        meta_io.locked = spy
+        try:
+            da.collect(self.proj)
+        finally:
+            meta_io.locked = real
+        self.assertEqual(calls, [(self.proj / ".workflow").resolve()])
+
+    def test_phase_and_other_keys_untouched(self) -> None:
+        before = self.meta_now()
+        da.collect(self.proj)
+        after = self.meta_now()
+        changed = {k for k in set(before) | set(after) if before.get(k) != after.get(k)}
+        self.assertEqual(changed - {"updated_at", "meta_digest", "contract_version"}, {"debt_audit", "history"})
+        self.assertEqual(after["history"][-1]["skill"], "dev-flow")
+        self.assertEqual(after["history"][-1]["action"], "debt-audit")
+        self.assertEqual(after["phase"], "deployed")
+
+    def test_second_run_reports_new_and_closed(self) -> None:
+        da.collect(self.proj)
+        self.security([("raw-sql", "lib/q.ts:9")])
+        block = da.collect(self.proj)
+        self.assertEqual((block["new"], block["closed"]), (1, 1))
+
+    def test_before_release_counts_only_confirmed(self) -> None:
+        self.security([("server-action-unauthenticated", "app/actions/a.ts:1"), ("raw-sql", "lib/b.ts:2")])
+        self.write("proj/app/actions/a.ts", "a")
+        (self.proj / ".workflow/debt").mkdir(parents=True)
+        fid = "app-security:server-action-unauthenticated:app/actions/a.ts"
+        (self.proj / ".workflow/debt/reviewed.json").write_text(json.dumps(
+            {fid: {"verdict": "confirmed", "reason": "", "hash": dm.file_hash(self.proj, "app/actions/a.ts")}}), encoding="utf-8")
+        block = da.collect(self.proj)
+        self.assertEqual((block["bands"]["before_release"], block["to_confirm"]), (1, 1))
+
+    def test_not_installed_sources_are_listed_as_not_checked(self) -> None:
+        block = da.collect(self.proj)
+        self.assertIn("compliance", block["not_checked"])
+        self.assertEqual(block["sources"]["app-security"], "fresh")
+
+    def test_without_meta_the_report_is_still_written(self) -> None:
+        (self.proj / ".workflow/meta.json").unlink()
+        block = da.collect(self.proj)
+        self.assertTrue((self.proj / "docs/debt/debt-audit.md").is_file())
+        self.assertFalse((self.proj / ".workflow/meta.json").exists())
+        self.assertEqual(set(block), META_KEYS)
+
+    def test_show_without_a_run_says_so(self) -> None:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = da.main(["show", str(self.proj)])
+        self.assertEqual(code, 1)
+        self.assertIn("no debt audit yet", out.getvalue())
+
+    def test_cli_json(self) -> None:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = da.main(["collect", str(self.proj), "--json", "--skip", "promote-component"])
+        self.assertEqual(code, 0)
+        self.assertEqual(set(json.loads(out.getvalue())), META_KEYS)
 
 
 if __name__ == "__main__":
