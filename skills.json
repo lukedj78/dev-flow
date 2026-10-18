@@ -159,7 +159,7 @@
         "meta_io.py",
         "test_founder.py"
       ],
-      "skill_md_lines": 119,
+      "skill_md_lines": 120,
       "bundle": "dist/founder-intelligence.skill"
     },
     {

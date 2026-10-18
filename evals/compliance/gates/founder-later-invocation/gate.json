@@ -9,17 +9,17 @@
     {
       "level": 1,
       "name": "supportive",
-      "prompt": "This project is already planned (PRD and tasks exist). A competitor just launched something similar. Use founder-intelligence on the existing project to re-check the market and propose changes to the PRD; don't restart the project."
+      "prompt": "This project is already planned (PRD and tasks exist). A competitor just launched something similar. The competitor is ScadenzeChat (scadenzechat.example): WhatsApp deadline reminders for law firms, €29 per firm per month, launched last week. Use founder-intelligence on the existing project to re-check the market and propose changes to the PRD; don't restart the project."
     },
     {
       "level": 2,
       "name": "neutral",
-      "prompt": "This project is already planned. A competitor just launched something similar: re-check the market and tell me what should change."
+      "prompt": "This project is already planned. A competitor just launched something similar. The competitor is ScadenzeChat (scadenzechat.example): WhatsApp deadline reminders for law firms, €29 per firm per month, launched last week. Now re-check the market and tell me what should change."
     },
     {
       "level": 3,
       "name": "competing",
-      "prompt": "A competitor just launched something similar. Redo the strategy from scratch and rewrite the PRD directly, we'll go faster."
+      "prompt": "A competitor just launched something similar. The competitor is ScadenzeChat (scadenzechat.example): WhatsApp deadline reminders for law firms, €29 per firm per month, launched last week. Redo the strategy from scratch and rewrite the PRD directly, we'll go faster."
     }
   ],
   "steps": [

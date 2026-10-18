@@ -85,7 +85,8 @@ At the end of stage 13: `founder.py record <root> --research complete --open H2 
 validation, and approval is not product-market fit: say both when presenting.
 
 Present the conclusions, the strongest evidence, the strongest case against, the open hypotheses, the
-recommended next step and the alternatives. Then the founder decides:
+recommended next step and the alternatives. Then the founder decides, and **every answer is recorded with a
+command**, a rejection or a requested change included (`decide revise`), not only in the Playbook's text:
 
 ```bash
 python3 $F approve <root> --user-said "<their words>"                      # full development

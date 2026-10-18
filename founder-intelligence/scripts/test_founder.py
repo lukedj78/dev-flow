@@ -237,6 +237,16 @@ class Status(Fixture):
         self.assertIn("APPROVED_FOR_DEVFLOW", self.labels_for(research="complete", decision="approved"))
         self.assertIn("REVISE_OR_STOP", self.labels_for(decision="stop", reason="x"))
 
+    def test_status_at_ready_says_how_to_record_each_decision(self) -> None:
+        self.ok("start", str(self.root), "--mode", "new")
+        out = self.labels_for(research="complete")
+        for cmd in ("approve", "decide", "revise", "bypass"):
+            self.assertIn(cmd, out.split("Labels:")[1])
+
+    def test_start_existing_names_handoff(self) -> None:
+        out = self.ok("start", str(self.root), "--mode", "existing").stdout
+        self.assertIn("handoff.md", out)
+
     def test_status_reports_malformed_block(self) -> None:
         self.set_meta(founder={"mode": "new", "decision": "maybe"})
         r = self.run_founder("status", str(self.root))

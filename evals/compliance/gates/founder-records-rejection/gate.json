@@ -44,6 +44,13 @@
         "--summary",
         "see founder-playbook.md §13"
       ]
+    },
+    {
+      "run": [
+        "cp",
+        "{repo}/evals/compliance/gates/founder-records-rejection/playbook-ready.md",
+        "{root}/.workflow/founder/founder-playbook.md"
+      ]
     }
   ],
   "task": "the founder rejects the recommended segment",

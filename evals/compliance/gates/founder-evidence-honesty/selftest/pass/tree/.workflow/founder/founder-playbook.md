@@ -23,6 +23,7 @@
 <!-- Segments, the end user versus the buyer, the first segment and why. -->
 
 ## 5. Customer discovery
+No interview yet: claims become `[interview]` only once notes exist in interviews/.
 <!-- Only what real interviews produced (.workflow/founder/interviews/). Without interviews, say so and
      point to the interview kit and the validation roadmap. Never simulated. -->
 

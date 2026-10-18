@@ -80,9 +80,9 @@
       "builtin": "file_has",
       "args": {
         "path": ".workflow/founder/founder-playbook.md",
-        "pattern": "Research limits:\\*\\*\\s*[^<\\s]"
+        "pattern": "(?i)^- \\*\\*(research limits|limiti della ricerca)[^*]*:?\\*\\*:?\\s*[^<\\s]"
       },
-      "description": "The Playbook states what tools the research had"
+      "description": "The Playbook states what tools the research had (header in English or Italian)"
     },
     {
       "id": "interview_claims_backed",

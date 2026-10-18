@@ -156,6 +156,9 @@ def cmd_start(a: argparse.Namespace, p: Project) -> int:
                            "playbook": PLAYBOOK, "version": 0, "open_hypotheses": []}
         p.save(meta, "start", {"mode": a.mode})
     print(f"started ({a.mode}): {PLAYBOOK}, {FOUNDER_DIR}/sources.md, {FOUNDER_DIR}/interviews/")
+    if a.mode == "existing":
+        print(f"Existing project: read PROJECT.md, PRD.md and tasks.md first; every proposed change goes into "
+              f"{FOUNDER_DIR}/handoff.md (what, why, source), and nothing in the PRD changes until the founder accepts it.")
     return 0
 
 
@@ -180,6 +183,12 @@ def cmd_status(a: argparse.Namespace, p: Project) -> int:
             print("⚠ the Playbook changed after approval (or is missing): the founder must approve it again")
     if founder.get("reason"):
         print(f"Reason:   {founder['reason']}")
+    if founder["research"] == "complete" and founder["decision"] == "pending":
+        # The moment the founder answers is when the agent needs the command, so it is printed here, not only in SKILL.md.
+        print("Next:     present the Playbook to the founder, then record what they say —")
+        print(f"            approve: founder.py approve {p.root} --user-said \"<their words>\"")
+        print(f"            reject or change something: founder.py decide {p.root} revise --reason \"<their reason>\"  (then edit §18)")
+        print(f"            stop: founder.py decide {p.root} stop --reason \"...\"   ·   direct path: founder.py bypass {p.root} --reason \"...\"")
     return 0
 
 

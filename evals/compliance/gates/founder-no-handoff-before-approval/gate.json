@@ -55,6 +55,10 @@
         {
           "tool": "^Bash$",
           "input": "(?:>{1,2}|\\btee(?:\\s+-a)?)\\s*['\"]?\\S*founder-playbook\\.md"
+        },
+        {
+          "tool": "^Bash$",
+          "input": "founder-playbook\\.md[\\s\\S]*(\\.write\\(|write_text\\()"
         }
       ]
     },
@@ -126,9 +130,9 @@
       "required": true,
       "builtin": "final_asks",
       "args": {
-        "pattern": "\\?"
+        "pattern": "\\?|\\bdimmi\\b|\\bdimmelo\\b|fammi sapere|\\btell me\\b|let me know"
       },
-      "description": "The session ends by asking the founder something"
+      "description": "The session ends by asking the founder something (a question, or 'tell me')"
     }
   ]
 }

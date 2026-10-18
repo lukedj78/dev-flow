@@ -119,7 +119,8 @@ def parse_stream(stdout: str, root: Path) -> list[Call]:
             msg = json.loads(line)
         except json.JSONDecodeError:
             continue
-        content = (msg.get("message") or {}).get("content")
+        message = msg.get("message") if isinstance(msg, dict) else None
+        content = message.get("content") if isinstance(message, dict) else None   # some stream lines carry a string
         if not isinstance(content, list):
             continue
         for block in content:
@@ -433,7 +434,7 @@ def builtin_same_as(root, calls, args):
 
 def builtin_claims_backed(root, calls, args):
     """A tag such as [interview] used outside comments only when its evidence folder holds a file."""
-    text = prose(root / args["path"])
+    text = re.sub(r"`[^`\n]*`", "", prose(root / args["path"]))  # `[interview]` quoted in a sentence is not a claim
     uses = len(re.findall(re.escape(args["tag"]), text))
     folder = root / args["dir"]
     files = [f for f in folder.glob("*.md")] if folder.is_dir() else []
