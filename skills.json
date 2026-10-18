@@ -139,7 +139,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 303,
+      "skill_md_lines": 304,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -192,7 +192,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 289,
+      "skill_md_lines": 308,
       "bundle": "dist/prd-from-idea.skill"
     },
     {

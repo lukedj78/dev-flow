@@ -92,7 +92,9 @@ does not justify scope.
 - **explicit exclusions**, and the evidence that would justify adding a feature (amendment criteria);
 - external dependencies, operational and support needs;
 - **metrics decided before launch**: the activation event, retention targets at 7 and 30 days, and what a
-  false positive would look like (sign-ups without activation, revenue without retention);
+  false positive would look like (sign-ups without activation, revenue without retention) — in the PRD's
+  `## Measurement` format (event names `snake_case`, past tense: `invoice_sent`), because `prd-from-idea` copies
+  them there unchanged;
 - what a prototype, landing page or manual service can test first.
 **Not** a PRD: no user stories, no screens. Those are `prd-from-idea`'s.
 **Done when:** a reader can say what the MVP deliberately does not do.

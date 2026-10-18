@@ -391,7 +391,7 @@ Skills that scaffold a codebase (`design-md-to-app`, `rn-bootstrap`, `monorepo-b
 Free-form prose, one h1 (the project name). Sections expected: **Overview**, **Audience**, **Problem & current alternatives**, **Value proposition**, **Success criteria**, **Out of scope** (optional). Written by `prd-from-idea`.
 
 ### `PRD.md`
-Free-form prose. Conventional sections: **Problem**, **Solution overview**, **User stories** (`As a … I want …`), **Non-goals**, **Technical constraints**, **Open questions**. Written by `prd-from-idea`.
+Free-form prose. Conventional sections: **Problem**, **Solution overview**, **User stories** (`As a … I want …`), **Measurement** (only when the user chose to measure: the activation event, D7/D30 targets, false positives, events to instrument — read by `module-add analytics` and `launch-audit`), **Non-goals**, **Technical constraints**, **Open questions**. Written by `prd-from-idea`.
 
 ### `tasks.md`
 A checklist compatible with beads / GitHub Issues / Linear import. Each task is a `## ` heading with body, plus a `- [ ]` line for status. Written by `prd-to-tasks`.
