@@ -138,6 +138,7 @@
       "references": [
         "before-you-build.md",
         "contracts.md",
+        "debt-audit.md",
         "eu-data-sovereignty.md",
         "external-skills.md",
         "merge-conflicts.md",
@@ -152,6 +153,10 @@
         "check_drift.py",
         "data_residency.py",
         "data_residency_gate.py",
+        "debt_audit.py",
+        "debt_model.py",
+        "debt_sources.py",
+        "debt_tests.py",
         "design_lint_gate.py",
         "founder_gate.py",
         "init_workflow.py",
@@ -166,6 +171,7 @@
         "surfaces.py",
         "test_contract_version.py",
         "test_data_residency.py",
+        "test_debt_audit.py",
         "test_founder_gate.py",
         "test_gate_doors.py",
         "test_history.py",
@@ -183,7 +189,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 308,
+      "skill_md_lines": 339,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -499,7 +505,7 @@
       "name": "launch-audit",
       "family": "web",
       "role": "operative",
-      "description": "The fourth pre-deploy gate. `shadscan` asks whether the code is good, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it costs — this one asks **can a stranger find this, trust it, and buy from it?** Three surfaces nobody owns: **findable** (title + description on every ...",
+      "description": "One of the five pre-deploy gates. `shadscan` asks whether the code is good, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it costs — this one asks **can a stranger find this, trust it, and buy from it?** Three surfaces nobody owns: **findable** (title + description on ...",
       "skill_file": "launch-audit/SKILL.md",
       "references": [
         "checks.md",

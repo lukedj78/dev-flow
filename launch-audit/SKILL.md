@@ -1,6 +1,6 @@
 ---
 name: launch-audit
-description: 'The fourth pre-deploy gate. `shadscan` asks whether the code is good, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it costs — this one asks **can a stranger find this, trust it, and buy from it?** Three surfaces nobody owns: **findable** (title + description on every route, robots, sitemap, favicon, social preview), **trustworthy** (privacy, terms, and the provider-identity block EU law requires on a commercial site), **convertible** (a CTA above the fold, reachable on mobile, a confirmation page after every form, analytics). Reports and routes; never blocks, never scores. Needs `stack.framework` in {next, monorepo} and `phase >= feature_complete`. Triggers: "launch audit", "è pronto per il lancio?", "pre-launch checklist", "controlla prima di pubblicare", "ready to launch". Not for: a11y (`shadscan`), GDPR risk (`compliance-audit`), cost (`vercel-doctor`), or writing the missing pages.'
+description: 'One of the five pre-deploy gates. `shadscan` asks whether the code is good, `compliance-audit` whether the data handling is lawful, `vercel-doctor` what it costs — this one asks **can a stranger find this, trust it, and buy from it?** Three surfaces nobody owns: **findable** (title + description on every route, robots, sitemap, favicon, social preview), **trustworthy** (privacy, terms, and the provider-identity block EU law requires on a commercial site), **convertible** (a CTA above the fold, reachable on mobile, a confirmation page after every form, analytics). Reports and routes; never blocks, never scores. Needs `stack.framework` in {next, monorepo} and `phase >= feature_complete`. Triggers: "launch audit", "è pronto per il lancio?", "pre-launch checklist", "controlla prima di pubblicare", "ready to launch". Not for: a11y (`shadscan`), GDPR risk (`compliance-audit`), cost (`vercel-doctor`), or writing the missing pages.'
 ---
 
 # launch-audit — the gate that asks whether this is a business
@@ -14,7 +14,7 @@ This gate looks at that, and only at that.
 
 > **It reports. It never blocks, and it does not produce a score.** A number invites optimising the
 > number; the output is a list of findings, each routed to whoever fixes it. Same posture as the
-> other three gates, for the same reason.
+> other four gates, for the same reason.
 
 ## Contract
 

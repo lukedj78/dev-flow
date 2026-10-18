@@ -293,6 +293,29 @@ The fifth pre-deploy gate — **can someone use this app to read or change what 
 
 A project whose session helpers have other names declares them in **`stack_config.security_session_calls`** (an array of function names, e.g. `["requireMember", "withOrg"]`), added to the defaults `getSession`, `getCurrentUserId`, `getCurrentTenantId`, `requireUser`, `verifySession` and `auth(`. Only a call inside a Server Action or route handler's body counts as a session check.
 
+### `debt_audit` field (owned by dev-flow's debt audit)
+
+Every audit the project has, plus a test check, in one ordered list — written by `dev-flow/scripts/debt_audit.py
+collect` (`docs/superpowers/specs/2026-10-18-debt-audit-design.md`), through `meta_io`'s lock:
+
+```json
+"debt_audit": {
+  "last_run_at": "<ISO-8601 UTC>",
+  "bands": { "before_release": 2, "with_features": 11, "later": 7 },
+  "to_confirm": 4,
+  "not_checked": ["coverage", "shadscan"],
+  "sources": { "app-security": "fresh", "shadscan": "stale", "vercel-doctor": "missing" },
+  "new": 3, "closed": 1, "report": "docs/debt/debt-audit.md"
+}
+```
+
+`bands` count **confirmed** findings only; `to_confirm` counts the scanners' signals (app-security, compliance,
+shadscan `fix` / `verify`) not yet reviewed in `.workflow/debt/reviewed.json`. `not_checked` lists the sources that could not see, or saw only in
+part — never clean. `sources` is `fresh | partial | stale | missing | not checked | not applicable` per source;
+`partial` is a scanner that ran but reported areas it could not check (gitleaks missing inside app-security). Never bumps `phase`; always a
+`history` entry (`{skill: "dev-flow", action: "debt-audit"}`). `show_state.py` proposes it from `deployed`, and again
+after a material change. How-to `dev-flow/references/debt-audit.md`.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.

@@ -181,6 +181,22 @@ export async function rename(db: D, input: I) {
         self.assertEqual(self.find("raw-sql").status, ss.OK)
 
 
+    def test_test_files_are_not_app_code(self) -> None:
+        # found by dev-flow's debt audit on fit-coach: a test's fixture query was reported as an IDOR in the app
+        self.next_app()
+        q = "export async function get(id: string) {\n  return db.select().from(invoices).where(eq(invoices.id, id))\n}\n"
+        for f in ("lib/clients/__tests__/access.test.ts", "lib/a.test.ts", "lib/b.spec.ts", "e2e/flows.spec.ts", "tests/c.ts"):
+            self.write(f, q)
+        self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+
+
+    def test_an_e2e_endpoint_inside_the_app_is_still_scanned(self) -> None:
+        # a test-support route shipped to production is exactly what the session check exists for
+        self.next_app()
+        self.write("app/api/e2e/reset/route.ts", "export async function POST() {\n  await db.delete(users)\n}\n")
+        self.assertEqual(self.find("route-handler-unauthenticated").status, ss.FOUND)
+
+
 class Environment(Fixture):
     def test_public_env_secret_is_found(self) -> None:
         self.next_app()

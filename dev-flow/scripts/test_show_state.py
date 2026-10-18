@@ -378,6 +378,63 @@ class Scope(unittest.TestCase):
             self.assertEqual(noted, value.strip() not in ("three users ask",), value)
 
 
+class Debt(unittest.TestCase):
+    """After deploy, dev-flow proposes the debt audit, and re-proposes it when a material change makes it old."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def meta(self, phase: str = "deployed", block: dict | None = None, history: list | None = None) -> dict:
+        m = {"phase": phase, "stack": {"framework": "next"}, "history": history or []}
+        if block is not None:
+            m["debt_audit"] = block
+        return m
+
+    def block(self, before: int = 0, confirm: int = 0, at: str = "2026-10-10T00:00:00Z") -> dict:
+        return {"last_run_at": at, "bands": {"before_release": before, "with_features": 0, "later": 0},
+                "to_confirm": confirm, "not_checked": [], "sources": {}, "new": 0, "closed": 0,
+                "report": "docs/debt/debt-audit.md"}
+
+    def test_silent_before_deployed(self) -> None:
+        self.assertIsNone(ss.debt_line(self.meta("feature_complete"), self.root))
+
+    def test_never_audited(self) -> None:
+        out = ss.debt_line(self.meta(), self.root)
+        self.assertIn("never audited", out)
+        self.assertIn("dev-flow debt audit", out)
+
+    def test_stale_after_a_material_change(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(at="2026-10-01T00:00:00Z"),
+                                     history=[{"skill": "module-add", "ran_at": "2026-10-05T00:00:00Z"}]), self.root)
+        self.assertIn("older than module-add", out)
+
+    def test_new_tests_make_the_audit_old(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(at="2026-10-01T00:00:00Z"),
+                                     history=[{"skill": "write-tests", "ran_at": "2026-10-05T00:00:00Z"}]), self.root)
+        self.assertIn("older than write-tests", out)
+
+    def test_same_instant_in_two_formats_is_not_stale(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(at="2026-10-05T10:00:00+00:00"),
+                                     history=[{"skill": "module-add", "ran_at": "2026-10-05T10:00:00Z"}]), self.root)
+        self.assertIsNone(out)
+
+    def test_before_release_count(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(before=2, confirm=1)), self.root)
+        self.assertIn("2 to fix", out)
+        self.assertIn("1 to confirm", out)
+
+    def test_clean_and_fresh_is_silent(self) -> None:
+        self.assertIsNone(ss.debt_line(self.meta(block=self.block()), self.root))
+
+    def test_deployed_rows_start_with_the_debt_audit(self) -> None:
+        for topology, rows in ss.PHASE_NEXT_BY_STACK.items():
+            self.assertTrue(rows["deployed"].startswith("dev-flow debt audit"), topology)
+
+
 class Observability(unittest.TestCase):
     """Before the first production deploy a web app with no error tracking gets a note — never a block."""
 
