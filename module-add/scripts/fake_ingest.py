@@ -15,7 +15,6 @@ It answers 200 to everything it can parse and stores nothing else. Local only: i
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
 import re
 import sys
@@ -31,15 +30,24 @@ EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 AUTHORIZATION = re.compile(r'"authorization"\s*:\s*"[^"]+', re.I)
 
 
+def _inflate(body: bytes, wbits: int) -> bytes:
+    d = zlib.decompressobj(wbits)
+    out = d.decompress(body, MAX_BODY + 1)
+    if len(out) > MAX_BODY or d.unconsumed_tail:
+        raise ValueError("the decompressed body is over MAX_BODY")
+    return out
+
+
 def decode(body: bytes, encoding: str | None) -> bytes:
+    """The body, decompressed up to MAX_BODY; over it, ValueError (a small gzip can expand without limit)."""
     enc = (encoding or "").lower()
     if enc == "gzip" or body[:2] == b"\x1f\x8b":
-        return gzip.decompress(body)
+        return _inflate(body, 16 + zlib.MAX_WBITS)
     if enc == "deflate":
         try:
-            return zlib.decompress(body)
+            return _inflate(body, zlib.MAX_WBITS)
         except zlib.error:
-            return zlib.decompress(body, -zlib.MAX_WBITS)
+            return _inflate(body, -zlib.MAX_WBITS)
     return body
 
 
@@ -58,19 +66,25 @@ def parse_envelope(body: bytes) -> list[dict]:
             item = json.loads(body[pos:end] or b"{}")
         except ValueError:
             break
+        if not isinstance(item, dict):
+            break
         pos = end + 1
         length = item.get("length")
         if length is None:
             stop = body.find(b"\n", pos)
             stop = len(body) if stop < 0 else stop
+        elif isinstance(length, int) and length >= 0:
+            stop = pos + length
         else:
-            stop = pos + int(length)
+            break   # a negative or non-integer length would move the cursor backwards: stop here
         payload, pos = body[pos:stop], stop + 1
         if item.get("type") in ("event", "transaction"):
             try:
-                out.append(json.loads(payload))
+                ev = json.loads(payload)
             except ValueError:
-                pass
+                continue
+            if isinstance(ev, dict):
+                out.append(ev)
     return out
 
 
@@ -79,11 +93,14 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
 
     class Handler(BaseHTTPRequestHandler):
         def read_body(self) -> bytes | None:
-            """The body, whether sent with Content-Length or chunked (the Sentry SDK chunks); None over MAX_BODY."""
+            """The body, whether sent with Content-Length or chunked (the Sentry SDK chunks); None over MAX_BODY;
+            ValueError when a chunk size or the Content-Length is not a valid size."""
             if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
                 parts, total = [], 0
                 while True:
                     size = int(self.rfile.readline().split(b";")[0].strip() or b"0", 16)
+                    if size < 0:
+                        raise ValueError("negative chunk size")
                     if size == 0:
                         self.rfile.readline()   # the CRLF after the last chunk
                         return b"".join(parts)
@@ -93,6 +110,8 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
                     parts.append(self.rfile.read(size))
                     self.rfile.readline()       # the CRLF after each chunk
             length = int(self.headers.get("Content-Length") or 0)
+            if length < 0:
+                raise ValueError("negative Content-Length")
             return None if length > MAX_BODY else self.rfile.read(length)
 
         def refuse(self, code: int) -> None:
@@ -104,7 +123,10 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
             origin = self.headers.get("Origin")
             if origin and not LOCAL_ORIGIN.match(origin):
                 return self.refuse(403)
-            raw = self.read_body()
+            try:
+                raw = self.read_body()
+            except ValueError:
+                return self.refuse(400)
             if raw is None:
                 return self.refuse(413)
             try:
@@ -112,7 +134,7 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
                 events = parse_envelope(body) if "/envelope" in self.path else [json.loads(body)]
             except (OSError, ValueError, zlib.error):
                 events = []
-            for ev in events:
+            for ev in (e for e in events if isinstance(e, dict)):
                 # the file name never comes from the request as is: a 32-hex event id, or a fresh one
                 eid = str(ev.get("event_id") or "").lower()
                 target = (out / f"{eid if EVENT_ID.match(eid) else uuid.uuid4().hex}.json").resolve()

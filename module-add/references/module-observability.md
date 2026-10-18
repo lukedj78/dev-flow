@@ -176,8 +176,21 @@ export const log = {
   return NextResponse.next({ request: { headers: requestHeaders } })
   ```
 
-  With `errors` on, tag it on the event as well (`Sentry.setTag("request_id", id)` in the server config's
-  `beforeSend`, read from the headers), so a user's report, the event and the log line share one id.
+  With `errors` on, tag the server event with it too, so a user's report, the event and the log line share one id.
+  Next.js hands `onRequestError` the request's headers; `captureRequestError` forks the current scope, so a tag set
+  around it reaches the event. In `instrumentation.ts`, in place of the plain export:
+
+  ```ts
+  import type { Instrumentation } from "next"
+
+  export const onRequestError: Instrumentation.onRequestError = (error, request, context) => {
+    Sentry.withScope((scope) => {
+      const id = request.headers["x-request-id"]
+      if (typeof id === "string") scope.setTag("request_id", id)
+      Sentry.captureRequestError(error, request, context)
+    })
+  }
+  ```
 - **Use it where failures disappear today:**
   - an email that returns `{ ok: false }`: `log.warn("email_failed", { template, reason })`;
   - a `track()` that fails;
@@ -195,8 +208,8 @@ personal data:
 import { sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 
-export const dynamic = "force-dynamic"
-
+// With `cacheComponents: true` a GET handler is never cached, and `export const dynamic` fails the build: leave it
+// out. Without cacheComponents, add `export const dynamic = "force-dynamic"` so the check runs on every call.
 export async function GET() {
   let dbOk = false
   try { await db.execute(sql`select 1`); dbOk = true } catch { /* reported below */ }
@@ -227,6 +240,9 @@ The fake ingest is plain `http`: a CSP whose `connect-src` has only `'self' http
 Allow `http://127.0.0.1:9010` in development only (`process.env.NODE_ENV === "production" ? "" : " http://127.0.0.1:9010"`).
 Use `127.0.0.1`, not `localhost`: a browser may resolve `localhost` to `::1`, where the ingest does not listen.
 
+Make both test errors carry an email address (`throw new Error("verify: anna@example.com")`): `"emails": false`
+then proves the scrub ran, not that the message happened to hold none.
+
 Expected:
 - two or more events, carrying the release;
 - `"emails": false` and `"authorization": false`.
@@ -244,7 +260,7 @@ python3 <skills>/module-add/scripts/observability_check.py <root> --all    # eve
 |---|---|
 | `errors` | `onRequestError` in `instrumentation.ts`; the client init; `global-error.tsx` and `error.tsx` (or `app/[locale]/error.tsx`) reporting; a `release`; `sendDefaultPii` not true; no Replay; `withSentryConfig` from `@sentry/nextjs/config`; a CSP `connect-src` that lets the DSN host through; the DSN host matching `stack.data_residency` |
 | `logs` | `lib/log.ts`; `x-request-id` |
-| `uptime` | the health route |
+| `uptime` | the health route, and no `dynamic` export when `cacheComponents` is on |
 
 A DSN read from an env var with no value in the env files reads **not checked**, never ok. So does privacy hidden
 behind a spread. An Expo app is not applicable: use `rn-module-add observability`.

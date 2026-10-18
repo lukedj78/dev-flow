@@ -34,24 +34,44 @@ symbols:
 }]] } }
 ```
 
-`url` is the EU organization's API host. Omit it for a US organization; for GlitchTip, use the GlitchTip host. Check
-the option against the plugin's docs on the first real install.
+`url` is the EU organization's API host (the plugin's `url?` option, checked in 8.31.0). Omit it for a US
+organization; for GlitchTip, use the GlitchTip host.
 
 **`metro.config.js`:** `const { getSentryExpoConfig } = require("@sentry/react-native/metro")`, so that bundles keep
 debug ids for symbolication.
+
+**`lib/observability/scrub.ts`** holds the same privacy as the web module's `scrub`: nothing personal leaves the
+phone, whatever the error message or breadcrumb carries.
+
+```ts
+import type { ErrorEvent } from "@sentry/react-native"
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
+
+export function scrub(event: ErrorEvent): ErrorEvent {
+  if (event.request?.headers) {
+    delete event.request.headers.cookie
+    delete event.request.headers.authorization
+  }
+  if (event.request?.url) event.request.url = event.request.url.replace(/([?&](token|code|key)=)[^&]+/gi, "$1[redacted]")
+  if (event.user) event.user = { id: event.user.id }
+  return JSON.parse(JSON.stringify(event).replace(EMAIL, "[email]"))
+}
+```
 
 **`app/_layout.tsx`:**
 
 ```tsx
 import * as Sentry from "@sentry/react-native"
 import * as Updates from "expo-updates"
+import { scrub } from "@/lib/observability/scrub"
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   release: Updates.updateId ?? Updates.runtimeVersion ?? undefined,   // an OTA update is its own release
   environment: Updates.channel ?? "development",
   sendDefaultPii: false,
-  beforeSend: (event) => { if (event.user) event.user = { id: event.user.id }; return event },
+  beforeSend: scrub,
 })
 
 export default Sentry.wrap(RootLayout)
@@ -62,7 +82,9 @@ export default Sentry.wrap(RootLayout)
 
 ## The proof, without an account
 
-Point `EXPO_PUBLIC_SENTRY_DSN` at the local fake ingest. A simulator reaches the Mac's localhost directly:
+Point `EXPO_PUBLIC_SENTRY_DSN` at the local fake ingest. The iOS simulator reaches the Mac's `127.0.0.1` directly.
+An Android emulator does not: run `adb reverse tcp:9010 tcp:9010` first (or use `10.0.2.2` in the DSN). React Native
+sends no `Origin`, so the ingest's origin rule does not apply.
 
 ```bash
 python3 <skills>/module-add/scripts/fake_ingest.py serve --port 9010 --out .verification/ingest &
@@ -73,7 +95,8 @@ python3 <skills>/module-add/scripts/fake_ingest.py summary .verification/ingest
 
 Expected:
 - one or more events, with the release;
-- `"emails": false`.
+- `"emails": false`. Make the test throw carry an email (`throw new Error("verify: anna@example.com")`): `false`
+  then proves the scrub, not the luck of a message without one.
 
 A crash of native code needs a real build to be symbolicated: that part is proven with the user's account.
 

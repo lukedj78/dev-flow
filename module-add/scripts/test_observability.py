@@ -260,9 +260,6 @@ class FakeIngest(Fixture):
         self.assertTrue(s["authorization"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class IngestSafety(Fixture):
     """Security review of 2026-10-18: the event_id came from the request and named the file (path traversal), and
@@ -330,3 +327,141 @@ class IngestSafety(Fixture):
         self.assertEqual(conn.getresponse().status, 200)
         conn.close()
         self.assertEqual(len(list(out.glob("*.json"))), 1)
+
+
+REAL_OPTIONS = """import type { ErrorEvent } from "@sentry/nextjs"
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g
+
+/** Nothing personal leaves the app: no cookies, no auth headers, no bodies, no emails, no tokens in URLs. */
+export function scrub(event: ErrorEvent): ErrorEvent { return event }
+
+export const options = {
+  dsn: "https://abc@o1.ingest.de.sentry.io/2",
+  release: process.env.VERCEL_GIT_COMMIT_SHA,
+  sendDefaultPii: false,
+  beforeSend: scrub,
+}
+"""
+WILDCARD_CSP = 'export const headers = ["default-src \'self\'", "connect-src \'self\' https://*.ingest.de.sentry.io"]\n'
+EU = {"stack": {"observability": ["errors"], "data_residency": "eu"}}
+
+
+class FinalReview(Fixture):
+    """The final review of 2026-10-18."""
+
+    def test_the_wildcard_csp_with_the_modules_own_options_passes(self) -> None:
+        # Critical: the `/*` inside `https://*.ingest…` opened a "comment" that ran to the next `*/`
+        self.complete_errors()
+        self.write("lib/observability/options.ts", REAL_OPTIONS)
+        self.write("next.config.ts", WILDCARD_CSP)
+        self.assertEqual(self.found(), [])
+
+    def test_a_string_never_hides_code_after_it(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/options.ts", REAL_OPTIONS)
+        self.write("next.config.ts", WILDCARD_CSP + "export const x = { sendDefaultPii: true } /* end */\n")
+        self.assertTrue(any("sendDefaultPii is true" in d for d in self.found()), self.found())
+
+    def test_send_default_pii_from_a_variable_is_not_checked(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/options.ts", OPTIONS.replace("sendDefaultPii: false", "sendDefaultPii: wantPii"))
+        self.assertIn("not checked", self.statuses(EU)["errors"])
+
+    def test_a_true_after_a_false_is_found(self) -> None:
+        self.complete_errors()
+        # same file, so the order of the walk cannot hide it: the first match is the false one
+        self.write("lib/observability/options.ts", OPTIONS + 'export const server = { ...options, sendDefaultPii: true }\n')
+        self.assertTrue(any("sendDefaultPii is true" in d for d in self.found()), self.found())
+
+    def test_every_dsn_is_checked(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/options.ts", OPTIONS + 'export const server = { dsn: "https://abc@o1.ingest.us.sentry.io/2" }\n')
+        self.assertTrue(any("region" in d for d in self.found()), self.found())
+
+    def test_a_placeholder_in_env_example_does_not_hide_the_real_value(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/options.ts", OPTIONS.replace('"https://abc@o1.ingest.de.sentry.io/2"', "process.env.NEXT_PUBLIC_SENTRY_DSN"))
+        self.write(".env.example", "NEXT_PUBLIC_SENTRY_DSN=https://abc@o1.ingest.de.sentry.io/2\n")
+        self.write(".env.local", "NEXT_PUBLIC_SENTRY_DSN=https://abc@o1.ingest.us.sentry.io/2\n")
+        self.assertTrue(any("region" in d for d in self.found()), self.found())
+        # the fake ingest's loopback DSN is the proof's, not a region
+        self.write(".env.local", "NEXT_PUBLIC_SENTRY_DSN=http://public@127.0.0.1:9010/1\n")
+        self.assertEqual(self.found(), [])
+
+    def test_an_interpolated_csp_host_is_not_checked(self) -> None:
+        self.complete_errors()
+        self.write("next.config.ts", "const h = [`connect-src 'self' ${sentryHost}`]\n")
+        self.assertEqual(self.found(), [])
+        self.assertIn("not checked", self.statuses(EU)["errors"])
+
+    def test_tests_and_node_modules_are_not_read(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/options.test.ts", "expect(scrub({ sendDefaultPii: true, replayIntegration }))\n")
+        self.write("e2e/replay.spec.ts", "replayIntegration()\n")
+        self.write("node_modules/x/index.js", "Sentry.init({ sendDefaultPii: true })\n")
+        self.assertEqual(self.found(), [])
+
+    def test_with_sentry_config_required_from_the_root_is_found(self) -> None:
+        self.complete_errors()
+        self.write("next.config.js", 'const { withSentryConfig } = require("@sentry/nextjs")\nmodule.exports = withSentryConfig({}, {})\n')
+        self.assertTrue(any("@sentry/nextjs/config" in d for d in self.found()), self.found())
+
+
+class HealthRoute(Fixture):
+    def test_force_dynamic_under_cache_components_is_found(self) -> None:
+        # found by the second real run: the route segment config fails the build when cacheComponents is on
+        self.web()
+        self.write("next.config.ts", "export default { cacheComponents: true }\n")
+        route = 'export const dynamic = "force-dynamic"\nexport async function GET() { return Response.json({ ok: true }) }\n'
+        self.write("app/api/health/route.ts", route)
+        meta = {"stack": {"observability": ["uptime"]}}
+        self.assertTrue(any("cacheComponents" in d for d in self.found(meta)), self.found(meta))
+        self.write("next.config.ts", "export default {}\n")
+        self.assertEqual(self.found(meta), [])
+        self.write("next.config.ts", "export default { cacheComponents: true }\n")
+        self.write("app/api/health/route.ts", route.split("\n", 1)[1])
+        self.assertEqual(self.found(meta), [])
+
+
+class IngestRobustness(IngestSafety):
+    """Final review, minor: malformed bodies must get an answer, never a hung or crashed request."""
+
+    def raw(self, port: int, head: str, body: bytes = b"") -> int:
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
+            s.sendall(head.encode() + b"\r\n\r\n" + body)
+            return int(s.recv(64).split()[1])
+
+    def test_a_negative_item_length_ends_the_parse(self) -> None:
+        # length = -(header + 2) sends the cursor (payload end + 1) back to the start of the same header: an endless loop
+        header = b'{"type":"x","length":-27}'
+        self.assertEqual(len(header) + 2, 27)
+        t = threading.Thread(target=fi.parse_envelope, args=(b"{}\n" + header + b"\n",), daemon=True)
+        t.start()
+        t.join(2)
+        self.assertFalse(t.is_alive(), "parse_envelope loops on a negative length")
+
+    def test_a_decompression_bomb_is_refused(self) -> None:
+        bomb = gzip.compress(b"\0" * (fi.MAX_BODY + 1))
+        with self.assertRaises(ValueError):
+            fi.decode(bomb, "gzip")
+
+    def test_a_bad_chunk_size_gets_400(self) -> None:
+        port, _ = self.serve()
+        head = "POST /api/1/envelope/ HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked"
+        self.assertEqual(self.raw(port, head, b"zz\r\nabc\r\n0\r\n\r\n"), 400)
+
+    def test_a_negative_content_length_gets_400(self) -> None:
+        port, _ = self.serve()
+        self.assertEqual(self.raw(port, "POST /api/1/store/ HTTP/1.1\r\nHost: x\r\nContent-Length: -1"), 400)
+
+    def test_a_non_object_body_is_skipped(self) -> None:
+        port, out = self.serve()
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/1/store/", data=b'["x"]', method="POST")
+        self.assertEqual(urllib.request.urlopen(req, timeout=5).status, 200)
+        self.assertEqual(fi.parse_envelope(b'{}\n["x"]\n{}\n'), [])
+        self.assertEqual(list(out.glob("*.json")), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

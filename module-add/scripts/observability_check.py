@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -32,7 +33,10 @@ import surfaces as sf  # noqa: E402 — vendored copy of dev-flow/scripts/surfac
 
 LEVELS = ("errors", "logs", "uptime")
 CODE = (".ts", ".tsx", ".js", ".jsx", ".mjs")
-SKIP = {"node_modules", ".next", ".git", "dist", "build", "out", ".verification"}
+SKIP = {"node_modules", ".next", ".git", "dist", "build", "out", ".verification",
+        "__tests__", "__mocks__", "e2e", "tests", "test", "fixtures"}   # tests may name what the app must not do
+TEST_FILE = re.compile(r"\.(test|spec|stories)\.[a-z]+$")
+LOOPBACK = re.compile(r"^(localhost|127\.0\.0\.1|\[?::1\]?)$")
 ENV_FILES = (".env.example", ".env.local", ".env.production", ".env.production.local", ".env")
 
 
@@ -51,10 +55,14 @@ def _read(p: Path) -> str:
 
 
 def _files(base: Path) -> dict[Path, str]:
+    """The app's own code: skipped folders are pruned, not walked (node_modules is large), and tests are left out."""
     out = {}
-    for p in base.rglob("*"):
-        if p.is_file() and p.suffix in CODE and not (set(p.relative_to(base).parts[:-1]) & SKIP):
-            out[p] = _read(p)
+    for d, dirs, names in os.walk(base):
+        dirs[:] = sorted(x for x in dirs if x not in SKIP)
+        for n in sorted(names):
+            p = Path(d) / n
+            if p.suffix in CODE and not TEST_FILE.search(n):
+                out[p] = _read(p)
     return out
 
 
@@ -80,10 +88,14 @@ def _root_error(base: Path) -> Path | None:
     return None
 
 
-def _csp_sources(text: str) -> list[list[str]]:
-    """The source lists of every `connect-src` directive written in the code."""
-    # a template literal's interpolation is cut: what follows `${` is code, not sources
-    return [m.group(1).split("${")[0].split() for m in re.finditer(r"connect-src\s+([^;\"`\n]*)", text)]
+def _csp_sources(text: str) -> list[tuple[list[str], bool]]:
+    """The source list of every `connect-src` directive written in the code, and whether part of it is interpolated
+    (a template literal's `${…}` is code, not sources: what follows it cannot be read)."""
+    out = []
+    for m in re.finditer(r"connect-src\s+([^;\"`\n]*)", text):
+        static, _, rest = m.group(1).partition("${")
+        out.append((static.split(), bool(_ or rest)))
+    return out
 
 
 def _allows(sources: list[str], host: str) -> bool:
@@ -95,23 +107,60 @@ def _allows(sources: list[str], host: str) -> bool:
 
 
 def _code(text: str) -> str:
-    return re.sub(r"/\*.*?\*/|(?<![:'\"])//[^\n]*", "", text, flags=re.S)
+    """The text without comments. Strings are skipped whole, so `https://*.ingest…` opens no comment; a quote or
+    double-quote string ends at a newline, so one unmatched quote cannot swallow the rest of a file."""
+    out, i, n, quote = [], 0, len(text), None
+    while i < n:
+        c = text[i]
+        if quote:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if c == quote or (c == "\n" and quote != "`"):
+                quote = None
+            i += 1
+        elif c in "'\"`":
+            quote = c
+            out.append(c)
+            i += 1
+        elif text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
 
 
-def _dsn_host(base: Path, root: Path, texts: str) -> tuple[str | None, str]:
-    """The DSN's host, and where it came from; (None, why) when it cannot be seen."""
-    m = re.search(r"\bdsn\s*:\s*(['\"`])([^'\"`]+)\1", texts)
-    if m:
-        return _host(m.group(2)), "a literal"
-    v = re.search(r"\bdsn\s*:\s*process\.env\.(\w+)", texts)
-    if not v:
-        return None, "no `dsn:` found"
-    for d in (base, root):
-        for name in ENV_FILES:
-            hit = re.search(rf"^\s*{v.group(1)}\s*=\s*['\"]?([^'\"\s#]+)", _read(d / name), re.M)
-            if hit and "://" in hit.group(1):
-                return _host(hit.group(1)), f"{v.group(1)} in {name}"
-    return None, f"the DSN is read from {v.group(1)}, which has no value in the env files"
+def _dsn_hosts(base: Path, root: Path, code: str) -> tuple[list[tuple[str, str]], list[str]]:
+    """Every DSN host the code and env files show, each with where it came from, and why any DSN cannot be seen.
+    Every value counts, so a placeholder in .env.example cannot hide the real one; loopback hosts are the fake
+    ingest's proof, not a region."""
+    hosts: list[tuple[str, str]] = []
+    unknown: list[str] = []
+    for m in re.finditer(r"\bdsn\s*:\s*(['\"`])([^'\"`]+)\1", code):
+        hosts.append((_host(m.group(2)), "a literal"))
+    for v in dict.fromkeys(re.findall(r"\bdsn\s*:\s*process\.env\.(\w+)", code)):
+        seen = False
+        for d in dict.fromkeys((base, root)):
+            for name in ENV_FILES:
+                for hit in re.finditer(rf"^\s*{v}\s*=\s*['\"]?([^'\"\s#]+)", _read(d / name), re.M):
+                    if "://" in hit.group(1):
+                        seen = True
+                        hosts.append((_host(hit.group(1)), f"{v} in {name}"))
+        if not seen:
+            unknown.append(f"the DSN is read from {v}, which has no value in the env files")
+    if not hosts and not unknown:
+        unknown.append("no `dsn:` found")
+    real = [(h, o) for h, o in hosts if not LOOPBACK.match(h)]
+    if hosts and not real and not unknown:
+        unknown.append("the only DSN is a loopback one (the fake ingest)")
+    return real, unknown
 
 
 def _host(dsn: str) -> str:
@@ -123,7 +172,7 @@ def _errors(base: Path, root: Path, meta: dict, texts: dict[Path, str]) -> list[
     found: list[Finding] = []
     def miss(detail: str) -> None:
         found.append(Finding("errors", "found", detail))
-    all_code = _code("\n".join(texts.values()))
+    all_code = "\n".join(_code(t) for t in texts.values())
     inst = _first(base, "instrumentation.ts", "instrumentation.js")
     if not inst or "onRequestError" not in _code(_read(inst)):
         miss("instrumentation.ts does not export onRequestError — server errors (Server Actions, RSC, routes) are lost")
@@ -137,40 +186,44 @@ def _errors(base: Path, root: Path, meta: dict, texts: dict[Path, str]) -> list[
             miss(f"{what} does not report what it catches (captureException) — the user's error stays in their browser")
     if not re.search(r"\brelease\s*:", all_code):
         miss("no `release` — an error cannot be tied to the deploy that introduced it (VERCEL_GIT_COMMIT_SHA)")
-    pii = re.search(r"\bsendDefaultPii\s*:\s*(true|false)", all_code)
-    if pii and pii.group(1) == "true":
+    pii = [v.strip() for v in re.findall(r"\bsendDefaultPii\s*:\s*([^,}\n]+)", all_code)]
+    if "true" in pii:
         miss("sendDefaultPii is true — IP addresses, cookies and user data go to the tracker")
+    for v in dict.fromkeys(x for x in pii if x not in ("true", "false")):
+        found.append(Finding("errors", "not checked", f"sendDefaultPii is set from `{v}` — read what it is"))
     if re.search(r"replayIntegration|\bReplay\s*\(", all_code):
         miss("Session Replay is on — the module keeps it off by default (privacy)")
-    if re.search(r"\bwithSentryConfig\b[^}]*\}\s*from\s*['\"]@sentry/nextjs['\"]", all_code):
+    if re.search(r"\bwithSentryConfig\b[^}]*\}\s*(from\s*|=\s*require\(\s*)['\"]@sentry/nextjs['\"]", all_code):
         miss("withSentryConfig is imported from \"@sentry/nextjs\" — version 11 exports it from \"@sentry/nextjs/config\" "
              "only, and the build fails")
     residency = ((meta.get("stack") or {}).get("data_residency")) or ""
     provider = (((meta.get("stack") or {}).get("observability_provider")) or {}).get("errors", "sentry")
-    host, origin = _dsn_host(base, root, all_code)
+    hosts, unknown = _dsn_hosts(base, root, all_code)
     # a Content-Security-Policy that lists hosts must let the browser reach the ingest, unless a tunnel keeps it 'self'
     if not re.search(r"\btunnel(Route)?\s*:", all_code):
-        for sources in _csp_sources(all_code):
+        for sources, interpolated in _csp_sources(all_code):
             if "*" in sources or "https:" in sources:
                 continue
-            if host is None:
-                found.append(Finding("errors", "not checked", f"connect-src lists hosts and the DSN host is not visible ({origin})"))
-            elif not _allows(sources, host):
-                miss(f"the Content-Security-Policy's connect-src does not allow {host} — the browser's events are blocked "
-                     "(add the host, or tunnelRoute)")
+            blocked = [h for h, _ in hosts if not _allows(sources, h)]
+            if not hosts:
+                found.append(Finding("errors", "not checked", f"connect-src lists hosts and the DSN host is not visible ({unknown[0]})"))
+            elif blocked and interpolated:
+                found.append(Finding("errors", "not checked", f"connect-src is partly interpolated — check it allows {blocked[0]}"))
+            elif blocked:
+                miss(f"the Content-Security-Policy's connect-src does not allow {blocked[0]} — the browser's events are "
+                     "blocked (add the host, or tunnelRoute)")
     if residency in ("eu", "eu-sovereign"):
-        if host is None:
-            found.append(Finding("errors", "not checked", f"region not checked: {origin}"))
-        elif host.endswith(".ingest.de.sentry.io") or (provider == "glitchtip" and not host.endswith("sentry.io")):
-            pass
-        else:
-            miss(f"DSN host {host} ({origin}) is outside the EU region `stack.data_residency = {residency}` asks for "
-                 "— use the Frankfurt org (*.ingest.de.sentry.io) or GlitchTip")
+        for why in unknown:
+            found.append(Finding("errors", "not checked", f"region not checked: {why}"))
+        for host, origin in dict.fromkeys(hosts):
+            if not (host.endswith(".ingest.de.sentry.io") or (provider == "glitchtip" and not host.endswith("sentry.io"))):
+                miss(f"DSN host {host} ({origin}) is outside the EU region `stack.data_residency = {residency}` asks "
+                     "for — use the Frankfurt org (*.ingest.de.sentry.io) or GlitchTip")
     return found
 
 
 def _pii_visibility(texts: dict[Path, str]) -> Finding | None:
-    code = _code("\n".join(texts.values()))
+    code = "\n".join(_code(t) for t in texts.values())
     if "sendDefaultPii" in code:
         return None
     options_spread = re.search(r"\.\.\.\s*\w+", code) and re.search(r"\binit\s*\(", code)
@@ -209,8 +262,15 @@ def check(root: Path, meta: dict | None = None, all_levels: bool = False) -> lis
                 if not any("x-request-id" in t.lower() for t in texts.values()):
                     fs.append(Finding("logs", "found", "no x-request-id is set (proxy.ts) — a user's report cannot be traced to a log line"))
             else:
-                fs = [] if _first(base, "app/api/health/route.ts", "app/api/health/route.js") else \
-                    [Finding("uptime", "found", "app/api/health/route.ts is missing — nothing for an uptime monitor to call")]
+                health = _first(base, "app/api/health/route.ts", "app/api/health/route.js")
+                conf = _code(_read(_first(base, "next.config.ts", "next.config.mjs", "next.config.js") or base / "-"))
+                if not health:
+                    fs = [Finding("uptime", "found", "app/api/health/route.ts is missing — nothing for an uptime monitor to call")]
+                elif re.search(r"\bcacheComponents\s*:\s*true", conf) and re.search(r"export\s+const\s+dynamic\b", _code(_read(health))):
+                    fs = [Finding("uptime", "found", "the health route exports `dynamic` and cacheComponents is on — the build "
+                                  "fails; drop the line (a GET handler is not cached there)")]
+                else:
+                    fs = []
             fs = fs or [Finding(level, "ok", f"{level} wired")]
             out += [Finding(f.level, f.status, tag + f.detail) for f in fs]
     return out
