@@ -58,7 +58,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)
 - `module_added` → spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy
-- `deployed` → maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes
 - never reached on this stack: `monorepo_initialized`
 
 **`expo-rn`**
@@ -70,7 +70,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once
 - `module_added` → spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy
-- `deployed` → maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes
 - never reached on this stack: `monorepo_initialized`
 
 **`monorepo`**
@@ -83,7 +83,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review  THEN  module-add / rn-module-add  OR  more screens  ·  app-verification create once per app
 - `module_added` → spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply
-- `deployed` → maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes
 
 **`agent` (shape ③ — no web app)**
 
@@ -91,7 +91,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `tasks_split` → linear-scrum (Setup)  THEN  eve-agent (bootstrap)
 - `scaffolded` → eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy
-- `deployed` → maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes
 - never reached on this stack: `design_extracted`, `monorepo_initialized`, `page_generated`, `module_added`
 
 <!-- END:routing-table -->
@@ -187,7 +187,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 | `page_generated` | **Propose `spec-review`** on the diff; `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
 | `module_added` | **The inventory step first for each further capability** — the same reason as at `scaffolded`: a tool already paid for may cover it. Then **propose `spec-review`** on the branch just landed (cheapest while it is still open — does the diff match `PRD.md`/`tasks.md`, and the declared stack?); `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. When the build is done, advance to `feature_complete` (all stacks) → the pre-deploy gates, then deploy. |
 | `feature_complete` | **Propose the five pre-deploy gates**: `compliance-audit` (legal — GDPR/AI-Act, any stack) + `vercel-doctor` (cost/perf — web on Vercel) + `shadscan` (UI quality + a11y — web on shadcn) + `launch-audit` (commercial readiness — web; metadata on every route, the legal and identity pages, a CTA someone can reach) + `app-security` (can the code be attacked — dependencies, secrets, authorization and IDOR; any stack, the Next.js checks on web only). They ask five different questions and none substitutes for another: an app can pass the first three and still have no way to buy and no company name on it, and pass all four with every Server Action open to anyone who sends a POST. Then deploy: mobile (`expo-rn`) → `rn-eas-deploy`; web → `vercel-deploy`; agent → `eve deploy`. |
-| `deployed` | Maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` + `app-security` after material changes; telemetry monitoring. |
+| `deployed` | **Debt audit first** (`scripts/debt_audit.py collect <root>`, below): every audit plus the tests in one ordered list. Then the maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` + `app-security` after material changes; telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
 
 **Policies** — each lives in **`references/policies.md`**; read the one that applies before acting on it:
@@ -285,6 +285,32 @@ The report of an autonomous run opens with the assumptions made — count, then 
 
 "Propose, not impose" (Step 2) still holds: in an autonomous run the proposal is written into the report instead of asked, and the specialist is invoked without waiting.
 
+## Debt audit — after deploy
+
+A project already online has many audits and no order. `scripts/debt_audit.py collect <root>` runs the sibling
+skills' local scanners (app-security, launch-audit, observability, compliance, registry-intake,
+promote-component), reads what shadscan and vercel-doctor last recorded, adds a **test check** (code that writes
+data with no unit test importing it and no e2e spec visiting a page that uses it; the coverage figure when
+`coverage/coverage-summary.json` exists), and writes one list in three bands — **before the next release**, **with
+the features that touch these files**, **later** — ordered by how often each file changed. What it could not see is
+listed under *not checked*, never counted clean. `show_state.py` proposes it from `deployed` and after every
+material change.
+
+1. **Run it.** Offline, `--skip app-security` (it needs the network for dependencies and Semgrep rules); the skipped
+   source reads *not checked*.
+2. **Confirm the signals.** A fresh app-security or compliance hit is marked `[to confirm]`. Read each with its own
+   skill's rules (`app-security/references/review.md`, compliance-audit's verification) and record the verdict in
+   `.workflow/debt/reviewed.json` — `confirmed`, `false_positive` or `accepted`, with a reason. A dismissed verdict
+   lapses when the file changes.
+3. **Run the prose recipes** worth running (`state-discipline`, `data-fetching`, `forms` audit recipes) and write
+   their violations to `.workflow/debt/manual.json` in the same shape; then `collect` again.
+4. **Report** to the user in their language: the before-release band first, then what was not checked.
+5. **Propose the before-release band as tasks.** With a yes, `prd-to-tasks` revise mode adds them, each citing
+   `debt:<id>`; Linear, when active, receives them through its sync.
+
+Formats, the band table and the coverage commands: **`references/debt-audit.md`**. `scripts/debt_audit.py show
+<root>` prints the last report without re-running.
+
 ## What dev-flow does NOT do
 
 - **Doesn't do specialist work itself.** No PRD writing, no DESIGN.md generation, no scaffolding. If you find yourself doing actual work (other than reading state and routing), stop — call the right specialist.
@@ -306,3 +332,4 @@ an artifact — is **`references/scripts.md`**.
 - `scripts/inventory.py <scan|record>` — the inventory step as a command.
 - `scripts/research.py <status|repos|reddit|thread|hn|post|read|papers>` — the outside half of the inventory.
 - `scripts/check_drift.py <root>` — which recorded artifacts are fresh, drifted, stale upstream or missing.
+- `scripts/debt_audit.py <collect|show> <root>` — the debt audit after deploy (`references/debt-audit.md`).

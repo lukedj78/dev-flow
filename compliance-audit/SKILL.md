@@ -106,7 +106,7 @@ After remediating: rewrite `audit-report.md` with each finding marked `fixed` / 
 
 Horizontal capability — invoke any time. dev-flow **proposes it as a pre-deploy gate** when a project reaches `feature_complete` (before shipping), and in the `deployed` maintenance loop (re-audit after changes). It records `meta.json#compliance` + `history` and **never bumps `phase`** (like the discipline skills and `linear-scrum`).
 
-It is one of **three** pre-deploy gates that share this shape — legal (`compliance-audit`), cost/perf (`vercel-doctor`), UI quality + accessibility (`shadscan`). Propose them together at `feature_complete`; each is independent, none blocks the deploy on its own.
+It is one of **five** pre-deploy gates that share this shape — legal (`compliance-audit`), cost/perf (`vercel-doctor`), UI quality + accessibility (`shadscan`), launch readiness (`launch-audit`), code security (`app-security`). Propose them together at `feature_complete`; each is independent, none blocks the deploy on its own. After deploy, dev-flow's debt audit reads its scan with the others.
 
 ## Definition of Done
 
