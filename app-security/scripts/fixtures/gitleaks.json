@@ -1,0 +1,2 @@
+[{"RuleID": "stripe-access-token", "Description": "Stripe access token", "File": "lib/payments.ts", "StartLine": 4, "Secret": "REDACTED", "Commit": "a1b2c3d"},
+ {"RuleID": "generic-api-key", "Description": "Generic API key", "File": ".env.local", "StartLine": 2, "Secret": "REDACTED", "Commit": "e4f5a6b"}]

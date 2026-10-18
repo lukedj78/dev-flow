@@ -19,7 +19,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,7 +34,7 @@ CODE_CHECKS = ("server-action-unauthenticated", "route-handler-unauthenticated",
 DEFAULT_SESSION_CALLS = ("getSession", "getCurrentUserId", "getCurrentTenantId", "requireUser", "verifySession", "auth(")
 PUBLIC_BY_NATURE = ("ANON_KEY", "PUBLISHABLE", "POSTHOG_KEY", "SITE_KEY", "_URL")
 SECRET_WORDS = re.compile(r"SECRET|PRIVATE|TOKEN|PASSWORD")
-SKIP = {"node_modules", ".git", ".next", "dist", "build", ".turbo", ".vercel", ".expo", "ios", "android"}
+SKIP = {"node_modules", "dist", "build", "out", "coverage", "ios", "android"}   # plus every hidden directory (.next, .eve, .output…)
 CODE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs")
 HEURISTIC = " (heuristic — read the code before reporting)"
 
@@ -60,7 +63,7 @@ def code_files(root: Path):
         for p in base.rglob("*"):
             if p in seen or not p.is_file() or p.suffix not in CODE_SUFFIXES:
                 continue
-            if any(part in SKIP for part in p.relative_to(root).parts):
+            if any(part in SKIP or part.startswith(".") for part in p.relative_to(root).parts[:-1]):
                 continue
             seen.add(p)
             yield p
@@ -204,6 +207,114 @@ def code_findings(root: Path) -> list[Finding]:
     return out
 
 
+# --- the external tools ------------------------------------------------------------------------------------------
+# Each one is used only when installed; anything that is not a clean, parseable answer is NOT_CHECKED.
+
+INSTALL = {"osv-scanner": "brew install osv-scanner", "gitleaks": "brew install gitleaks", "semgrep": "pipx install semgrep"}
+
+
+def _run(run, argv: list[str], cwd: Path | None = None):
+    try:
+        return run(argv, capture_output=True, text=True, timeout=600, cwd=cwd)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def _json(text: str):
+    try:
+        return json.loads(text or "")
+    except ValueError:
+        return None
+
+
+def dependency_finding(root: Path, run, which) -> Finding:
+    if which("osv-scanner"):
+        r = _run(run, ["osv-scanner", "scan", "source", "-r", str(root), "--format", "json"])
+        data = _json(r.stdout) if r else None
+        if r and r.returncode in (0, 1) and isinstance(data, dict):
+            hits = [f"{p['package']['name']}@{p['package'].get('version', '?')}: "
+                    + ", ".join(v.get("id", "?") for v in p.get("vulnerabilities") or [])
+                    for res in data.get("results") or [] for p in res.get("packages") or [] if p.get("vulnerabilities")]
+            return Finding("dependencies", FOUND if hits else OK,
+                           f"OSV-Scanner: {len(hits)} vulnerable package(s)" if hits else "OSV-Scanner: no known vulnerability",
+                           hits[:20], "the user — upgrade, or record why not" if hits else None)
+        return Finding("dependencies", NOT_CHECKED, f"OSV-Scanner did not answer (exit {r.returncode if r else 'none'})")
+    pnpm = (root / "pnpm-lock.yaml").is_file() and which("pnpm")
+    tool = ["pnpm", "audit", "--json", "--prod"] if pnpm else (["npm", "audit", "--json", "--omit=dev"] if which("npm") else None)
+    if not tool:
+        return Finding("dependencies", NOT_CHECKED, f"no dependency scanner — {INSTALL['osv-scanner']} (asks first)")
+    r = _run(run, tool, cwd=root)   # npm and pnpm audit the lockfile of the directory they run in
+    data = _json(r.stdout) if r else None
+    if not isinstance(data, dict):
+        return Finding("dependencies", NOT_CHECKED, f"`{' '.join(tool[:2])}` gave no report (it needs the network)")
+    if "advisories" in data:
+        hits = [f"{a.get('module_name')}: {a.get('severity')} — {a.get('title')}" for a in data["advisories"].values()]
+    else:
+        hits = [f"{name}: {v.get('severity')}" for name, v in (data.get("vulnerabilities") or {}).items()]
+    return Finding("dependencies", FOUND if hits else OK,
+                   f"{tool[0]} audit: {len(hits)} vulnerable package(s)" if hits else f"{tool[0]} audit: no known vulnerability",
+                   hits[:20], "the user — upgrade, or record why not" if hits else None)
+
+
+def secrets_findings(root: Path, run, which) -> list[Finding]:
+    out = []
+    for mode, check in (("dir", "secrets-working-tree"), ("git", "secrets-history")):
+        if not which("gitleaks"):
+            out.append(Finding(check, NOT_CHECKED, f"gitleaks not installed — {INSTALL['gitleaks']} (asks first)"))
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "gitleaks.json"
+            r = _run(run, ["gitleaks", mode, str(root), "--redact", "--report-format", "json", "--report-path", str(report)])
+            data = _json(report.read_text(encoding="utf-8")) if report.is_file() else None
+        if not r or r.returncode not in (0, 1) or not isinstance(data, list):
+            out.append(Finding(check, NOT_CHECKED, f"gitleaks {mode} did not answer (exit {r.returncode if r else 'none'})"))
+            continue
+        hits = [f"{d.get('File')}:{d.get('StartLine')} {d.get('RuleID')}" + (f" (commit {d.get('Commit')})" if mode == "git" else "")
+                for d in data]
+        where = "in git history — rotate it: deleting the file does not remove it from history" if mode == "git" \
+            else "in the working tree — rotate it, then move it to the environment"
+        out.append(Finding(check, FOUND if hits else OK, f"{len(hits)} secret(s) {where}" if hits else f"gitleaks {mode}: none",
+                           hits[:20], "the user" if hits else None))
+    return out
+
+
+def static_finding(root: Path, run, which) -> Finding:
+    if not which("semgrep"):
+        return Finding("static-analysis", NOT_CHECKED, f"Semgrep not installed — {INSTALL['semgrep']} (asks first)")
+    r = _run(run, ["semgrep", "scan", "--config", "p/nextjs", "--config", "p/typescript", "--metrics", "off", "--json", str(root)])
+    data = _json(r.stdout) if r else None
+    if not isinstance(data, dict) or "results" not in data:
+        return Finding("static-analysis", NOT_CHECKED, "Semgrep gave no report (the rules are fetched at run time, so it needs the network)")
+    hits = [f"{x.get('path')}:{(x.get('start') or {}).get('line')} {x.get('check_id')}" for x in data["results"]]
+    return Finding("static-analysis", FOUND if hits else OK,
+                   f"Semgrep: {len(hits)} result(s)" + HEURISTIC if hits else "Semgrep: no result",
+                   hits[:20], "the code owner" if hits else None)
+
+
+def tool_findings(root: Path, run=subprocess.run, which=shutil.which) -> list[Finding]:
+    return [dependency_finding(root, run, which), *secrets_findings(root, run, which), static_finding(root, run, which)]
+
+
+def scan(root: Path, run=subprocess.run, which=shutil.which) -> list[Finding]:
+    return tool_findings(root, run, which) + code_findings(root)
+
+
+def print_report(root: Path, findings: list[Finding]) -> None:
+    order = sorted(findings, key=lambda f: (f.check != "secrets-history" or f.status != FOUND))
+    mark = {OK: "·", FOUND: "!", NOT_CHECKED: "?"}
+    print(f"app-security signals for {root}\n")
+    for f in order:
+        print(f"  {mark[f.status]} {f.check}: {f.detail}")
+        for w in f.where:
+            print(f"      {w}")
+        if f.routed_to:
+            print(f"      → {f.routed_to}")
+    found = sum(f.status == FOUND for f in findings)
+    unchecked = sum(f.status == NOT_CHECKED for f in findings)
+    print(f"\n{found} to look at, {unchecked} not checked. Signals, not verdicts: read the code before reporting "
+          "(references/review.md). 'not checked' means nothing looked there.")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("project_root", type=Path)
@@ -213,17 +324,11 @@ def main(argv: list[str] | None = None) -> int:
     if not root.is_dir():
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
-    findings = code_findings(root)
+    findings = scan(root)
     if a.json:
         print(json.dumps([f.__dict__ for f in findings], indent=2))
         return 0
-    mark = {OK: "·", FOUND: "!", NOT_CHECKED: "?"}
-    for f in findings:
-        print(f"  {mark[f.status]} {f.check}: {f.detail}")
-        for w in f.where:
-            print(f"      {w}")
-        if f.routed_to:
-            print(f"      → {f.routed_to}")
+    print_report(root, findings)
     return 0
 
 

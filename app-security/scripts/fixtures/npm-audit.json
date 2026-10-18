@@ -1,0 +1,4 @@
+{"auditReportVersion": 2,
+ "vulnerabilities": {"next": {"name": "next", "severity": "critical", "via": [{"title": "Authorization bypass in Next.js middleware"}]},
+                     "axios": {"name": "axios", "severity": "high", "via": [{"title": "Server-Side Request Forgery in axios"}]}},
+ "metadata": {"vulnerabilities": {"info": 0, "low": 0, "moderate": 0, "high": 1, "critical": 1, "total": 2}}}

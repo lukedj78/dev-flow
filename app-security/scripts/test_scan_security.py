@@ -102,6 +102,14 @@ class Queries(Fixture):
         self.write("lib/server/search.ts", "export const q = (id: string) => db.execute(sql.raw(`select * from t where id = ${id}`))\n")
         self.assertEqual(self.find("raw-sql").status, ss.FOUND)
 
+    def test_generated_and_hidden_directories_are_skipped(self) -> None:
+        # found on fit-coach: eve's snapshots and the Nitro build output were read as source
+        self.next_app()
+        bad = "export const q = (id: string) => db.execute(sql.raw(`select * from t where id = ${id}`))\n"
+        for d in (".eve/dev-runtime/snapshots/x", ".output/server", "coverage", "out"):
+            self.write(f"{d}/gen.mjs", bad)
+        self.assertEqual(self.find("raw-sql").status, ss.OK)
+
 
 class Environment(Fixture):
     def test_public_env_secret_is_found(self) -> None:
@@ -156,6 +164,130 @@ class Layouts(Fixture):
     def test_every_check_is_reported(self) -> None:
         self.next_app()
         self.assertEqual({f.check for f in ss.code_findings(self.root)}, set(ss.CODE_CHECKS))
+
+
+FIX = HERE / "fixtures"
+
+
+class FakeTools:
+    """An injectable `which` and `run`: which tools exist, and what each command prints and exits with."""
+
+    def __init__(self, present: set, results: dict | None = None) -> None:
+        self.present, self.results, self.calls, self.cwds = present, results or {}, [], []
+
+    def which(self, name: str):
+        return f"/usr/local/bin/{name}" if name in self.present else None
+
+    def run(self, argv, **kwargs):
+        import subprocess
+        self.calls.append(list(argv))
+        self.cwds.append(kwargs.get("cwd"))
+        key = (argv[0], argv[1]) if argv[0] in ("gitleaks", "pnpm", "npm") else argv[0]
+        code, out = self.results.get(key, (0, ""))
+        if argv[0] == "gitleaks" and "--report-path" in argv:   # gitleaks writes its JSON to the report file
+            Path(argv[argv.index("--report-path") + 1]).write_text(out or "[]", encoding="utf-8")
+            out = ""
+        return subprocess.CompletedProcess(argv, code, stdout=out, stderr="")
+
+
+def fixture(name: str) -> str:
+    return (FIX / name).read_text(encoding="utf-8")
+
+
+class Tools(Fixture):
+    def tools(self, fake: FakeTools) -> dict:
+        return {f.check: f for f in ss.tool_findings(self.root, run=fake.run, which=fake.which)}
+
+    def test_no_tools_means_not_checked(self) -> None:
+        self.next_app()
+        got = self.tools(FakeTools(set()))
+        for check in ("dependencies", "secrets-working-tree", "secrets-history", "static-analysis"):
+            self.assertEqual(got[check].status, ss.NOT_CHECKED, check)
+        import io
+        from contextlib import redirect_stdout
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ss.print_report(self.root, list(got.values()))
+        self.assertNotIn("clean", out.getvalue().lower())
+
+    def test_osv_findings_parsed(self) -> None:
+        self.next_app()
+        f = self.tools(FakeTools({"osv-scanner"}, {"osv-scanner": (1, fixture("osv.json"))}))["dependencies"]
+        self.assertEqual(f.status, ss.FOUND)
+        self.assertTrue(any("next" in w for w in f.where) and any("axios" in w for w in f.where), f.where)
+        self.assertEqual(self.tools(FakeTools({"osv-scanner"}, {"osv-scanner": (0, '{"results": []}')}))["dependencies"].status, ss.OK)
+
+    def test_osv_errors_are_not_checked(self) -> None:
+        self.next_app()
+        for code in (127, 128):
+            with self.subTest(code=code):
+                f = self.tools(FakeTools({"osv-scanner"}, {"osv-scanner": (code, "")}))["dependencies"]
+                self.assertEqual(f.status, ss.NOT_CHECKED)
+
+    def test_falls_back_to_pnpm_then_npm_audit(self) -> None:
+        self.next_app()
+        self.write("pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+        fake = FakeTools({"pnpm", "npm"}, {("pnpm", "audit"): (1, fixture("pnpm-audit.json"))})
+        f = self.tools(fake)["dependencies"]
+        self.assertEqual(f.status, ss.FOUND)
+        self.assertIn(["pnpm", "audit", "--json", "--prod"], fake.calls)
+        (self.root / "pnpm-lock.yaml").unlink()
+        fake = FakeTools({"npm"}, {("npm", "audit"): (1, fixture("npm-audit.json"))})
+        self.assertEqual(self.tools(fake)["dependencies"].status, ss.FOUND)
+        self.assertIn(["npm", "audit", "--json", "--omit=dev"], fake.calls)
+        self.assertEqual(Path(fake.cwds[-1]), self.root)   # the audit reads the project's lockfile, not the caller's
+        offline = FakeTools({"npm"}, {("npm", "audit"): (1, "npm error code ENOTFOUND")})
+        self.assertEqual(self.tools(offline)["dependencies"].status, ss.NOT_CHECKED)
+
+    def test_gitleaks_working_tree_and_history(self) -> None:
+        self.next_app()
+        fake = FakeTools({"gitleaks"}, {("gitleaks", "dir"): (0, "[]"), ("gitleaks", "git"): (1, fixture("gitleaks.json"))})
+        got = self.tools(fake)
+        self.assertEqual(got["secrets-working-tree"].status, ss.OK)
+        self.assertEqual(got["secrets-history"].status, ss.FOUND)
+        self.assertEqual(got["secrets-history"].routed_to, "the user")
+        import io
+        from contextlib import redirect_stdout
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ss.print_report(self.root, list(got.values()) + ss.code_findings(self.root))
+        lines = [l for l in out.getvalue().splitlines() if l.strip().startswith(("!", "·", "?"))]
+        self.assertTrue(lines[0].strip().startswith("! secrets-history"), lines[:2])
+        self.assertIn("rotate", out.getvalue())
+
+    def test_gitleaks_bad_flag_is_not_checked(self) -> None:
+        self.next_app()
+        got = self.tools(FakeTools({"gitleaks"}, {("gitleaks", "dir"): (126, ""), ("gitleaks", "git"): (126, "")}))
+        self.assertEqual(got["secrets-working-tree"].status, ss.NOT_CHECKED)
+
+    def test_semgrep_results_parsed(self) -> None:
+        self.next_app()
+        f = self.tools(FakeTools({"semgrep"}, {"semgrep": (0, fixture("semgrep.json"))}))["static-analysis"]
+        self.assertEqual(f.status, ss.FOUND)
+        self.assertTrue(any("page.tsx" in w for w in f.where))
+
+    def test_semgrep_absent_is_not_checked(self) -> None:
+        self.next_app()
+        self.assertEqual(self.tools(FakeTools(set()))["static-analysis"].status, ss.NOT_CHECKED)
+
+    def test_commands_are_exactly_the_documented_ones(self) -> None:
+        self.next_app()
+        fake = FakeTools({"osv-scanner", "gitleaks", "semgrep"})
+        self.tools(fake)
+        root = str(self.root)
+        strip = lambda argv: [a for i, a in enumerate(argv) if not (i and argv[i - 1] == "--report-path")]
+        self.assertIn(["osv-scanner", "scan", "source", "-r", root, "--format", "json"], fake.calls)
+        self.assertIn(["gitleaks", "dir", root, "--redact", "--report-format", "json", "--report-path"], [strip(c) for c in fake.calls])
+        self.assertIn(["gitleaks", "git", root, "--redact", "--report-format", "json", "--report-path"], [strip(c) for c in fake.calls])
+        self.assertIn(["semgrep", "scan", "--config", "p/nextjs", "--config", "p/typescript", "--metrics", "off", "--json", root], fake.calls)
+
+    def test_a_timeout_is_not_checked(self) -> None:
+        import subprocess
+        self.next_app()
+        def boom(argv, **kwargs):
+            raise subprocess.TimeoutExpired(argv, 600)
+        got = {f.check: f for f in ss.tool_findings(self.root, run=boom, which=lambda n: "/x/" + n)}
+        self.assertEqual(got["dependencies"].status, ss.NOT_CHECKED)
 
 
 if __name__ == "__main__":

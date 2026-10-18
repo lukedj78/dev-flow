@@ -1,0 +1,3 @@
+{"advisories": {"1096302": {"module_name": "next", "severity": "critical", "title": "Authorization bypass in Next.js middleware", "github_advisory_id": "GHSA-f82v-jwr5-mffw"},
+                "1097043": {"module_name": "axios", "severity": "high", "title": "Server-Side Request Forgery in axios", "github_advisory_id": "GHSA-8hc4-vh64-cxmj"}},
+ "metadata": {"vulnerabilities": {"info": 0, "low": 0, "moderate": 0, "high": 1, "critical": 1}, "dependencies": 412}}
