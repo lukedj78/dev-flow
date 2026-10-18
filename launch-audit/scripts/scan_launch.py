@@ -451,8 +451,9 @@ def read_measurement(root: Path) -> dict | None:
 
 def measurement_findings(root: Path, src: Path) -> list[Finding]:
     levels = read_levels(root)
-    pkg = src / "package.json"
-    deps = pkg.read_text(encoding="utf-8", errors="ignore") if pkg.is_file() else ""
+    # the app's package.json and the root one: a src/ layout or a monorepo keeps dependencies at the root
+    deps = "".join(p.read_text(encoding="utf-8", errors="ignore")
+                   for p in {src / "package.json", root / "package.json", src.parent / "package.json"} if p.is_file())
     wired = re.search(r"@vercel/analytics|posthog|plausible|umami|@openpanel/|@segment|gtag|google-analytics", deps, re.I)
     product = (src / "lib" / "analytics" / "track.ts").is_file()
     out = []
@@ -471,17 +472,22 @@ def measurement_findings(root: Path, src: Path) -> list[Finding]:
         out.append(Finding("activation-instrumented", NOT_REQUESTED, "no product level"))
         return out
     m = read_measurement(root)
+    def unfilled(name: str) -> bool:   # absent, TBD, a template placeholder, or a target with no number
+        value = (m or {}).get(name) or ""
+        return (not value or "tbd" in value.lower() or "<" in value
+                or (name in ("d7", "d30") and not re.search(r"\d", value)))
+
     gaps = ([] if m else ["no ## Measurement section in .workflow/PRD.md"]) + [
-        f"{name} is missing or TBD" for name in ("activation", "d7", "d30")
-        if m and (not m.get(name) or "TBD" in m[name])]
+        f"{name} is missing, TBD or a placeholder" for name in ("activation", "d7", "d30") if m and unfilled(name)]
     out.append(Finding("measurement-targets", MISS if gaps else OK,
                        "; ".join(gaps) if gaps else f"activation `{m['activation']}`, D7 ≥ {m['d7']}, D30 ≥ {m['d30']}",
                        [], "prd-from-idea" if gaps else None))
     event = (m or {}).get("activation")
-    if not event or "TBD" in event:
+    if not event or unfilled("activation"):
         out.append(Finding("activation-instrumented", UNKNOWN, "no activation event named in the PRD"))
         return out
-    call = re.compile(r"track\(.*['\"`]" + re.escape(event) + r"['\"`]")
+    # the literal name, or the catalogue's ACTIVATION_EVENT constant, inside a track( call that may span lines
+    call = re.compile(r"track\((?:(?!\btrack\().){0,300}?(?:['\"`]" + re.escape(event) + r"['\"`]|\bACTIVATION_EVENT\b)", re.S)
     hits = [str(p.relative_to(src)) for p in sorted(src.rglob("*.ts*"))
             if "node_modules" not in p.parts and p.suffix in (".ts", ".tsx")
             and call.search(p.read_text(encoding="utf-8", errors="ignore"))]

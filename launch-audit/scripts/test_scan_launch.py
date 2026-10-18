@@ -438,6 +438,31 @@ with tempfile.TemporaryDirectory() as d:  # an unreadable meta.json is "not meas
     build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}', ".workflow/meta.json": "{oops"})
     check("invalid meta.json → not requested", status(scan(root), "analytics-absent") == "not requested")
 
+UNFILLED = MEASURED.replace("`invoice_sent` — the first invoice goes out", "`<event_name>` — <what the user has done>") \
+                   .replace("D7 ≥ 25 % · D30 ≥ 15 %", "D7 ≥ <n> % · D30 ≥ <n> %")
+with tempfile.TemporaryDirectory() as d:  # the template left unfilled is not a target
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}',
+                 "lib/analytics/track.ts": "export async function track() {}\n",
+                 ".workflow/meta.json": meta(["product"]), ".workflow/PRD.md": UNFILLED})
+    check("unfilled template placeholders → targets missing", status(scan(root), "measurement-targets") == "missing")
+
+with tempfile.TemporaryDirectory() as d:  # src/ layout: the dependencies are in the root package.json
+    root = Path(d)
+    build(root, {"src/app/page.tsx": PAGE_META, "package.json": '{"dependencies":{"@vercel/analytics":"^2"}}',
+                 ".workflow/meta.json": meta(["traffic"])})
+    check("src/ layout → root package.json read", status(scan(root), "analytics-absent") == "ok")
+
+for call, label in (("await track(\n  userId,\n  'invoice_sent',\n)", "a call over several lines"),
+                    ("await track(userId, ACTIVATION_EVENT)", "the ACTIVATION_EVENT constant")):
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}',
+                     "lib/analytics/track.ts": "export async function track() {}\n",
+                     "app/actions.ts": call + "\n",
+                     ".workflow/meta.json": meta(["product"]), ".workflow/PRD.md": MEASURED})
+        check(f"activation tracked with {label} → ok", status(scan(root), "activation-instrumented") == "ok")
+
 with tempfile.TemporaryDirectory() as d:  # the printed report, not only scan(): "not requested" must render
     import subprocess
     root = Path(d)

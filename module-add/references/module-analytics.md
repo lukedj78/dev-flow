@@ -29,7 +29,7 @@ Vercel Web Analytics and Plausible **cannot** compute D7/D30 retention: both dro
    Decided before launch, not after. Levels: traffic, product.
 
    - **Activation event**: `invoice_sent` — the user sent their first invoice
-   - **Retention targets**: D7 ≥ 25 % · D30 ≥ 15 % of activated users
+   - **Retention targets**: D7 ≥ 25 % · D30 ≥ 15 % of activated users (back on day 7 / day 30)
    - **False positives to watch**: sign-ups without an invoice; invoices sent only to themselves
    - **Events to instrument**: `invoice_sent` (send action) · `client_added` (clients form)
    ```
@@ -115,10 +115,10 @@ the account: the DSAR deletion path (`compliance-audit` R1) deletes them with th
 
 ### `lib/analytics/events.ts`
 
-Generated from the PRD's **Events to instrument** — one literal per event, nothing else:
+Generated from the PRD's **Events to instrument**, plus `signed_up`, which every project has:
 
 ```typescript
-export const EVENTS = ["invoice_sent", "client_added"] as const;
+export const EVENTS = ["signed_up", "invoice_sent", "client_added"] as const;
 export type AnalyticsEvent = (typeof EVENTS)[number];
 export const ACTIVATION_EVENT: AnalyticsEvent = "invoice_sent";
 ```
@@ -144,7 +144,19 @@ export async function track(userId: string, event: AnalyticsEvent, props?: Recor
 }
 ```
 
-Call it from the server action where the thing happens, after it succeeded:
+**`signed_up` is the signup.** Record it where the account is created, so that a user who signs up and does
+nothing else still counts — that is the false positive the PRD watches, and without it activation reads as
+100 %. With better-auth (`module-add auth`), in `lib/auth.ts`:
+
+```typescript
+databaseHooks: {
+  user: { create: { after: async (user) => { await track(user.id, "signed_up"); } } },
+},
+```
+
+(`databaseHooks.user.create.after(user, context)`, checked in `@better-auth/core`'s types, better-auth 1.7.10.)
+
+Then call it from the server action where the thing happens, after it succeeded:
 
 ```typescript
 await sendInvoice(invoice);
@@ -185,7 +197,12 @@ export async function retention() {
 ```
 
 `<project-root>/scripts/metrics.ts` prints both tables (`console.table`), and `package.json` gets
-`"metrics": "tsx scripts/metrics.ts"`. An admin page that shows them is the project's call.
+`"metrics": "tsx scripts/metrics.ts"`. Retention is `retained_dN / eligible_dN`: a user counts for D7 only once
+their day 7 has passed, so a young cohort does not read as 0 %.
+
+An admin page that shows them is the project's call. On Vercel, the `.sql` file is not traced into the function
+bundle by default: add it to `outputFileTracingIncludes` in `next.config.ts`
+(`{ "/admin/metrics": ["./lib/analytics/metrics.sql"] }`), or inline the two queries as strings.
 
 ## Files to write — `advanced`
 
@@ -199,7 +216,7 @@ import posthog from "posthog-js";
 posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   api_host: "/ingest",                 // the rewrite below; never a path called /analytics
   ui_host: "https://eu.posthog.com",
-  cookieless_mode: "always",           // anonymous traffic stores nothing
+  cookieless_mode: "on_reject",        // nothing captured or stored until the user decides
   defaults: "2026-05-30",
 });
 ```
@@ -217,14 +234,26 @@ async rewrites() {
 skipTrailingSlashRedirect: true,
 ```
 
-Identify a user only after consent, through the gate `compliance-audit` writes:
+`cookieless_mode` also needs **Cookieless server hash mode** switched on in the PostHog project settings. On
+consent, opt in and only then identify — through the gate `compliance-audit` writes:
 
 ```typescript
 import { hasConsent } from "@/lib/consent";
-if (hasConsent("analytics")) posthog.identify(user.id);
+if (hasConsent("analytics")) {
+  posthog.opt_in_capturing();
+  posthog.identify(user.id);
+} else {
+  posthog.opt_out_capturing();   // still counted with PostHog's server-side hash, nothing stored
+}
 ```
 
-Server side, forward from `track()` so the event names stay one list:
+(`"always"` never stores anything but is not meant for identified users; PostHog's data-collection docs,
+read 2026-10-18.)
+
+Server side, `track()` can forward the same event so the names stay one list. **This sends identified
+events of signed-in users to a US-controlled processor**: forward only for users who consented on the client
+(store the choice with the user), or not at all — whether identified analytics of logged-in users needs consent
+is the DPO's call (`compliance-audit` R11).
 
 ```typescript
 import { PostHog } from "posthog-node";

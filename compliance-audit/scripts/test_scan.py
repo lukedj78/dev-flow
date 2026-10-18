@@ -133,6 +133,18 @@ class TestAnalyticsBeforeConsent(unittest.TestCase):
         self.assertTrue(self.signal({"instrumentation-client.ts": self.INIT,
                                      "components/cookie-banner.tsx": "export function CookieConsent() {}\n"}))
 
+    def test_the_expo_provider_and_the_node_client_are_judged_too(self):
+        provider = 'import { PostHogProvider } from "posthog-react-native"\n<PostHogProvider apiKey={k} options={{ host: "https://eu.i.posthog.com" }} />\n'
+        self.assertTrue(self.signal({"app/_layout.tsx": provider}))
+        gated = provider.replace("options={{", "options={{ defaultOptIn: false, ").replace("<PostHogProvider", "// consent first\n<PostHogProvider")
+        self.assertFalse(self.signal({"app/_layout.tsx": gated}))
+        rn_client = 'import PostHog from "posthog-react-native"\nexport const ph = new PostHog(k, { host: h })\n'
+        self.assertTrue(self.signal({"lib/posthog.ts": rn_client}))
+
+    def test_the_server_sdk_is_not_a_device_identifier(self):
+        server = 'import { PostHog } from "posthog-node"\nconst ph = new PostHog(k, { host: h })\n'
+        self.assertFalse(self.signal({"lib/analytics/track.ts": server}))
+
     def test_vercel_analytics_and_openpanel_are_not_flagged(self):
         self.assertFalse(self.signal({"app/layout.tsx": "import { Analytics } from '@vercel/analytics/next'\n<Analytics />\n"}))
         self.assertFalse(self.signal({"app/layout.tsx": "import { OpenPanelComponent } from '@openpanel/nextjs'\n"}))

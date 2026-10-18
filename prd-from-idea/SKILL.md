@@ -79,7 +79,7 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
 
-**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]` — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
+**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]`, or `["product"]` on Expo — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)
@@ -91,7 +91,8 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
    batch, the moment a user first gets the value (the **activation event**, a `snake_case` past-tense name such as
    `invoice_sent`), how many activated users should be back after a week and after a month (**D7/D30**), what would
    look like traction but is not (**false positives**), and which **events** to record; record `stack.analytics` as
-   `["traffic", "product"]` unless the user narrows it. It can also be switched on later with `module-add analytics`
+   `["traffic", "product"]` unless the user narrows it — `["product"]` when `stack.framework = "expo-rn"`, which has no
+   traffic level. The D7/D30 targets mean "back on day 7 / day 30", the definition the SQL uses. It can also be switched on later with `module-add analytics`
    (`rn-module-add analytics` on Expo).
 6. **What's the primary target — web, mobile (iOS+Android), both (monorepo), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
    - "web" / "web app" / no answer → `stack.framework: "next"` (current default for web)
@@ -254,7 +255,7 @@ without this product? Use a concrete scenario.>
 Decided before launch, not after. Levels: traffic, product.
 
 - **Activation event**: `<event_name>` — <what the user has done when they first get the value>
-- **Retention targets**: D7 ≥ <n> % · D30 ≥ <n> % of activated users
+- **Retention targets**: D7 ≥ <n> % · D30 ≥ <n> % of activated users (back on day 7 / day 30)
 - **False positives to watch**: <e.g. sign-ups without activation; revenue without retention>
 - **Events to instrument**: `<event_name>` (where it fires) · …
 

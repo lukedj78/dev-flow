@@ -43,8 +43,9 @@ CHECKS = [
 
 # R11 is judged per file: an analytics init that stores an identifier (PostHog's default) and neither runs
 # cookieless nor reads the consent gate. A consent banner elsewhere in the project does not make that init wait.
-ANALYTICS_INIT = re.compile(r"posthog\.init\(")
-ANALYTICS_SAFE = re.compile(r"cookieless_mode|consent", re.I)
+# client-side inits only (web, Expo): posthog-node runs on the server and stores nothing on the device
+ANALYTICS_INIT = re.compile(r"posthog\.init\(|<PostHogProvider\b|from ['\"]posthog-react-native['\"]")
+ANALYTICS_SAFE = re.compile(r"cookieless_mode|consent|defaultOptIn:\s*false|opt_out_capturing_by_default", re.I)
 
 SKIP_DIRS = {"node_modules", ".git", "dist", ".next", ".expo", "build", ".turbo", ".vercel", "ios", "android"}
 CODE_SUFFIXES = {".ts", ".tsx", ".js", ".jsx", ".md", ".json", ".sql"}

@@ -30,7 +30,7 @@ The event catalogue is the web one, generated from the PRD:
 
 ```typescript
 // lib/analytics/events.ts — or packages/shared/src/analytics/events.ts in a monorepo
-export const EVENTS = ["invoice_sent", "client_added"] as const;
+export const EVENTS = ["signed_up", "invoice_sent", "client_added"] as const;
 export type AnalyticsEvent = (typeof EVENTS)[number];
 export const ACTIVATION_EVENT: AnalyticsEvent = "invoice_sent";
 ```
@@ -57,7 +57,18 @@ create policy "insert own events" on analytics_events for insert to authenticate
 -- no select policy: the app writes events, it never reads other users' rows
 ```
 
-`on delete cascade` makes the rows follow the account (DSAR deletion).
+`on delete cascade` makes the rows follow the account (DSAR deletion). The signup is recorded by the database
+itself, so it cannot be missed by an app that crashed after sign-up:
+
+```sql
+create function analytics_signed_up() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into analytics_events (user_id, name) values (new.id, 'signed_up');
+  return new;
+end $$;
+create trigger analytics_signed_up after insert on auth.users
+  for each row execute function analytics_signed_up();
+```
 
 `lib/analytics/track.ts`:
 
@@ -111,7 +122,9 @@ match /analytics_events/{id} {
 ```
 
 `track()` is the Supabase version with `addDoc(collection(db, "analytics_events"), { user_id, name, props,
-created_at: serverTimestamp() })` in place of the insert. Firestore does not run SQL, so activation and
+created_at: serverTimestamp() })` in place of the insert. Call `track("signed_up")` right after
+`createUserWithEmailAndPassword` resolves (or from an auth `onCreate` Cloud Function, which does not depend on
+the app staying open). Firestore does not run SQL, so activation and
 retention come from a Node script with the Admin SDK (`firebase-admin`): read the events of the last 60 days,
 group by user, take each user's first event as the signup, and apply the definitions in `metrics.sql`'s header.
 
@@ -123,7 +136,7 @@ the Italian Garante sanctioned — and the data does not stay in the EU.
 The events go to the backend's own database: `track()` calls `POST /events` (or a tRPC `analytics.track`
 procedure) with `{ name, props }`, and the backend records them with the signed-in user from the request. If
 that backend is the Next app of a monorepo, it is exactly the web module's `product` level: the procedure calls
-its `track(session.user.id, name, props)`.
+its `track(session.user.id, name, props)`, and `signed_up` comes from the backend's own auth hook.
 
 ## `advanced`
 
@@ -139,7 +152,8 @@ import { PostHogProvider } from "posthog-react-native";
 </PostHogProvider>
 ```
 
-Identify the user only after consent given in the app. PostHog does not use the advertising identifier, so no
+Start opted out (`defaultOptIn: false` in `options`) and call `posthog.optIn()` then `identify()` only after the
+user consents in the app. PostHog does not use the advertising identifier, so no
 App Tracking Transparency prompt is needed. For `eu-sovereign`: `@openpanel/react-native`, pointed at the
 self-hosted instance. Register the provider: `dev-flow/scripts/data_residency.py add … --by rn-module-add`.
 

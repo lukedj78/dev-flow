@@ -192,7 +192,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 308,
+      "skill_md_lines": 309,
       "bundle": "dist/prd-from-idea.skill"
     },
     {

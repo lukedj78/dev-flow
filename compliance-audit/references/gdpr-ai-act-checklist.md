@@ -102,8 +102,10 @@ Judged **per init file**: a consent banner elsewhere in the project does not mak
 written another way (a wrapper that only calls `init` after consent) is a false positive; read the init before
 reporting. Not concerned: Vercel Web Analytics (cookieless), OpenPanel (cookieless), the product level of
 `module-add analytics` (server-side, keyed by the authenticated user).
-**Safe-fix:** `cookieless_mode: "always"` for anonymous traffic, and `identify()` only behind `lib/consent.ts`
-(`module-add/references/module-analytics.md`, advanced level).
+**Safe-fix:** `cookieless_mode: "on_reject"` (nothing captured or stored before the choice), then
+`opt_in_capturing()` and `identify()` only behind `lib/consent.ts`; on Expo, `defaultOptIn: false` and `optIn()` on
+consent (`module-add/references/module-analytics.md`, `rn-module-add/references/module-analytics.md`).
+The pattern counts any mention of "consent" in the init file as a gate: a comment can silence it, so read the file.
 **Flag:** whether identified analytics of logged-in users needs consent at all is a DPO's call.
 
 ---
