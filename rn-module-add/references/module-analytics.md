@@ -36,7 +36,8 @@ export const ACTIVATION_EVENT: AnalyticsEvent = "invoice_sent";
 ```
 
 On mobile the user id comes from the session, so the signature is `track(event, props?)`. It never blocks the
-UI and never throws; offline, events wait in AsyncStorage and are sent on the next call.
+UI and never throws; offline, events wait in AsyncStorage and are sent on the next call. Calls are flushed one
+at a time, so concurrent events are neither duplicated nor lost (checked with a concurrency harness, 2026-10-18).
 
 ### Supabase
 
@@ -88,20 +89,25 @@ async function pending(): Promise<Pending[]> {
   }
 }
 
+async function flush(next: Pending): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user.id;
+  if (!userId) return;   // anonymous: not part of D7/D30
+  const rows = [...(await pending()), next];
+  const { error } = await supabase.from("analytics_events").insert(rows.map((r) => ({ ...r, user_id: userId })));
+  await AsyncStorage.setItem(QUEUE, JSON.stringify(error ? rows.slice(-200) : []));
+}
+
+// One flush at a time: two concurrent calls would read the same queue, insert it twice, or one would empty
+// it after the other had just added to it.
+let chain: Promise<void> = Promise.resolve();
+
 /** Record a product event for the signed-in user. Never throws; offline events wait in AsyncStorage. */
-export async function track(event: AnalyticsEvent, props?: Record<string, unknown>): Promise<void> {
-  try {
-    const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user.id;
-    if (!userId) return;   // anonymous: not part of D7/D30
-    const rows = [...(await pending()), { name: event, props: props ?? null, created_at: new Date().toISOString() }];
-    const { error } = await supabase
-      .from("analytics_events")
-      .insert(rows.map((r) => ({ ...r, user_id: userId })));
-    await AsyncStorage.setItem(QUEUE, JSON.stringify(error ? rows.slice(-200) : []));
-  } catch {
-    // measurement must never break the screen
-  }
+export function track(event: AnalyticsEvent, props?: Record<string, unknown>): Promise<void> {
+  // created_at is the moment it happened on the device: an event sent later from the offline queue keeps it.
+  const next: Pending = { name: event, props: props ?? null, created_at: new Date().toISOString() };
+  chain = chain.then(() => flush(next)).catch(() => {});   // measurement must never break the screen
+  return chain;
 }
 ```
 
@@ -176,5 +182,7 @@ The same keys as the web: add the level to `stack.analytics`, never remove one; 
 - **No `traffic` level on mobile** — the store consoles are the traffic report.
 - **Retention counts signed-in users only.** Before sign-in there is no stable id, and the app does not invent one.
 - **The offline queue is capped** at the last 200 events, so a phone offline for weeks does not grow without limit.
+- **`created_at` is the device's clock**, so a queued event keeps the time it happened; a phone with a wrong clock
+  skews its own rows, not anyone else's.
 - **Before release**, the two measurement checks are in `rn-eas-deploy/references/deploy-checklist.md`
   (`launch-audit` does not run on mobile).

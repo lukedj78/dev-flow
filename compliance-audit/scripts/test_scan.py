@@ -129,6 +129,11 @@ class TestAnalyticsBeforeConsent(unittest.TestCase):
         init = "import { hasConsent } from '@/lib/consent'\n" + self.INIT
         self.assertFalse(self.signal({"instrumentation-client.ts": init}))
 
+    def test_a_comment_mentioning_consent_does_not_silence_the_init(self):
+        for comment in ("// TODO: consent\n", "/* ask for consent later */\n", "{/* consent banner goes here */}\n"):
+            with self.subTest(comment=comment):
+                self.assertTrue(self.signal({"instrumentation-client.ts": comment + self.INIT}))
+
     def test_a_banner_elsewhere_does_not_silence_the_init(self):
         self.assertTrue(self.signal({"instrumentation-client.ts": self.INIT,
                                      "components/cookie-banner.tsx": "export function CookieConsent() {}\n"}))

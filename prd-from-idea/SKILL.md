@@ -254,7 +254,7 @@ without this product? Use a concrete scenario.>
 
 Decided before launch, not after. Levels: traffic, product.
 
-- **Activation event**: `<event_name>` — <what the user has done when they first get the value>
+- **Activation event**: `<event_name>` — <what the user has done when they first get the value> (within 7 days of signup)
 - **Retention targets**: D7 ≥ <n> % · D30 ≥ <n> % of activated users (back on day 7 / day 30)
 - **False positives to watch**: <e.g. sign-ups without activation; revenue without retention>
 - **Events to instrument**: `<event_name>` (where it fires) · …
