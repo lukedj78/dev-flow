@@ -48,7 +48,8 @@ class FakeJira(unittest.TestCase):
         (self.root / ".workflow").mkdir()
         meta_io.write_json(self.root / ".workflow/meta.json",
                            {"tracker": {"provider": "jira", "project": {"site": self.site, "board_id": "7", "project_key": "ABC"}}})
-        self._env = {k: os.environ.get(k) for k in ("JIRA_EMAIL", "JIRA_API_TOKEN")}
+        self._env = {k: os.environ.get(k) for k in ("JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_SITE")}
+        os.environ["JIRA_SITE"] = self.site   # the local fake is allowed only because the user's environment names it
 
     def tearDown(self) -> None:
         self.server.shutdown()
@@ -96,6 +97,30 @@ class FakeJira(unittest.TestCase):
         self.assertIn("401", out)
         self.assertIn("JIRA_API_TOKEN", out)
         self.assertNotIn(TOKEN, out)
+
+    def test_credentials_go_only_to_atlassian_or_the_site_the_user_named(self) -> None:
+        # meta.json is in the repository: a cloned project must not be able to send the token elsewhere
+        os.environ.update({"JIRA_EMAIL": "me@example.com", "JIRA_API_TOKEN": TOKEN})
+        os.environ.pop("JIRA_SITE")
+        code, out = self.run_cli("--key", "ABC-1", "--points", "3")   # meta points at 127.0.0.1, not named by the user
+        self.assertEqual(code, 2)
+        self.assertEqual(self.seen, [])
+        self.assertNotIn(TOKEN, out)
+        for site in ("evil.example.com", "http://acme.atlassian.net", "acme.atlassian.net.evil.com"):
+            with self.assertRaises(ValueError, msg=site):
+                je.allowed_base(site)
+        self.assertEqual(je.allowed_base("acme.atlassian.net"), "https://acme.atlassian.net")
+        self.assertEqual(je.allowed_base("https://acme.atlassian.net/"), "https://acme.atlassian.net")
+
+    def test_key_and_board_cannot_reshape_the_url(self) -> None:
+        os.environ.update({"JIRA_EMAIL": "me@example.com", "JIRA_API_TOKEN": TOKEN})
+        code, _ = self.run_cli("--key", "ABC-1/../../x", "--points", "3")
+        self.assertEqual(code, 2)
+        meta_io.write_json(self.root / ".workflow/meta.json",
+                           {"tracker": {"provider": "jira", "project": {"site": self.site, "board_id": "7?x=1"}}})
+        code, _ = self.run_cli("--key", "ABC-1", "--points", "3")
+        self.assertEqual(code, 2)
+        self.assertEqual(self.seen, [])
 
     def test_missing_board_in_meta_is_explained(self) -> None:
         meta_io.write_json(self.root / ".workflow/meta.json", {"tracker": {"provider": "jira", "project": {"site": self.site}}})

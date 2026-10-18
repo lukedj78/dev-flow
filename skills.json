@@ -294,12 +294,16 @@
       "name": "scrum",
       "family": "core",
       "role": "operative",
-      "description": "Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprin...",
+      "description": "Run a dev-flow project with agile scrum on the tracker chosen at design time — Linear, Jira or GitHub Issues: records the choice, creates or links the project, pushes `.workflow/tasks.md` into estimated, labelled, prioritised issues, sets up 2-week sprints (Linear cycles, Jira sprints, GitHub milest...",
       "skill_file": "scrum/SKILL.md",
       "references": [
         "contracts.md",
-        "linear-mcp.md",
-        "scrum-model.md"
+        "github.md",
+        "issue-standard.md",
+        "jira.md",
+        "linear.md",
+        "scrum-model.md",
+        "triage.md"
       ],
       "scripts": [
         "github_sync.py",
@@ -311,7 +315,7 @@
         "test_jira_estimate.py",
         "test_scripts.py"
       ],
-      "skill_md_lines": 78,
+      "skill_md_lines": 110,
       "bundle": "dist/scrum.skill"
     },
     {

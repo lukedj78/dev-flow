@@ -1,78 +1,110 @@
 ---
 name: scrum
-description: 'Take a dev-flow project into Linear and run it with agile scrum: creates or links the Linear Project, pushes `.workflow/tasks.md` into estimated, labelled issues, sets up 2-week cycles, then keeps **Linear as the source of truth** — syncing new tasks up, status and velocity down, planning each sprint to the velocity target. Triggers: "porta il progetto in Linear", "crea le issue in Linear", "setup scrum", "pianifica lo sprint", "report di velocity", "adotta questo progetto in Linear", or dev-flow routing from `prd_drafted`/`tasks_split`. Modes: Setup, Adopt, Sync. Not for: writing or estimating the tasks themselves (use `prd-to-tasks`), building the app or agent (design-md-to-app / eve-agent), or the headless server loop (docs/loop-engineering.md).'
+description: 'Run a dev-flow project with agile scrum on the tracker chosen at design time — Linear, Jira or GitHub Issues: records the choice, creates or links the project, pushes `.workflow/tasks.md` into estimated, labelled, prioritised issues, sets up 2-week sprints (Linear cycles, Jira sprints, GitHub milestones), then keeps **the tracker as the source of truth** — new tasks up, status and velocity down, each sprint planned to the velocity target — and triages bugs by severity (S1–S4) without a PRD round-trip. Triggers: "porta il progetto in Linear / Jira / GitHub", "crea le issue", "setup scrum", "pianifica lo sprint", "report di velocity", "adotta questo progetto", "ho trovato un bug", "triage", or dev-flow routing from `tasks_split`. Modes: Choose, Setup, Adopt, Sync, Triage. Not for: writing or estimating the tasks (prd-to-tasks), fixing the bug or building the app (the owning skill), the headless server loop (docs/loop-engineering.md).'
 ---
 
-# linear-scrum — Linear integration + agile scrum for a dev-flow project
+# scrum — agile scrum on Linear, Jira or GitHub
 
-This skill owns the **Linear side** of a dev-flow project. It writes to Linear (via the connected Linear MCP) and to the `linear` / `scrum` blocks of `.workflow/meta.json`. It **never** touches `app/`, `apps/agent/`, or other framework files, and it **does not change the `phase` enum** — like `eve-agent` and the discipline skills it records state in `meta.json` and appends `history`, and is never a phase gate.
+This skill owns the **tracker side** of a dev-flow project. It writes to the chosen tracker and to the `tracker` /
+`scrum` blocks of `.workflow/meta.json`. It **never** touches app code, and it **never changes `phase`**: it records
+state and appends `history`, and is never a phase gate.
 
-Read `references/contracts.md` for the `.workflow/` contract, `references/scrum-model.md` for the scrum conventions, and `references/linear-mcp.md` for the exact Linear MCP operations.
+The method is the same on every tracker (`references/scrum-model.md`); only the adapter changes:
+
+| | Reference | How it talks |
+|---|---|---|
+| Linear | `references/linear.md` | the Linear MCP |
+| Jira | `references/jira.md` | the Atlassian Rovo MCP; story points with `scripts/jira_estimate.py` |
+| GitHub | `references/github.md` | `gh`; issues with `scripts/github_sync.py`; a sprint is a milestone |
+
+Issue bodies follow `references/issue-standard.md` on every tracker. Bugs follow `references/triage.md`.
+The `.workflow/` contract is `references/contracts.md`.
 
 ## Preconditions
 
-- A **Linear MCP must be connected** in the session. Confirm with `list_teams` before any write. For the headless server loop use the API-key path in `docs/loop-engineering.md` instead — this skill is the interactive counterpart.
-- `.workflow/meta.json` exists (dev-flow project). If not, tell the user and stop.
-- `.workflow/tasks.md` exists for Setup mode (run `prd-to-tasks` first otherwise). **Coupled format**: `scripts/task_key.py` derives its dedup key from the `- [ ] **<Title>** — <body>` line shape produced by `prd-to-tasks`, splitting on the em-dash (` — `) to isolate the title — if `tasks.md` was hand-edited to use a different separator, dedup breaks and Setup/Sync can create duplicate issues.
+- `.workflow/meta.json` exists (a dev-flow project). If not, say so and stop.
+- The tracker's connection works, checked with a read before any write: `list_teams` (Linear), `listJiraProjects`
+  (Jira), `gh auth status` (GitHub). No account is created by this skill, and **no token goes through the chat**:
+  Jira REST reads `JIRA_EMAIL` / `JIRA_API_TOKEN` from the environment, GitHub uses `gh auth`, the MCPs the user's
+  OAuth.
+- Setup needs `.workflow/tasks.md` (`prd-to-tasks` first). **Coupled format**: `scripts/task_key.py` derives the
+  dedup key from the `- [ ] **<Title>** — <body>` line, splitting on the em-dash; a hand-edited separator breaks
+  dedup.
 
 ## Read state, then pick a mode
 
-Read `.workflow/meta.json`:
-- No `meta.json#linear` and `tasks.md` present → **Setup mode**.
-- A Linear Project already exists for this project but `meta.json#linear` is absent/partial → **Adopt mode**.
-- `meta.json#linear` present → **Sync mode**.
+Run `python3 scripts/meta_tracker.py <root>/.workflow/meta.json migrate` first when `meta.json` has an older shape (a
+`linear` block, `tracker.kind`, a map keyed by title — `show_state.py` names it): it moves everything into
+`tracker` without dropping a key, and keeps titles it cannot find in `tracker.unmatched`.
+
+- No `tracker.provider` → **Choose**.
+- A provider, no `tracker.project`, `tasks.md` present → **Setup**.
+- The project already exists on the tracker but `tracker.project` or `issue_map` is missing → **Adopt**.
+- `tracker.project` present → **Sync**.
+- A bug reported (by the user, a test, an alert) → **Triage**, whatever the state.
 
 Do **one** logical operation per invocation, then stop. Every mode is idempotent.
 
-## Setup mode (new project)
+## Choose (normally done by prd-from-idea)
 
-1. `list_teams` → resolve the team (single team today: `Lucadigerlando`). One dev-flow project = one **Linear Project** under that team, never a new team.
-2. Ensure scrum config on the team:
-   - **Estimates** — verified working: `save_issue` accepts a Fibonacci `estimate` (numeric point value) when the team has an estimate scale enabled.
-   - **Cycles** — the MCP can only *list* cycles (`list_cycles`), **not create** them. Ask the user to enable "Cycles" in Linear team settings once and create the first cycle there, then continue; issues are attached to an existing cycle via `save_issue`'s `cycle` field.
-3. Create/link the Linear Project (`save_project`); capture its id + url.
-4. Push `tasks.md` → issues (`save_issue`), one per `- [ ]` task:
-   - **estimate**: from the task's `Estimated:` hint mapped to the nearest Fibonacci point; for tasks with no hint, **batch-prompt once** (list them, ask for points in one message) and default to unestimated if skipped.
-   - **labels**: **discover, don't assume.** Call `list_issue_labels` and map the conceptual buckets — web / agent / scaffold — onto the workspace's own labels (e.g. this workspace uses `frontend` / `agent-eve` / `setup`, not `area:*`). Derive web-vs-agent from `meta.json#stack` + the task's `*(addressed by …)*` tag; record the resolved mapping in `meta.json#scrum.labels`. Create a label only if no reasonable match exists.
-   - **milestone**: map epics/milestones via `save_milestone` when `tasks.md` groups by epic.
-   - record each `task_key(line) → issue identifier` for the next step.
-5. Attach issues to the active cycle if one exists (`list_cycles`; the cycle itself is created in Linear per step 2 — 2-week cadence). If none exists yet, leave the issues in the backlog and note it.
-6. Persist state:
-   ```bash
-   python3 scripts/meta_linear.py <root>/.workflow/meta.json upsert-linear \
-     --team-id <id> --team-name <name> --project-id <pid> --url <url>
-   python3 scripts/meta_linear.py <root>/.workflow/meta.json record-issues \
-     --mapping '{"<task_key>":"LUC-123", ...}'
-   ```
-   Then append a `history` entry via `dev-flow/scripts/update_meta.py`:
-   `{ "skill": "linear-scrum", "action": "setup", "ran_at": "<ISO8601>" }` (no phase bump).
+Ask once where the work is managed. Default: the tracker the project or the client already uses; otherwise Linear.
+Record it: `meta_tracker.py <meta> choose --provider linear|jira|github`.
 
-## Adopt mode (existing project already partly in Linear)
+## Setup (new project)
 
-1. Discover the existing Project and its issues (`list_projects`, `list_issues`).
-2. Match issues to `tasks.md` lines by title (`task_key`) and **backfill** `issue_map` without creating anything (`meta_linear.py record-issues`).
-3. Fill any missing scrum config (`meta_linear.py ensure-scrum`), then `upsert-linear` with the discovered project id/url.
-4. Append history `{ "skill": "linear-scrum", "action": "adopt", … }`.
+**Ask the user's yes before the first write** — it creates a project and issues on an outside service.
 
-## Sync mode (ongoing, horizontal)
+1. Resolve the container in the tracker's reference: Linear Project under the team; Jira project + scrum board
+   (`listJiraBoards`); GitHub repository.
+2. Ensure the scrum configuration: estimates, the sprint (Linear: the user creates the cycle in the app; Jira:
+   `manageJiraSprint`; GitHub: the milestone named by the sprint goal), the states.
+3. Labels: **discover, don't assume.** Map the buckets (web / agent / scaffold) and the severity labels onto what the
+   tracker already has; create only what is missing (`scrum-model.md`).
+4. Push `tasks.md` → issues, one per open task: estimate from the `Estimated:` hint (Fibonacci), priority, labels,
+   sprint. GitHub: `scripts/github_sync.py <root> --repo O/N --milestone "<Sprint 1 — goal>"`. Linear and Jira: the
+   reference's tools, then `meta_tracker.py <meta> record-issues --mapping '{"<task_key>": "<KEY>"}'`.
+5. Write the bodies to `references/issue-standard.md` — one sample first, approved by the user.
+6. Persist: `meta_tracker.py <meta> upsert --provider P --project '<json ids>' --url <url>` (it also ensures the
+   `scrum` defaults), then a history entry through `dev-flow/scripts/update_meta.py append-history --skill scrum`
+   (`action: setup`). No phase bump.
 
-- **Push new tasks**: for each `tasks.md` line whose `task_key` is not in `issue_map`, `save_issue` + `record-issues`. Never edit or re-push existing issues — Linear owns status/ordering/estimates.
-- **Pull status/velocity**: read issue states + completed points from Linear (`list_issues`, `list_cycles`).
-- **Sprint planning**: move items from `Backlog`/`Todo` into the active cycle up to the **velocity target** (`meta.json#scrum.velocity_target`; learned from past cycles, asked on the first). See `references/scrum-model.md`.
-- **Report**: produce a sprint/velocity summary **to chat** (points committed vs done, carry-over, blocked issues). Do not write a report file.
-- **An issue created mid-sprint that matches no PRD story** is a scope change: it passes `prd-from-idea/references/scope-check.md` before it enters the cycle, and the outcome is recorded in the PRD (`scope.py record`). **A descoped story's issues** go back to the backlog, with the reason in a comment — never deleted.
-- Append history `{ "skill": "linear-scrum", "action": "sync", … }`.
+## Adopt (existing project, partly on the tracker)
+
+1. Discover the existing project and issues (reads only).
+2. Match issues to `tasks.md` by title → `task_key`, and **backfill** `issue_map` with `record-issues`; create
+   nothing.
+3. `ensure-scrum`, then `upsert` with the discovered ids. History `action: adopt`.
+
+## Sync (ongoing)
+
+- **Push new tasks**: each `tasks.md` line whose `task_key` is not in `issue_map` (GitHub: `github_sync.py` does
+  exactly this). Never edit or re-push existing issues — the tracker owns status, ordering, estimates.
+- **Pull status and velocity** from the tracker (the reference says how).
+- **Plan the sprint** up to `scrum.velocity_target` (`scrum-model.md`).
+- **Report to chat**: committed vs done, carry-over, blocked, open bugs by severity. No report file.
+- An issue created mid-sprint that matches no PRD story is a **scope change**: it passes
+  `prd-from-idea/references/scope-check.md` before it enters the sprint. A descoped story's issues go back to the
+  backlog with the reason in a comment — never deleted.
+- History `action: sync`.
+
+## Triage (a bug)
+
+`references/triage.md`: reproduce on the real app (`verify-<app>`), give the severity (S1–S4) with a one-line
+reason, create the issue (`bug` + severity, steps, expected, observed, evidence — **never an end user's personal
+data**), put S1/S2 in the current sprint and S3/S4 in the backlog, history `action: triage`. **Triage stops there**:
+the fix is the normal path — a test that reproduces it (red → green), the skill that owns the code, a PR that cites
+the issue, verification on the app, then the issue closed with the commit.
 
 ## Definition of Done (per run)
 
-- **Setup**: `list_issues` on the Project returns the pushed issues; `meta.json#linear` populated; a re-run creates **no duplicates** (verify by re-running Setup and confirming the issue count is unchanged).
-- **Sync**: the active cycle holds planned issues up to the velocity target and a report was produced.
-- Scripts stay green: `cd linear-scrum/scripts && python3 -m unittest test_scripts`.
+- **Setup**: the tracker lists the pushed issues; `meta.json#tracker` populated; a re-run creates **no duplicates**.
+- **Sync**: the sprint holds planned issues up to the velocity target, and a report was given.
+- **Triage**: the issue exists with severity and evidence, in the right sprint or the backlog.
+- Scripts green: `cd scrum/scripts && python3 -m unittest discover -p 'test_*.py'`.
 
 ## What this skill does NOT do
 
-- Doesn't write/estimate tasks (that's `prd-to-tasks`).
-- Doesn't build the app or agent (`design-md-to-app` / `eve-agent`).
-- Doesn't run human ceremonies (standup/retro) or generate ceremony artifacts.
-- Doesn't create a Linear team per project — one team, many Projects.
-- Doesn't bump `phase`.
+- Write or estimate the tasks (`prd-to-tasks`), fix a bug or build the app (the owning skill).
+- Run human ceremonies (standup, retro).
+- Move a project from one tracker to another, or support other trackers.
+- Bump `phase`.

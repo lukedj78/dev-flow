@@ -1,6 +1,6 @@
-# Linear MCP cookbook
+# Linear — the adapter
 
-How each `linear-scrum` operation maps to Linear MCP tools. Tool names/params below have been exercised
+How each `scrum` operation maps to Linear MCP tools when `meta.json#tracker.provider` is `linear`. Tool names/params below have been exercised
 live and are confirmed for this workspace; the one part that stays workspace-specific and needs
 re-checking on a new workspace is the **label taxonomy** (flagged `[VERIFY]` at that row) — everything
 else does not need re-verification.
@@ -32,7 +32,7 @@ write.
 
 | Operation | MCP tool | Notes |
 |---|---|---|
-| Resolve team | `list_teams` | Single team today (`Lucadigerlando`). Always call first. |
+| Resolve team | `list_teams` | The workspace's team (today the user's single team, `Lucadigerlando`). Always call first. Record `team_id`, `team_name`, `project_id` in `tracker.project`. |
 | List / find project | `list_projects` | Adopt mode discovery. |
 | Create / link project | `save_project` | One per dev-flow project. Capture id + url. |
 | Create milestone | `save_milestone` | Map epics from `tasks.md`. |
@@ -44,7 +44,17 @@ write.
 | Comment | `save_comment` | Optional: post the sprint report as a project comment (still also to chat). |
 
 ## Idempotency
-Never create an issue whose `task_key` is already in `meta.json#linear.issue_map`. Re-running Setup/Sync must be a no-op for already-pushed tasks. Verify by re-running and confirming `list_issues` count is unchanged.
+Never create an issue whose `task_key` is already in `meta.json#tracker.issue_map`. Re-running Setup/Sync must be a no-op for already-pushed tasks. Verify by re-running and confirming `list_issues` count is unchanged.
 
 ## Headless loop handoff
 The autonomous server loop (Linear → Claude Code → PR) uses a **Linear API key**, not this MCP — see `docs/loop-engineering.md` §1. The states, atomic-issue rule, and `area:*` labels there are the same conventions this skill sets up, so a project bootstrapped here drops straight into that loop. The Linear meter is separate from both billing meters in that runbook (it's just the PM tool).
+
+## Priority and severity
+
+Linear's priority is native (`save_issue` `priority`: 0 none, 1 urgent, 2 high, 3 medium, 4 low — the API's scale;
+check it on the first real run, the MCP docs do not list parameters). A bug carries the severity label
+(`scrum.severity_labels`) **and** a priority: S1 → 1, S2 → 2, S3 → 3, S4 → 4 (`triage.md`).
+
+## Velocity
+
+Completed points of the last cycles (`list_cycles`, `list_issues` filtered by cycle and state Done).
