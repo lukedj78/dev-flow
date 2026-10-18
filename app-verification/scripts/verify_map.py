@@ -30,6 +30,7 @@ from pathlib import Path
 SECTIONS = ("Launch", "Doctor", "Drive", "Evidence", "Cleanup", "Isolation")
 FEATURE_SECTIONS = ("Sub-features", "How to get to it (user POV)", "Driving it with", "Gotchas")
 FILL = re.compile(r"<fill:[^>]*>")
+LOCALE_SEGMENTS = {"[locale]", "[lang]", "[lng]"}
 STATE_NAMES = {"L": "loading", "E": "empty", "Er": "error", "S": "success"}
 EVIDENCE_DIR = ".verification/evidence"
 STORY = re.compile(r"^\s*-\s+\*\*(US-\d+)\.\*\*\s+(.+?)\s*$", re.M)
@@ -139,12 +140,17 @@ def routes(root: Path) -> list[str]:
                 if p.stem != "page" or p.suffix not in (".tsx", ".ts", ".jsx", ".js"):
                     continue
                 segments = list(p.relative_to(base).parts[:-1])
-            found.add("/" + "/".join(x for x in segments if not (x.startswith("(") and x.endswith(")"))))
+            segments = [x for x in segments if not (x.startswith("(") and x.endswith(")"))]
+            if segments and segments[0] in LOCALE_SEGMENTS:   # the i18n prefix: next-intl serves the default without it
+                segments = segments[1:]
+            found.add("/" + "/".join(segments))
     return sorted(found)
 
 
 def slug(sentence: str) -> str:
-    action = sentence.split("I want to", 1)[1] if "I want to" in sentence else sentence
+    """What the user wants, up to six words: `I want (to) <this>, so that …` → `<this>`."""
+    m = re.search(r"\bI want(?: to)?\s+(.+?)(?:,?\s+so that\b|[.,;]|$)", sentence)
+    action = m.group(1) if m else sentence
     words = re.findall(r"[a-z0-9]+", action.lower())[:6]
     return "-".join(words) or "feature"
 
@@ -180,7 +186,7 @@ def _readme_md(project: str, entries: list[tuple[str, str, str]], source: str, f
     index = "\n".join(f"- [{sid} — {sentence}](./{name})" for sid, sentence, name in entries) or "- (no stories in the PRD)"
     origin = ("Screens, routes, roles and states come from `docs/wireframes/screen-inventory.md`." if source == "wireframes"
               else "There is no screen inventory (`docs/wireframes/screen-inventory.md`): the entry points below were "
-                   "read from the app's routes and must be matched to the stories by hand.\n\nRoutes found:\n\n"
+                   "read from the app's routes (a leading `[locale]` segment dropped: it is the language prefix) and must be matched to the stories by hand.\n\nRoutes found:\n\n"
                    + ("\n".join(f"- `{r}`" for r in found_routes) or "- (none)"))
     return (f"# {project} verification map\n\nThe maintained source for proving {project}'s user-facing behaviour. "
             f"Read this index before driving the app, then use the matching feature file as the recipe.\n\n{origin}\n\n"

@@ -79,6 +79,13 @@ class Parsing(Fixture):
         self.assertEqual(vm.stories(prd), [("US-1", "As a trainer, I want to invite."),
                                            ("US-2", "As a client, I want to log.")])
 
+    def test_slug_takes_what_the_user_wants(self) -> None:
+        # found on fit-coach: "I want a progress view" fell back to the whole sentence
+        self.assertEqual(vm.slug("As a personal trainer, I want a progress view per client, so that I see trends."),
+                         "a-progress-view-per-client")
+        self.assertEqual(vm.slug("As a client, I want to log my meals, so that we follow it."), "log-my-meals")
+        self.assertEqual(vm.slug("Trainers can export data."), "trainers-can-export-data")
+
     def test_inventory_rows(self) -> None:
         rows = vm.inventory(INVENTORY)
         self.assertEqual(rows[0], vm.Screen("A1", "A — Public site", "Home (hero, search, featured trips)", "/",
@@ -89,7 +96,8 @@ class Parsing(Fixture):
         for p in ("app/[locale]/(marketing)/page.tsx", "app/[locale]/(trainer)/trainer/plans/[id]/page.tsx",
                   "app/[locale]/(trainer)/trainer/plans/page.tsx", "app/[locale]/(auth)/layout.tsx"):
             self.write(p, "export default function P() { return null }\n")
-        self.assertEqual(vm.routes(self.root), ["/[locale]", "/[locale]/trainer/plans", "/[locale]/trainer/plans/[id]"])
+        # found on fit-coach: the user sees /trainer/plans — a leading [locale] segment is the i18n prefix, not a page
+        self.assertEqual(vm.routes(self.root), ["/", "/trainer/plans", "/trainer/plans/[id]"])
 
 
     def test_routes_of_an_expo_router_app(self) -> None:

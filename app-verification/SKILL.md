@@ -45,8 +45,10 @@ monorepo): `references/stack-recipes.md`.
    lists the app's routes and says so. Everything that needs the code is a `<fill: …>`. Re-running never overwrites:
    a filled file is kept, a new story gets its file.
 4. **Fill** the six sections, the index's baseline, and the first 3–5 features — US-1 first — from the code: the real
-   command, the real accessible names, the real end state. Add the launch command to `.claude/launch.json` under the
-   name the Launch section gives, so Claude Code's preview tools and the manual start the app the same way. Add
+   command, the real accessible names, the real end state. Add the launch command to the project's `.claude/launch.json` under the
+   name the Launch section gives, so Claude Code's preview tools and the manual start the app the same way. ⚠ The
+   preview tools read the launch.json of the **session's root**: a session opened in another directory (a skills
+   repo, a parent folder) needs the same entry there, with a `cd` into the project — found on fit-coach. Add
    `.verification/` to the project's `.gitignore`.
 5. **Prove it.** Follow the manual as written: launch, doctor, drive **one** feature end to end, save the evidence,
    clean up — then check the evidence is still there. Fix what failed, and run the cleanup after every failed

@@ -13,7 +13,12 @@ recipes below are for when there is none.
     { "name": "verify-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev", "--port", "3100"], "port": 3100 } ] }
   ```
 
-  Claude Code's preview tools start it by that name, and the manual's Launch section names it too.
+  Claude Code's preview tools start it by that name, and the manual's Launch section names it too. They read the
+  launch.json of the session's root, so from a session opened elsewhere the entry goes there, as
+  `"runtimeExecutable": "sh", "runtimeArgs": ["-c", "cd <project> && <env> pnpm exec next dev -p 3100"]`. Env vars
+  go on the command line (`/usr/bin/env A=1 pnpm …` or inside the `sh -c`): the launch.json shape has no env field.
+- **Ready is usable, not answering**: on fit-coach the process answered in 4 s and the first `/sign-up` took 56 s
+  to compile; wait for the first interactive element to be enabled (hydration), never a fixed time.
 - **Drive** with the built-in browser: read the accessibility tree, act on elements by role and accessible name,
   fill forms by label. Playwright, if the repo has it, with `getByRole` / `getByLabel`.
 - **Prove** with the accessibility snapshot after the action, a screenshot, the network response of the mutation,
