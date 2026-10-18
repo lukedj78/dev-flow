@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import debt_model as dm  # noqa: E402
+import debt_sources as ds  # noqa: E402
 
 
 def F(source: str, check: str, **kw) -> dm.Finding:
@@ -132,6 +133,163 @@ class Model(Tmp):
 
     def test_diff_runs(self) -> None:
         self.assertEqual(dm.diff_runs({"a", "b"}, {"b", "c"}), ({"c"}, {"a"}))
+
+
+class Sources(Tmp):
+    """Fake scanners live in a tmp SKILLS_ROOT, at the same relative paths as the real ones."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.skills = self.root / "skills"
+        self.proj = self.root / "proj"
+        self.proj.mkdir()
+        self._saved = (ds.SKILLS_ROOT, dict(ds.SCANNERS))
+        ds.SKILLS_ROOT = self.skills
+
+    def tearDown(self) -> None:
+        ds.SKILLS_ROOT, saved = self._saved
+        ds.SCANNERS.clear()
+        ds.SCANNERS.update(saved)
+        super().tearDown()
+
+    def fake(self, name: str, body: str) -> None:
+        rel = ds.SCANNERS[name][0]
+        p = self.skills / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("import json, sys, time\n" + body + "\n", encoding="utf-8")
+
+    def run_only(self, name: str, meta: dict | None = None, skip: set | None = None, web: bool = True):
+        for other in list(ds.SCANNERS):
+            if other != name:
+                del ds.SCANNERS[other]
+        fs, srcs = ds.run_scanners(self.proj, meta or {}, skip or set(), web)
+        return fs, {s.name: s for s in srcs}
+
+    def test_app_security_found_rows_become_signals(self) -> None:
+        self.fake("app-security", 'print(json.dumps([{"check": "server-action-unauthenticated", "status": "found", '
+                  '"detail": "x", "where": ["app/a.ts:3 createPlan"], "routed_to": "app-security"}, '
+                  '{"check": "raw-sql", "status": "ok", "detail": "", "where": []}]))')
+        fs, srcs = self.run_only("app-security")
+        self.assertEqual([(f.file, f.line, f.signal, f.check) for f in fs],
+                         [("app/a.ts", 3, True, "server-action-unauthenticated")])
+        self.assertEqual(srcs["app-security"].status, "fresh")
+
+    def test_a_dependency_hit_has_no_file(self) -> None:
+        self.fake("app-security", 'print(json.dumps([{"check": "dependencies", "status": "found", "detail": "1 advisory", '
+                  '"where": ["next@16.0.0: high — cache leak"]}]))')
+        fs, _ = self.run_only("app-security")
+        self.assertIsNone(fs[0].file)
+        self.assertIn("next@16.0.0", fs[0].detail)
+
+    def test_missing_skill_is_not_checked(self) -> None:
+        _, srcs = self.run_only("app-security")
+        self.assertEqual((srcs["app-security"].status, srcs["app-security"].reason), ("not checked", "not installed"))
+
+    def test_garbage_output_is_not_checked(self) -> None:
+        self.fake("app-security", 'print("boom")')
+        _, srcs = self.run_only("app-security")
+        self.assertEqual(srcs["app-security"].status, "not checked")
+        self.assertIn("output", srcs["app-security"].reason)
+
+    def test_timeout_is_not_checked(self) -> None:
+        self.fake("app-security", "time.sleep(3)")
+        rel, args, _, parse = ds.SCANNERS["app-security"]
+        ds.SCANNERS["app-security"] = (rel, args, 1, parse)
+        _, srcs = self.run_only("app-security")
+        self.assertEqual(srcs["app-security"].status, "not checked")
+        self.assertIn("timed out", srcs["app-security"].reason)
+
+    def test_skip_is_not_checked(self) -> None:
+        self.fake("app-security", 'print("[]")')
+        _, srcs = self.run_only("app-security", skip={"app-security"})
+        self.assertEqual((srcs["app-security"].status, srcs["app-security"].reason), ("not checked", "skipped"))
+
+    def test_launch_audit_is_web_only(self) -> None:
+        self.fake("launch-audit", 'print(json.dumps([{"check": "og-image", "status": "missing", "detail": "x", "where": []}]))')
+        fs, srcs = self.run_only("launch-audit")
+        self.assertEqual([(f.check, f.severity) for f in fs], [("og-image", "missing")])
+        _, srcs = self.run_only("launch-audit", web=False)
+        self.assertEqual(srcs["launch-audit"].status, "not applicable")
+
+    def test_observability_runs_all_levels_when_none_chosen(self) -> None:
+        self.fake("observability", 'print(json.dumps([{"level": "errors", "status": "found", "detail": "--all" in sys.argv and "all" or "some"}]))')
+        fs, _ = self.run_only("observability", meta={"stack": {}})
+        self.assertEqual([(f.check, f.detail) for f in fs], [("errors", "all")])
+        fs, _ = self.run_only("observability", meta={"stack": {"observability": ["errors"]}})
+        self.assertEqual(fs[0].detail, "some")
+
+    def test_observability_not_checked_rows_become_notes(self) -> None:
+        self.fake("observability", 'print(json.dumps([{"level": "errors", "status": "not checked", "detail": "region"}]))')
+        fs, srcs = self.run_only("observability")
+        self.assertEqual(fs, [])
+        self.assertIn("region", srcs["observability"].reason)
+
+    def test_compliance_findings_are_signals(self) -> None:
+        self.fake("compliance", 'print(json.dumps({"signals": {}, "findings": [{"id": "R3", "severity": "H", "article": "44", "title": "residency"}]}))')
+        fs, _ = self.run_only("compliance")
+        self.assertEqual([(f.check, f.severity, f.signal, f.file) for f in fs], [("R3", "H", True, None)])
+
+    def test_registry_intake_without_lock_is_skipped(self) -> None:
+        self.fake("registry-intake", 'print("✗ registry intake:\\n  bad"); sys.exit(1)')
+        fs, srcs = self.run_only("registry-intake")
+        self.assertEqual(fs, [])
+        self.assertEqual(srcs["registry-intake"].status, "not checked")
+        (self.proj / "registry-lock.json").write_text("{}", encoding="utf-8")
+        fs, srcs = self.run_only("registry-intake")
+        self.assertEqual([(f.detail, f.severity) for f in fs], [("bad", "block")])
+
+    def test_promote_rows_parsed(self) -> None:
+        self.fake("promote-component", 'print("| Component | Usages | Current level | Suggestion |")\nprint("|---|---|---|---|")\n'
+                  'print("| `Card` | 4 | L0 | Promote to L2 - components/shared/<dominio>/Card.tsx |")\n'
+                  'print("| `Row` | 1 | L0 | OK — stays |")')
+        fs, _ = self.run_only("promote-component")
+        self.assertEqual([(f.check, f.severity) for f in fs], [("Card", "promote")])
+
+    def test_shadscan_stale_and_missing(self) -> None:
+        fs, srcs = ds.recorded(self.proj, {}, None)
+        self.assertEqual({s.name: s.status for s in srcs}["shadscan"], "missing")
+        p = self.proj / "docs/ui/shadscan.json"
+        p.parent.mkdir(parents=True)
+        p.write_text(json.dumps({"agentHandoff": {"actionables": [
+            {"ruleId": "a11y-label", "disposition": "fix", "file": "app/page.tsx:12", "title": "button without a label"}]}}),
+            encoding="utf-8")
+        meta = {"shadscan": {"last_run_at": "2026-10-01T00:00:00Z"}}
+        fs, srcs = ds.recorded(self.proj, meta, "2026-10-05T00:00:00Z")
+        shad = [f for f in fs if f.source == "shadscan"]
+        self.assertEqual([(f.check, f.severity, f.file, f.line, f.stale) for f in shad],
+                         [("a11y-label", "fix", "app/page.tsx", 12, True)])
+        self.assertEqual({s.name: s.status for s in srcs}["shadscan"], "stale")
+
+    def test_vercel_counts_become_rows(self) -> None:
+        meta = {"vercel_doctor": {"last_run_at": "2026-10-06T00:00:00Z", "findings": {"high": 0, "medium": 2, "low": 1}}}
+        fs, srcs = ds.recorded(self.proj, meta, "2026-10-05T00:00:00Z")
+        vd = [f for f in fs if f.source == "vercel-doctor"]
+        self.assertEqual([(f.check, f.stale) for f in vd], [("medium", False), ("low", False)])
+        self.assertEqual({s.name: s.status for s in srcs}["vercel-doctor"], "fresh")
+
+    def test_manual_findings_are_read(self) -> None:
+        (self.proj / ".workflow/debt").mkdir(parents=True)
+        (self.proj / ".workflow/debt/manual.json").write_text(json.dumps([
+            {"source": "forms", "check": "C", "severity": "HIGH", "file": "app/f.tsx", "line": 4, "detail": "no dirty gating"}]),
+            encoding="utf-8")
+        fs, src = ds.manual(self.proj)
+        self.assertEqual([(f.source, f.check, f.file) for f in fs], [("forms", "C", "app/f.tsx")])
+        self.assertEqual(src.status, "fresh")
+
+    def test_corrupt_manual_is_not_checked(self) -> None:
+        (self.proj / ".workflow/debt").mkdir(parents=True)
+        (self.proj / ".workflow/debt/manual.json").write_text("{", encoding="utf-8")
+        fs, src = ds.manual(self.proj)
+        self.assertEqual((fs, src.status), ([], "not checked"))
+
+    def test_no_manual_is_missing(self) -> None:
+        self.assertEqual(ds.manual(self.proj)[1].status, "missing")
+
+    def test_last_material_change(self) -> None:
+        meta = {"history": [{"skill": "module-add", "ran_at": "2026-10-01T00:00:00Z"},
+                            {"skill": "spec-review", "ran_at": "2026-10-05T00:00:00Z"}]}
+        self.assertEqual(ds.last_material_change(meta), ("2026-10-01T00:00:00Z", "module-add"))
+        self.assertEqual(ds.last_material_change({}), (None, None))
 
 
 if __name__ == "__main__":

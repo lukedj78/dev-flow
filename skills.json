@@ -153,6 +153,7 @@
         "data_residency.py",
         "data_residency_gate.py",
         "debt_model.py",
+        "debt_sources.py",
         "design_lint_gate.py",
         "founder_gate.py",
         "init_workflow.py",
