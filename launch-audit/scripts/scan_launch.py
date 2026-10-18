@@ -507,7 +507,7 @@ def main() -> int:
         print(json.dumps([f.__dict__ for f in findings], indent=2))
         return 0
 
-    mark = {OK: "·", MISS: "!", UNKNOWN: "?"}
+    mark = {OK: "·", MISS: "!", UNKNOWN: "?", NOT_REQUESTED: "–"}
     print(f"launch signals for {root}\n")
     for f in findings:
         print(f"  {mark[f.status]} {f.check}: {f.detail}")

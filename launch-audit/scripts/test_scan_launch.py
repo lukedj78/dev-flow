@@ -438,5 +438,14 @@ with tempfile.TemporaryDirectory() as d:  # an unreadable meta.json is "not meas
     build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}', ".workflow/meta.json": "{oops"})
     check("invalid meta.json → not requested", status(scan(root), "analytics-absent") == "not requested")
 
+with tempfile.TemporaryDirectory() as d:  # the printed report, not only scan(): "not requested" must render
+    import subprocess
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}', ".workflow/meta.json": '{"stack": {}}'})
+    r = subprocess.run([sys.executable, str(Path(__file__).parent / "scan_launch.py"), str(root)],
+                       capture_output=True, text=True)
+    check("report renders 'not requested' without crashing",
+          r.returncode == 0 and "analytics-absent: measurement not requested" in r.stdout)
+
 print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)
