@@ -28,7 +28,7 @@ Vercel Web Analytics and Plausible **cannot** compute D7/D30 retention: both dro
 
    Decided before launch, not after. Levels: traffic, product.
 
-   - **Activation event**: `invoice_sent` — the user sent their first invoice
+   - **Activation event**: `invoice_sent` — the user sent their first invoice (within 7 days of signup)
    - **Retention targets**: D7 ≥ 25 % · D30 ≥ 15 % of activated users (back on day 7 / day 30)
    - **False positives to watch**: sign-ups without an invoice; invoices sent only to themselves
    - **Events to instrument**: `invoice_sent` (send action) · `client_added` (clients form)
@@ -198,7 +198,8 @@ export async function retention() {
 
 `<project-root>/scripts/metrics.ts` prints both tables (`console.table`), and `package.json` gets
 `"metrics": "tsx scripts/metrics.ts"`. Retention is `retained_dN / eligible_dN`: a user counts for D7 only once
-their day 7 has passed, so a young cohort does not read as 0 %.
+their day 7 has passed, so a young cohort does not read as 0 %. A user is activated when the activation event
+happens within 7 days of signup; change the window in `metrics.sql` and in the PRD line together.
 
 An admin page that shows them is the project's call. On Vercel, the `.sql` file is not traced into the function
 bundle by default: add it to `outputFileTracingIncludes` in `next.config.ts`

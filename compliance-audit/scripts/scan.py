@@ -46,6 +46,9 @@ CHECKS = [
 # client-side inits only (web, Expo): posthog-node runs on the server and stores nothing on the device
 ANALYTICS_INIT = re.compile(r"posthog\.init\(|<PostHogProvider\b|from ['\"]posthog-react-native['\"]")
 ANALYTICS_SAFE = re.compile(r"cookieless_mode|consent|defaultOptIn:\s*false|opt_out_capturing_by_default", re.I)
+# Comments are stripped before looking for the gate: "// TODO consent" is a note, not a gate. (A string that happens
+# to contain // — a URL — is cut too, which can only make the check stricter, never silence it.)
+COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 SKIP_DIRS = {"node_modules", ".git", "dist", ".next", ".expo", "build", ".turbo", ".vercel", "ios", "android"}
 CODE_SUFFIXES = {".ts", ".tsx", ".js", ".jsx", ".md", ".json", ".sql"}
@@ -86,7 +89,7 @@ def scan(root: Path) -> dict:
         for k, rx in PATTERNS.items():
             if not hits[k] and rx.search(text):
                 hits[k] = True
-        if p.suffix != ".md" and ANALYTICS_INIT.search(text) and not ANALYTICS_SAFE.search(text):
+        if p.suffix != ".md" and ANALYTICS_INIT.search(text) and not ANALYTICS_SAFE.search(COMMENTS.sub("", text)):
             analytics_before_consent = True
     return {
         "has_auth": hits["auth"], "has_dsar_export": hits["dsar_export"], "has_dsar_delete": hits["dsar_delete"],
