@@ -62,7 +62,7 @@ This is where the contract earns its keep. In order:
    is the intent. A diff can satisfy every task and still miss what the PRD asked for.
 3. **`meta.json#artifacts`** — what was produced and by which skill, so the reviewer knows whether a file
    is hand-written or generated (holding generated scaffolding to hand-written standards is noise).
-4. **`linear-scrum` projects** — the issue in Linear is the live spec; `meta.json#linear` has the link.
+4. **Projects run with `scrum`** — the issue on the tracker is the live spec; `meta.json#tracker` names the tracker and maps each task to its issue.
 
 If `.workflow/PRD.md` is absent (a project adopted mid-flight), say so and run the Spec axis against
 `tasks.md` alone, or skip it and report that the axis was not run — **never invent the spec from the

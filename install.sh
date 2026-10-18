@@ -154,7 +154,7 @@ SKILLS=(
   prd-to-tasks
   wireframe-canvas
   project-infra-setup
-  linear-scrum
+  scrum
   compliance-audit
   app-security
   app-verification
@@ -286,6 +286,24 @@ for s in "${SKILLS[@]}"; do
 
   cp -R "$src" "$dest"
   echo "  ✓ $s"
+done
+
+# Skills that were renamed or folded into another. An installed copy would still declare its old name and
+# compete with its successor for the same triggers, so it is moved to the backup like any replaced version.
+RETIRED=(
+  "linear-scrum:scrum"
+)
+for pair in "${RETIRED[@]}"; do
+  old="${pair%%:*}"; new="${pair#*:}"
+  # `<old>.bak` is what installs before 2026-08-28 left inside the skills dir — registered as a skill too
+  for d in "$old" "$old.bak"; do
+    if [ -d "$SKILLS_DIR/$d" ]; then
+      mkdir -p "$BACKUP_DIR"
+      rm -rf "${BACKUP_DIR:?}/${d:?}"
+      mv "$SKILLS_DIR/$d" "$BACKUP_DIR/$d"
+      echo "  · removed retired skill $d (now $new) — moved to $BACKUP_DIR/$d"
+    fi
+  done
 done
 
 # Files written OUTSIDE a skill folder share the skills dir with whatever the user keeps there — a skill

@@ -179,6 +179,10 @@ For `PRD.md`, after `PROJECT.md` is in place, ask:
    answer, propose one ("three test users hit the same wall, or a story cannot be completed without it") and mark it
    as your proposal. On the founder path it is not asked: the evidence and the exclusions come from Playbook §12, and `Who decides` is the founder.
 8. **What technical constraints exist?** (must use Postgres, must be GDPR-compliant, must integrate with X, etc. — `null` is a fine answer)
+8b. **Dove gestiamo il lavoro: Linear, Jira o GitHub?** — the project's tracker, where `scrum` will run the sprints.
+   Propose the default: the tracker the project or the client already uses (an existing repo with issues, a client's
+   Jira), otherwise Linear. Record it with `scrum/scripts/meta_tracker.py <root>/.workflow/meta.json choose --provider
+   linear|jira|github`. Autonomous runs: Linear, recorded as `Assumed:`.
 
 If the user pastes a long brief, parse it and ask only the unanswered questions. Don't make them re-state things they already wrote.
 

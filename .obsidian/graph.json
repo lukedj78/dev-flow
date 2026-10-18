@@ -15,7 +15,7 @@
       }
     },
     {
-      "query": "path:dev-flow/ OR path:prd- OR path:linear-scrum/ OR path:compliance-audit/",
+      "query": "path:dev-flow/ OR path:prd- OR path:scrum/ OR path:compliance-audit/",
       "color": {
         "a": 1,
         "rgb": 16096779

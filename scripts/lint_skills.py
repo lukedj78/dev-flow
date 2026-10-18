@@ -199,7 +199,7 @@ def check_phase_normalization(path: Path) -> None:
 #
 #   references/*.md headings  → 185 findings across 37 skills. ~150 of them are
 #       one cause: `references/contracts.md` is vendored into 30 skills
-#       byte-identically, and its headings (`artifacts`, `linear`/`scrum`,
+#       byte-identically, and its headings (`artifacts`, `tracker`/`scrum`,
 #       `phase`, `stack`) document the CONTRACT SCHEMA, not capabilities. The
 #       rest are structural or prose headings (`await`, `https`, `h-screen`).
 #       Reference headings organise a document; SKILL.md headings declare what
@@ -744,7 +744,7 @@ VENDORED_SOURCE = [
     # import from dev-flow, so every skill that writes meta.json carries a copy. The lock only works
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
-      for skill in ("app-verification", "design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake",
+      for skill in ("app-verification", "design-md-to-app", "forms", "founder-intelligence", "registry-intake", "scrum",
                     "wireframe-canvas")),
     # What a project is made of (web, mobile, agent, api, cli, other). One answer for every skill: app-security
     # had its own Next/Expo detection and missed Expo configured by app.config.ts (2026-10-18).

@@ -32,7 +32,7 @@ COMMON_NEXT = {
 PHASE_NEXT_BY_STACK = {
     "next": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md / a hand-written DESIGN.md  THEN  wireframe-canvas  THEN  design-md-to-app",
-        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app",
+        "tasks_split":      "scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app",
         "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)",
         "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)",
@@ -42,7 +42,7 @@ PHASE_NEXT_BY_STACK = {
     },
     "expo-rn": {
         "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
-        "tasks_split":      "linear-scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
+        "tasks_split":      "scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  rn-bootstrap",
         "scaffolded":       "rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)",
         "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once",
@@ -52,7 +52,7 @@ PHASE_NEXT_BY_STACK = {
     },
     "monorepo": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
-        "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
+        "tasks_split":      "scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap",
         "monorepo_initialized": "monorepo-bootstrap continues (design-md-to-app in apps/web, rn-bootstrap in apps/mobile)",
         "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types",
@@ -63,7 +63,7 @@ PHASE_NEXT_BY_STACK = {
     },
     "agent": {
         "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)",
-        "tasks_split":      "linear-scrum (Setup)  THEN  eve-agent (bootstrap)",
+        "tasks_split":      "scrum (Setup)  THEN  eve-agent (bootstrap)",
         "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done",
         "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy",
         "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes",
@@ -275,6 +275,35 @@ def observability_line(meta: dict, root: Path) -> str | None:
                 "(errors first: Sentry EU or GlitchTip, proven against a local fake ingest before any account)")
     if "mobile" in kinds:
         return "Observability: no crash reporting yet — rn-module-add observability (Sentry EU or GlitchTip)"
+    return None
+
+
+TASK_KEY_RE = re.compile(r"^[0-9a-f]{12}$")
+
+
+def tracker_line(meta: dict, root: Path | None = None) -> str | None:
+    """From tasks_split: a note when no tracker was chosen, or when the tracker block has an older shape (the same
+    three checks as scrum/scripts/meta_tracker.py legacy_shape, which migrates it). None when there is nothing to say."""
+    phase = routing_phase(meta.get("phase"))
+    if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index("tasks_split"):
+        return None
+    t = meta.get("tracker") if isinstance(meta.get("tracker"), dict) else {}
+    why = None
+    if root is not None and (root / ".workflow" / "github-issues.json").is_file() and "map" not in t \
+            and t.get("provider") in (None, "github") and "kind" not in t:
+        why = "a .workflow/github-issues.json that meta.json#tracker does not record (make_issues.py's map)"
+    elif "linear" in meta:
+        why = "a legacy `linear` block (linear-scrum)"
+    elif "kind" in t:
+        why = "`tracker.kind` instead of `tracker.provider`"
+    elif any(not TASK_KEY_RE.match(str(k)) for k in (t.get("issue_map") or {})):
+        why = "an issue_map keyed by task title, not by task_key"
+    if why:
+        return (f"Tracker: {why} — scrum migrates it without losing anything: "
+                "scrum/scripts/meta_tracker.py .workflow/meta.json migrate")
+    if not t.get("provider") and "kind" not in t:
+        return ("Tracker: not chosen — where is the work managed (Linear, Jira, GitHub)? "
+                "scrum/scripts/meta_tracker.py .workflow/meta.json choose --provider …")
     return None
 
 
@@ -515,6 +544,9 @@ def main() -> int:
         print(note)
         print()
     if (note := observability_line(meta, root)):
+        print(note)
+        print()
+    if (note := tracker_line(meta, root)):
         print(note)
         print()
     if (note := debt_line(meta, root)):

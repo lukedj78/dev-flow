@@ -23,8 +23,8 @@ On Vercel the line with `module-add deploy` is: **this skill** creates and links
 
 ## The sequence
 0. **Inspect.** Who is logged in, which team and plan, which domains and DNS records, which integrations and resources already exist. Run the inventory (`dev-flow`'s `inventory.py scan`) if the project is new.
-1. **Decide** with the user: plan, regions (EU first), the domain and sub-domain, whether email goes through the marketplace or an existing account, the tracker (GitHub Issues or Linear).
-2. **GitHub repo.** Private, initial commit by file name, **secret scan on the staged diff before pushing** (`.gitignore` must ignore `.env*` and allow `!.env.example`). Optional, when the user chose GitHub as the tracker: one issue per task with `scripts/make_issues.py` (resumable, tested), labels by area and type, the map committed. ⚠️ **`make_issues.py` writes a stub, not an issue**: one sentence and an estimate. The user's standard (2026-10-14, set on smart-travel and required on ArchiStudio) is a full body for every issue — what was decided with a link to the exact source line, a checklist of acceptance criteria, dependencies, the screens involved and a verification checklist. And **GitHub with scrum means one milestone per sprint, named by its goal**, with a priority label on every issue. Both are in `references/provisioning.md` §Issues written to the standard. Show the user one finished body before writing the rest.
+1. **Decide** with the user: plan, regions (EU first), the domain and sub-domain, whether email goes through the marketplace or an existing account. The tracker (Linear, Jira or GitHub) is already chosen — `meta.json#tracker.provider`, asked by `prd-from-idea`.
+2. **GitHub repo.** Private, initial commit by file name, **secret scan on the staged diff before pushing** (`.gitignore` must ignore `.env*` and allow `!.env.example`). The issues, their bodies (the user's standard of 2026-10-14) and the sprints (on GitHub one milestone per sprint, named by its goal, a priority label on every issue) are the `scrum` skill's Setup, on whichever tracker was chosen — not this skill's. `scripts/make_issues.py` survives only as a pointer to `scrum/scripts/github_sync.py`.
 3. **Vercel project and region.** `vercel project add`, `vercel link --yes`, the function region through the project API, read back.
 4. **Postgres (Neon).** `vercel integration add neon -m region=fra1 -m auth=false`; metadata keys come from the API, not `--help`; verify the region from `PGHOST`; quarantine the skills it installs.
 5. **Files (Blob).** `vercel blob create-store … --access private --region fra1 --yes`.
@@ -37,4 +37,4 @@ On Vercel the line with `module-add deploy` is: **this skill** creates and links
 Code that uses these services (`module-add db | email | storage | deploy`), the deploy itself (`vercel-deploy`), the cost gate (`vercel-doctor`), and legal sign-off on processors and transfer bases (`compliance-audit`, a DPO). Stripe, Supabase and other connectors follow the same rules but are not worked out here.
 
 ## Bundled
-`references/provisioning.md` (commands, findings, traps), `scripts/make_issues.py` (+ test), `references/contracts.md`.
+`references/provisioning.md` (commands, findings, traps), `scripts/make_issues.py` (a pointer to `scrum`), `references/contracts.md`.

@@ -76,7 +76,7 @@ has an ML service, say so in the report if nobody has ever measured it.
 
 ## R8 — Sub-processors & DPA · Art. 28 · M
 
-**Audit signals:** third parties receiving personal data — LLM provider(s), Vercel (host/AI Gateway/Sandbox/Connect), Neon/Supabase/Firebase, Resend, Linear (via `linear-scrum`), RevenueCat, Expo push relay — with no sub-processor register or DPA note.
+**Audit signals:** third parties receiving personal data — LLM provider(s), Vercel (host/AI Gateway/Sandbox/Connect), Neon/Supabase/Firebase, Resend, Linear (via `scrum`), RevenueCat, Expo push relay — with no sub-processor register or DPA note.
 **Safe-fix:** the register is `meta.json#compliance.sub_processors`, kept by every `module-add` through `data_residency.py add` and rendered to `docs/compliance/subprocessors.md`. Add the rows the code shows and the register lacks (same command); only for a project that predates the register, **generate `docs/compliance/subprocessors.md` from `meta.json#stack`** — one row per provider (service, data categories, region, DPA-link `TODO`). It's a standing customer-facing artifact, not one-time setup.
 **Flag:** obtaining/verifying each DPA.
 

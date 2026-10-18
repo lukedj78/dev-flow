@@ -53,7 +53,7 @@ SKILLS=(
   prd-to-tasks
   wireframe-canvas
   project-infra-setup
-  linear-scrum
+  scrum
   compliance-audit
   app-security
   app-verification
@@ -115,6 +115,17 @@ SKILLS=(
 )
 
 echo "Uninstalling ${#SKILLS[@]} dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"
+
+# Former names of skills that were renamed (install.sh RETIRED): a copy left by an older install goes too.
+RETIRED=(linear-scrum)
+for s in "${RETIRED[@]}"; do
+  for d in "$s" "$s.bak"; do
+    if [ -d "$SKILLS_DIR/$d" ]; then
+      rm -rf "${SKILLS_DIR:?}/${d:?}"
+      echo "  ✓ $d removed (a former name)"
+    fi
+  done
+done
 
 for s in "${SKILLS[@]}"; do
   dest="$SKILLS_DIR/$s"
@@ -187,7 +198,7 @@ if [ -n "$LATEST" ]; then
   if [ "$RESTORE" -eq 1 ]; then
     echo
     echo "Restoring from $LATEST"
-    for s in "${SKILLS[@]}"; do
+    for s in "${SKILLS[@]}" "${RETIRED[@]}"; do   # a backup from before a rename holds the former name
       if [ -d "$LATEST/$s" ] && [ ! -e "$SKILLS_DIR/$s" ]; then
         mv "$LATEST/$s" "$SKILLS_DIR/$s"
         echo "  ↩ $s restored"

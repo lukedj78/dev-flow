@@ -1,5 +1,8 @@
 # Loop engineering — autonomous Linear → Claude Code → PR loop
 
+> **Linear only.** The interactive `scrum` skill runs on Linear, Jira or GitHub; this headless loop is written for
+> Linear's API. On Jira or GitHub the same shape needs its own runner (JQL / `gh issue list` instead of Linear's API).
+
 Operational runbook for building a **monorepo** (`apps/web` Next.js + `apps/agent` eve)
 through an **autonomous development loop**: Linear issues drive Claude Code running headless
 on a Hetzner server, which implements one issue per iteration, opens a GitHub PR, and lets

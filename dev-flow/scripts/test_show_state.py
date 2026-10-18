@@ -378,6 +378,48 @@ class Scope(unittest.TestCase):
             self.assertEqual(noted, value.strip() not in ("three users ask",), value)
 
 
+class Tracker(unittest.TestCase):
+    """The tracker is chosen at design time; an older tracker shape is noted until scrum migrates it."""
+
+    def test_legacy_linear_block_is_noted(self) -> None:
+        out = ss.tracker_line({"phase": "tasks_split", "linear": {"team_id": "T"}})
+        self.assertIn("meta_tracker.py", out)
+        self.assertIn("linear", out)
+
+    def test_hand_written_github_block_is_noted(self) -> None:
+        self.assertIn("kind", ss.tracker_line({"phase": "tasks_split", "tracker": {"kind": "github", "repo": "o/r"}}))
+        out = ss.tracker_line({"phase": "tasks_split", "tracker": {"provider": "github", "issue_map": {"Login": 7}}})
+        self.assertIn("title", out)
+
+    def test_a_lone_github_issues_file_is_noted_not_called_unchosen(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / ".workflow").mkdir()
+            (Path(d) / ".workflow/github-issues.json").write_text("{}")
+            out = ss.tracker_line({"phase": "deployed"}, Path(d))
+        self.assertIn("github-issues.json", out)
+        self.assertNotIn("not chosen", out)
+
+    def test_a_lone_github_file_on_another_tracker_is_not_noted(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / ".workflow").mkdir()
+            (Path(d) / ".workflow/github-issues.json").write_text("{}")
+            self.assertIsNone(ss.tracker_line({"phase": "deployed", "tracker": {"provider": "linear"}}, Path(d)))
+
+    def test_not_chosen_after_prd(self) -> None:
+        self.assertIn("Tracker: not chosen", ss.tracker_line({"phase": "tasks_split"}))
+        self.assertIsNone(ss.tracker_line({"phase": "idea_captured"}))
+
+    def test_chosen_and_current_is_silent(self) -> None:
+        self.assertIsNone(ss.tracker_line({"phase": "tasks_split", "tracker": {"provider": "jira"}}))
+        self.assertIsNone(ss.tracker_line({"phase": "deployed", "tracker": {"provider": "github",
+                                                                            "issue_map": {"0123456789ab": "#7"}}}))
+
+    def test_tasks_split_routes_to_scrum(self) -> None:
+        for topology, rows in ss.PHASE_NEXT_BY_STACK.items():
+            self.assertIn("scrum (Setup)", rows["tasks_split"], topology)
+            self.assertNotIn("linear-scrum", rows["tasks_split"], topology)
+
+
 class Debt(unittest.TestCase):
     """After deploy, dev-flow proposes the debt audit, and re-proposes it when a material change makes it old."""
 
