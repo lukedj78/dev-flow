@@ -87,6 +87,7 @@ class Verify(Fixture):
         ok, why = self.verify(block)
         self.assertFalse(ok)
         self.assertIn(PLAYBOOK, why)
+        self.assertIn("restore", why.lower())   # the cheap fix: put it back where it was approved
 
     def test_blank_quote_refuses(self) -> None:
         self.assertFalse(self.verify(self.approved(approval_quote="   "))[0])

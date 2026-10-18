@@ -213,6 +213,19 @@ class FounderPath(unittest.TestCase):
         out = self.show(self.meta(phase="empty", decision="bypassed", reason="internal tool"))
         self.assertIn("inventory first", out.split("Next step proposal")[1])
 
+    def test_a_null_founder_field_is_the_direct_path(self) -> None:
+        out = self.show({"phase": "empty", "stack": {}, "founder": None})
+        self.assertNotIn("Founder:", out)
+        self.assertIn("ask the user", out.split("Next step proposal")[1])
+
+    def test_labels_do_not_grow_sys_path(self) -> None:
+        before = list(sys.path)
+        for _ in range(3):
+            ss.founder_labels(self.meta()["founder"])
+        added = [p for p in sys.path if p not in before]
+        self.assertLessEqual(len(added), 1)
+        self.assertEqual(sys.path.count(str(ss.FOUNDER_SCRIPT.parent)), 1 if ss.FOUNDER_SCRIPT.is_file() else 0)
+
     def test_works_without_the_skill_installed(self) -> None:
         saved = ss.FOUNDER_SCRIPT
         ss.FOUNDER_SCRIPT = self.root / "nowhere" / "founder.py"
