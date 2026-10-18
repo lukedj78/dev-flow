@@ -300,8 +300,9 @@ material change.
    source reads *not checked*.
 2. **Confirm the signals.** A fresh app-security or compliance hit is marked `[to confirm]`. Read each with its own
    skill's rules (`app-security/references/review.md`, compliance-audit's verification) and record the verdict in
-   `.workflow/debt/reviewed.json` — `confirmed`, `false_positive` or `accepted`, with a reason. A dismissed verdict
-   lapses when the file changes.
+   `.workflow/debt/reviewed.json` — `confirmed`, `false_positive` or `accepted`, with a reason **and the row's
+   `hash`** from `.workflow/debt/findings.json`. A dismissed verdict lapses when the file changes (its hash differs),
+   and the finding comes back to confirm.
 3. **Run the prose recipes** worth running (`state-discipline`, `data-fetching`, `forms` audit recipes) and write
    their violations to `.workflow/debt/manual.json` in the same shape; then `collect` again.
 4. **Report** to the user in their language: the before-release band first, then what was not checked.
@@ -309,7 +310,9 @@ material change.
    `debt:<id>`; Linear, when active, receives them through its sync.
 
 Formats, the band table and the coverage commands: **`references/debt-audit.md`**. `scripts/debt_audit.py show
-<root>` prints the last report without re-running.
+<root>` prints the last report without re-running. The `deployed` row of the routing table always names the audit
+first; whether it is actually due is `show_state.py`'s *Debt:* line — never run, older than the last change
+(a module, a screen, an agent capability, or tests written), or leaving something before the release.
 
 ## What dev-flow does NOT do
 

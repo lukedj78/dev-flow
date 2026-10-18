@@ -412,6 +412,16 @@ class Debt(unittest.TestCase):
                                      history=[{"skill": "module-add", "ran_at": "2026-10-05T00:00:00Z"}]), self.root)
         self.assertIn("older than module-add", out)
 
+    def test_new_tests_make_the_audit_old(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(at="2026-10-01T00:00:00Z"),
+                                     history=[{"skill": "write-tests", "ran_at": "2026-10-05T00:00:00Z"}]), self.root)
+        self.assertIn("older than write-tests", out)
+
+    def test_same_instant_in_two_formats_is_not_stale(self) -> None:
+        out = ss.debt_line(self.meta(block=self.block(at="2026-10-05T10:00:00+00:00"),
+                                     history=[{"skill": "module-add", "ran_at": "2026-10-05T10:00:00Z"}]), self.root)
+        self.assertIsNone(out)
+
     def test_before_release_count(self) -> None:
         out = ss.debt_line(self.meta(block=self.block(before=2, confirm=1)), self.root)
         self.assertIn("2 to fix", out)

@@ -108,8 +108,9 @@ def _allows(sources: list[str], host: str) -> bool:
 
 
 # a string (kept whole) or a comment (dropped). A quote or double-quote string must close on its line, so one
-# unmatched quote is read as a plain character and cannot swallow the rest of a file; a template literal may span lines.
-_TOKENS = re.compile(r"""("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*.*?\*/""", re.S)
+# unmatched quote (an apostrophe in JSX text) is read as a plain character and cannot swallow the rest of a file; a
+# template literal may span lines; a block comment never closed runs to the end of the file, as it does for the parser.
+_TOKENS = re.compile(r"""("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*.*?(?:\*/|\Z)""", re.S)
 
 
 def _code(text: str) -> str:

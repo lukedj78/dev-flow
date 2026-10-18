@@ -409,6 +409,11 @@ class FinalReview(Fixture):
             self.write(f"{d}/x.mjs", "Sentry.init({ sendDefaultPii: true, integrations: [replayIntegration()] })\n")
         self.assertEqual(self.found(), [])
 
+    def test_an_unclosed_block_comment_runs_to_the_end_of_the_file(self) -> None:
+        self.complete_errors()
+        self.write("lib/observability/extra.ts", "/* draft\nexport const x = { sendDefaultPii: true }\n")
+        self.assertEqual(self.found(), [])
+
     def test_with_sentry_config_required_from_the_root_is_found(self) -> None:
         self.complete_errors()
         self.write("next.config.js", 'const { withSentryConfig } = require("@sentry/nextjs")\nmodule.exports = withSentryConfig({}, {})\n')

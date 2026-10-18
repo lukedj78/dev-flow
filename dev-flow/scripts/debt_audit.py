@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,6 +35,8 @@ import meta_io  # noqa: E402
 import surfaces as sf  # noqa: E402
 
 REPORT = "docs/debt/debt-audit.md"
+UNSEEN = ("not checked", "partial", "missing")   # sources that did not see everything: listed, never clean
+RAN = ("fresh", "partial", "stale")              # sources whose answer this run can close a previous finding
 TITLES = {"before-release": "Before the next release", "with-features": "With the features that touch these files",
           "later": "Later"}
 
@@ -68,12 +70,15 @@ def _report(run_at: str, open_: list[dm.Finding], kept: list[dm.Finding], source
         out += [f"## {TITLES[band]} ({len(rows)})", ""] + ([_row(f) for f in rows] or ["Nothing."]) + [""]
     figures = [s for s in sources if s.name in ("tests", "coverage") and s.status == "fresh"]
     out += ["## Tests", ""] + ([f"- {s.name}: {s.reason}" for s in figures] or ["No test figure (see Not checked)."]) + [""]
-    unseen = [s for s in sources if s.status in ("not checked", "partial")]
+    unseen = [s for s in sources if s.status in UNSEEN]
+    stale = [s for s in sources if s.status == "stale"]
     out += ["## Not checked", "", "What this audit could not see — not the same as clean.", ""]
-    out += [f"- {s.name}{' (partly)' if s.status == 'partial' else ''}: {s.reason}" for s in unseen] or ["Every source ran."]
-    stale = [s for s in sources if s.status in ("stale", "missing")]
-    out += [f"- {s.name} ({s.status}): {s.reason or 'older than the last material change — re-run it'}" for s in stale]
-    out += [f"- note: {n}" for n in notes] + [""]
+    out += [f"- {s.name} ({s.status}): {s.reason}" for s in unseen]
+    out += [f"- {s.name} (stale): {s.reason or 'older than the last change — its rows are marked [stale]; re-run it'}"
+            for s in stale]
+    out += [f"- note: {n}" for n in notes]
+    out += [] if unseen or stale or notes else ["Every source ran, and none is stale."]
+    out += [""]
     out += ["## Kept on purpose", ""] + ([f"{_row(f)} — kept: {f.kept}" for f in kept] or ["Nothing."]) + [""]
     out += ["## Since the last audit", "", f"- new: {len(new)}", f"- closed: {len(closed)}"]
     out += [f"  - closed: {i}" for i in sorted(closed)] + [""]
@@ -84,20 +89,24 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
     root = root.resolve()
     run_at = now or _now()
     meta_path = root / ".workflow" / "meta.json"
-    meta = _read_json(meta_path, {}) or {}
+    # an invalid meta.json stops here, exit 2, before any scanner runs or any file is written
+    meta = meta_io.load_or_exit(meta_path) if meta_path.is_file() else {}
     web = any(s.kind == "web" for s in sf.surfaces(root, meta))
     last_change, _ = ds.last_material_change(meta)
 
     findings, sources = ds.run_scanners(root, meta, set(skip), web)
     rec, rec_sources = ds.recorded(root, meta, last_change)
     man, man_source = ds.manual(root)
-    authz = {f.file for f in findings if f.source == "app-security" and f.check in ds.AUTHZ_CHECKS and f.file}
-    tests, test_sources = dt.check(root, meta, authz)
+    debt = root / ".workflow" / "debt"
+    reviewed = _read_json(debt / "reviewed.json", {})
+    # an authorization finding raises an untested mutation only while it stands: not once accepted or dismissed
+    standing, _, _ = dm.apply_decisions([replace(f) for f in findings if f.source == "app-security"
+                                         and f.check in ds.AUTHZ_CHECKS and f.file], meta,
+                                        reviewed if isinstance(reviewed, dict) else {}, root)
+    tests, test_sources = dt.check(root, meta, {f.file for f in standing})
     findings = dm.merge(findings + rec + man + tests)
     sources += rec_sources + [man_source] + test_sources
 
-    debt = root / ".workflow" / "debt"
-    reviewed = _read_json(debt / "reviewed.json", {})
     open_, kept, notes = dm.apply_decisions(findings, meta, reviewed if isinstance(reviewed, dict) else None, root)
     for f in open_ + kept:
         f.band = dm.band_for(f)
@@ -107,14 +116,20 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
     previous = _read_json(debt / "findings.json", {}) or {}
     prev_ids = {r.get("id") for r in previous.get("open", []) if isinstance(r, dict)}
     new, closed = dm.diff_runs(prev_ids, {f.id for f in open_}) if previous else (set(), set())
+    # closed means looked at again and gone: not a source that did not run this time, not a finding now kept
+    status = {s.name: s.status for s in sources}
+    def source_ran(fid: str) -> bool:
+        name = fid.split(":", 1)[0]
+        return status.get(name if name in status else "manual") in RAN
+    closed = {i for i in closed if source_ran(i)} - {f.id for f in kept}
 
-    def dump(f: dm.Finding) -> dict:
-        return {"id": f.id, **asdict(f)}
+    def dump(f: dm.Finding) -> dict:   # the hash is what a reviewed.json verdict copies to stay valid
+        return {"id": f.id, **asdict(f), "hash": dm.file_hash(root, f.file)}
 
     debt.mkdir(parents=True, exist_ok=True)
     meta_io.write_text(debt / "findings.json", json.dumps({
         "run_at": run_at, "open": [dump(f) for f in open_], "kept": [dump(f) for f in kept],
-        "not_checked": [asdict(s) for s in sources if s.status in ("not checked", "partial")],
+        "not_checked": [asdict(s) for s in sources if s.status in UNSEEN],
         "sources": {s.name: s.status for s in sources}, "notes": notes}, indent=2) + "\n")
     report = root / REPORT
     report.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +142,7 @@ def collect(root: Path, skip: set[str] = frozenset(), now: str | None = None) ->
                   "with_features": sum(f.band == "with-features" for f in confirmed),
                   "later": sum(f.band == "later" for f in confirmed)},
         "to_confirm": sum(f.signal for f in open_),
-        "not_checked": [s.name for s in sources if s.status in ("not checked", "partial")],
+        "not_checked": [s.name for s in sources if s.status in UNSEEN],
         "sources": {s.name: s.status for s in sources},
         "new": len(new), "closed": len(closed), "report": REPORT,
     }

@@ -11,8 +11,8 @@ the reader.
 
 | Band | What goes in it |
 |---|---|
-| **before the next release** | every app-security finding (secrets, authorization, vulnerable dependencies, exposed data); compliance `H`; a blocking registry-intake problem; observability `errors` missing — or never chosen, since an app online without error tracking does not know when it breaks; a file that writes data with no test **and** an authorization finding on the same file |
-| **with the features that touch these files** | compliance `M`; registry-intake review items; files that write data with no test; shadscan `fix`; vercel-doctor high and medium; launch-audit `missing`; recipe violations `HIGH` and `MEDIUM` |
+| **before the next release** | every app-security finding (secrets, authorization, vulnerable dependencies, exposed data); compliance `H`; every registry-intake problem (each means the enforcement is broken); observability `errors` missing — or never chosen, since an app online without error tracking does not know when it breaks; a file that writes data with no test **and** an authorization finding on the same file |
+| **with the features that touch these files** | compliance `M`; files that write data with no test; shadscan `fix`; vercel-doctor high and medium; launch-audit `missing`; recipe violations `HIGH` and `MEDIUM` |
 | **later** | observability `logs` / `uptime` missing; shadscan `verify` / `decide`; vercel-doctor low; promote-component candidates; recipe violations `LOW` |
 | *not checked* (apart) | each source or check that could not see: not installed, skipped, timed out, unreadable output, no coverage file — and each source that saw only **part** (`partial`: app-security without gitleaks or Semgrep, observability without a visible DSN), with what it missed. Listed, never ordered, never counted clean |
 
@@ -33,15 +33,18 @@ A row reads `- [to confirm] [stale] file:line — detail (source/check → owner
 | launch-audit | `scan_launch.py <root> --json`, run | web only |
 | observability | `observability_check.py <root> --json`, run | `--all` when `stack.observability` is empty |
 | compliance | `compliance-audit/scripts/scan.py <root>`, run | findings have no file; signals |
-| registry-intake | `registry_intake.py check <root>`, run | only when `registry-lock.json` exists |
+| registry-intake | `registry_intake.py check <root>`, run | only when `registry-lock.json` exists; one finding per problem line |
 | promote-component | `scan_promotion.py <root>`, run | rows whose suggestion starts with `Promote` |
-| shadscan | `docs/ui/shadscan.json` → `agentHandoff.actionables[]`, read | never run by the script (network, `npx`) |
+| shadscan | `docs/ui/shadscan.json` → `agentHandoff.actionables[]`, read: `findingId`, `disposition`, `title`, one finding per `evidence[]` entry (`filePath`, `line`, `message`) | never run by the script (network, `npx`) |
 | vercel-doctor | `meta.json#vercel_doctor.findings{high,medium,low}`, read | counts only: one row per severity |
 | manual | `.workflow/debt/manual.json`, read | the prose recipes' findings, written by the agent |
 | tests / coverage | `scripts/debt_tests.py` | below |
 
-Every scanner is found by path beside dev-flow. A skill that is not installed makes its source *not checked*, so the
-audit runs with whatever is there.
+Every scanner is found by path beside dev-flow, and runs in its own process group (a timeout also stops what it
+started). A skill that is not installed, an exit code the scanner does not document, or output it does not
+recognise makes its source *not checked*, so the audit runs with whatever is there and never reads a crash as clean.
+A finding is **closed** only when its source ran again and it is gone — not when the source was skipped or timed
+out, and not when it moved to *kept on purpose*.
 
 ## The two files the agent writes
 
@@ -86,9 +89,11 @@ answer, not a log.
   `db.insert / update / delete` (or `tx.`).
 - **Reached by a unit test**: a `*.test.*` / `*.spec.*` outside `e2e/` that imports it (relative or `@/`) or names
   its path.
-- **Reached by e2e**: a spec under `e2e/` or `tests/e2e/` containing a path literal (`goto("/plans")`) that matches
-  the URL of a page importing it. The URL drops `(groups)` and leading dynamic segments (`[locale]`); an inner
-  `[id]` matches any value.
+- **Reached by e2e**: a spec under `e2e/`, `tests/e2e/` or Playwright's `testDir` containing a path literal
+  (`goto("/plans")`, `http://localhost:3000/plans`) that matches the URL of a page — or route handler — reaching it,
+  directly or through the files in between (page → action → library). `(groups)` are dropped; a leading dynamic
+  segment (`[locale]`) may be present or not (`/en/plans` and `/plans`); `[id]` is one segment, `[...slug]` one or
+  more, `[[...slug]]` any.
 - Web surfaces only (each one in a monorepo); mobile and agent read *not applicable*.
 
 **Coverage**, when `coverage/coverage-summary.json` exists (istanbul `json-summary`, the same for Vitest and Jest):

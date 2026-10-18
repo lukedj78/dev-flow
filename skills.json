@@ -189,7 +189,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 335,
+      "skill_md_lines": 338,
       "bundle": "dist/dev-flow.skill"
     },
     {

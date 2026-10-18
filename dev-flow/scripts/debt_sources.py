@@ -14,7 +14,9 @@ Stdlib only.
 from __future__ import annotations
 
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -22,7 +24,7 @@ from pathlib import Path
 from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from debt_model import Finding  # noqa: E402
+from debt_model import Finding, later  # noqa: E402
 
 SKILLS_ROOT = Path(__file__).resolve().parents[2]
 LOCATION = re.compile(r"^([\w./@\[\]()+-]+\.[A-Za-z]{1,5}):(\d+)\b\s*(.*)$")
@@ -74,12 +76,22 @@ def _compliance(out: str) -> list[Finding]:
             for f in data["findings"]]
 
 
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:48] or "problem"
+
+
 def _registry(out: str) -> list[Finding]:
+    """`✓ registry intake enforced`, or `✗ registry intake:` then one problem per line. Every problem means the
+    enforcement is broken, so every one is a block; each is its own finding."""
+    if not out.startswith(("✓", "✗")):
+        raise ValueError("not registry_intake.py check output")
     lines = [l.strip() for l in out.splitlines()[1:] if l.strip()]
-    return [Finding("registry-intake", "check", l, severity="block", routed_to="registry-intake") for l in lines]
+    return [Finding("registry-intake", _slug(l), l, severity="block", routed_to="registry-intake") for l in lines]
 
 
 def _promote(out: str) -> list[Finding]:
+    if not out.lstrip().startswith("# Promotion scan"):
+        raise ValueError("not scan_promotion.py output")
     found = []
     for line in out.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -88,6 +100,9 @@ def _promote(out: str) -> list[Finding]:
                                  routed_to="promote-component"))
     return found
 
+
+# the exit codes each scanner documents; anything else is a crash, and the source is not checked
+EXIT_OK = {"observability": {0, 1}, "registry-intake": {0, 1}}
 
 # name → (script relative to SKILLS_ROOT, args after the root, timeout in seconds, parser of stdout)
 SCANNERS: dict[str, tuple[str, list[str], int, Callable[[str], list[Finding]]]] = {
@@ -130,23 +145,41 @@ def run_scanners(root: Path, meta: dict, skip: set[str], web: bool) -> tuple[lis
         cmd = [sys.executable, str(script), *a, str(root)] if name == "registry-intake" \
             else [sys.executable, str(script), str(root), *a]
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            out = _run(cmd, timeout)
         except subprocess.TimeoutExpired:
             sources.append(Source(name, "not checked", f"timed out after {timeout}s"))
             continue
         except OSError as e:
             sources.append(Source(name, "not checked", f"could not run: {e}"))
             continue
+        tail = (out.stderr or out.stdout).strip().splitlines()[-1:] or [""]
+        if out.returncode not in EXIT_OK.get(name, {0}):
+            sources.append(Source(name, "not checked", f"exited {out.returncode}: {tail[0][:160]}"))
+            continue
         try:
-            got = parse(out.stdout) if name != "registry-intake" or out.returncode == 1 else []
+            got = parse(out.stdout)
         except (ValueError, KeyError, TypeError, AttributeError) as e:
-            tail = (out.stderr or out.stdout).strip().splitlines()[-1:] or [""]
             sources.append(Source(name, "not checked", f"unreadable output ({type(e).__name__}): {tail[0][:160]}"))
             continue
         findings += got
         notes = _unseen(out.stdout)
         sources.append(Source(name, "partial", notes) if notes else Source(name, "fresh"))
     return findings, sources
+
+
+def _run(cmd: list[str], timeout: int) -> subprocess.CompletedProcess:
+    """Run a scanner in its own process group, so a timeout also stops what it started (osv-scanner, semgrep…)."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            p.kill()
+        p.communicate()
+        raise
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
 
 def _unseen(stdout: str) -> str:
@@ -163,7 +196,7 @@ def _unseen(stdout: str) -> str:
 
 
 def _older(ran_at: str | None, last_change: str | None) -> bool:
-    return bool(last_change) and (not ran_at or str(ran_at) < str(last_change))
+    return bool(last_change) and (not ran_at or later(last_change, ran_at))
 
 
 def recorded(root: Path, meta: dict, last_change: str | None) -> tuple[list[Finding], list[Source]]:
@@ -177,13 +210,23 @@ def recorded(root: Path, meta: dict, last_change: str | None) -> tuple[list[Find
         stale = _older((meta.get("shadscan") or {}).get("last_run_at"), last_change)
         try:
             items = ((json.loads(shad.read_text(encoding="utf-8")).get("agentHandoff") or {}).get("actionables") or [])
+            # shadscan 0.9's actionable: `findingId` (the rule), `disposition`, `title`, and `evidence[]` with
+            # `filePath` / `line` / `message` — one finding per place, so each has its own id, band and file
             for a in items:
-                rule = str(a.get("ruleId") or a.get("rule") or a.get("id") or "rule")
-                f = _located("shadscan", rule, str(a.get("title") or a.get("message") or rule), str(a.get("file") or ""),
-                             severity=str(a.get("disposition") or ""), routed_to="shadscan", stale=stale)
-                if f.line is None and isinstance(a.get("line"), int):
-                    f.line = a["line"]
-                findings.append(f)
+                rule = str(a.get("findingId") or a.get("ruleId") or "rule")
+                title = str(a.get("title") or a.get("summary") or rule)
+                kw = dict(severity=str(a.get("disposition") or ""), routed_to="shadscan", stale=stale)
+                pkg = str(a.get("packageDir") or "").strip("/")
+                places = [e for e in (a.get("evidence") or []) if isinstance(e, dict)]
+                for e in places:
+                    path = str(e.get("filePath") or "") or None
+                    if path and pkg:
+                        path = f"{pkg}/{path}"
+                    line = e.get("line") if isinstance(e.get("line"), int) else None
+                    detail = f"{title} — {e['message']}" if e.get("message") else title
+                    findings.append(Finding("shadscan", rule, detail, file=path, line=line, **kw))
+                if not places:
+                    findings.append(Finding("shadscan", rule, title, **kw))
             sources.append(Source("shadscan", "stale" if stale else "fresh"))
         except (ValueError, AttributeError) as e:
             sources.append(Source("shadscan", "not checked", f"docs/ui/shadscan.json unreadable ({type(e).__name__})"))
@@ -203,26 +246,40 @@ def recorded(root: Path, meta: dict, last_change: str | None) -> tuple[list[Find
 
 
 def manual(root: Path) -> tuple[list[Finding], Source]:
-    """What the agent recorded from the prose recipes, in the shared shape."""
+    """What the agent recorded from the prose recipes, in the shared shape. A row without a source and a check, or
+    with a file that is not a path, is dropped and counted; the rest still count."""
     p = root / ".workflow" / "debt" / "manual.json"
     if not p.is_file():
         return [], Source("manual", "missing", "no .workflow/debt/manual.json — the recipes have not been run")
     try:
         rows = json.loads(p.read_text(encoding="utf-8"))
-        found = [Finding(str(r["source"]), str(r["check"]), str(r.get("detail", "")), file=r.get("file"),
-                         line=r.get("line"), severity=str(r.get("severity", "")), routed_to=str(r.get("routed_to") or r["source"]))
-                 for r in rows]
-    except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
+        if not isinstance(rows, list):
+            raise ValueError("not a list")
+    except (ValueError, OSError) as e:
         return [], Source("manual", "not checked", f".workflow/debt/manual.json unreadable ({type(e).__name__})")
+    found, bad = [], 0
+    for r in rows:
+        ok = isinstance(r, dict) and r.get("source") and r.get("check") \
+            and isinstance(r.get("file"), (str, type(None))) and isinstance(r.get("line"), (int, type(None)))
+        if not ok:
+            bad += 1
+            continue
+        found.append(Finding(str(r["source"]), str(r["check"]), str(r.get("detail", "")), file=r.get("file"),
+                             line=r.get("line"), severity=str(r.get("severity", "")),
+                             routed_to=str(r.get("routed_to") or r["source"])))
+    if bad:
+        return found, Source("manual", "partial", f"{bad} row(s) of .workflow/debt/manual.json dropped: each needs a "
+                                                  "source, a check, and a string file / integer line when given")
     return found, Source("manual", "fresh")
 
 
 def last_material_change(meta: dict) -> tuple[str | None, str | None]:
     """(ran_at, skill) of the latest history entry by a skill that changes what the app does."""
     import show_state   # lazy: show_state is the router, and it must not need this module to start
+    from debt_model import instant
     changes = [h for h in meta.get("history") or [] if isinstance(h, dict)
-               and h.get("skill") in show_state.MATERIAL_SKILLS and h.get("ran_at")]
+               and h.get("skill") in show_state.DEBT_CHANGES and h.get("ran_at")]
     if not changes:
         return None, None
-    last = max(changes, key=lambda h: str(h["ran_at"]))
+    last = max(changes, key=lambda h: (instant(h["ran_at"]) is not None, instant(h["ran_at"]) or str(h["ran_at"])))
     return str(last["ran_at"]), str(last["skill"])

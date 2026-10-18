@@ -190,6 +190,13 @@ export async function rename(db: D, input: I) {
         self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
 
 
+    def test_an_e2e_endpoint_inside_the_app_is_still_scanned(self) -> None:
+        # a test-support route shipped to production is exactly what the session check exists for
+        self.next_app()
+        self.write("app/api/e2e/reset/route.ts", "export async function POST() {\n  await db.delete(users)\n}\n")
+        self.assertEqual(self.find("route-handler-unauthenticated").status, ss.FOUND)
+
+
 class Environment(Fixture):
     def test_public_env_secret_is_found(self) -> None:
         self.next_app()

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 BANDS = ("before-release", "with-features", "later")
@@ -21,8 +22,7 @@ BAND_RULES: list[tuple[str, str, str, str]] = [
     ("app-security", "*", "*", "before-release"),         # secrets, authorization, vulnerable deps, exposed data
     ("compliance", "*", "H", "before-release"),
     ("compliance", "*", "*", "with-features"),
-    ("registry-intake", "*", "block", "before-release"),
-    ("registry-intake", "*", "*", "with-features"),
+    ("registry-intake", "*", "*", "before-release"),      # every `check` problem means the enforcement is broken
     ("observability", "errors", "*", "before-release"),   # an app online that does not know when it breaks
     ("observability", "*", "*", "later"),
     ("tests", "untested-mutation", "authz", "before-release"),   # writes, no test, and an authorization finding
@@ -87,6 +87,22 @@ def band_for(f: Finding) -> str:
     return "later"
 
 
+def instant(value: object) -> datetime | None:
+    """An ISO-8601 timestamp as an aware datetime (`Z`, `+00:00` and a bare date all compare as instants); None when
+    it is not one."""
+    try:
+        d = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def later(a: object, b: object) -> bool:
+    """Is timestamp `a` after `b`? Compared as instants; as text only when either is not a timestamp."""
+    da, db = instant(a), instant(b)
+    return da > db if da and db else str(a or "") > str(b or "")
+
+
 def file_hash(root: Path, rel: str | None) -> str:
     """A short hash of the file's bytes, so a verdict knows when the code it judged has changed; "" when unreadable."""
     if not rel:
@@ -127,6 +143,10 @@ def apply_decisions(findings: list[Finding], meta: dict, reviewed: dict | None,
     open_: list[Finding] = []
     kept: list[Finding] = []
     for f in findings:
+        if f.source == "compliance" and f.check in flagged:   # owed a legal decision: never kept, whatever the verdicts
+            f.detail += " — a legal decision is still owed (compliance.flagged)"
+            open_.append(f)
+            continue
         reason = gates.get((f.source, f.check))
         if reason is not None:
             f.kept = reason
@@ -136,12 +156,12 @@ def apply_decisions(findings: list[Finding], meta: dict, reviewed: dict | None,
         same = v is not None and v.get("hash", "") == file_hash(root, f.file)
         if v and v.get("verdict") == "confirmed":
             f.signal = False
-        elif v and v.get("verdict") in ("false_positive", "accepted") and same:
-            f.kept = str(v.get("reason") or v["verdict"])
-            kept.append(f)
-            continue
-        if f.source == "compliance" and f.check in flagged:
-            f.detail += " — a legal decision is still owed (compliance.flagged)"
+        elif v and v.get("verdict") in ("false_positive", "accepted"):
+            if same:
+                f.kept = str(v.get("reason") or v["verdict"])
+                kept.append(f)
+                continue
+            f.signal = True   # the file changed since the verdict: look again, whatever the source
         open_.append(f)
     return open_, kept, notes
 
@@ -149,7 +169,9 @@ def apply_decisions(findings: list[Finding], meta: dict, reviewed: dict | None,
 def churn(root: Path, days: int = 90) -> dict[str, int]:
     """How many commits touched each file in the last `days`; {} without git or history."""
     try:
-        out = subprocess.run(["git", "-C", str(root), "log", f"--since={days}.days", "--name-only", "--pretty=format:"],
+        # --relative: paths from the project root, even when the repository's top level is above it
+        out = subprocess.run(["git", "-C", str(root), "log", f"--since={days}.days", "--name-only", "--relative",
+                              "--pretty=format:"],
                              capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return {}

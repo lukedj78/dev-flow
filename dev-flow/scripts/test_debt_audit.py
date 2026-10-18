@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
+import time
 import sys
 import tempfile
 import unittest
@@ -110,6 +112,20 @@ class Model(Tmp):
         self.assertEqual(kept, [])
         self.assertIn("legal decision", open_[0].detail)
 
+    def test_compliance_flagged_is_never_kept_by_a_verdict(self) -> None:
+        f = F("compliance", "R3", severity="H", signal=True)
+        reviewed = {f.id: {"verdict": "accepted", "reason": "x", "hash": ""}}
+        open_, kept, _ = dm.apply_decisions([f], {"compliance": {"flagged": ["R3"]}}, reviewed, self.root)
+        self.assertEqual((len(open_), kept), (1, []))
+
+    def test_a_lapsed_verdict_returns_as_a_signal_on_any_source(self) -> None:
+        self.write("app/p.tsx", "a")
+        f = F("launch-audit", "og", file="app/p.tsx", severity="missing")
+        reviewed = {f.id: {"verdict": "accepted", "reason": "x", "hash": dm.file_hash(self.root, "app/p.tsx")}}
+        self.write("app/p.tsx", "changed")
+        open_, _, _ = dm.apply_decisions([f], {}, reviewed, self.root)
+        self.assertTrue(open_[0].signal)
+
     def test_corrupt_reviewed_is_ignored_with_a_note(self) -> None:
         f = F("app-security", "authz", file="app/a.ts", signal=True)
         open_, _, notes = dm.apply_decisions([f], {}, None, self.root)
@@ -136,8 +152,24 @@ class Model(Tmp):
             subprocess.run(git + ["commit", "-qm", f"c{i}"], check=True)
         self.assertEqual(dm.churn(self.root).get("a.ts"), 3)
 
+    def test_churn_paths_are_relative_to_the_project_inside_a_repo(self) -> None:
+        git = ["git", "-C", str(self.root), "-c", "user.email=t@t", "-c", "user.name=t"]
+        subprocess.run(git[:3] + ["init", "-q"], check=True)
+        self.write("apps/web/a.ts", "1")
+        subprocess.run(git + ["add", "-A"], check=True)
+        subprocess.run(git + ["commit", "-qm", "c"], check=True)
+        self.assertEqual(dm.churn(self.root / "apps/web").get("a.ts"), 1)
+
     def test_diff_runs(self) -> None:
         self.assertEqual(dm.diff_runs({"a", "b"}, {"b", "c"}), ({"c"}, {"a"}))
+
+
+SHADSCAN = {"agentHandoff": {"actionables": [
+    {"findingId": "custom-controls-have-labels", "disposition": "fix", "title": "Fix custom controls have accessible labels",
+     "evidence": [{"filePath": "app/a.tsx", "line": 180, "message": "SelectTrigger has no accessible label."},
+                  {"filePath": "app/b.tsx", "line": 12, "message": "Switch has no accessible label."}]},
+    {"findingId": "command-menu", "disposition": "decide", "title": "Decide whether the app needs a command menu",
+     "evidence": []}]}}
 
 
 class Sources(Tmp):
@@ -204,6 +236,18 @@ class Sources(Tmp):
         self.assertEqual(srcs["app-security"].status, "not checked")
         self.assertIn("timed out", srcs["app-security"].reason)
 
+    def test_a_timeout_kills_the_whole_process_group(self) -> None:
+        pidfile = self.root / "grandchild.pid"
+        self.fake("app-security", f"import subprocess\np = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                  f"open({str(pidfile)!r}, 'w').write(str(p.pid))\ntime.sleep(30)")
+        rel, args, _, parse = ds.SCANNERS["app-security"]
+        ds.SCANNERS["app-security"] = (rel, args, 2, parse)
+        self.run_only("app-security")
+        pid = int(pidfile.read_text())
+        time.sleep(0.5)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
     def test_skip_is_not_checked(self) -> None:
         self.fake("app-security", 'print("[]")')
         _, srcs = self.run_only("app-security", skip={"app-security"})
@@ -244,8 +288,25 @@ class Sources(Tmp):
         fs, srcs = self.run_only("registry-intake")
         self.assertEqual([(f.detail, f.severity) for f in fs], [("bad", "block")])
 
+    def test_registry_failure_is_not_checked(self) -> None:
+        (self.proj / "registry-lock.json").write_text("{}", encoding="utf-8")
+        self.fake("registry-intake", "sys.exit(2)")
+        self.assertEqual(self.run_only("registry-intake")[1]["registry-intake"].status, "not checked")
+        self.fake("registry-intake", "raise RuntimeError('boom')")
+        self.assertEqual(self.run_only("registry-intake")[1]["registry-intake"].status, "not checked")
+
+    def test_each_registry_problem_is_its_own_finding(self) -> None:
+        (self.proj / "registry-lock.json").write_text("{}", encoding="utf-8")
+        self.fake("registry-intake", 'print("✗ registry intake:\\n  hook missing\\n  snapshot drifted: ui/button"); sys.exit(1)')
+        fs, _ = self.run_only("registry-intake")
+        self.assertEqual(len({f.id for f in fs}), 2)
+
+    def test_promote_crash_is_not_checked(self) -> None:
+        self.fake("promote-component", "raise RuntimeError('boom')")
+        self.assertEqual(self.run_only("promote-component")[1]["promote-component"].status, "not checked")
+
     def test_promote_rows_parsed(self) -> None:
-        self.fake("promote-component", 'print("| Component | Usages | Current level | Suggestion |")\nprint("|---|---|---|---|")\n'
+        self.fake("promote-component", 'print("# Promotion scan")\nprint("| Component | Usages | Current level | Suggestion |")\nprint("|---|---|---|---|")\n'
                   'print("| `Card` | 4 | L0 | Promote to L2 - components/shared/<dominio>/Card.tsx |")\n'
                   'print("| `Row` | 1 | L0 | OK — stays |")')
         fs, _ = self.run_only("promote-component")
@@ -256,14 +317,17 @@ class Sources(Tmp):
         self.assertEqual({s.name: s.status for s in srcs}["shadscan"], "missing")
         p = self.proj / "docs/ui/shadscan.json"
         p.parent.mkdir(parents=True)
-        p.write_text(json.dumps({"agentHandoff": {"actionables": [
-            {"ruleId": "a11y-label", "disposition": "fix", "file": "app/page.tsx:12", "title": "button without a label"}]}}),
-            encoding="utf-8")
+        p.write_text(json.dumps(SHADSCAN), encoding="utf-8")
         meta = {"shadscan": {"last_run_at": "2026-10-01T00:00:00Z"}}
         fs, srcs = ds.recorded(self.proj, meta, "2026-10-05T00:00:00Z")
         shad = [f for f in fs if f.source == "shadscan"]
-        self.assertEqual([(f.check, f.severity, f.file, f.line, f.stale) for f in shad],
-                         [("a11y-label", "fix", "app/page.tsx", 12, True)])
+        # the real shape (annotix, shadscan 0.9): findingId, and one finding per evidence entry
+        self.assertEqual([(f.check, f.severity, f.file, f.line, f.stale) for f in shad], [
+            ("custom-controls-have-labels", "fix", "app/a.tsx", 180, True),
+            ("custom-controls-have-labels", "fix", "app/b.tsx", 12, True),
+            ("command-menu", "decide", None, None, True)])
+        self.assertIn("SelectTrigger has no accessible label", shad[0].detail)
+        self.assertEqual(len({f.id for f in shad}), 3)
         self.assertEqual({s.name: s.status for s in srcs}["shadscan"], "stale")
 
     def test_vercel_counts_become_rows(self) -> None:
@@ -288,8 +352,25 @@ class Sources(Tmp):
         fs, src = ds.manual(self.proj)
         self.assertEqual((fs, src.status), ([], "not checked"))
 
+    def test_a_manual_row_with_a_bad_file_is_dropped_with_a_note(self) -> None:
+        (self.proj / ".workflow/debt").mkdir(parents=True)
+        (self.proj / ".workflow/debt/manual.json").write_text(json.dumps([
+            {"source": "forms", "check": "C", "file": 12, "detail": "x"},
+            {"source": "forms", "check": "D", "file": "app/f.tsx", "detail": "y"}]), encoding="utf-8")
+        fs, src = ds.manual(self.proj)
+        self.assertEqual([f.check for f in fs], ["D"])
+        self.assertEqual(src.status, "partial")
+
     def test_no_manual_is_missing(self) -> None:
         self.assertEqual(ds.manual(self.proj)[1].status, "missing")
+
+    def test_timestamps_compare_as_instants(self) -> None:
+        self.assertFalse(ds._older("2026-10-05T10:00:00+00:00", "2026-10-05T10:00:00Z"))
+        self.assertTrue(ds._older("2026-10-05T09:00:00+00:00", "2026-10-05T10:00:00Z"))
+
+    def test_write_tests_counts_as_a_change_for_the_debt_audit(self) -> None:
+        meta = {"history": [{"skill": "write-tests", "ran_at": "2026-10-07T00:00:00Z"}]}
+        self.assertEqual(ds.last_material_change(meta), ("2026-10-07T00:00:00Z", "write-tests"))
 
     def test_last_material_change(self) -> None:
         meta = {"history": [{"skill": "module-add", "ran_at": "2026-10-01T00:00:00Z"},
@@ -343,6 +424,48 @@ class TestCheck(Tmp):
         self.write("app/[locale]/(app)/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
         self.write("e2e/home.spec.ts", 'await page.goto("/plansx")\nawait page.goto("/")\n')
         self.assertIsNone(dt.tested_by(self.root, "app/actions/plan.ts"))
+
+    def test_a_locale_prefixed_url_counts(self) -> None:
+        # next-intl's default localePrefix is "always": the spec visits /en/plans
+        self.web()
+        self.write("app/[locale]/plans/actions.ts", ACTION)
+        self.write("app/[locale]/plans/page.tsx", 'import { createPlan } from "./actions"\n')
+        self.write("e2e/plans.spec.ts", 'await page.goto("/en/plans")\n')
+        self.assertEqual(dt.tested_by(self.root, "app/[locale]/plans/actions.ts"), "e2e")
+
+    def test_an_absolute_url_counts(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/plans.spec.ts", 'await page.goto("http://localhost:3000/plans")\n')
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "e2e")
+
+    def test_a_catch_all_matches_many_segments(self) -> None:
+        self.web()
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/docs/[...slug]/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("e2e/docs.spec.ts", 'await page.goto("/docs/a/b/c")\n')
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "e2e")
+
+    def test_playwright_test_dir_is_read(self) -> None:
+        # Playwright's default testDir is ./tests: those specs are e2e, not unit tests
+        self.web()
+        self.write("playwright.config.ts", 'export default defineConfig({ testDir: "./tests/browser" })\n')
+        self.write("app/actions/plan.ts", ACTION)
+        self.write("app/plans/page.tsx", 'import { createPlan } from "@/app/actions/plan"\n')
+        self.write("tests/browser/plans.spec.ts", 'await page.goto("/plans")\n')
+        self.assertEqual(dt.tested_by(self.root, "app/actions/plan.ts"), "e2e")
+
+    def test_route_detection_needs_an_app_folder(self) -> None:
+        self.web()
+        self.write("lib/myapp/route.ts", "export async function POST() {}\n")
+        self.assertEqual(dt.mutations(self.root), [])
+
+    def test_naming_the_path_needs_a_boundary(self) -> None:
+        self.web()
+        self.write("lib/plans.ts", "export const save = () => db.insert(plans).values({})\n")
+        self.write("tests/u.test.ts", 'import { x } from "@/lib/plans-utils"\n')
+        self.assertIsNone(dt.tested_by(self.root, "lib/plans.ts"))
 
     def test_page_url(self) -> None:
         self.assertEqual(dt.page_url("app/[locale]/(marketing)/plans/[id]/page.tsx"), "/plans/[id]")
@@ -579,6 +702,53 @@ class Collect(Tmp):
         tests = report[report.index("## Tests"):report.index("## Not checked")]
         self.assertIn("42.3% lines", tests)
         self.assertIn("files write data", tests)
+
+    def test_a_source_that_did_not_run_closes_nothing(self) -> None:
+        da.collect(self.proj)
+        block = da.collect(self.proj, skip={"app-security"})
+        self.assertEqual(block["closed"], 0)
+
+    def test_a_finding_moved_to_kept_is_not_closed(self) -> None:
+        da.collect(self.proj)
+        self.write("proj/app/actions/plan.ts", "x")
+        fid = "app-security:server-action-unauthenticated:app/actions/plan.ts"
+        (self.proj / ".workflow/debt/reviewed.json").write_text(json.dumps(
+            {fid: {"verdict": "accepted", "reason": "r", "hash": dm.file_hash(self.proj, "app/actions/plan.ts")}}), encoding="utf-8")
+        self.assertEqual(da.collect(self.proj)["closed"], 0)
+
+    def test_an_invalid_meta_stops_before_anything_runs(self) -> None:
+        (self.proj / ".workflow/meta.json").write_text('{"history": {}}', encoding="utf-8")
+        with self.assertRaises(SystemExit) as e:
+            da.collect(self.proj)
+        self.assertEqual(e.exception.code, 2)
+        self.assertFalse((self.proj / "docs/debt/debt-audit.md").exists())
+
+    def test_findings_carry_the_hash_a_verdict_needs(self) -> None:
+        self.write("proj/app/actions/plan.ts", "x")
+        da.collect(self.proj)
+        rows = json.loads((self.proj / ".workflow/debt/findings.json").read_text(encoding="utf-8"))["open"]
+        row = next(r for r in rows if r["file"] == "app/actions/plan.ts")
+        self.assertEqual(row["hash"], dm.file_hash(self.proj, "app/actions/plan.ts"))
+        (self.proj / ".workflow/debt/reviewed.json").write_text(json.dumps(
+            {row["id"]: {"verdict": "false_positive", "reason": "r", "hash": row["hash"]}}), encoding="utf-8")
+        da.collect(self.proj)
+        data = json.loads((self.proj / ".workflow/debt/findings.json").read_text(encoding="utf-8"))
+        self.assertIn(row["id"], [r["id"] for r in data["kept"]])
+
+    def test_an_accepted_authz_check_does_not_raise_a_mutation(self) -> None:
+        self.write("proj/app/actions/plan.ts", ACTION)
+        self.meta["security"] = {"findings": {"accepted": [{"check": "server-action-unauthenticated", "reason": "r"}]}}
+        meta_io.write_json(self.proj / ".workflow/meta.json", self.meta)
+        da.collect(self.proj)
+        rows = json.loads((self.proj / ".workflow/debt/findings.json").read_text(encoding="utf-8"))["open"]
+        row = next(r for r in rows if r["source"] == "tests")
+        self.assertEqual(row["band"], "with-features")
+
+    def test_missing_sources_are_in_not_checked_and_the_report_agrees(self) -> None:
+        block = da.collect(self.proj)
+        self.assertIn("shadscan", block["not_checked"])
+        report = (self.proj / "docs/debt/debt-audit.md").read_text(encoding="utf-8")
+        self.assertNotIn("Every source ran.", report)
 
     def test_show_without_a_run_says_so(self) -> None:
         out = io.StringIO()

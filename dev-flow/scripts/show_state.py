@@ -185,6 +185,8 @@ FOUNDER_DECISIONS = ("pending", "approved", "approved_experiment", "revise", "st
 
 # app-verification: what counts as a change the manual must follow, and where there is first something to drive
 MATERIAL_SKILLS = {"module-add", "screenshot-to-page", "rn-add-screen", "rn-module-add", "eve-agent"}
+# the debt audit also goes old when tests are written: its test band counts them
+DEBT_CHANGES = MATERIAL_SKILLS | {"write-tests", "rn-write-tests"}
 
 
 def verification_line(meta: dict, root: Path) -> str | None:
@@ -285,11 +287,12 @@ def debt_line(meta: dict, root: Path) -> str | None:
     if not isinstance(block, dict):
         return ("Debt: never audited — dev-flow debt audit (every audit plus the tests in one ordered list: "
                 "debt_audit.py collect)")
-    ran = str(block.get("last_run_at") or "")
-    changes = [h for h in meta.get("history") or [] if isinstance(h, dict) and h.get("skill") in MATERIAL_SKILLS
-               and str(h.get("ran_at") or "") > ran]
+    from debt_model import instant, later   # stdlib-only sibling: timestamps compared as instants, not as text
+    ran = block.get("last_run_at") or ""
+    changes = [h for h in meta.get("history") or [] if isinstance(h, dict) and h.get("skill") in DEBT_CHANGES
+               and h.get("ran_at") and later(h["ran_at"], ran)]
     if changes:
-        last = max(changes, key=lambda h: str(h.get("ran_at")))
+        last = max(changes, key=lambda h: instant(h["ran_at"]) or instant("1970-01-01"))
         return (f"Debt: the last audit is older than {last.get('skill')} at {last.get('ran_at')} — re-run dev-flow "
                 "debt audit")
     before = (block.get("bands") or {}).get("before_release") or 0
