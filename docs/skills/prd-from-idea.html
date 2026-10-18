@@ -114,14 +114,14 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">prd-from-idea</h1>
-  <ul class="meta"><li class="chip">Core</li><li class="chip">discovery — turns intent into artefacts</li><li class="chip">309 lines</li><li class="chip">1 reference</li><li class="chip">2 scripts</li></ul>
+  <ul class="meta"><li class="chip">Core</li><li class="chip">discovery — turns intent into artefacts</li><li class="chip">326 lines</li><li class="chip">2 references</li><li class="chip">2 scripts</li></ul>
   <p class="lede">Turn a raw product idea — a paragraph, a Notion dump, a half-formed thought, or a brief that arrived as a <strong>file</strong> (<code>.docx</code>, <code>.pdf</code>, <code>.pptx</code>, <code>.xlsx</code>: an RFP, a client deck, a Word spec — converted to Markdown first with <code>anydoc</code>) — into a structured PROJECT.md (high-level brief) and PRD.md (product requirements document) inside a project&#x27;s <code>.workflow/</code> folder, following the dev-flow contract. Use when the user pastes a product idea and says &quot;let&#x27;s plan this&quot;, &quot;draft a PRD&quot;, &quot;what would this look like as a project&quot;, &quot;fammi il PRD da questo PDF&quot;, &quot;PRD da questo documento/RFP&quot;, or starts a new project from scratch. Also use when a <code>.workflow/</code> exists at phase <code>empty</code> or <code>idea_captured</code> and the orchestrator routes here. Not for: writing code, designing UI, or producing task lists (those are downstream skills).</p>
 </div>
 <section><div class="wrap prose">
   <h3>When it applies</h3>
   <ul><li>A user pastes a product idea (&quot;I want to build a dashboard for X&quot;) and asks to start.</li><li>Orchestrator (<code>dev-flow</code>) routes here when <code>phase</code> is <code>empty</code> or <code>idea_captured</code>.</li><li>A <code>PROJECT.md</code> exists but <code>PRD.md</code> doesn&#x27;t — the skill expands the brief into requirements.</li></ul>
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/prd-from-idea/references/contracts.md"><code>contracts.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/prd-from-idea/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/prd-from-idea/references/scope-check.md"><code>scope-check.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
 ./install.sh --platform claude        # or drop dist/prd-from-idea.skill into Claude Code</code></pre>
