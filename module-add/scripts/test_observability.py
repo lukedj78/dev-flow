@@ -135,6 +135,41 @@ class ErrorsLevel(Fixture):
         self.write("lib/observability/options.ts", OPTIONS.replace("  sendDefaultPii: false,\n", "  ...shared,\n"))
         self.assertIn("not checked", self.statuses({"stack": {"observability": ["errors"], "data_residency": "eu"}})["errors"])
 
+    # The three below came from the real run on a copy of fit-coach (Task 5).
+    def test_error_boundary_under_a_locale_segment_counts(self) -> None:
+        self.complete_errors()
+        text = (self.root / "app/error.tsx").read_text(encoding="utf-8")
+        (self.root / "app/error.tsx").unlink()
+        self.write("app/[locale]/error.tsx", text)
+        self.assertEqual(self.found(), [])
+        self.write("app/[locale]/error.tsx", '"use client"\nexport default function E({ error }) {\n  console.error(error)\n}\n')
+        self.assertTrue(any("error.tsx" in d for d in self.found()), self.found())
+
+    def test_with_sentry_config_from_the_package_root_is_found(self) -> None:
+        # @sentry/nextjs 11 exports withSentryConfig from "@sentry/nextjs/config" only: the root import fails the build
+        self.complete_errors()
+        self.write("next.config.ts", 'import { withSentryConfig } from "@sentry/nextjs"\nexport default withSentryConfig({}, {})\n')
+        self.assertTrue(any("@sentry/nextjs/config" in d for d in self.found()), self.found())
+        self.write("next.config.ts", 'import { withSentryConfig } from "@sentry/nextjs/config"\nexport default withSentryConfig({}, {})\n')
+        self.assertEqual(self.found(), [])
+
+    def test_a_csp_that_blocks_the_dsn_host_is_found(self) -> None:
+        self.complete_errors()
+        csp = 'export const headers = ["default-src \'self\'", "connect-src \'self\' {}", "frame-ancestors \'none\'"]\n'
+        self.write("next.config.ts", csp.format("https://api.example.com"))
+        self.assertTrue(any("connect-src" in d for d in self.found()), self.found())
+        for allowed in ("https:", "https://*.ingest.de.sentry.io", "https://o1.ingest.de.sentry.io"):
+            self.write("next.config.ts", csp.format(allowed))
+            self.assertEqual(self.found(), [], allowed)
+        # a tunnel posts to the app itself, so 'self' is enough
+        self.write("next.config.ts", csp.format("https://api.example.com") + 'export const s = { tunnelRoute: "/monitoring" }\n')
+        self.assertEqual(self.found(), [])
+
+    def test_a_csp_in_a_template_literal_is_read_up_to_the_interpolation(self) -> None:
+        self.complete_errors()
+        self.write("next.config.ts", 'const h = [`connect-src \'self\' https:${dev ? " http://127.0.0.1:9010" : ""}`]\n')
+        self.assertEqual(self.statuses({"stack": {"observability": ["errors"], "data_residency": "eu"}})["errors"], {"ok"})
+
 
 class OtherLevels(Fixture):
     def test_logs_level_needs_logger_and_request_id(self) -> None:
@@ -283,3 +318,15 @@ class IngestSafety(Fixture):
             code = 413
         self.assertEqual(code, 413)
         self.assertEqual(list(out.glob("*.json")), [])
+
+    def test_a_chunked_body_is_read(self) -> None:
+        # found by the real run: @sentry/nextjs 11.8.0 posts with Transfer-Encoding: chunked and no Content-Length
+        import http.client
+        port, out = self.serve()
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        body = envelope(FakeIngest.EVENT)
+        conn.request("POST", "/api/1/envelope/?sentry_key=public", body=iter([body[:20], body[20:]]),
+                     headers={"Content-Type": "application/x-sentry-envelope"}, encode_chunked=True)
+        self.assertEqual(conn.getresponse().status, 200)
+        conn.close()
+        self.assertEqual(len(list(out.glob("*.json"))), 1)

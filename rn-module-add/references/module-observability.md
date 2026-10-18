@@ -66,7 +66,7 @@ Point `EXPO_PUBLIC_SENTRY_DSN` at the local fake ingest. A simulator reaches the
 
 ```bash
 python3 <skills>/module-add/scripts/fake_ingest.py serve --port 9010 --out .verification/ingest &
-EXPO_PUBLIC_SENTRY_DSN=http://public@localhost:9010/1 npx expo start
+EXPO_PUBLIC_SENTRY_DSN=http://public@127.0.0.1:9010/1 npx expo start
 # throw from a button in a dev build, then:
 python3 <skills>/module-add/scripts/fake_ingest.py summary .verification/ingest
 ```

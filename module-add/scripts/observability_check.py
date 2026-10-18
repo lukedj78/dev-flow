@@ -6,8 +6,9 @@
 Levels come from `meta.json#stack.observability` (errors, logs, uptime), or all three with `--all`:
 
 - errors — `instrumentation.ts` exports `onRequestError`; `instrumentation-client.ts` initialises the SDK;
-  `global-error.tsx` and `error.tsx` report what they catch; events carry a `release`; `sendDefaultPii` is not on;
-  no Replay; the DSN's region matches `stack.data_residency` (`.ingest.de.sentry.io` for eu / eu-sovereign, or the
+  `global-error.tsx` and `error.tsx` (or `app/[locale]/error.tsx`) report what they catch; events carry a `release`;
+  `sendDefaultPii` is not on; no Replay; `withSentryConfig` comes from `@sentry/nextjs/config`; a CSP `connect-src`
+  that lists hosts lets the DSN host through (or a tunnel); the DSN's region matches `stack.data_residency` (`.ingest.de.sentry.io` for eu / eu-sovereign, or the
   project's GlitchTip host when `stack.observability_provider.errors` is "glitchtip").
 - logs — `lib/log.ts`, and an `x-request-id` set somewhere (the proxy) so a report leads to a log line.
 - uptime — `app/api/health/route.ts`.
@@ -66,6 +67,33 @@ def _first(base: Path, *names: str) -> Path | None:
     return None
 
 
+def _root_error(base: Path) -> Path | None:
+    """`app/error.tsx`, or the one under a top-level dynamic segment (`app/[locale]/error.tsx`) when i18n owns the root."""
+    hit = _first(base, "app/error.tsx")
+    if hit:
+        return hit
+    for app in (base / "app", base / "src" / "app"):
+        if app.is_dir():
+            for seg in sorted(app.iterdir()):
+                if seg.is_dir() and seg.name.startswith("[") and (seg / "error.tsx").is_file():
+                    return seg / "error.tsx"
+    return None
+
+
+def _csp_sources(text: str) -> list[list[str]]:
+    """The source lists of every `connect-src` directive written in the code."""
+    # a template literal's interpolation is cut: what follows `${` is code, not sources
+    return [m.group(1).split("${")[0].split() for m in re.finditer(r"connect-src\s+([^;\"`\n]*)", text)]
+
+
+def _allows(sources: list[str], host: str) -> bool:
+    for src in sources:
+        bare = re.sub(r"^\w+://", "", src).split("/")[0].split(":")[0].lower()
+        if src in ("*", "https:") or bare == host or (bare.startswith("*.") and host.endswith(bare[1:])):
+            return True
+    return False
+
+
 def _code(text: str) -> str:
     return re.sub(r"/\*.*?\*/|(?<![:'\"])//[^\n]*", "", text, flags=re.S)
 
@@ -102,8 +130,7 @@ def _errors(base: Path, root: Path, meta: dict, texts: dict[Path, str]) -> list[
     client = _first(base, "instrumentation-client.ts", "instrumentation-client.js")
     if not client or not re.search(r"\binit\s*\(", _code(_read(client))):
         miss("instrumentation-client.ts does not initialise the SDK — browser errors are lost")
-    for name, what in (("app/global-error.tsx", "global-error.tsx (root-layout errors)"), ("app/error.tsx", "error.tsx")):
-        p = _first(base, name)
+    for p, what in ((_first(base, "app/global-error.tsx"), "global-error.tsx (root-layout errors)"), (_root_error(base), "error.tsx")):
         if not p:
             miss(f"{what} is missing")
         elif "captureException" not in _code(_read(p)):
@@ -115,9 +142,22 @@ def _errors(base: Path, root: Path, meta: dict, texts: dict[Path, str]) -> list[
         miss("sendDefaultPii is true — IP addresses, cookies and user data go to the tracker")
     if re.search(r"replayIntegration|\bReplay\s*\(", all_code):
         miss("Session Replay is on — the module keeps it off by default (privacy)")
+    if re.search(r"\bwithSentryConfig\b[^}]*\}\s*from\s*['\"]@sentry/nextjs['\"]", all_code):
+        miss("withSentryConfig is imported from \"@sentry/nextjs\" — version 11 exports it from \"@sentry/nextjs/config\" "
+             "only, and the build fails")
     residency = ((meta.get("stack") or {}).get("data_residency")) or ""
     provider = (((meta.get("stack") or {}).get("observability_provider")) or {}).get("errors", "sentry")
     host, origin = _dsn_host(base, root, all_code)
+    # a Content-Security-Policy that lists hosts must let the browser reach the ingest, unless a tunnel keeps it 'self'
+    if not re.search(r"\btunnel(Route)?\s*:", all_code):
+        for sources in _csp_sources(all_code):
+            if "*" in sources or "https:" in sources:
+                continue
+            if host is None:
+                found.append(Finding("errors", "not checked", f"connect-src lists hosts and the DSN host is not visible ({origin})"))
+            elif not _allows(sources, host):
+                miss(f"the Content-Security-Policy's connect-src does not allow {host} — the browser's events are blocked "
+                     "(add the host, or tunnelRoute)")
     if residency in ("eu", "eu-sovereign"):
         if host is None:
             found.append(Finding("errors", "not checked", f"region not checked: {origin}"))

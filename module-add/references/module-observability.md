@@ -109,7 +109,8 @@ Sentry.init(options)   // no replayIntegration: Session Replay stays off (privac
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
 ```
 
-**`app/error.tsx`.** Replace the scaffold's `console.error` with
+**`app/error.tsx`** (or `app/[locale]/error.tsx` when next-intl owns the root segment). Replace the scaffold's
+`console.error` with
 `Sentry.captureException(error)` inside a `useEffect`. Keep the `digest` on screen: it is the key to the server
 event.
 
@@ -119,7 +120,7 @@ here, add `Sentry.captureException(error)` the same way.
 **`next.config.ts`:**
 
 ```ts
-import { withSentryConfig } from "@sentry/nextjs"
+import { withSentryConfig } from "@sentry/nextjs/config"   // not the package root: v11 exports it here only
 
 export default withSentryConfig(nextConfig, {
   org: "<org>", project: "<project>",
@@ -129,8 +130,12 @@ export default withSentryConfig(nextConfig, {
 })
 ```
 
-⚠ **Check `sentryUrl` against the plugin's docs on the first real install.** The EU host for API calls is
-`de.sentry.io` (Sentry, "choose your data center"). The option's name has moved between plugin versions.
+`sentryUrl` is the build option for the API host (also read from `SENTRY_URL`), checked in 11.8.0's types. When
+`next.config.ts` already wraps other plugins (`withNextIntl`, eve's), `withSentryConfig` goes outermost.
+
+**Content-Security-Policy.** If the app sends one, its `connect-src` must let the browser reach the ingest:
+`https:` already does; a list of hosts needs `https://*.ingest.de.sentry.io` (or the GlitchTip host). The other way
+is `tunnelRoute: "/monitoring"` in `withSentryConfig`, which posts through the app itself, so `'self'` is enough.
 
 **`NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`** has to be exposed to the client so that browser events carry the release.
 On Vercel, enable "Automatically expose System Environment Variables".
@@ -213,10 +218,14 @@ the local fake ingest:
 
 ```bash
 python3 <skills>/module-add/scripts/fake_ingest.py serve --port 9010 --out .verification/ingest &
-NEXT_PUBLIC_SENTRY_DSN=http://public@localhost:9010/1 pnpm dev -p 3313
+NEXT_PUBLIC_SENTRY_DSN=http://public@127.0.0.1:9010/1 pnpm dev -p 3313
 # provoke one error in a Server Action and one in a client component, then:
 python3 <skills>/module-add/scripts/fake_ingest.py summary .verification/ingest
 ```
+
+The fake ingest is plain `http`: a CSP whose `connect-src` has only `'self' https:` blocks the browser's event.
+Allow `http://127.0.0.1:9010` in development only (`process.env.NODE_ENV === "production" ? "" : " http://127.0.0.1:9010"`).
+Use `127.0.0.1`, not `localhost`: a browser may resolve `localhost` to `::1`, where the ingest does not listen.
 
 Expected:
 - two or more events, carrying the release;
@@ -233,7 +242,7 @@ python3 <skills>/module-add/scripts/observability_check.py <root> --all    # eve
 
 | Level | What is checked |
 |---|---|
-| `errors` | `onRequestError` in `instrumentation.ts`; the client init; `global-error.tsx` and `error.tsx` reporting; a `release`; `sendDefaultPii` not true; no Replay; the DSN host matching `stack.data_residency` |
+| `errors` | `onRequestError` in `instrumentation.ts`; the client init; `global-error.tsx` and `error.tsx` (or `app/[locale]/error.tsx`) reporting; a `release`; `sendDefaultPii` not true; no Replay; `withSentryConfig` from `@sentry/nextjs/config`; a CSP `connect-src` that lets the DSN host through; the DSN host matching `stack.data_residency` |
 | `logs` | `lib/log.ts`; `x-request-id` |
 | `uptime` | the health route |
 

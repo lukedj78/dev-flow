@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """fake_ingest.py — a local stand-in for Sentry's ingest, to prove events leave the app without an account.
 
-    python3 fake_ingest.py serve --port 9010 --out .verification/ingest   # DSN: http://public@localhost:9010/1
+    python3 fake_ingest.py serve --port 9010 --out .verification/ingest   # DSN: http://public@127.0.0.1:9010/1
     python3 fake_ingest.py summary .verification/ingest
 
 `serve` accepts the two routes the Sentry SDKs post to — `POST /api/<project>/envelope/` and `/api/<project>/store/`
@@ -78,6 +78,23 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
     out.mkdir(parents=True, exist_ok=True)
 
     class Handler(BaseHTTPRequestHandler):
+        def read_body(self) -> bytes | None:
+            """The body, whether sent with Content-Length or chunked (the Sentry SDK chunks); None over MAX_BODY."""
+            if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                parts, total = [], 0
+                while True:
+                    size = int(self.rfile.readline().split(b";")[0].strip() or b"0", 16)
+                    if size == 0:
+                        self.rfile.readline()   # the CRLF after the last chunk
+                        return b"".join(parts)
+                    total += size
+                    if total > MAX_BODY:
+                        return None
+                    parts.append(self.rfile.read(size))
+                    self.rfile.readline()       # the CRLF after each chunk
+            length = int(self.headers.get("Content-Length") or 0)
+            return None if length > MAX_BODY else self.rfile.read(length)
+
         def refuse(self, code: int) -> None:
             self.send_response(code)
             self.end_headers()
@@ -87,10 +104,9 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
             origin = self.headers.get("Origin")
             if origin and not LOCAL_ORIGIN.match(origin):
                 return self.refuse(403)
-            length = int(self.headers.get("Content-Length") or 0)
-            if length > MAX_BODY:
+            raw = self.read_body()
+            if raw is None:
                 return self.refuse(413)
-            raw = self.rfile.read(length)
             try:
                 body = decode(raw, self.headers.get("Content-Encoding"))
                 events = parse_envelope(body) if "/envelope" in self.path else [json.loads(body)]
@@ -150,7 +166,8 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.op == "serve":
         server = make_server(a.port, a.out)
-        print(f"fake ingest on http://127.0.0.1:{a.port} — DSN http://public@localhost:{a.port}/1 — events in {a.out}")
+        # 127.0.0.1, not localhost: a browser may resolve localhost to ::1, where this server does not listen
+        print(f"fake ingest on http://127.0.0.1:{a.port} — DSN http://public@127.0.0.1:{a.port}/1 — events in {a.out}")
         try:
             server.serve_forever()
         except KeyboardInterrupt:
