@@ -229,17 +229,36 @@ echo "Checking host dependencies…"
 missing=0
 need_warn() { echo "  ⚠ $1"; missing=1; }
 
+# How to install a missing Python package on the python3 found. Homebrew's Python (and Debian's) is "externally
+# managed" (PEP 668) and refuses `pip install`: on Homebrew the package is a formula; elsewhere a system package or
+# a virtual environment. Only a Python that accepts pip is told pip. $1 = pip name, $2 = Homebrew formula.
+py_install_hint() {
+  local managed prefix
+  managed="$(python3 -c "import os, sysconfig; print('managed' if os.path.exists(os.path.join(sysconfig.get_path('stdlib'), 'EXTERNALLY-MANAGED')) else '')" 2>/dev/null)"
+  if [ "$managed" != managed ]; then
+    echo "python3 -m pip install $1"
+    return
+  fi
+  if command -v brew >/dev/null 2>&1; then
+    prefix="$(brew --prefix 2>/dev/null)"
+    case "$(command -v python3)" in
+      "$prefix"/*) echo "brew install $2"; return ;;
+    esac
+  fi
+  echo "your system's package for $1, or a virtual environment (this Python refuses pip install, PEP 668)"
+}
+
 if ! command -v python3 >/dev/null 2>&1; then
   need_warn "python3 not found — install via 'brew install python' or your distro's package manager"
 else
   echo "  ✓ python3"
   if ! python3 -c "import yaml" >/dev/null 2>&1; then
-    need_warn "PyYAML missing — 'pip3 install pyyaml' (used by parse_design_md.py)"
+    need_warn "PyYAML missing — $(py_install_hint pyyaml pyyaml) (used by parse_design_md.py)"
   else
     echo "  ✓ PyYAML"
   fi
   if ! python3 -c "import PIL" >/dev/null 2>&1; then
-    need_warn "Pillow missing — 'pip3 install pillow' (used by image-to-design-md palette extraction)"
+    need_warn "Pillow missing — $(py_install_hint pillow pillow) (used by image-to-design-md palette extraction)"
   else
     echo "  ✓ Pillow"
   fi
