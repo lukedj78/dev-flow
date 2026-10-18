@@ -65,6 +65,8 @@ If invoked by the orchestrator, the project root is given. Otherwise ask the use
 
 Read `.workflow/meta.json`. If absent, ask the user whether to initialize the project here (run `dev-flow`'s `init_workflow.py`). Don't guess.
 
+**Founder path.** If `meta.json#founder` exists with `decision` `approved` or `approved_experiment`, read the approved Playbook (`founder.playbook`, normally `.workflow/founder/founder-playbook.md`) before anything else: it is the input to this skill. If the decision is still `pending` or `revise`, stop and send the user back to `founder-intelligence` — `set-phase prd_drafted` would refuse anyway.
+
 ### Step 2 — Determine which artifact to produce
 
 | State | Action |
@@ -76,6 +78,8 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 ### Step 3 — Interview the user (the high-leverage questions)
 
 For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
+
+**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; Success criteria take the metrics decided before launch); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)

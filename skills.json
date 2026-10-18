@@ -1,11 +1,12 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 52,
+  "skill_count": 53,
   "families": {
     "core": [
       "compliance-audit",
       "dev-flow",
+      "founder-intelligence",
       "linear-scrum",
       "prd-from-idea",
       "prd-to-tasks",
@@ -138,8 +139,28 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 292,
+      "skill_md_lines": 299,
       "bundle": "dist/dev-flow.skill"
+    },
+    {
+      "name": "founder-intelligence",
+      "family": "core",
+      "role": "discovery",
+      "description": "Decide whether a commercial idea is worth building before dev-flow builds it: research, an adaptive founder interview, competitors by tier, a customer-discovery kit and the synthesis of real interviews, business model, MVP boundaries, feasibility (what already exists to reuse), go-to-market and a va...",
+      "skill_file": "founder-intelligence/SKILL.md",
+      "references": [
+        "contracts.md",
+        "evidence.md",
+        "interviews.md",
+        "stages.md"
+      ],
+      "scripts": [
+        "founder.py",
+        "meta_io.py",
+        "test_founder.py"
+      ],
+      "skill_md_lines": 118,
+      "bundle": "dist/founder-intelligence.skill"
     },
     {
       "name": "linear-scrum",
@@ -171,7 +192,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 285,
+      "skill_md_lines": 289,
       "bundle": "dist/prd-from-idea.skill"
     },
     {

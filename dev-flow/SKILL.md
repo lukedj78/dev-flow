@@ -110,6 +110,13 @@ See `references/stack-expo-rn.md` for the full RN stack configuration and `refer
 
 ### Step 0 — Look before you build (the first action on any new idea)
 
+**Two doors (the user's decision, 2026-10-17).** For a **commercial idea whose market is not settled** — a product to
+sell, external paying users, unclear competition, talk of customers or pricing — propose `founder-intelligence` in one
+line: it replaces this step with research, a founder interview, competitors, business model and MVP scope in a
+Playbook the founder approves, and records the same inventory verdict. For a prototype, a refactor, an internal tool or
+a product already decided, this step as it is. **The direct path is the default; the user chooses**, and nothing here
+requires the founder path. Once started, `show_state.py` routes by the founder's decision.
+
 **Before the first question, before the brainstorming, before a project folder exists:** does this
 already exist? Run the house search as a command, not as an intention:
 
