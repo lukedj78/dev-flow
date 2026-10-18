@@ -84,8 +84,13 @@ def problems(founder: object) -> list[str]:
     for key, allowed in (("mode", MODES), ("research", RESEARCH), ("decision", DECISIONS)):
         if founder.get(key) not in allowed:
             out.append(f"founder.{key} is {founder.get(key)!r}; expected one of {', '.join(allowed)}")
-    if not isinstance(founder.get("open_hypotheses", []), list):
-        out.append("founder.open_hypotheses is not a list")
+    hyps = founder.get("open_hypotheses", [])
+    if not isinstance(hyps, list) or not all(isinstance(h, str) for h in hyps):
+        out.append("founder.open_hypotheses is not a list of hypothesis ids")
+    if not isinstance(founder.get("playbook"), str) or not founder["playbook"].strip():
+        out.append("founder.playbook is not a path")
+    if "version" in founder and (not isinstance(founder["version"], int) or isinstance(founder["version"], bool)):
+        out.append(f"founder.version is {founder['version']!r}, not a whole number")
     return out
 
 

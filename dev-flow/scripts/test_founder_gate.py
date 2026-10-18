@@ -99,7 +99,7 @@ class Verify(Fixture):
         self.assertTrue(self.verify({"mode": "new", "decision": "bypassed", "reason": "internal tool after all"})[0])
 
     def test_malformed_block_refuses_without_raising(self) -> None:
-        for bad in ("yes", ["approved"], {"mode": "new", "decision": "maybe"},
+        for bad in ("yes", ["approved"], [], {}, {"mode": "new", "decision": "maybe"},
                     self.approved(open_hypotheses="H1"), self.approved(playbook=None)):
             with self.subTest(bad=bad):
                 ok, why = self.verify(bad)

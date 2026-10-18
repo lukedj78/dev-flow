@@ -21,7 +21,7 @@ DECISIONS = ("pending", "approved", "approved_experiment", "revise", "stop", "by
 
 def applies(meta: dict) -> bool:
     founder = meta.get("founder")
-    if not founder:
+    if founder is None:  # absent or null: the direct path. A blanked [] or {} is a hand edit, and is refused.
         return False
     return not (isinstance(founder, dict) and founder.get("mode") == "existing")
 

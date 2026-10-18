@@ -218,6 +218,10 @@ def founder_step(meta: dict, root: Path) -> str | None:
     if decision == "stop":
         return (f"nothing — the founder stopped this project ({founder.get('reason') or 'no reason recorded'}). "
                 f"To reopen: python3 {script} start {root} --mode {founder.get('mode', 'new')}")
+    if decision == "pending" and founder.get("research") == "complete":
+        return (f"present the Playbook to the founder — conclusions, the strongest evidence against, the open "
+                f"hypotheses, the recommendation and its alternatives — and record their decision: "
+                f"{script} approve | decide | bypass {root}. The founder decides; dev-flow waits")
     if decision in ("pending", "revise"):
         what = "review and the proposals in handoff.md" if founder.get("mode") == "existing" else "Playbook"
         return (f"founder-intelligence — continue the {what} ({script} status {root}); "
@@ -227,6 +231,13 @@ def founder_step(meta: dict, root: Path) -> str | None:
                 f"PRD, prd-to-tasks for new tasks — then continue: {next_step(meta.get('phase'), (meta.get('stack') or {}).get('framework'))}")
     if (phases.index(routing_phase(meta.get("phase")) or "empty") or 0) >= phases.index("prd_drafted"):
         return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import founder_gate
+
+    passed, why = founder_gate.verify(root, meta)
+    if not passed:  # what set-phase prd_drafted would refuse: say it now, before a whole PRD is written
+        return (f"the approval no longer holds ({why.splitlines()[0]}) — show the founder the current Playbook and "
+                f"record their decision again: {script} approve {root} --user-said \"<their words>\"")
     scope = (" (limited to the approved experiment: founder.experiment)"
              if decision == "approved_experiment" else "")
     return (f"prd-from-idea, from the approved Playbook ({playbook}){scope} — the decisions it marks as locked "

@@ -164,9 +164,34 @@ class FounderPath(unittest.TestCase):
         self.assertIn("founder-intelligence", out.split("Next step proposal")[1])
 
     def test_approved_new_routes_to_prd_from_idea_with_playbook(self) -> None:
-        step = ss.founder_step(self.meta(decision="approved"), self.root)
+        import hashlib
+        pb = self.root / ".workflow/founder/founder-playbook.md"
+        pb.write_text("approved\n")
+        step = ss.founder_step(self.meta(decision="approved", approved_by_user=True, approval_quote="sì",
+                                         playbook_sha256=hashlib.sha256(pb.read_bytes()).hexdigest()), self.root)
         self.assertIn("prd-from-idea", step)
         self.assertIn("founder-playbook.md", step)
+
+    def test_approved_but_changed_playbook_asks_for_reapproval(self) -> None:
+        # The gate would refuse prd_drafted; proposing the PRD would waste a whole PRD before the refusal.
+        pb = self.root / ".workflow/founder/founder-playbook.md"
+        pb.write_text("approved text\n")
+        import hashlib
+        meta = self.meta(decision="approved", playbook_sha256=hashlib.sha256(pb.read_bytes()).hexdigest(),
+                         approved_by_user=True, approval_quote="sì")
+        self.assertIn("prd-from-idea", ss.founder_step(meta, self.root))
+        pb.write_text("approved text\nedited after\n")
+        step = ss.founder_step(meta, self.root)
+        self.assertNotIn("prd-from-idea,", step)
+        self.assertIn("approve", step)
+        pb.unlink()
+        self.assertIn("approve", ss.founder_step(meta, self.root))
+
+    def test_ready_for_approval_proposes_presenting_not_continuing(self) -> None:
+        step = ss.founder_step(self.meta(research="complete", decision="pending"), self.root)
+        self.assertIn("present the Playbook to the founder", step)
+        self.assertNotIn("continue the Playbook", step)
+        self.assertIn("continue the Playbook", ss.founder_step(self.meta(research="in_progress"), self.root))
 
     def test_approved_new_past_the_prd_routes_normally(self) -> None:
         self.assertIsNone(ss.founder_step(self.meta(phase="tasks_split", decision="approved"), self.root))

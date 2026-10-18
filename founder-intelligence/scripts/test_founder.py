@@ -244,6 +244,22 @@ class Status(Fixture):
         self.assertIn("maybe", r.stdout + r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+    def test_status_and_approve_refuse_other_hand_edits_without_traceback(self) -> None:
+        self.ready()
+        good = self.founder()
+        for bad in ({"open_hypotheses": [1, 2]}, {"decision": "approved", "playbook": None},
+                    {"playbook": 7}, {"version": "x"}):
+            with self.subTest(bad=bad):
+                block = dict(good)
+                block.update(bad)
+                if bad.get("playbook", "keep") is None:
+                    block.pop("playbook")
+                self.set_meta(founder=block)
+                for argv in (("status", str(self.root)), ("approve", str(self.root), "--user-said", "sì")):
+                    r = self.run_founder(*argv)
+                    self.assertEqual(r.returncode, 1, (argv, r.stdout, r.stderr))
+                    self.assertNotIn("Traceback", r.stderr)
+
     def test_labels_helper(self) -> None:
         spec = importlib.util.spec_from_file_location("founder_mod", FOUNDER)
         mod = importlib.util.module_from_spec(spec)
