@@ -292,6 +292,11 @@ needs to decide.>
 
 Write `PROJECT.md` and/or `PRD.md` into `<root>/.workflow/`.
 
+**Then check the scope rules before going on**: `python3 <skills>/prd-from-idea/scripts/scope.py check <root>`. It
+must print `Scope rules complete.`. A missing line or a placeholder left in `## Scope rules` is filled now, from the
+user's answer to question 7b or, without one, with your proposal marked as such — never handed off empty, or every
+later scope check runs without a rule. In revise mode, a PRD that predates the section gets it here.
+
 Update `meta.json`:
 - bump `phase` to `idea_captured` (after `PROJECT.md`) or `prd_drafted` (after `PRD.md`) — see the contract for monotonicity rules
 - update `updated_at` to ISO-8601 UTC now

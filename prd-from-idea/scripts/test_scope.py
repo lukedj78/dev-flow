@@ -112,6 +112,26 @@ class Cli(unittest.TestCase):
             self.assertEqual(sc.main(["check", str(self.root)]), 1)
 
 
+
+SKILL = (Path(__file__).resolve().parents[1] / "SKILL.md").read_text(encoding="utf-8")
+
+
+class SkillWiring(unittest.TestCase):
+    """The PRD template and the check must say the same thing, and the check runs when the PRD is written."""
+
+    def test_the_template_has_exactly_the_lines_the_check_reads(self) -> None:
+        # a guard against drift: rename a label in one place and every new PRD would fail the check
+        template = SKILL[SKILL.index("## Scope rules\n"):]
+        template = template[:template.index("\n## ", 1)]
+        problems = sc.check(template)
+        self.assertEqual(len(problems), 3, problems)
+        self.assertTrue(all("still to fill" in p for p in problems), problems)
+
+    def test_step_5_runs_the_check_before_handing_off(self) -> None:
+        step5 = SKILL[SKILL.index("### Step 5"):SKILL.index("### Step 6")]
+        self.assertIn("scripts/scope.py check", step5)
+
+
 if __name__ == "__main__":
     unittest.main()
 
