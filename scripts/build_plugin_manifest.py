@@ -38,7 +38,7 @@ MANIFEST_META = {
         "An end-to-end product-development skill suite: one filesystem contract "
         "(.workflow/meta.json) and {count} skills that take an idea to production — "
         "web (Next.js 16), mobile (Expo/RN), an eve agent engine, Linear/scrum, "
-        "plus four pre-deploy gates: GDPR/AI-Act, Vercel cost, UI quality and launch readiness."
+        "plus five pre-deploy gates: GDPR/AI-Act, Vercel cost, UI quality, launch readiness and app security."
     ),
     "author": {"name": "lucadigerlando", "url": "https://github.com/lukedj78"},
     "homepage": "https://github.com/lukedj78/dev-flow",

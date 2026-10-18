@@ -1,9 +1,10 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 53,
+  "skill_count": 54,
   "families": {
     "core": [
+      "app-security",
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
@@ -70,6 +71,24 @@
     ]
   },
   "skills": [
+    {
+      "name": "app-security",
+      "family": "core",
+      "role": "operative",
+      "description": "Check whether an app's own code can be attacked before it ships — vulnerable dependencies, secrets in the code and in git history, Next.js authorization gaps (Server Actions and route handlers without a session check, queries by id with no owner filter — IDOR), data over-exposure, secrets in public ...",
+      "skill_file": "app-security/SKILL.md",
+      "references": [
+        "contracts.md",
+        "dynamic.md",
+        "review.md"
+      ],
+      "scripts": [
+        "scan_security.py",
+        "test_scan_security.py"
+      ],
+      "skill_md_lines": 137,
+      "bundle": "dist/app-security.skill"
+    },
     {
       "name": "compliance-audit",
       "family": "core",
