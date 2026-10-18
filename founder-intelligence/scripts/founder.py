@@ -138,20 +138,21 @@ def cmd_start(a: argparse.Namespace, p: Project) -> int:
                 print(f"already started ({founder['mode']}, decision {founder['decision']}); nothing changed")
                 return 0
             founder["decision"] = "pending"
-            p.save(meta, "start", {"reopened_from": founder.get("reason")})
+            reason = founder.pop("reason", None)
+            p.save(meta, "start", {"reopened_from": reason})
             print("reopened: decision is pending again")
             return 0
         folder = confined(p.root, p.root / FOUNDER_DIR)
         (confined(p.root, folder / "interviews")).mkdir(parents=True, exist_ok=True)
         keep = confined(p.root, folder / "interviews" / ".gitkeep")
         if not keep.exists():
-            keep.write_text("")
+            keep.write_text("", encoding="utf-8")
         playbook = confined(p.root, p.root / PLAYBOOK)
         if not playbook.exists():
-            playbook.write_text(TEMPLATE.read_text())
+            playbook.write_text(TEMPLATE.read_text(encoding="utf-8"))
         sources = confined(p.root, folder / "sources.md")
         if not sources.exists():
-            sources.write_text(SOURCES_HEAD)
+            sources.write_text(SOURCES_HEAD, encoding="utf-8")
         meta["founder"] = {"mode": a.mode, "research": "in_progress", "decision": "pending",
                            "playbook": PLAYBOOK, "version": 0, "open_hypotheses": []}
         p.save(meta, "start", {"mode": a.mode})
@@ -216,6 +217,9 @@ def cmd_approve(a: argparse.Namespace, p: Project) -> int:
     quote = (a.user_said or "").strip()
     if not quote:
         raise Refused("--user-said must quote the founder's own approval; nobody else can give it.")
+    if BEGIN in quote or END in quote:
+        raise Refused(f"--user-said contains an approval marker ({BEGIN} or {END}); it would break the next approval. "
+                      "Quote the founder's words without it.")
     given = {k: (getattr(a, f"experiment_{k}") or "").strip() for k in EXPERIMENT}
     if any(given.values()) and not all(given.values()):
         missing = ", ".join(f"--experiment-{k}" for k, v in given.items() if not v)
@@ -236,14 +240,14 @@ def cmd_approve(a: argparse.Namespace, p: Project) -> int:
         path = confined(p.root, p.root / founder["playbook"])
         if not path.is_file():
             raise Refused(f"the Playbook {founder['playbook']} is not on disk")
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         if text.count(BEGIN) != 1 or text.count(END) != 1 or text.index(BEGIN) > text.index(END):
             raise Refused(f"the Playbook needs exactly one approval section between {BEGIN} and {END}; restore "
                           "the two marker lines (see assets/founder-playbook.md §20) and run approve again")
         version = int(founder.get("version") or 0) + 1
         at = now_iso()
         i, j = text.index(BEGIN) + len(BEGIN), text.index(END)
-        path.write_text(text[:i] + "\n" + approval_block(version, at, quote, experiment) + "\n" + text[j:])
+        path.write_text(text[:i] + "\n" + approval_block(version, at, quote, experiment) + "\n" + text[j:], encoding="utf-8")
         founder.update({"decision": "approved_experiment" if experiment else "approved", "version": version,
                         "playbook_sha256": sha256(path), "approved_at": at, "approved_by_user": True,
                         "approval_quote": quote})
@@ -251,6 +255,7 @@ def cmd_approve(a: argparse.Namespace, p: Project) -> int:
             founder["experiment"] = experiment
         else:
             founder.pop("experiment", None)
+        founder.pop("reason", None)  # a revise or stop reason no longer describes an approved Playbook
         p.save(meta, "approve", {"user_said": quote, "experiment": experiment})
     print(f"approved v{version} ({founder['decision']}); dev-flow can move on to prd-from-idea")
     return 0

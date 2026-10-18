@@ -188,7 +188,8 @@ def founder_labels(founder: dict) -> list[str] | None:
         import importlib.util
         spec = importlib.util.spec_from_file_location("founder_for_show_state", FOUNDER_SCRIPT)
         mod = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, str(FOUNDER_SCRIPT.parent))
+        if str(FOUNDER_SCRIPT.parent) not in sys.path:  # founder.py imports its own meta_io copy; add the folder once
+            sys.path.insert(0, str(FOUNDER_SCRIPT.parent))
         spec.loader.exec_module(mod)
         return mod.labels(founder)
     except Exception:  # an installed copy that does not load must not break routing
@@ -278,7 +279,7 @@ def main() -> int:
     stack = meta.get('stack') or {}
     stack_str = ", ".join(f"{k}={v}" for k, v in stack.items() if v) or "(undecided)"
     print(f"Stack:    {stack_str}")
-    if 'founder' in meta:
+    if meta.get('founder') is not None:  # absent or null: the direct path, as founder.py and the gate read it
         print(f"Founder:  {founder_line(meta['founder'])}")
     print()
 

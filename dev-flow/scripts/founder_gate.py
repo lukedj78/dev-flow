@@ -52,7 +52,9 @@ def verify(root: Path, meta: dict) -> tuple[bool, str]:
         return False, "meta.json#founder.playbook is empty: the approval does not say which Playbook it covers."
     path = root / rel
     if not path.is_file():
-        return False, f"the approved Playbook {rel} is not on disk: it was moved or deleted after approval."
+        return False, (f"the approved Playbook {rel} is not on disk: it was moved or deleted after approval. "
+                       f"Restore it to {rel} (git checkout, or move it back) and the approval holds again; "
+                       "a different file needs a new approval.")
     try:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as e:

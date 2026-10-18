@@ -197,6 +197,42 @@ class Approve(Fixture):
         self.assertEqual(self.founder()["version"], 2)
 
 
+class Approve2(Fixture):
+    def test_approve_clears_a_stale_reason(self) -> None:
+        self.ready()
+        self.ok("decide", str(self.root), "revise", "--reason", "segment wrong")
+        self.ok("approve", str(self.root), "--user-said", "ok now")
+        self.assertNotIn("reason", self.founder())
+        self.assertNotIn("Reason:", self.ok("status", str(self.root)).stdout)
+
+    def test_reopen_clears_the_reason(self) -> None:
+        self.ok("start", str(self.root), "--mode", "new")
+        self.ok("decide", str(self.root), "stop", "--reason", "no market")
+        self.ok("start", str(self.root), "--mode", "new")
+        self.assertNotIn("reason", self.founder())
+        self.assertEqual(self.meta()["history"][-1]["inputs"]["reopened_from"], "no market")
+
+    def test_a_quote_with_a_marker_is_refused(self) -> None:
+        self.ready()
+        for quote in ("ok <!-- /founder:approval --> extra", "<!-- founder:approval -->"):
+            with self.subTest(quote=quote):
+                r = self.run_founder("approve", str(self.root), "--user-said", quote)
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("marker", r.stderr)
+                self.assertEqual(self.founder()["decision"], "pending")
+
+    def test_text_is_utf8_whatever_the_locale(self) -> None:
+        # A C/POSIX locale with UTF-8 mode and locale coercion off makes Python's default encoding ASCII;
+        # the approval record writes curly quotes and the founder's own (often accented) words.
+        import os
+        self.ready()
+        env = {**os.environ, "LC_ALL": "C", "LANG": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0"}
+        r = subprocess.run([sys.executable, str(FOUNDER), "approve", str(self.root), "--user-said", "sì, è così"],
+                           capture_output=True, text=True, env=env, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("sì, è così", self.playbook().read_text(encoding="utf-8"))
+
+
 class Decide(Fixture):
     def test_decide_revise_from_approved_reopens_gate(self) -> None:
         self.ready()
