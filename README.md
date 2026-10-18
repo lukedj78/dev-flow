@@ -1056,6 +1056,7 @@ It is a deliberate fourth choice inside the shadcn/Base-UI family, not a default
 | `realtime` | App-level WebSockets (Vercel Functions `experimental_upgradeWebSocket`); presence / chat / collab, external store for shared state | ✅ shipped (experimental API) |
 | `storage` | Vercel Blob (default: server + client uploads, auth-gated, `files` table); UploadThing / S3 + presigned URLs as alternatives | ✅ shipped |
 | `deploy` | Vercel project config (link, `vercel.json`, per-environment env vars, EU region, monorepo root directory); `vercel-deploy` does the actual shipping | ✅ shipped |
+| `analytics` | **Opt-in, by level**, switchable on at any phase: traffic (Vercel Web Analytics + Speed Insights) · product (activation and D7/D30 retention from an `analytics_events` table in the project's own database, `track()` from server actions, no new sub-processor) · advanced on request (PostHog EU, OpenPanel for `eu-sovereign`). Needs the PRD's `## Measurement` targets first. Expo: `rn-module-add analytics` | ✅ shipped |
 
 The skill is **idempotent**: re-running `module-add db` on a project that already has it detects the install and skips, instead of double-installing. Cross-module dependencies are resolved automatically (`auth` requires `db`; `payments` requires both — the skill prompts before chaining).
 
@@ -1487,7 +1488,7 @@ The full schema is in [docs/architecture.md](./docs/architecture.md).
 - A code-generation tool that writes business logic for you. The skills generate **structure + conventions + first-pass UI**. Business logic stays human.
 - A CMS. Content layer is project-specific.
 - Hosting. `module-add deploy` produces config; the actual deploy is your call.
-- Analytics / observability. Too project-specific to template.
+- Observability (error tracking, logs, uptime). Measurement is `module-add analytics`; observability is still per project.
 
 ---
 
