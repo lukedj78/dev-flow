@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -225,6 +226,29 @@ def verification_line(meta: dict, root: Path) -> str | None:
             "app-verification maintain")
 
 
+SCOPE_LABELS = ("A new feature enters the MVP when", "Not before launch, whatever the evidence", "Who decides")
+
+
+def scope_line(meta: dict, root: Path) -> str | None:
+    """A note when a PRD exists past prd_drafted without complete `## Scope rules` (prd-from-idea/scripts/scope.py
+    owns the full check). Never a block: a new request is checked against these rules before it becomes work."""
+    phase = routing_phase(meta.get("phase"))
+    prd = root / ".workflow" / "PRD.md"
+    if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index("prd_drafted") or not prd.is_file():
+        return None
+    text = prd.read_text(encoding="utf-8", errors="ignore")
+    head = re.search(r"^## Scope rules\s*$", text, re.M)
+    body = text[head.end():] if head else ""
+    body = body[:re.search(r"^## ", body, re.M).start()] if re.search(r"^## ", body, re.M) else body
+    filled = all(re.search(rf"^\s*-\s*\*\*{re.escape(l)}\*\*\s*:\s*(?!<|$)\S", body, re.M) for l in SCOPE_LABELS)
+    if head and filled:
+        return None
+    where = ("copy them from Playbook §12 (founder path)" if isinstance(meta.get("founder"), dict)
+             else "prd-from-idea, revise mode (question 7b)")
+    return (f"Scope: the PRD has no complete `## Scope rules` — the evidence that lets a new feature in is not written "
+            f"down; {where}. A new request passes prd-from-idea/references/scope-check.md before it becomes work.")
+
+
 def founder_labels(founder: dict) -> list[str] | None:
     if not FOUNDER_SCRIPT.is_file():
         return None
@@ -431,6 +455,9 @@ def main() -> int:
         print()
 
     if (note := verification_line(meta, root)):
+        print(note)
+        print()
+    if (note := scope_line(meta, root)):
         print(note)
         print()
 

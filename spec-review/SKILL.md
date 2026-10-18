@@ -229,7 +229,7 @@ and this skill was never proposed), rather than only before shipping. In a paral
 runs the Standards axis on **every** agent diff before accepting it: a spec finding is cheapest while
 the branch is still open. It is *not* a fourth pre-deploy gate — `compliance-audit`, `vercel-doctor` and
 `shadscan` read the finished artefact, this reads the **change**. Records `meta.json#spec_review` +
-`history`; **never bumps `phase`**; never blocks anything. A change whose behaviour nobody proved on the
+`history`; **never bumps `phase`**; never blocks anything. Every `scope_creep` finding is routed to a choice the user makes, never the reviewer: change the PRD (the request passes `prd-from-idea/references/scope-check.md` and is recorded) or remove the code. A change whose behaviour nobody proved on the
 running app is proved with the project's verification manual (`.claude/skills/verify-<app>/`, from
 `app-verification`), not by reading the diff harder.
 

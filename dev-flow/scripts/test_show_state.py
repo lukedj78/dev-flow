@@ -326,3 +326,43 @@ class Verification(unittest.TestCase):
         self.assertIn("app-verification", ss.next_step("page_generated", "next"))
         for fw in ss.PHASE_NEXT_BY_STACK:
             self.assertIn("app-verification", ss.next_step("feature_complete", fw), fw)
+
+
+class Scope(unittest.TestCase):
+    """A PRD past prd_drafted without `## Scope rules` gets a note — never a block."""
+
+    RULES = ("## Scope rules\n\n- **A new feature enters the MVP when**: three users ask.\n"
+             "- **Not before launch, whatever the evidence**: billing.\n- **Who decides**: the user.\n")
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / ".workflow").mkdir()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def prd(self, text: str) -> None:
+        (self.root / ".workflow" / "PRD.md").write_text(text, encoding="utf-8")
+
+    def test_no_note_before_the_prd(self) -> None:
+        self.prd("# PRD\n")
+        self.assertIsNone(ss.scope_line({"phase": "idea_captured"}, self.root))
+
+    def test_no_prd_file_is_quiet(self) -> None:
+        self.assertIsNone(ss.scope_line({"phase": "module_added"}, self.root))
+
+    def test_missing_rules_are_noted(self) -> None:
+        self.prd("# PRD\n\n## Non-goals\n\n- x\n")
+        out = ss.scope_line({"phase": "module_added"}, self.root)
+        self.assertIn("## Scope rules", out)
+        self.assertIn("prd-from-idea", out)
+
+    def test_founder_path_points_to_the_playbook(self) -> None:
+        self.prd("# PRD\n")
+        out = ss.scope_line({"phase": "prd_drafted", "founder": {"decision": "approved"}}, self.root)
+        self.assertIn("§12", out)
+
+    def test_complete_rules_are_silent(self) -> None:
+        self.prd("# PRD\n\n" + self.RULES)
+        self.assertIsNone(ss.scope_line({"phase": "module_added"}, self.root))

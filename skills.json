@@ -183,7 +183,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 306,
+      "skill_md_lines": 307,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -223,7 +223,7 @@
         "task_key.py",
         "test_scripts.py"
       ],
-      "skill_md_lines": 77,
+      "skill_md_lines": 78,
       "bundle": "dist/linear-scrum.skill"
     },
     {

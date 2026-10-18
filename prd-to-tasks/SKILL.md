@@ -18,7 +18,7 @@ This skill turns a PRD into a flat, ordered list of tasks small enough to be pic
 - The user asks to "make the issues", "split the PRD", "create the task list", "ticket this".
 - The orchestrator routes here from `prd_drafted` (optional next step before scaffolding).
 
-If `.workflow/tasks.md` already exists, enter **revise mode**: read the existing tasks and propose specific edits (add, remove, re-order, re-size) rather than overwriting.
+If `.workflow/tasks.md` already exists, enter **revise mode**: read the existing tasks and propose specific edits (add, remove, re-order, re-size) rather than overwriting. A **new** task cites the PRD story it serves, or the `## Scope changes` row that let it in — a task that serves neither is a scope change and passes `prd-from-idea/references/scope-check.md` first. A **cut** task is not deleted: it stays, struck through, `~~…~~ cut <date>: <reason>`, so what was planned remains readable.
 
 ## Contract
 
