@@ -118,6 +118,20 @@ class Tracker(unittest.TestCase):
         self.assertEqual((t["provider"], t["project"], t["issue_map"]), ("github", {"repo": "o/fr"}, {LOGIN: "#7"}))
         self.assertEqual(t["linear"], "opt-out (2026-09-22)")
 
+    def test_migrate_folds_a_lone_github_issues_file(self):
+        # found on bidflow and smart-travel: make_issues.py's map, and nothing about it in meta.json
+        (self.root / ".workflow/github-issues.json").write_text(json.dumps({"Login": 7}), encoding="utf-8")
+        out, notes = mt.migrate({"phase": "tasks_split"}, self.root)
+        t = out["tracker"]
+        self.assertEqual((t["provider"], t["issue_map"], t["map"]), ("github", {LOGIN: "#7"}, ".workflow/github-issues.json"))
+        self.assertTrue(any("github-issues.json" in n for n in notes), notes)
+
+    def test_legacy_shape_sees_a_lone_github_issues_file(self):
+        (self.root / ".workflow/github-issues.json").write_text("{}", encoding="utf-8")
+        self.assertIn("github-issues.json", mt.legacy_shape({}, self.root))
+        self.assertIsNone(mt.legacy_shape({"tracker": {"provider": "github", "map": ".workflow/github-issues.json",
+                                                       "issue_map": {}}}, self.root))
+
     def test_migrate_keeps_unmatched_titles(self):
         meta = {"tracker": {"kind": "github", "repo": "o/r", "issue_map": {"Login": 7, "Gone": 9}}}
         out, notes = mt.migrate(meta, self.root)

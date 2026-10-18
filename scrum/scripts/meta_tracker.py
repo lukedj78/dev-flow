@@ -35,6 +35,7 @@ DEFAULT_STATES = {
 TASK_KEY = re.compile(r"^[0-9a-f]{12}$")
 TASK_LINE = re.compile(r"^\s*- \[[ xX]\]\s+\*\*(.+?)\*\*")
 LINEAR_PROJECT_KEYS = ("team_id", "team_name", "project_id")
+GITHUB_MAP = ".workflow/github-issues.json"   # make_issues.py's title → number map, often never named in meta.json
 
 
 def _now() -> str:
@@ -126,6 +127,10 @@ def migrate(meta: dict, root: Path) -> tuple[dict, list[str]]:
         notes.append(f"`kind: {kind}` → `provider: {t['provider']}`")
     if "repo" in t:
         t.setdefault("project", {}).setdefault("repo", t.pop("repo"))
+    if "map" not in t and (root / GITHUB_MAP).is_file():
+        t["map"] = GITHUB_MAP
+        t.setdefault("provider", "github")
+        notes.append(f"folded {GITHUB_MAP} (make_issues.py's map, not recorded in meta.json) into tracker.issue_map")
     provider = t.get("provider")
     raw = dict(t.get("issue_map") or {})
     map_file = t.get("map")
@@ -164,8 +169,11 @@ def migrate(meta: dict, root: Path) -> tuple[dict, list[str]]:
     return meta, notes
 
 
-def legacy_shape(meta: dict) -> str | None:
+def legacy_shape(meta: dict, root: Path | None = None) -> str | None:
     """Why the tracker block is in an older shape, or None."""
+    t0 = meta.get("tracker") if isinstance(meta.get("tracker"), dict) else {}
+    if root is not None and (root / GITHUB_MAP).is_file() and "map" not in t0:
+        return f"a {GITHUB_MAP} that meta.json#tracker does not record"
     if "linear" in meta:
         return "a legacy `linear` block (linear-scrum)"
     t = meta.get("tracker")

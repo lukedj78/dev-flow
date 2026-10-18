@@ -281,7 +281,7 @@ def observability_line(meta: dict, root: Path) -> str | None:
 TASK_KEY_RE = re.compile(r"^[0-9a-f]{12}$")
 
 
-def tracker_line(meta: dict) -> str | None:
+def tracker_line(meta: dict, root: Path | None = None) -> str | None:
     """From tasks_split: a note when no tracker was chosen, or when the tracker block has an older shape (the same
     three checks as scrum/scripts/meta_tracker.py legacy_shape, which migrates it). None when there is nothing to say."""
     phase = routing_phase(meta.get("phase"))
@@ -289,7 +289,9 @@ def tracker_line(meta: dict) -> str | None:
         return None
     t = meta.get("tracker") if isinstance(meta.get("tracker"), dict) else {}
     why = None
-    if "linear" in meta:
+    if root is not None and (root / ".workflow" / "github-issues.json").is_file() and "map" not in t:
+        why = "a .workflow/github-issues.json that meta.json#tracker does not record (make_issues.py's map)"
+    elif "linear" in meta:
         why = "a legacy `linear` block (linear-scrum)"
     elif "kind" in t:
         why = "`tracker.kind` instead of `tracker.provider`"
@@ -543,7 +545,7 @@ def main() -> int:
     if (note := observability_line(meta, root)):
         print(note)
         print()
-    if (note := tracker_line(meta)):
+    if (note := tracker_line(meta, root)):
         print(note)
         print()
     if (note := debt_line(meta, root)):

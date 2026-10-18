@@ -391,6 +391,14 @@ class Tracker(unittest.TestCase):
         out = ss.tracker_line({"phase": "tasks_split", "tracker": {"provider": "github", "issue_map": {"Login": 7}}})
         self.assertIn("title", out)
 
+    def test_a_lone_github_issues_file_is_noted_not_called_unchosen(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / ".workflow").mkdir()
+            (Path(d) / ".workflow/github-issues.json").write_text("{}")
+            out = ss.tracker_line({"phase": "deployed"}, Path(d))
+        self.assertIn("github-issues.json", out)
+        self.assertNotIn("not chosen", out)
+
     def test_not_chosen_after_prd(self) -> None:
         self.assertIn("Tracker: not chosen", ss.tracker_line({"phase": "tasks_split"}))
         self.assertIsNone(ss.tracker_line({"phase": "idea_captured"}))
