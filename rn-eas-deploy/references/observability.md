@@ -19,7 +19,7 @@ conflated the two and invented a figure. **Read <https://expo.dev/pricing> live*
 the most perishable thing a skill can contain, and unlike an API it fails quietly, as a budget
 surprise rather than an error.
 
-Neither replaces a dedicated crash reporter. EAS Observe does not do crash/error tracking (Expo lists it as a planned addition) — keep Sentry/Bugsnag/etc. as the system of record for crashes, per `rn-eas-deploy/SKILL.md` Step 11 ("Where to monitor crash reports").
+Neither replaces a dedicated crash reporter. EAS Observe does not do crash/error tracking (Expo lists it as a planned addition) — the crash reporter is `rn-module-add observability` (Sentry EU or GlitchTip), the system of record for crashes, per `rn-eas-deploy/SKILL.md` Step 11 ("Where to monitor crash reports").
 
 ## EAS Observe — production performance monitoring
 
@@ -70,7 +70,7 @@ this is still beta.
 Dashboard: <https://docs.expo.dev/eas/observe/dashboard/> (200 on 2026-08-26). Confirm the in-app tab name live before pointing a user at it — dashboards get renamed without a changelog entry.
 
 ### Anti-patterns
-- Do not treat EAS Observe as the only safety net — it measures slowness, not errors. Pair it with Sentry/Bugsnag.
+- Do not treat EAS Observe as the only safety net — it measures slowness, not errors. Pair it with the crash reporter (`rn-module-add observability`).
 - Do not skip `markInteractive()` — TTI silently never resolves.
 - Do not check metrics only when a user complains — read them on the cadence in "Closing the loop" below.
 

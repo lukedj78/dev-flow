@@ -419,7 +419,7 @@
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1325,
+      "skill_md_lines": 1326,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -546,7 +546,7 @@
         "surfaces.py",
         "test_observability.py"
       ],
-      "skill_md_lines": 180,
+      "skill_md_lines": 181,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -885,17 +885,18 @@
       "name": "rn-module-add",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms)....",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics, observability) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, S...",
       "skill_file": "rn-module-add/SKILL.md",
       "references": [
         "contracts.md",
         "decision-tree.md",
         "module-analytics.md",
         "module-cms-sanity.md",
-        "module-matrix.md"
+        "module-matrix.md",
+        "module-observability.md"
       ],
       "scripts": [],
-      "skill_md_lines": 180,
+      "skill_md_lines": 181,
       "bundle": "dist/rn-module-add.skill"
     },
     {

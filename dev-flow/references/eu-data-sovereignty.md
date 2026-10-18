@@ -195,7 +195,7 @@ needs a stable identifier: a provider that rotates its visitor hash daily cannot
 | Pirsch | EU alternative (traffic) | Emvi Software GmbH (DE) | Hetzner (DE) | not advertised | cookie-free, hashed IPs | [privacy](https://pirsch.io/privacy) |
 | Matomo | alternative (NZ company, adequacy) | InnoCraft (NZ) | Cloud in Frankfurt, or self-host | yes (cohorts) | ISO 27001 | [cloud](https://matomo.org/matomo-cloud/) |
 
-Logging and observability:
+Logging and observability (how-to: `module-add/references/module-observability.md`, `rn-module-add/references/module-observability.md`; re-checked 2026-10-18 — Sentry's EU region is on every plan including the free Developer one, same price as the US; GlitchTip backend MIT; Sentry server FSL 1.1):
 
 | Option | Role | US control | EU setting | Notes | Source |
 |---|---|---|---|---|---|
