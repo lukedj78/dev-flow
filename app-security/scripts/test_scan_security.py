@@ -138,10 +138,11 @@ class Queries(Fixture):
         self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
 
     def test_a_workspace_filter_or_the_user_itself_is_scoped(self) -> None:
-        # found on fit-coach: eq(clients.workspaceId, …) is a tenant filter; eq(user.id, userId) is the user
+        # found on fit-coach: eq(clients.workspaceId, …) is a tenant filter; the user's own id from the session is the user
+        # (a parameter merely named userId is not: test_c3_the_canonical_idor_is_found)
         self.next_app()
         self.write("lib/clients/a.ts", "export const a = (i: I) => db.select().from(clients).where(and(eq(clients.id, i.clientId), eq(clients.workspaceId, i.workspaceId)))\n"
-                   "export const b = (userId: string) => db.select().from(user).where(eq(user.id, userId))\n"
+                   "export async function b() {\n  const userId = await getCurrentUserId()\n  return db.select().from(user).where(eq(user.id, userId))\n}\n"
                    "export const c = (s: S) => db.select().from(user).where(eq(user.id, session.user.id))\n")
         self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
 
@@ -372,3 +373,137 @@ class Tools(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FinalReview(Fixture):
+    """One test per finding of the whole-branch review (2026-10-18), each reproduced before the fix."""
+
+    def tools(self, fake: FakeTools) -> dict:
+        return {f.check: f for f in ss.tool_findings(self.root, run=fake.run, which=fake.which)}
+
+    # C1 — npm and pnpm print a JSON error object when they fail; that is not "no vulnerability"
+    def test_c1_an_audit_that_failed_in_json_is_not_checked(self) -> None:
+        self.next_app()
+        for out in ('{"error": {"code": "ENOLOCK", "summary": "This command requires an existing lockfile."}}',
+                    '{"message": "request to http://127.0.0.1:9/ failed, reason: connect ECONNREFUSED", "error": {"code": "ECONNREFUSED"}}'):
+            fake = FakeTools({"npm"}, {("npm", "audit"): (1, out)})
+            self.assertEqual(self.tools(fake)["dependencies"].status, ss.NOT_CHECKED, out)
+        self.write("pnpm-lock.yaml", "")
+        fake = FakeTools({"pnpm"}, {("pnpm", "audit"): (1, '{"error": {"code": "ERR_PNPM_BROKEN_LOCKFILE"}}')})
+        self.assertEqual(self.tools(fake)["dependencies"].status, ss.NOT_CHECKED)
+        clean = FakeTools({"pnpm"}, {("pnpm", "audit"): (0, '{"advisories": {}, "metadata": {"vulnerabilities": {"high": 0}}}')})
+        self.assertEqual(self.tools(clean)["dependencies"].status, ss.OK)
+
+    # C2 — a method call is not a call to a project helper of the same name; a local declaration shadows a global one
+    def test_c2_a_method_named_like_a_helper_is_not_a_session_call(self) -> None:
+        self.next_app()
+        self.write("lib/dal/posts.ts", 'import "server-only"\nexport async function update(id: string, data: any) {\n'
+                   '  const s = await requireUser()\n  return db.update(posts).set(data)\n}\n')
+        self.write("app/admin/actions.ts", '"use server"\nexport async function banUser(id: string) {\n'
+                   '  await db.update(users).set({ banned: true }).where(eq(users.id, id))\n}\n')
+        self.write("app/api/x/route.ts", "export async function POST(req: Request) {\n  const { id } = await req.json()\n"
+                   "  await prisma.user.update({ where: { id }, data: { role: \"admin\" } })\n  return Response.json({})\n}\n")
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.FOUND)
+        self.assertEqual(self.find("route-handler-unauthenticated").status, ss.FOUND)
+
+    def test_c2_a_local_function_shadows_a_global_helper(self) -> None:
+        self.next_app()
+        self.write("lib/auth-helpers.ts", "export async function getProject(id: string) {\n  const u = await getCurrentUserId()\n  return u\n}\n")
+        self.write("app/actions.ts", '"use server"\nasync function getProject(id: string) {\n  return db.query.projects.findFirst()\n}\n'
+                   "export async function archive(id: string) {\n  const p = await getProject(id)\n  await db.update(projects).set({ a: 1 })\n}\n")
+        self.assertEqual(self.find("server-action-unauthenticated").where, ["app/actions.ts: archive"])
+
+    def test_c2_a_helper_from_another_file_counts_only_when_imported(self) -> None:
+        self.next_app()
+        self.write("lib/guard.ts", "export async function requireMember() {\n  const s = await getSession()\n  return s\n}\n")
+        self.write("app/a.ts", '"use server"\nexport async function wipe() {\n  await requireMember()\n}\n')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.FOUND)
+        self.write("app/a.ts", '"use server"\nimport { requireMember } from "@/lib/guard"\nexport async function wipe() {\n  await requireMember()\n}\n')
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
+
+    # C3 — a value named teamId is not the caller's; an owner filter on another table is not this query's
+    def test_c3_the_canonical_idor_is_found(self) -> None:
+        self.next_app()
+        self.write("app/actions.ts", '"use server"\nexport async function deleteTeam(teamId: string) {\n'
+                   "  const uid = await getCurrentUserId()\n  await db.delete(teams).where(eq(teams.id, teamId))\n}\n"
+                   "export async function deleteInvoice(id: string) {\n  const uid = await getCurrentUserId()\n"
+                   "  const me = await db.select().from(profiles).where(eq(profiles.userId, uid))\n"
+                   "  await db.delete(invoices).where(eq(invoices.id, id))\n}\n")
+        self.assertEqual(self.find("query-by-id-unscoped").where, ["app/actions.ts:4", "app/actions.ts:9"])
+
+    def test_c3_a_value_taken_from_the_session_is_scoped(self) -> None:
+        self.next_app()
+        self.write("lib/me.ts", "export async function me() {\n  const userId = await getCurrentUserId()\n"
+                   "  return db.select().from(user).where(eq(user.id, userId))\n}\n")
+        self.assertEqual(self.find("query-by-id-unscoped").status, ss.OK)
+
+    # I1 — an action's body ends at the next top-level declaration, not at the next export
+    def test_i1_a_helper_after_an_action_does_not_cover_it(self) -> None:
+        self.next_app()
+        self.write("app/actions.ts", '"use server"\nexport async function deletePost(id: string) {\n  await db.delete(posts)\n}\n'
+                   "async function requireAdmin() {\n  const s = await getSession()\n  if (!s) throw new Error()\n}\n"
+                   "export async function renamePost(id: string, t: string) {\n  await requireAdmin()\n}\n")
+        self.assertEqual(self.find("server-action-unauthenticated").where, ["app/actions.ts: deletePost"])
+
+    # I2 — every export of a "use server" file is an action, whatever its form
+    def test_i2_every_export_form_is_judged(self) -> None:
+        self.next_app()
+        self.write("app/actions.ts", '"use server"\n'
+                   "export const deleteUser = actionClient.schema(s).action(async ({ parsedInput }) => {\n  await db.delete(users)\n})\n"
+                   "export const purge = async function () {\n  await db.delete(logs)\n}\n"
+                   "async function wipe() {\n  await db.delete(all)\n}\nexport { wipe }\n")
+        where = self.find("server-action-unauthenticated").where
+        self.assertEqual(sorted(w.split(": ")[1] for w in where), ["deleteUser", "purge", "wipe"])
+
+    # I3 — an inline "use server" function is judged by its own body, not by the page's session check
+    def test_i3_an_inline_action_is_judged_alone(self) -> None:
+        self.next_app()
+        self.write("app/notes/page.tsx", "export default async function Page() {\n  const s = await getSession()\n"
+                   '  async function del(fd: FormData) {\n    "use server"\n    await db.delete(notes)\n  }\n'
+                   "  return <form action={del} />\n}\n")
+        self.assertEqual(self.find("server-action-unauthenticated").where, ["app/notes/page.tsx: del (inline)"])
+
+    # I4 — route segments named like build folders are still source
+    def test_i4_a_route_segment_named_build_is_scanned(self) -> None:
+        self.next_app()
+        self.write("app/build/actions.ts", '"use server"\nexport async function go() {\n  await db.delete(x)\n}\n')
+        self.write("app/api/ios/route.ts", "export async function POST() {\n  return Response.json({})\n}\n")
+        self.write("build/gen.ts", '"use server"\nexport async function gen() {}\n')
+        self.assertEqual(self.find("server-action-unauthenticated").where, ["app/build/actions.ts: go"])
+        self.assertEqual(self.find("route-handler-unauthenticated").where, ["app/api/ios/route.ts: POST"])
+
+    # I5 — Semgrep writes its JSON envelope with an errors array when it fails (offline rule download)
+    def test_i5_a_semgrep_failure_is_not_checked(self) -> None:
+        self.next_app()
+        out = json.dumps({"results": [], "errors": [{"level": "error", "message": "Failed to download configuration"}]})
+        fake = FakeTools({"semgrep"}, {"semgrep": (7, out)})
+        self.assertEqual(self.tools(fake)["static-analysis"].status, ss.NOT_CHECKED)
+
+    # I5b — Expo configured by app.config.ts is still Expo
+    def test_i5b_expo_with_a_dynamic_config_skips_the_next_checks(self) -> None:
+        self.write("app/index.tsx", "export default function Home() { return null }\n")
+        self.write("app.config.ts", "export default { expo: { name: 'x' } }\n")
+        self.write("package.json", '{"dependencies": {"expo": "58.0.0"}}')
+        self.assertIn("not applicable", self.find("security-headers-missing").detail)
+
+    # I6 — the leaks people actually make
+    def test_i6_api_keys_and_service_roles_in_public_vars(self) -> None:
+        self.next_app()
+        self.write(".env", "NEXT_PUBLIC_OPENAI_API_KEY=sk-x\nEXPO_PUBLIC_OPENAI_API_KEY=sk-y\n"
+                   "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=ey\nexport NEXT_PUBLIC_STRIPE_SECRET=s\n"
+                   "NEXT_PUBLIC_SUPABASE_ANON_KEY=ok\nNEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk\n")
+        names = [w.split(": ")[1] for w in self.find("public-env-secret").where]
+        self.assertEqual(names, ["NEXT_PUBLIC_OPENAI_API_KEY", "EXPO_PUBLIC_OPENAI_API_KEY",
+                                 "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_STRIPE_SECRET"])
+
+    # found re-running fit-coach after the C2 fix: better-auth's own call is a method, auth.api.getSession(…)
+    def test_c2_better_auths_method_call_is_a_session_call(self) -> None:
+        self.next_app()
+        self.write("lib/api/v1.ts", "export async function apiUser(request: Request) {\n"
+                   "  const session = await auth.api.getSession({ headers: request.headers })\n  return session?.user\n}\n")
+        self.write("app/api/v1/route.ts", 'import { apiUser } from "@/lib/api/v1"\nexport async function POST(r: Request) {\n'
+                   "  const u = await apiUser(r)\n  return Response.json(u)\n}\n")
+        self.write("app/actions.ts", '"use server"\nexport async function save() {\n'
+                   "  const session = await auth.api.getSession({ headers: await headers() })\n}\n")
+        self.assertEqual(self.find("server-action-unauthenticated").status, ss.OK)
+        self.assertEqual(self.find("route-handler-unauthenticated").status, ss.OK)

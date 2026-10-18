@@ -74,7 +74,8 @@ sends a POST.
    This skill proposes fixes and does not apply them silently. Apply one when the user says so, and
    re-run the scan afterwards.
 
-6. **Record** `meta.json#security` through `dev-flow/scripts/update_meta.py`, plus a `history` entry.
+6. **Record** the `security` block by editing `.workflow/meta.json` directly, as `launch-audit` does with its own
+   block, then append the run with `dev-flow/scripts/update_meta.py <root> append-history --skill app-security`.
    **Never bump `phase`, never block the deploy.** A risk the user decides to keep goes in
    `findings.accepted` with **their** reason, so the next run does not raise it again as new:
 
@@ -97,11 +98,14 @@ once, and the scan reads it:
 "stack_config": { "security_session_calls": ["requireMember", "withOrg"] }
 ```
 
-Only a **call** counts: a helper named in a comment or a string does not.
+Only a **bare call** counts: a helper named in a comment does not, and neither does a method of the same name
+(`db.update(` is not a helper called `update`). A function of the project that itself takes the session counts as
+a session check too, but only in a file that **imports** it, or in the file that defines it; a local function
+with the same name shadows it.
 
 ## Expo and eve
 
-- **Expo.** The Next.js checks do not apply and are skipped (the scan detects Expo from `app.json`). The
+- **Expo.** The Next.js checks do not apply and are skipped (the scan detects Expo from `app.json`, `app.config.*`, or `expo` without `next` in `package.json`). The
   dependency and secret scans apply in full, and so does the mobile part of `review.md`: tokens in
   `expo-secure-store`, never in AsyncStorage, and nothing secret in `EXPO_PUBLIC_`, which ships in plain
   text inside the app bundle.

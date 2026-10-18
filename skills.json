@@ -86,7 +86,7 @@
         "scan_security.py",
         "test_scan_security.py"
       ],
-      "skill_md_lines": 137,
+      "skill_md_lines": 141,
       "bundle": "dist/app-security.skill"
     },
     {
