@@ -257,7 +257,46 @@ that is missing or older than the last change.
 - [ ] **Step 5: Commit.**
   `feat(dev-flow): propose app-verification once there is something to drive, and note a stale manual`.
 
-### Task 4: The real run on fit-coach
+### Task 3b: Surfaces, detected in one place (user decision, 2026-10-18)
+
+**Files:**
+- Create: `dev-flow/scripts/surfaces.py`, `dev-flow/scripts/test_surfaces.py`.
+- Vendor: `app-verification/scripts/surfaces.py`, `app-security/scripts/surfaces.py` — byte copies, registered in
+  `scripts/lint_skills.py` `VENDORED_SOURCE`.
+- Modify: `app-verification/scripts/verify_map.py` (`scaffold(root, app=None)` / `check(root, app=None)`: every
+  surface when `app` is None), `dev-flow/scripts/show_state.py` (`verification_line` per surface),
+  `app-security/scripts/scan_security.py` (`source_roots`, `is_next`, `is_expo` delegate to `surfaces`), the
+  SKILL.md texts that mention `--app`.
+
+**Interfaces:**
+- Produces: `@dataclass Surface(kind: str, name: str, path: str, mounted_in: str | None = None)`;
+  `surfaces(root: Path, meta: dict | None = None) -> list[Surface]`, sorted by path; `kind` in
+  `web | mobile | agent | api | cli | other`; `name` is the manual's suffix (`web`, `mobile`, `agent` for a single
+  app; the app's directory name in `apps/*` / `packages/*`).
+
+- [ ] **Step 1: Write the failing tests** in `test_surfaces.py`, each a temporary project:
+  `test_next_app_is_web`; `test_expo_by_app_config_is_mobile`; `test_eve_agent_mounted_in_next` (root `next` +
+  `agent/agent.ts` + `withEve(` in `next.config.ts` → `[web, agent(mounted_in="web")]`);
+  `test_monorepo_every_app` (`apps/web` next, `apps/mobile` expo, `apps/agent` eve, `apps/ml` in
+  `stack.monorepo.services` → four surfaces, ml `api`); `test_package_with_bin_is_cli`;
+  `test_unknown_app_with_dev_script_is_other`; `test_shared_package_without_scripts_is_not_a_surface`;
+  `test_node_modules_never_scanned`. In `test_verify_map.py`: `test_scaffold_every_surface` (web + agent →
+  `verify-web/` and `verify-agent/`, the agent's Launch says it is served by `verify-web`) and
+  `test_check_flags_a_missing_surface_manual`. In `test_show_state.py`: `test_missing_manual_named_per_surface`.
+  In `test_scan_security.py`: the existing Expo, monorepo and Next tests stay green after the delegation.
+- [ ] **Step 2: Run them.** Expected: failures in the new tests only.
+- [ ] **Step 3: Implement**; copy `surfaces.py` into the two skills; add the pairs to `VENDORED_SOURCE`.
+- [ ] **Step 4: Run** the four suites on 3.14 and `surfaces`/`verify_map` on 3.9, then the lint. Expected: OK,
+  `✓ Clean`.
+- [ ] **Step 5: Commit**: `feat(dev-flow): surfaces.py — what a project is made of, detected in one place`.
+
+### Task 4: The real run on fit-coach, then Archi Studio
+
+Archi Studio (`~/projects/archistudio`, the app in active development) is the second real run: two surfaces (`web`,
+`agent` mounted in it by `withEve()`), a screen inventory, 46 stories, and its own `.claude/launch.json` (read,
+never overwritten — add an entry). Same rules: nothing committed there; pre-existing untracked files left alone.
+
+### Task 4 (fit-coach) — original steps
 
 **Files:**
 - In `~/projects/fit-coach`, left **uncommitted**:

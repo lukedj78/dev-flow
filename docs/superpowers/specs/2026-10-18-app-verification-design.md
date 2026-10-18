@@ -193,6 +193,35 @@ In un monorepo, `skill` diventa una lista, una voce per app. Mai `phase`, sempre
 - **`wireframe-canvas`**: un rimando: l'inventario alimenta anche la feature map.
 - **`dev-flow/references/resources.md`**: una riga per pstack, con la licenza e quello che abbiamo preso.
 
+### 7. Le superfici, riconosciute e non presunte (decisione dell'utente, 2026-10-18)
+
+Nessun elenco fisso: la skill guarda il progetto e crea **un manuale per ogni superficie** che trova. Il
+riconoscimento sta in **un modulo solo**, `dev-flow/scripts/surfaces.py`, copiato nelle skill che lo usano come
+già `meta_io.py` (il lint tiene identiche le copie), perché oggi la stessa domanda — che pezzi ha questo progetto —
+ha tre risposte diverse (`app-security`, `show_state`, e questa skill), e una ha già avuto un bug (Expo configurato da
+`app.config.ts`).
+
+| Tipo | Come si riconosce | Manuale |
+|---|---|---|
+| `web` | `next` nelle dipendenze, con `app/` o `src/app/` | `verify-web` (in un monorepo `verify-<app>`) |
+| `mobile` | Expo: `expo` senza `next`, `app.json` con `expo`, `app.config.*` | `verify-mobile` |
+| `agent` | eve: `agent/agent.ts`, `apps/agent`, o `stack.agent = "eve"` con la cartella | `verify-agent` |
+| `api` | un servizio HTTP senza UI: le voci di `stack.monorepo.services` | `verify-<nome>` |
+| `cli` | un pacchetto con `bin` in `package.json` | `verify-<nome>` |
+| `other` | un'app in `apps/*` o `packages/*` con uno script `dev` o `start` che non rientra nei tipi sopra | `verify-<nome>`, con la ricetta segnata da completare |
+
+Ogni superficie ha `kind`, `name`, `path` e `mounted_in`: un agente servito dall'app web (`withEve()` in
+`next.config.*`, come in Archi Studio sotto `/eve/v1/*`) ha `mounted_in: "web"`, e il suo manuale non inventa un
+avvio proprio ma rimanda a quello del web. I pacchetti senza niente da avviare (tipi, config condivisa, UI
+condivisa) non sono superfici.
+
+Usano il modulo: `verify_map.py` (`scaffold` e `check` su tutte le superfici, `--app` solo per forzarne una),
+`show_state.py` (la nota per superficie: quale manuale manca) e `app-security` (che sostituisce il suo
+riconoscimento di Next, Expo e delle radici del monorepo).
+
+La prova vera si fa su due progetti: fit-coach (una superficie, `web`, mappa dalle rotte) e Archi Studio (due
+superfici, `web` e `agent` montato nel web, mappa dall'inventario dei wireframe).
+
 ## Test
 
 - **`verify_map.py`**, con fixture in cartelle temporanee:
