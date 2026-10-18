@@ -198,7 +198,8 @@ def task_stories(tasks_md: str) -> list[dict]:
         elif line.startswith("### "):
             story, cur = STORY.findall(line), None
         elif m := re.match(r"^- \[( |x)\] \*\*(.+?)\*\* — (.*)$", line):
-            cur = {"title": m.group(2), "stories": list(dict.fromkeys(epic + story + STORY.findall(line)))}
+            cur = {"title": m.group(2), "line": line,
+                   "stories": list(dict.fromkeys(epic + story + STORY.findall(line)))}
             out.append(cur)
         elif cur and line.startswith("  "):
             cur["stories"] = list(dict.fromkeys(cur["stories"] + STORY.findall(line)))
@@ -207,15 +208,31 @@ def task_stories(tasks_md: str) -> list[dict]:
     return out
 
 
-def comment_body(screens: list[dict], repo: str, ref: str) -> str:
-    base = f"https://github.com/{repo}/blob/{ref}"
+def comment_body(screens: list[dict], repo: str | None, ref: str | None) -> str:
+    """On GitHub the PNGs are linked at a pinned commit; elsewhere (Linear, Jira) the body names the files, and the
+    agent attaches them with the tracker's own upload."""
     lines = ["**Wireframes** — approved canvas, the screens this issue's user story touches.", ""]
+    base = f"https://github.com/{repo}/blob/{ref}" if repo and ref else None
     for r in screens:
-        lines += [f"### {r['id']} · {r['screen']}", "",
-                  f"![{r['id']} desktop]({base}/{PNG_DIR}/{r['id']}-desktop.png?raw=true)",
-                  f"![{r['id']} phone]({base}/{PNG_DIR}/{r['id']}-phone.png?raw=true)", ""]
-    lines.append(f"Inventory: [`{INVENTORY}`]({base}/{INVENTORY})")
+        lines += [f"### {r['id']} · {r['screen']}", ""]
+        for v in ("desktop", "phone"):
+            path = f"{PNG_DIR}/{r['id']}-{v}.png"
+            lines.append(f"![{r['id']} {v}]({base}/{path}?raw=true)" if base else f"- {v}: attach `{path}`")
+        lines.append("")
+    lines.append(f"Inventory: [`{INVENTORY}`]({base}/{INVENTORY})" if base else f"Inventory: `{INVENTORY}`")
     return "\n".join(lines) + "\n"
+
+
+def _task_key():
+    """scrum's task_key, loaded from the sibling skill; None when scrum is not installed beside this one."""
+    path = Path(__file__).resolve().parents[2] / "scrum" / "scripts" / "task_key.py"
+    if not path.is_file():
+        return None
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("task_key_for_wireframes", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.task_key
 
 
 def cmd_comments(a: argparse.Namespace) -> int:
@@ -229,6 +246,21 @@ def cmd_comments(a: argparse.Namespace) -> int:
         print(f"Refused: {a.tasks} does not exist.", file=sys.stderr)
         return 1
     issue_map = json.loads((a.root / a.map).read_text()) if a.map else {}
+    tracker: dict = {}
+    if not a.map:   # scrum's map: meta.json#tracker.issue_map, keyed by task_key, on any tracker
+        try:
+            tracker = json.loads((a.root / ".workflow" / "meta.json").read_text()).get("tracker") or {}
+        except (OSError, ValueError):
+            tracker = {}
+    by_key = tracker.get("issue_map") or {}
+    tk = _task_key() if by_key else None
+    if by_key and tk is None:
+        print("Refused: meta.json#tracker.issue_map needs scrum's task_key.py beside this skill.", file=sys.stderr)
+        return 1
+    links = bool(a.map) or tracker.get("provider") == "github"
+    if links and not (a.repo and a.ref):
+        print("Refused: on GitHub the images are linked — pass --repo and --ref (a commit SHA).", file=sys.stderr)
+        return 1
     out = a.out if a.out.is_absolute() else a.root / a.out
     out.mkdir(parents=True, exist_ok=True)
     plan, unmapped = [], []
@@ -236,12 +268,17 @@ def cmd_comments(a: argparse.Namespace) -> int:
         screens = list({r["id"]: r for s_ in t["stories"] for r in by_story.get(s_, [])}.values())
         if not screens:
             continue
-        key = str(issue_map.get(t["title"], "")) if a.map else t["title"]
+        if a.map:
+            key = str(issue_map.get(t["title"], ""))
+        elif by_key:
+            key = str(by_key.get(tk(t["line"]), ""))
+        else:
+            key = t["title"]
         if not key:
             unmapped.append(t["title"])
             continue
         name = re.sub(r"[^A-Za-z0-9]+", "-", key).strip("-")[:60] or "task"
-        (out / f"{name}.md").write_text(comment_body(screens, a.repo, a.ref))
+        (out / f"{name}.md").write_text(comment_body(screens, a.repo if links else None, a.ref if links else None))
         plan.append({"issue": key, "title": t["title"], "screens": [r["id"] for r in screens], "body": str(out / f"{name}.md")})
     print(json.dumps({"comments": plan, "tasks_without_an_issue": unmapped}, indent=2, ensure_ascii=False))
     return 0
@@ -281,12 +318,12 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--user-said", required=True, help="the user's approval, quoted")
             p.add_argument("--artboards", type=int, default=None)
         if name == "comments":
-            p.add_argument("--repo", required=True, help="OWNER/NAME, for the image URLs")
-            p.add_argument("--ref", required=True, help="the commit SHA that holds the PNGs (pinned, not a branch)")
+            p.add_argument("--repo", help="OWNER/NAME, for the image URLs (GitHub)")
+            p.add_argument("--ref", help="the commit SHA that holds the PNGs, pinned, not a branch (GitHub)")
             p.add_argument("--out", type=Path, required=True, help="directory for the comment bodies")
             p.add_argument("--tasks", default=".workflow/tasks.md")
-            p.add_argument("--map", default=None, help="task title -> issue number (make_issues.py's map); "
-                                                       "omitted, bodies are keyed by task title")
+            p.add_argument("--map", default=None, help="an old task title -> issue number file; omitted, the issues "
+                                                       "come from meta.json#tracker.issue_map (scrum), else titles")
         if name == "skip":
             p.add_argument("--reason", required=True)
         p.set_defaults(func=fn)

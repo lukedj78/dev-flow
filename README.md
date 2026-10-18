@@ -942,10 +942,10 @@ The step between `design_extracted` and the scaffold, on every project with a UI
 
 ### `scrum` — agile scrum on Linear, Jira or GitHub
 
-**Input**: `.workflow/meta.json` (+ `.workflow/tasks.md` for first setup) and a connected Linear MCP.
-**Output**: a Linear Project with issues (estimates, `area:web`/`area:agent` labels, milestones) and cycles, plus the `linear`/`scrum` blocks in `meta.json`. Linear is treated as the source of truth: sync only pushes new tasks, pulls status/velocity, plans the active sprint up to the velocity target, and reports — it never bumps `phase`.
+**Input**: `.workflow/meta.json` (+ `.workflow/tasks.md` for the first Setup) and the tracker chosen at design time (`meta.json#tracker.provider`, asked by `prd-from-idea`): Linear (its MCP), Jira (the Atlassian Rovo MCP; story points through `scripts/jira_estimate.py`, token from the environment) or GitHub (`gh`; `scripts/github_sync.py`).
+**Output**: the project's issues — estimated, prioritised, labelled, written to the issue standard — and 2-week sprints (Linear cycles, Jira sprints, GitHub milestones named by their goal), plus `meta.json#tracker` (issue map keyed by `task_key`) and `#scrum`. The tracker is the source of truth: Sync pushes only new tasks and pulls status and velocity.
 
-**Modes**: Setup (new project), Adopt (existing Linear project), Sync (ongoing — push new tasks, pull status/velocity, plan sprint, report).
+**Modes**: Choose, Setup, Adopt (an existing project, backfilled), Sync (push new tasks, plan the sprint, report), **Triage** (a bug: reproduce, severity S1–S4, the issue in the right sprint — the fix is the normal path). `scripts/meta_tracker.py migrate` moves every older shape — `linear-scrum`'s `linear` block, hand-written GitHub blocks with a title-keyed map — into `tracker` without dropping a key.
 
 ### `registry-intake` — third-party registry components: allowlisted, reviewed, pinned, enforced
 

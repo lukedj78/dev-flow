@@ -288,6 +288,21 @@ for s in "${SKILLS[@]}"; do
   echo "  ✓ $s"
 done
 
+# Skills that were renamed or folded into another. An installed copy would still declare its old name and
+# compete with its successor for the same triggers, so it is moved to the backup like any replaced version.
+RETIRED=(
+  "linear-scrum:scrum"
+)
+for pair in "${RETIRED[@]}"; do
+  old="${pair%%:*}"; new="${pair#*:}"
+  if [ -d "$SKILLS_DIR/$old" ]; then
+    mkdir -p "$BACKUP_DIR"
+    rm -rf "$BACKUP_DIR/$old"
+    mv "$SKILLS_DIR/$old" "$BACKUP_DIR/$old"
+    echo "  · removed retired skill $old (now $new) — moved to $BACKUP_DIR/$old"
+  fi
+done
+
 # Files written OUTSIDE a skill folder share the skills dir with whatever the user keeps there — a skill
 # of their own called `bootstrap`, an AGENTS.md they edited. uninstall.sh used to delete all of them by
 # name. Now each one is recorded with its hash, and one the installer did not write is saved first.

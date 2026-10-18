@@ -116,6 +116,15 @@ SKILLS=(
 
 echo "Uninstalling ${#SKILLS[@]} dev-flow skills from $SKILLS_DIR (platform: $PLATFORM)"
 
+# Former names of skills that were renamed (install.sh RETIRED): a copy left by an older install goes too.
+RETIRED=(linear-scrum)
+for s in "${RETIRED[@]}"; do
+  if [ -d "$SKILLS_DIR/$s" ]; then
+    rm -rf "$SKILLS_DIR/$s"
+    echo "  ✓ $s removed (a former name)"
+  fi
+done
+
 for s in "${SKILLS[@]}"; do
   dest="$SKILLS_DIR/$s"
   bak="$SKILLS_DIR/$s.bak"
@@ -187,7 +196,7 @@ if [ -n "$LATEST" ]; then
   if [ "$RESTORE" -eq 1 ]; then
     echo
     echo "Restoring from $LATEST"
-    for s in "${SKILLS[@]}"; do
+    for s in "${SKILLS[@]}" "${RETIRED[@]}"; do   # a backup from before a rename holds the former name
       if [ -d "$LATEST/$s" ] && [ ! -e "$SKILLS_DIR/$s" ]; then
         mv "$LATEST/$s" "$SKILLS_DIR/$s"
         echo "  ↩ $s restored"

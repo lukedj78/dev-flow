@@ -148,6 +148,18 @@ class Claude(Fixture):
         r = self.uninstall()
         self.assertIn("--restore", r.stdout)
 
+    def test_a_retired_skill_is_removed_after_backup(self) -> None:
+        # linear-scrum became scrum: a stale copy would compete for the same triggers
+        old = self.skills / "linear-scrum"
+        old.mkdir(parents=True)
+        (old / "SKILL.md").write_text("---\nname: linear-scrum\n---\n")
+        r = self.install()
+        self.assertFalse(old.exists())
+        self.assertTrue((self.skills / "scrum" / "SKILL.md").is_file())
+        self.assertTrue(any((b / "linear-scrum" / "SKILL.md").is_file() for b in self.backups(self.skills)))
+        self.assertIn("linear-scrum", r.stdout)
+        self.assertIn("scrum", r.stdout)
+
     def test_installing_twice_is_clean(self) -> None:
         self.install()
         self.install()

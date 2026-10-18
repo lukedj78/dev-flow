@@ -1,6 +1,6 @@
 ---
 name: wireframe-canvas
-description: 'The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD''s user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, reviewed area by area. No scaffold until the user approves the canvas — `update_meta.py set-phase` refuses it. After approval, a PNG of every artboard is committed and commented on each GitHub or Linear issue whose story maps to the screen. Writes `meta.json#wireframes`. Use when dev-flow routes here from `design_extracted`, or the user says "wireframe", "tutte le schermate", "disegna le schermate", "artboard", "canvas", "screen inventory", "mockup di ogni pagina". Not for: extracting a DESIGN.md (`figma-to-design-md`, `image-to-design-md`), building pages (`screenshot-to-page`, `rn-add-screen`), agent-only projects (no screens), or a canvas inside the product (`iframe-canvas`).'
+description: 'The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD''s user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, reviewed area by area. No scaffold until the user approves the canvas — `update_meta.py set-phase` refuses it. After approval, a PNG of every artboard is committed and commented on each tracker issue (Linear, Jira or GitHub) whose story maps to the screen. Writes `meta.json#wireframes`. Use when dev-flow routes here from `design_extracted`, or the user says "wireframe", "tutte le schermate", "disegna le schermate", "artboard", "canvas", "screen inventory", "mockup di ogni pagina". Not for: extracting a DESIGN.md (`figma-to-design-md`, `image-to-design-md`), building pages (`screenshot-to-page`, `rn-add-screen`), agent-only projects (no screens), or a canvas inside the product (`iframe-canvas`).'
 ---
 
 # wireframe-canvas — every screen, drawn and approved, before any code
@@ -112,16 +112,16 @@ python3 wireframe-canvas/scripts/wireframes.py skip <root> --reason "<why this p
    task's epic heading, its `### US-N` heading or its own text in `tasks.md`) maps to a screen:
 
    ```bash
-   python3 wireframe-canvas/scripts/wireframes.py comments <root> --repo <owner>/<name> --ref <sha> \
-       --out .workflow/wireframe-comments --map .workflow/github-issues.json
+   python3 wireframe-canvas/scripts/wireframes.py comments <root> --out .workflow/wireframe-comments \
+       [--repo <owner>/<name> --ref <sha>]   # GitHub: the images are linked at that pinned commit
    ```
 
    It prints the plan (issue → screens → body file). Show the user the count and one body, then post —
    comments are posted on the user's behalf, so confirm once for the batch:
-   **GitHub** `gh issue comment <n> --body-file <file>`, 2 s apart. **Linear**: resolve each task to its
-   issue through `meta.json#linear.issue_map` (`linear-scrum`'s `task_key`; run `comments` without
-   `--map` to key bodies by task title), attach the PNGs to the issue with the Linear connector and
-   comment the body.
+   The issues come from `meta.json#tracker.issue_map` (the `scrum` skill's, keyed by `task_key`), so each body
+   is already named by its issue. **GitHub** `gh issue comment <n> --body-file <file>`, 2 s apart. **Linear** and
+   **Jira**: the body names the PNGs instead of linking them — attach them with the tracker's connector, then
+   comment the body. An old project with `.workflow/github-issues.json` can still pass `--map`.
 4. Record it: `python3 wireframe-canvas/scripts/wireframes.py posted <root>` → `wireframes.screenshots_posted_at`.
 
 Then hand back to dev-flow: `design-md-to-app` (web), `rn-bootstrap` (mobile), `monorepo-bootstrap`.

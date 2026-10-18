@@ -220,7 +220,7 @@ When the user confirms, invoke the specialist skill with explicit input:
 
 The specialist skill writes its outputs into `.workflow/`, updates `phase` and appends to `history` in `meta.json`.
 
-After the specialist returns, **read `meta.json` again**. For a skill that owns a phase move (the scaffolders, `prd-from-idea`, `prd-to-tasks`, the deploy skills), confirm the phase advanced; if it didn't, the specialist either errored, the user aborted, or a phase gate refused it — `update_meta.py` prints which — so propose the next move accordingly. **Horizontal skills never bump the phase by design** (the five gates, `spec-review`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `linear-scrum`, `eve-agent` in capability mode): for them, confirm the `history` entry they append instead. An unchanged phase after one of those is success, not failure.
+After the specialist returns, **read `meta.json` again**. For a skill that owns a phase move (the scaffolders, `prd-from-idea`, `prd-to-tasks`, the deploy skills), confirm the phase advanced; if it didn't, the specialist either errored, the user aborted, or a phase gate refused it — `update_meta.py` prints which — so propose the next move accordingly. **Horizontal skills never bump the phase by design** (the five gates, `spec-review`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `scrum`, `eve-agent` in capability mode): for them, confirm the `history` entry they append instead. An unchanged phase after one of those is success, not failure.
 
 ### Step 4 — Loop
 

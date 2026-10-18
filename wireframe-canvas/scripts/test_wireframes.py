@@ -148,6 +148,25 @@ class Screenshots(Fixture):
         body = (self.root / "c/14.md").read_text()
         self.assertIn("https://github.com/o/n/blob/abc123/docs/wireframes/png/A1-phone.png?raw=true", body)
 
+    def test_comments_use_the_tracker_issue_map(self) -> None:
+        # scrum records issues by task_key in meta.json#tracker.issue_map, on Linear, Jira or GitHub
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scrum" / "scripts"))
+        from task_key import task_key
+        (self.root / ".workflow/tasks.md").write_text(
+            "## Epic: Auth (US-2) · S0\n\n- [ ] **Build the sign-in page** — from the artboard\n"
+            "## Epic: Home\n\n### US-1: As a visitor…\n\n- [ ] **Build the home** — hero first\n")
+        meta = self.meta()
+        meta["tracker"] = {"provider": "linear", "issue_map": {
+            task_key("- [ ] **Build the sign-in page** — x"): "LUC-3", task_key("- [ ] **Build the home** — x"): "LUC-4"}}
+        (self.root / ".workflow/meta.json").write_text(json.dumps(meta))
+        rc, out = run("comments", str(self.root), "--out", "c")
+        self.assertEqual(rc, 0, out)
+        plan = {c["issue"]: c["screens"] for c in json.loads(out)["comments"]}
+        self.assertEqual(plan, {"LUC-3": ["A2"], "LUC-4": ["A1"]})
+        body = (self.root / "c/LUC-4.md").read_text()
+        self.assertIn("docs/wireframes/png/A1-phone.png", body)
+        self.assertNotIn("github.com", body)   # not GitHub: the agent attaches the files
+
     def test_posted_needs_approval_and_every_png(self) -> None:
         self.assertEqual(run("posted", str(self.root))[0], 1)
         self.approve()
