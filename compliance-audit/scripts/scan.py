@@ -2,7 +2,7 @@
 """scan.py — fast first-pass GDPR/AI-Act signal scanner for a project.
 
 Walks a project tree, gathers boolean "signals" (does a control exist?), and
-maps them to the R1-R10 risk register. This is a SIGNAL, not a verdict — the
+maps them to the R1-R11 risk register. This is a SIGNAL, not a verdict — the
 skill's model must verify every reported hit by reading the code before putting
 it in the audit report (heuristics over-report by design; false positives are
 cheaper than misses here).
@@ -37,7 +37,14 @@ CHECKS = [
      lambda s: s["has_agent"] and not s["has_art9_guard"]),
     ("R10", "M", "AI-Act Art.5", "Memory/personalization not screened",
      lambda s: s["has_memory"] and not s["has_manip_guard"]),
+    ("R11", "H", "Art.6/7 ePrivacy", "Client analytics sets identifiers before consent",
+     lambda s: s["has_cookie_analytics_before_consent"]),
 ]
+
+# R11 is judged per file: an analytics init that stores an identifier (PostHog's default) and neither runs
+# cookieless nor reads the consent gate. A consent banner elsewhere in the project does not make that init wait.
+ANALYTICS_INIT = re.compile(r"posthog\.init\(")
+ANALYTICS_SAFE = re.compile(r"cookieless_mode|consent", re.I)
 
 SKIP_DIRS = {"node_modules", ".git", "dist", ".next", ".expo", "build", ".turbo", ".vercel", "ios", "android"}
 CODE_SUFFIXES = {".ts", ".tsx", ".js", ".jsx", ".md", ".json", ".sql"}
@@ -65,6 +72,7 @@ PATTERNS = {
 
 def scan(root: Path) -> dict:
     hits = {k: False for k in PATTERNS}
+    analytics_before_consent = False
     for p in root.rglob("*"):
         if p.is_dir() or any(part in SKIP_DIRS for part in p.parts):
             continue
@@ -77,6 +85,8 @@ def scan(root: Path) -> dict:
         for k, rx in PATTERNS.items():
             if not hits[k] and rx.search(text):
                 hits[k] = True
+        if p.suffix != ".md" and ANALYTICS_INIT.search(text) and not ANALYTICS_SAFE.search(text):
+            analytics_before_consent = True
     return {
         "has_auth": hits["auth"], "has_dsar_export": hits["dsar_export"], "has_dsar_delete": hits["dsar_delete"],
         "has_consent": hits["consent"], "has_eu_region": hits["eu_region"], "has_us_default": hits["us_default"],
@@ -84,6 +94,7 @@ def scan(root: Path) -> dict:
         "has_subprocessors_doc": hits["subprocessors_doc"], "has_retention_doc": hits["retention_doc"],
         "has_agent": hits["agent"], "has_memory": hits["memory"], "has_art9_guard": hits["art9_guard"],
         "has_manip_guard": hits["manip_guard"], "is_web": hits["web"], "is_mobile": hits["expo"],
+        "has_cookie_analytics_before_consent": analytics_before_consent,
     }
 
 

@@ -74,7 +74,7 @@
       "name": "compliance-audit",
       "family": "core",
       "role": "operative",
-      "description": "Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-trans...",
+      "description": "Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 11-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-trans...",
       "skill_file": "compliance-audit/SKILL.md",
       "references": [
         "contracts.md",
@@ -84,7 +84,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 126,
+      "skill_md_lines": 127,
       "bundle": "dist/compliance-audit.skill"
     },
     {
