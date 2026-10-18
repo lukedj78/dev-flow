@@ -45,9 +45,8 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:
-    sys.stderr.write("PyYAML required. Install with: pip install pyyaml\n")
-    sys.exit(2)
+except ImportError:   # main() refuses to lint without it; the module stays importable for tests that need no YAML
+    yaml = None
 
 
 ERRORS: list[str] = []
@@ -961,6 +960,9 @@ def check_skill_map_metrics(root: Path, all_skills: set[str]) -> None:
 
 
 def main() -> int:
+    if yaml is None:
+        sys.stderr.write("PyYAML required. Install with: pip install pyyaml\n")
+        return 2
     root = Path(".")
     all_skills = collect_skill_names(root)
     if not all_skills:
