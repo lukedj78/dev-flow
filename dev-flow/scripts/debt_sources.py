@@ -215,7 +215,10 @@ def recorded(root: Path, meta: dict, last_change: str | None) -> tuple[list[Find
             for a in items:
                 rule = str(a.get("findingId") or a.get("ruleId") or "rule")
                 title = str(a.get("title") or a.get("summary") or rule)
-                kw = dict(severity=str(a.get("disposition") or ""), routed_to="shadscan", stale=stale)
+                disposition = str(a.get("disposition") or "")
+                # shadscan's own rule: open the file for every fix and verify, whatever the confidence (on a real run
+                # 7 of 9 did not survive) — so they wait for a verdict; a decide is the user's product question
+                kw = dict(severity=disposition, routed_to="shadscan", stale=stale, signal=disposition in ("fix", "verify"))
                 pkg = str(a.get("packageDir") or "").strip("/")
                 places = [e for e in (a.get("evidence") or []) if isinstance(e, dict)]
                 for e in places:

@@ -21,7 +21,9 @@ features" means that file will be reopened. Ties, and findings without a file, k
 the source's order.
 
 A row reads `- [to confirm] [stale] file:line — detail (source/check → owner)`:
-- `[to confirm]`: a scanner's signal (app-security, compliance) nobody has reviewed yet. `meta.json#debt_audit.bands`
+- `[to confirm]`: a scanner's signal nobody has reviewed yet — app-security, compliance, and shadscan's `fix` and
+  `verify` (shadscan's own rule: open the file every time; on a real run 7 of 9 did not survive). A shadscan
+  `decide` is a product question for the user, not a signal. `meta.json#debt_audit.bands`
   counts confirmed findings only; `to_confirm` counts these.
 - `[stale]`: from a recorded run (shadscan, vercel-doctor) older than the last material change — re-run that gate.
 

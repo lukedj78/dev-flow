@@ -327,6 +327,9 @@ class Sources(Tmp):
             ("custom-controls-have-labels", "fix", "app/b.tsx", 12, True),
             ("command-menu", "decide", None, None, True)])
         self.assertIn("SelectTrigger has no accessible label", shad[0].detail)
+        # shadscan's own rule: open the file for every fix and verify (on a real run 7 of 9 did not survive);
+        # a decide is a product question for the user, not code to confirm
+        self.assertEqual([f.signal for f in shad], [True, True, False])
         self.assertEqual(len({f.id for f in shad}), 3)
         self.assertEqual({s.name: s.status for s in srcs}["shadscan"], "stale")
 

@@ -298,8 +298,9 @@ material change.
 
 1. **Run it.** Offline, `--skip app-security` (it needs the network for dependencies and Semgrep rules); the skipped
    source reads *not checked*.
-2. **Confirm the signals.** A fresh app-security or compliance hit is marked `[to confirm]`. Read each with its own
-   skill's rules (`app-security/references/review.md`, compliance-audit's verification) and record the verdict in
+2. **Confirm the signals.** A fresh app-security or compliance hit, and every shadscan `fix` / `verify`, is marked
+   `[to confirm]`. Read each with its own skill's rules (`app-security/references/review.md`, compliance-audit's
+   verification, shadscan's §Trust calibration) and record the verdict in
    `.workflow/debt/reviewed.json` — `confirmed`, `false_positive` or `accepted`, with a reason **and the row's
    `hash`** from `.workflow/debt/findings.json`. A dismissed verdict lapses when the file changes (its hash differs),
    and the finding comes back to confirm.
