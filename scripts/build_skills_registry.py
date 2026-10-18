@@ -59,6 +59,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     "linear-scrum":                 ("core", "operative"),
     "compliance-audit":             ("core", "operative"),
     "app-security":                 ("core", "operative"),
+    "app-verification":             ("core", "operative"),
     "spec-review":                  ("core", "operative"),
     "product-to-agent-skill":       ("core", "operative"),
     "registry-intake":              ("core", "operative"),

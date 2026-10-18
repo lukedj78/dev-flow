@@ -560,3 +560,19 @@ class Minors(Fixture):
         self.assertFalse([d for d in visited if {"node_modules", ".next"} & set(d.parts)], visited)
         self.assertFalse([d for d in visited if d.relative_to(self.root).parts[:1] == ("build",)], visited)
         self.assertIn(self.root / "app" / "build", visited)
+
+
+class SurfacesDelegation(Fixture):
+    """Final review of app-verification (2026-10-18), I1: the delegation to surfaces.py must not change which
+    projects get the Next.js checks — in either direction."""
+
+    def test_expo_monorepo_with_next_types_in_a_package_gets_no_web_finding(self) -> None:
+        self.write("package.json", '{"private": true}')
+        self.write("apps/mobile/package.json", '{"dependencies": {"expo": "58.0.0"}}')
+        self.write("apps/mobile/app.json", '{"expo": {"name": "m"}}')
+        self.write("packages/ui/package.json", '{"devDependencies": {"next": "16"}}')
+        self.assertIn("not applicable", self.find("security-headers-missing").detail)
+
+    def test_app_router_without_package_json_still_gets_the_next_checks(self) -> None:
+        self.write("src/app/page.tsx", "export default function P() { return null }\n")
+        self.assertEqual(self.find("security-headers-missing").status, ss.FOUND)

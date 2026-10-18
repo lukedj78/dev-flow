@@ -45,9 +45,8 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:
-    sys.stderr.write("PyYAML required. Install with: pip install pyyaml\n")
-    sys.exit(2)
+except ImportError:   # main() refuses to lint without it; the module stays importable for tests that need no YAML
+    yaml = None
 
 
 ERRORS: list[str] = []
@@ -745,7 +744,11 @@ VENDORED_SOURCE = [
     # import from dev-flow, so every skill that writes meta.json carries a copy. The lock only works
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
-      for skill in ("design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake", "wireframe-canvas")),
+      for skill in ("app-verification", "design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake",
+                    "wireframe-canvas")),
+    # What a project is made of (web, mobile, agent, api, cli, other). One answer for every skill: app-security
+    # had its own Next/Expo detection and missed Expo configured by app.config.ts (2026-10-18).
+    *(("dev-flow/scripts/surfaces.py", f"{skill}/scripts/surfaces.py") for skill in ("app-security", "app-verification")),
     # The RN version pins. refresh_stack_defaults.py rewrites both tables; the prose around them drifted
     # by hand (rn-bootstrap's still said NativeWind had no v5 when rn-fundamentals had it in preview).
     ("rn-fundamentals/references/stack-defaults.md", "rn-bootstrap/references/stack-defaults.md"),
@@ -775,7 +778,8 @@ def check_vendored_source(root: Path) -> None:
     for tested, vendored in pairs:
         a, b = root / tested, root / vendored
         if not a.exists() or not b.exists():
-            warn(f"vendored pair missing: {tested} / {vendored}")
+            # an error, not a warning: a deleted copy breaks the skill that imports it (final review, 2026-10-18)
+            err(f"vendored pair missing: {tested} / {vendored} — copy the canonical file across, or drop the pair")
             continue
         if a.read_bytes() != b.read_bytes():
             err(
@@ -956,6 +960,9 @@ def check_skill_map_metrics(root: Path, all_skills: set[str]) -> None:
 
 
 def main() -> int:
+    if yaml is None:
+        sys.stderr.write("PyYAML required. Install with: pip install pyyaml\n")
+        return 2
     root = Path(".")
     all_skills = collect_skill_names(root)
     if not all_skills:

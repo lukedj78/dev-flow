@@ -1,10 +1,11 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 54,
+  "skill_count": 55,
   "families": {
     "core": [
       "app-security",
+      "app-verification",
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
@@ -84,10 +85,32 @@
       ],
       "scripts": [
         "scan_security.py",
+        "surfaces.py",
         "test_scan_security.py"
       ],
       "skill_md_lines": 141,
       "bundle": "dist/app-security.skill"
+    },
+    {
+      "name": "app-verification",
+      "family": "core",
+      "role": "operative",
+      "description": "Give a project a manual for proving its features on the real app, written once and kept true: `.claude/skills/verify-<app>/` with how to launch it until it is usable, a read-only doctor check, how to drive it with the repo's real selectors, what counts as proof and where it goes, how to stop only wh...",
+      "skill_file": "app-verification/SKILL.md",
+      "references": [
+        "contracts.md",
+        "maintain.md",
+        "manual.md",
+        "stack-recipes.md"
+      ],
+      "scripts": [
+        "meta_io.py",
+        "surfaces.py",
+        "test_verify_map.py",
+        "verify_map.py"
+      ],
+      "skill_md_lines": 160,
+      "bundle": "dist/app-verification.skill"
     },
     {
       "name": "compliance-audit",
@@ -140,6 +163,7 @@
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
+        "surfaces.py",
         "test_contract_version.py",
         "test_data_residency.py",
         "test_founder_gate.py",
@@ -153,12 +177,13 @@
         "test_primitives_guard_gate.py",
         "test_research.py",
         "test_show_state.py",
+        "test_surfaces.py",
         "test_update_meta.py",
         "test_wireframes_gate.py",
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 305,
+      "skill_md_lines": 306,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -285,7 +310,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 248,
+      "skill_md_lines": 250,
       "bundle": "dist/spec-review.skill"
     },
     {
@@ -302,7 +327,7 @@
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 142,
+      "skill_md_lines": 146,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {
@@ -638,7 +663,7 @@
         "worst-case-data.md"
       ],
       "scripts": [],
-      "skill_md_lines": 172,
+      "skill_md_lines": 173,
       "bundle": "dist/write-tests.skill"
     },
     {

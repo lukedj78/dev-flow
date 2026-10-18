@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta_io  # noqa: E402 — reads meta.json, refusing an invalid one with exit 2
+import surfaces  # noqa: E402 — what the project is made of, the one place that decides it
 import phases  # noqa: E402 — the phase enum and its aliases, shared with update_meta.py
 
 # Next-step proposals per phase, keyed by `stack.framework`: THE routing table. dev-flow/SKILL.md
@@ -33,9 +34,9 @@ PHASE_NEXT_BY_STACK = {
         "tasks_split":      "linear-scrum (Setup)  THEN  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  design-md-to-app",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  design-md-to-app",
         "scaffolded":       "primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)",
-        "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page",
+        "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy",
+        "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy",
         "deployed":         "maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes",
     },
     "expo-rn": {
@@ -43,9 +44,9 @@ PHASE_NEXT_BY_STACK = {
         "tasks_split":      "linear-scrum (Setup)  THEN  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  rn-bootstrap",
         "scaffolded":       "rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)",
-        "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen",
+        "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once",
         "module_added":     "spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy",
+        "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy",
         "deployed":         "maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes",
     },
     "monorepo": {
@@ -54,16 +55,16 @@ PHASE_NEXT_BY_STACK = {
         "design_extracted": "wireframe-canvas (every screen, desktop + phone, approved)  THEN  monorepo-bootstrap",
         "monorepo_initialized": "monorepo-bootstrap continues (design-md-to-app in apps/web, rn-bootstrap in apps/mobile)",
         "scaffolded":       "web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types",
-        "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens",
+        "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens  ·  app-verification create once per app",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
+        "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
         "deployed":         "maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes",
     },
     "agent": {
         "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)",
         "tasks_split":      "linear-scrum (Setup)  THEN  eve-agent (bootstrap)",
-        "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting — set phase feature_complete when the build is done",
-        "feature_complete": "gates: compliance-audit + app-security  THEN  eve deploy",
+        "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done",
+        "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy",
         "deployed":         "maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes",
     },
 }
@@ -179,6 +180,49 @@ def next_step(phase: object, framework: str | None) -> str:
 # labels are borrowed from founder.py when it sits beside dev-flow, and the raw fields are shown otherwise.
 FOUNDER_SCRIPT = Path(__file__).resolve().parents[2] / "founder-intelligence" / "scripts" / "founder.py"
 FOUNDER_DECISIONS = ("pending", "approved", "approved_experiment", "revise", "stop", "bypassed")
+
+
+# app-verification: what counts as a change the manual must follow, and where there is first something to drive
+MATERIAL_SKILLS = {"module-add", "screenshot-to-page", "rn-add-screen", "rn-module-add", "eve-agent"}
+
+
+def verification_line(meta: dict, root: Path) -> str | None:
+    """A note when a project that has something to drive has no verification manual, or one older than the last
+    material change. None when there is nothing to say."""
+    framework = (meta.get("stack") or {}).get("framework")
+    first = "scaffolded" if framework == "agent" else "page_generated"
+    phase = routing_phase(meta.get("phase"))
+    if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index(first):
+        return None
+    found = surfaces.surfaces(root, meta)
+    missing = [s for s in found if not (root / ".claude" / "skills" / f"verify-{s.name}" / "SKILL.md").is_file()]
+    if not found and not isinstance(meta.get("verification"), dict) \
+            and not any((root / ".claude" / "skills").glob("verify-*/SKILL.md")):
+        missing = [surfaces.Surface("web", "web", ".")]
+    if missing:   # one manual per surface the project has (surfaces.py)
+        names = ", ".join(f"verify-{s.name} ({s.kind}" + (f", served by {s.mounted_in})" if s.mounted_in else ")")
+                          for s in missing)
+        return (f"Verification: missing manual for {names} — app-verification create (how to launch, drive and "
+                "prove each surface, written once into .claude/skills/)")
+    names = {s.name for s in found}
+    skills = root / ".claude" / "skills"
+    gone = sorted(d.name for d in skills.glob("verify-*") if (d / "SKILL.md").is_file()
+                  and d.name[len("verify-"):] not in names) if found and skills.is_dir() else []
+    if gone:   # a renamed or removed surface: the filled manual is the valuable part, say where it is
+        return (f"Verification: {', '.join(gone)} — no surface by that name any more (renamed or removed?); move "
+                "what it says into the new surface's manual, then delete it")
+    block = meta.get("verification")
+    if not isinstance(block, dict):
+        return ("Verification: the manual is written but not proven (no meta.json#verification) — a manual never "
+                "run is a draft: prove it live, then `verify_map.py record` (app-verification)")
+    seen = block.get("maintained_at") or block.get("proven_at") or ""
+    changes = [h for h in meta.get("history") or [] if isinstance(h, dict) and h.get("skill") in MATERIAL_SKILLS
+               and str(h.get("ran_at") or "") > seen]
+    if not changes:
+        return None
+    last = max(changes, key=lambda h: str(h.get("ran_at")))
+    return (f"Verification: the manual predates the last change ({last.get('skill')} at {last.get('ran_at')}) — "
+            "app-verification maintain")
 
 
 def founder_labels(founder: dict) -> list[str] | None:
@@ -384,6 +428,10 @@ def main() -> int:
         print("⚠ design_lint is shadcn-lint but the project has no ESLint — @shadcn/lint is an ESLint")
         print("  plugin, so the declared design lint cannot run. Add ESLint, or record design_lint")
         print("  \"none\" with stack_config.design_lint_reason.")
+        print()
+
+    if (note := verification_line(meta, root)):
+        print(note)
         print()
 
     framework = stack.get('framework')

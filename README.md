@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **54 skills (12 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **55 skills (13 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 54. Restart Claude Code if you don't see them in /skills.
+# Should print 55. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -167,6 +167,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
 | `compliance-audit` | GDPR + EU AI Act audit of an existing project (11-point risk register) + safe auto-remediation; flags legal decisions. Horizontal; proposed as a pre-deploy gate |
 | `app-security` | Can this code be attacked? Vulnerable dependencies, secrets in code and git history, Server Actions and routes with no session or ownership check (IDOR), data over-exposure — scanned, then read against an OWASP checklist; an opt-in Strix level proves exploits. The fifth pre-deploy gate |
+| `app-verification` | A manual, written once into the project (`.claude/skills/verify-<app>/`), for proving features on the real app: launch until usable, a doctor check, the real selectors, what counts as proof, cleanup of only what the run started; one feature file per PRD story, seeded from the wireframe inventory. Proven live once; a maintain pass keeps it true |
 | `spec-review` | Review a diff on two axes — does it match `PRD.md`/`tasks.md`, and does it obey the contract it was built under? Parallel sub-agents, reported side by side, never merged |
 | `figma-to-design-md` | Figma URL → `DESIGN.md` (Google design.md spec) + screenshots |
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
@@ -972,6 +973,10 @@ Four barriers, each mechanical: an **allowlist** (a new registry is the user's d
 The fifth pre-deploy gate, and the question none of the other four asks: can someone use this app to read or change what is not theirs? Three levels. A **scan** ([`scripts/scan_security.py`](./app-security/scripts/scan_security.py)) runs OSV-Scanner (or `pnpm audit` / `npm audit`), gitleaks and Semgrep when they are installed, plus eight Next.js checks of our own: Server Actions and mutating routes with no session call, queries by id with no owner filter, actions that return a raw row, secrets in `NEXT_PUBLIC_`, server modules without `server-only`, raw SQL, missing security headers. A **review** reads every flagged file, and every action and route, against an OWASP Top 10:2025 checklist ([`references/review.md`](./app-security/references/review.md)), because a session check that never checks ownership passes every scanner. A **dynamic** level, only on request, runs Strix against the app on `next start` or a preview and reports only what an exploit proved ([`references/dynamic.md`](./app-security/references/dynamic.md)).
 
 Two rules carry it. A tool that is missing, offline or unparseable reads **not checked**, never clean, and the report never calls a project clean. And nothing is installed without asking: the report prints the command. Records `meta.json#security`, with the user's reason on every risk they keep; never bumps `phase`, never blocks.
+
+### `app-verification` — prove it on the real app, with a manual written once
+
+Every agent that had to show a feature works on the running app started from nothing — how to start it, when it is really ready, which user to sign in as, where to look, how to stop without killing the user's own dev server — and what it learned was gone at the end of the session. This skill writes it down inside the project as a skill Claude Code finds by itself, `.claude/skills/verify-<app>/`: Launch, Doctor, Drive, Evidence, Cleanup, Isolation, and one feature file per PRD story. [`scripts/verify_map.py`](./app-verification/scripts/verify_map.py) scaffolds the map from `wireframe-canvas`'s screen inventory (screens, routes, roles, loading/empty/error/success states) or, without one, from the routes, and `check` refuses a manual with a gap. The agent fills it from the code and runs it once end to end before handing it over — a manual never run is a draft. A maintain pass re-reads every feature from source, drives them all live, fixes the manual and reports real regressions instead of hiding them. Adapted from pstack (Lauren Tan, MIT); nothing is committed in the user's project.
 
 ### `figma-to-design-md` — Figma → DESIGN.md
 

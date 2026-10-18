@@ -161,6 +161,7 @@ Tell the user:
 
 - **Requires** `module-add test` to have run (the test infrastructure has to exist).
 - **Plays nice with** `module-add db`, `module-add auth` — the smoke tests in `module-add test` mock these; this skill follows the same pattern.
+- **Starts from a proven journey** when there is one: a feature file of the project's verification manual (`.claude/skills/verify-<app>/features/`, from `app-verification`) already names the entry point, the accessible names and the end state — the Playwright or e2e test is that recipe made repeatable.
 - **Pre-`module-add ci`**: tests written by this skill run in CI once `module-add ci` runs (the GHA workflow added there picks up `pnpm test:run` and `pnpm test:e2e`).
 
 ## What this skill does NOT do
