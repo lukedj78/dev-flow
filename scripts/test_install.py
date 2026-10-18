@@ -197,6 +197,38 @@ class Claude(Fixture):
                 self.assertIn("--platform needs a value", r.stdout + r.stderr)
 
 
+class HostHints(Fixture):
+    """The fix a missing Python package gets must work on the Python found: Homebrew's refuses pip (PEP 668)."""
+
+    def fake_host(self, managed: bool) -> dict:
+        root = Path(self._tmp.name) / "brewroot"
+        bin_ = root / "bin"
+        bin_.mkdir(parents=True)
+        (bin_ / "python3").write_text(
+            "#!/bin/sh\ncase \"$*\" in\n  *'import yaml'*) exit 0;;\n  *'import PIL'*) exit 1;;\n"
+            f"  *EXTERNALLY*) {'echo managed' if managed else 'echo'}; exit 0;;\nesac\nexit 0\n")
+        (bin_ / "brew").write_text(f"#!/bin/sh\n[ \"$1\" = --prefix ] && echo {root}\nexit 0\n")
+        for f in bin_.iterdir():
+            f.chmod(0o755)
+        return {"PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}"}
+
+    def run_install(self, env_extra: dict) -> str:
+        env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_SKILLS_DIR", "DEV_FLOW_SKILLS_DIR")}
+        env.update(HOME=str(self.home), **env_extra)
+        r = subprocess.run(["bash", str(REPO / "install.sh")], cwd=REPO, env=env, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return r.stdout
+
+    def test_homebrew_python_is_told_to_use_brew(self) -> None:
+        out = self.run_install(self.fake_host(managed=True))
+        self.assertIn("brew install pillow", out)
+        self.assertNotIn("pip3 install pillow", out)
+
+    def test_a_python_that_takes_pip_is_told_pip(self) -> None:
+        out = self.run_install(self.fake_host(managed=False))
+        self.assertIn("python3 -m pip install pillow", out)
+
+
 class Codex(Fixture):
     def setUp(self) -> None:
         super().setUp()
