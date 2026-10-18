@@ -492,7 +492,7 @@
         "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 178,
+      "skill_md_lines": 180,
       "bundle": "dist/module-add.skill"
     },
     {
