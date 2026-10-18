@@ -259,6 +259,23 @@ def scope_line(meta: dict, root: Path) -> str | None:
             f"request passes prd-from-idea/references/scope-check.md before it becomes work.")
 
 
+def observability_line(meta: dict, root: Path) -> str | None:
+    """From feature_complete, a web or Expo app with no observability level gets a note: nobody would know when
+    production breaks. Never a block."""
+    phase = routing_phase(meta.get("phase"))
+    if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index("feature_complete"):
+        return None
+    if (meta.get("stack") or {}).get("observability"):
+        return None
+    kinds = {s.kind for s in surfaces.surfaces(root, meta)}
+    if "web" in kinds:
+        return ("Observability: no error tracking yet — production can break with nobody told. module-add observability "
+                "(errors first: Sentry EU or GlitchTip, proven against a local fake ingest before any account)")
+    if "mobile" in kinds:
+        return "Observability: no crash reporting yet — rn-module-add observability (Sentry EU or GlitchTip)"
+    return None
+
+
 def founder_labels(founder: dict) -> list[str] | None:
     if not FOUNDER_SCRIPT.is_file():
         return None
@@ -468,6 +485,9 @@ def main() -> int:
         print(note)
         print()
     if (note := scope_line(meta, root)):
+        print(note)
+        print()
+    if (note := observability_line(meta, root)):
         print(note)
         print()
 

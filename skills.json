@@ -183,7 +183,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 307,
+      "skill_md_lines": 308,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -626,7 +626,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 286,
+      "skill_md_lines": 290,
       "bundle": "dist/vercel-deploy.skill"
     },
     {

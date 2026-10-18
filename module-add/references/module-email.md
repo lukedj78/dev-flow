@@ -271,7 +271,7 @@ await sendEmail({
 });
 ```
 
-The send is **fire-and-forget** for transactional UX — you don't want the user's sign-up to fail because the email provider blipped. Log the `{ ok: false }` case to your monitoring; don't surface it to the user.
+The send is **fire-and-forget** for transactional UX — you don't want the user's sign-up to fail because the email provider blipped. Log the `{ ok: false }` case with `lib/log.ts` (`log.warn("email_failed", { template, reason })`, from `module-add observability`, level `logs`); don't surface it to the user.
 
 ## Testing without real recipients
 

@@ -203,6 +203,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 - **UI quality** — `shadscan`, one of the five pre-deploy gates.
 - **Security** — `app-security`, the fifth pre-deploy gate: any time, any stack, and after every material change.
 - **Scope changes** — a request the PRD does not contain (a feature asked in chat, a story added, a mid-sprint issue, a `spec-review` scope-creep finding) passes `prd-from-idea/references/scope-check.md` before it becomes work: four questions, four outcomes (add, defer, reject, experiment), the user decides, `scripts/scope.py record` writes it in the PRD. Never a block.
+- **Observability** — `module-add observability` (web) and `rn-module-add observability` (Expo): errors to a tracker with the release and nothing personal, structured logs with a request id, an uptime check. Proposed once before the first production deploy, then at every deploy while `stack.observability` is empty. Never a block.
 - **Verification** — `app-verification`: once there is something to drive, a manual written into the project (`.claude/skills/verify-<app>/`) for proving features on the real app; `maintain` before the gates and after material changes. Not a gate.
 - **Animated icons** — `animated-icons`, web only, horizontal, no phase bump.
 - **Measurement (opt-in)** — "measure usage", "aggiungi gli analytics", a prototype promoted to a product: `module-add analytics` (web) or `rn-module-add analytics` (Expo), at any phase, a level at a time. Never proposed to a project that did not ask.
