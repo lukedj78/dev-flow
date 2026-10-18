@@ -27,7 +27,7 @@ from dev_flow_contract import (
 
 What that means in practice:
 
-- **It does not run dev-flow's phase gates.** `set_phase()` enforces monotonicity only. `update_meta.py set-phase` also refuses a move until the inventory, the wireframe canvas, the data-residency decision, the design lint, registry intake and the primitives guard are on record. A tool that moves phase through this package walks past all six — move phase with `update_meta.py`.
+- **It does not run dev-flow's phase gates.** `set_phase()` enforces monotonicity only. `update_meta.py set-phase` also refuses a move until the inventory, the wireframe canvas, the data-residency decision, the design lint, registry intake and the primitives guard are on record, and, on the founder path, until the founder has approved the Playbook (`meta.json#founder`, kept like any field this package does not model). A tool that moves phase through this package walks past all seven — move phase with `update_meta.py`.
 - **It keeps what it does not model.** Keys the dataclasses don't know (`inventory`, `wireframes`, `linear`, `stack.agent`, `stack.data_residency`, a history entry's `action`…) are written back untouched, and an entry no call changed is written back exactly as read.
 - **Writes are atomic**, like the scripts': a reader never sees a half-written `meta.json`. There is no lock, so two writers at once can still lose one's change; the scripts take one (`dev-flow/scripts/meta_io.py`).
 

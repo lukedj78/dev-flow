@@ -1,0 +1,2 @@
+{"i": 0, "tool": "Bash", "input": "command=python3 ~/.claude/skills/founder-intelligence/scripts/founder.py decide . revise --reason \"my network is in accounting firms, not law firms\"\ndescription=x", "output": "recorded: revise"}
+{"i": 1, "tool": "Write", "input": "file_path={root}/.workflow/founder/founder-playbook.md\ncontent=...", "output": "File created"}

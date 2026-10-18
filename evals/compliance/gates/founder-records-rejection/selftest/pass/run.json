@@ -1,0 +1,11 @@
+[
+ [
+  "python3",
+  "{repo}/founder-intelligence/scripts/founder.py",
+  "decide",
+  "{root}",
+  "revise",
+  "--reason",
+  "my network is in accounting firms, not law firms"
+ ]
+]

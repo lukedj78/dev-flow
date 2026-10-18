@@ -1,0 +1,10 @@
+{
+  "start_existing": true,
+  "reads_prd": true,
+  "writes_handoff": true,
+  "no_phase_move": true,
+  "phase_kept": true,
+  "mode_existing": true,
+  "handoff_written": true,
+  "prd_untouched": true
+}

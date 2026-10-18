@@ -23,8 +23,8 @@ import phases  # noqa: E402 — the phase enum and its aliases, shared with upda
 # module_added row for a phase the contract says it never reaches.
 # All phase keys are snake_case (contract §phase enum); legacy kebab-case is normalized below.
 COMMON_NEXT = {
-    "empty":            "inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea",
-    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'",
+    "empty":            "ask the user which kind of project this is — a product to sell whose market is not settled → founder-intelligence (the full check before any PRD); a prototype, internal tool, refactor or decided product → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea",
+    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'; if the user has not chosen yet, ask the user whether a full check (founder-intelligence) should come first",
 }
 
 PHASE_NEXT_BY_STACK = {
@@ -175,6 +175,75 @@ def next_step(phase: object, framework: str | None) -> str:
             "check the phase with the user before moving on)")
 
 
+# The founder path (founder-intelligence) is optional: dev-flow must route without the skill installed, so its
+# labels are borrowed from founder.py when it sits beside dev-flow, and the raw fields are shown otherwise.
+FOUNDER_SCRIPT = Path(__file__).resolve().parents[2] / "founder-intelligence" / "scripts" / "founder.py"
+FOUNDER_DECISIONS = ("pending", "approved", "approved_experiment", "revise", "stop", "bypassed")
+
+
+def founder_labels(founder: dict) -> list[str] | None:
+    if not FOUNDER_SCRIPT.is_file():
+        return None
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("founder_for_show_state", FOUNDER_SCRIPT)
+        mod = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(FOUNDER_SCRIPT.parent))
+        spec.loader.exec_module(mod)
+        return mod.labels(founder)
+    except Exception:  # an installed copy that does not load must not break routing
+        return None
+
+
+def founder_line(founder: object) -> str:
+    if not isinstance(founder, dict):
+        return "meta.json#founder is not an object — run founder-intelligence/scripts/founder.py status"
+    raw = (f"{founder.get('mode')} · research {founder.get('research')} · decision {founder.get('decision')}"
+           f" · Playbook v{founder.get('version', 0)}")
+    found = founder_labels(founder)
+    return raw + (f" · {' · '.join(found)}" if found else "")
+
+
+def founder_step(meta: dict, root: Path) -> str | None:
+    """The proposal when the founder path decides what comes next; None to route as the phase table says."""
+    founder = meta.get("founder")
+    if founder is None:
+        return None
+    script = "founder-intelligence/scripts/founder.py"
+    if not isinstance(founder, dict) or founder.get("decision") not in FOUNDER_DECISIONS:
+        return f"fix meta.json#founder first ({script} status {root} says what is wrong)"
+    decision, playbook = founder["decision"], founder.get("playbook") or ".workflow/founder/founder-playbook.md"
+    if decision == "bypassed":
+        return None
+    if decision == "stop":
+        return (f"nothing — the founder stopped this project ({founder.get('reason') or 'no reason recorded'}). "
+                f"To reopen: python3 {script} start {root} --mode {founder.get('mode', 'new')}")
+    if decision == "pending" and founder.get("research") == "complete":
+        return (f"present the Playbook to the founder — conclusions, the strongest evidence against, the open "
+                f"hypotheses, the recommendation and its alternatives — and record their decision: "
+                f"{script} approve | decide | bypass {root}. The founder decides; dev-flow waits")
+    if decision in ("pending", "revise"):
+        what = "review and the proposals in handoff.md" if founder.get("mode") == "existing" else "Playbook"
+        return (f"founder-intelligence — continue the {what} ({script} status {root}); "
+                "dev-flow waits for the founder's decision")
+    if founder.get("mode") == "existing":
+        return (f"apply the proposals the founder accepted in .workflow/founder/handoff.md — prd-from-idea for the "
+                f"PRD, prd-to-tasks for new tasks — then continue: {next_step(meta.get('phase'), (meta.get('stack') or {}).get('framework'))}")
+    if (phases.index(routing_phase(meta.get("phase")) or "empty") or 0) >= phases.index("prd_drafted"):
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import founder_gate
+
+    passed, why = founder_gate.verify(root, meta)
+    if not passed:  # what set-phase prd_drafted would refuse: say it now, before a whole PRD is written
+        return (f"the approval no longer holds ({why.splitlines()[0]}) — show the founder the current Playbook and "
+                f"record their decision again: {script} approve {root} --user-said \"<their words>\"")
+    scope = (" (limited to the approved experiment: founder.experiment)"
+             if decision == "approved_experiment" else "")
+    return (f"prd-from-idea, from the approved Playbook ({playbook}){scope} — the decisions it marks as locked "
+            "go into PROJECT.md / PRD.md unchanged; the open hypotheses into §Open questions")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('project_root', type=Path)
@@ -209,6 +278,8 @@ def main() -> int:
     stack = meta.get('stack') or {}
     stack_str = ", ".join(f"{k}={v}" for k, v in stack.items() if v) or "(undecided)"
     print(f"Stack:    {stack_str}")
+    if 'founder' in meta:
+        print(f"Founder:  {founder_line(meta['founder'])}")
     print()
 
     files = []
@@ -315,7 +386,7 @@ def main() -> int:
         print()
 
     framework = stack.get('framework')
-    nxt = next_step(meta.get('phase'), framework)
+    nxt = founder_step(meta, root) or next_step(meta.get('phase'), framework)
     if behind:
         here = Path(__file__).resolve().parent
         dmta = here.parents[1] / 'design-md-to-app' / 'scripts' / 'setup_design_lint.py'

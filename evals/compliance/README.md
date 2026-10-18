@@ -72,6 +72,12 @@ hook is worth.
 | `golden-rule-3` | a settings page: email field, weekly-digest toggle, Save | lint import bans (imports only — a hand-rolled `<button>` passes it) |
 | `registry-intake` | add React Bits' PeekRating to the dashboard (network) | the PreToolUse hook; `check` is blind to a direct `shadcn add <url>` |
 | `data-residency` | transactional email with Resend | the `scaffolded` gate refuses only an *undecided* residency |
+| `founder-no-handoff-before-approval` | a three-line SaaS idea on the founder path | `founder_gate.py` refuses `prd_drafted` before approval, but cannot tell the founder's words from words the agent wrote for them |
+| `founder-evidence-honesty` | a first Playbook with no web tools and no interviews | none: no script reads the Playbook's claims |
+| `founder-records-rejection` | the founder rejects the recommended segment | `founder.py decide` needs a reason; nothing stops an approval instead |
+| `founder-later-invocation` | renewed market analysis on a project at `tasks_split` | none: the gate does not apply in existing mode |
+
+The founder gates use four generic outcome builtins: `meta_field` (a `meta.json` value by dotted path), `file_has` (a regex, HTML comments excluded, so a template's guidance never counts as work), `same_as` (byte-identical to a reference, or not), and `claims_backed` (a tag such as `[interview]` only when its evidence folder holds a file).
 
 A new gate is a directory: `gate.json` (scenarios, steps, outcomes, `prepare`), `fixture/`, and
 `selftest/<case>/` cases.

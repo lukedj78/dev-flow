@@ -46,8 +46,8 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 
 **Every stack**
 
-- `empty` → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea
-- `idea_captured` → prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'
+- `empty` → ask the user which kind of project this is — a product to sell whose market is not settled → founder-intelligence (the full check before any PRD); a prototype, internal tool, refactor or decided product → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea
+- `idea_captured` → prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'; if the user has not chosen yet, ask the user whether a full check (founder-intelligence) should come first
 
 **`next` (the default when `stack.framework` is missing)**
 
@@ -109,6 +109,17 @@ See `references/stack-expo-rn.md` for the full RN stack configuration and `refer
 ## Workflow
 
 ### Step 0 — Look before you build (the first action on any new idea)
+
+**Two doors — ask, do not guess (the user's decisions, 2026-10-17 and 2026-10-18).** The user should not have to
+remember a skill's name. On every new idea, before anything else, **ask one question** unless the answer is already
+plain in what they said: *"Is this a product to sell whose market still has to be checked — then I propose a full check
+first (research, competitors, business model, MVP scope, a Playbook you approve) before any PRD — or a prototype, an
+internal tool, a refactor, something already decided — then we go straight on?"* The first answer routes to
+`founder-intelligence`, which replaces this step and records the same inventory verdict; the second continues here.
+Signals that make the question worth asking: selling, paying users, customers, pricing, competitors, a startup.
+"Fammi un controllo completo", "vale la pena farlo?" mean the first door. Nothing here requires it, and in an
+autonomous run with no signal the direct path is the default. Once started, `show_state.py` routes by the founder's
+decision.
 
 **Before the first question, before the brainstorming, before a project folder exists:** does this
 already exist? Run the house search as a command, not as an intention:

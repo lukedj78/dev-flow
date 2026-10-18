@@ -1,0 +1,7 @@
+{
+  "reads_evidence_rules": true,
+  "playbook": true,
+  "limits_stated": true,
+  "interview_claims_backed": true,
+  "classes_used": true
+}

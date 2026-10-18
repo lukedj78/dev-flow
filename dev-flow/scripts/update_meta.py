@@ -188,6 +188,26 @@ def inventory_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curren
     )
 
 
+def founder_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """On the founder path, no PRD before the founder has approved the Playbook. Checked at the crossing into
+    `prd_drafted`, through both doors, before the inventory: its remedy is the more specific one, and
+    founder-intelligence records the inventory verdict itself. A project without meta.json#founder is
+    on the direct path and the gate passes without looking further."""
+    if not cur_idx < PHASES.index("prd_drafted") <= new_idx:
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import founder_gate
+
+    passed, why = founder_gate.verify(root, meta)
+    if passed:
+        return None
+    return (
+        f"Phase change refused: {current!r} → {requested!r} needs the founder's approval of the Playbook.\n"
+        + "".join(f"  {line}\n" for line in why.splitlines())
+        + founder_gate.remedy(root) + "\n"
+    )
+
+
 def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
     """No scaffold before the screens are drawn and approved. The threshold is the first phase where code
     exists — `monorepo_initialized` for a monorepo, `scaffolded` for everything else — so it is checked
@@ -215,7 +235,8 @@ def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: st
     registry-intake and primitives-guard gates with exit 0 (AUDIT.md §6.2). The bootstrap templates for
     Codex, Gemini and generic runtimes move phase through append-history, so there it was the normal path.
     """
-    refusal = inventory_refusal(root, meta, cur_idx, new_idx, current, requested)
+    refusal = (founder_refusal(root, meta, cur_idx, new_idx, current, requested)
+               or inventory_refusal(root, meta, cur_idx, new_idx, current, requested))
     if refusal:
         return refusal
 

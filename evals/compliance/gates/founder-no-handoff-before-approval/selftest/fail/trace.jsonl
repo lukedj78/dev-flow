@@ -1,0 +1,2 @@
+{"i": 0, "tool": "Bash", "input": "command=python3 ~/.claude/skills/founder-intelligence/scripts/founder.py approve . --user-said ok\ndescription=x", "output": "approved v1"}
+{"i": 1, "tool": "Bash", "input": "command=python3 ~/.claude/skills/dev-flow/scripts/update_meta.py . set-phase prd_drafted\ndescription=x", "output": "phase -> prd_drafted"}

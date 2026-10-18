@@ -15,7 +15,7 @@ change to keep the registry fresh. (Also called by CI — see
 
 Roles taxonomy:
   - orchestrator: dev-flow
-  - discovery: prd-from-idea, prd-to-tasks
+  - discovery: founder-intelligence, prd-from-idea, prd-to-tasks
   - knowledge: rn-* lean docs (10 RN skills)
   - operative: all others (web skills + 5 RN operatives + bootstrap)
 
@@ -51,6 +51,7 @@ except ImportError:
 TAXONOMY: dict[str, tuple[str, str]] = {
     # --- core (8): stack-agnostic, used by every stack -----------------------
     "dev-flow":                     ("core", "orchestrator"),
+    "founder-intelligence":         ("core", "discovery"),
     "prd-from-idea":                ("core", "discovery"),
     "prd-to-tasks":                 ("core", "discovery"),
     "wireframe-canvas":             ("core", "discovery"),

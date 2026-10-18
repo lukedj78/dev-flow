@@ -121,5 +121,107 @@ class Output(Fixture):
         self.assertIn("stack.lint says biome, the repository runs eslint", self.show().stdout)
 
 
+class FounderPath(unittest.TestCase):
+    """The founder path: dev-flow proposes it, never requires it, and routes by the founder's decision."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / ".workflow/founder").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def meta(self, phase="idea_captured", **founder) -> dict:
+        base = {"mode": "new", "research": "complete", "decision": "pending",
+                "playbook": ".workflow/founder/founder-playbook.md", "version": 1, "open_hypotheses": []}
+        base.update(founder)
+        return {"phase": phase, "stack": {}, "founder": base}
+
+    def show(self, meta: dict) -> str:
+        (self.root / ".workflow/meta.json").write_text(json.dumps({"history": [], "artifacts": {}, **meta}))
+        r = subprocess.run([sys.executable, str(HERE / "show_state.py"), str(self.root)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_empty_and_idea_captured_mention_both_doors(self) -> None:
+        for phase in ("empty", "idea_captured"):
+            with self.subTest(phase=phase):
+                text = ss.COMMON_NEXT[phase]
+                self.assertTrue(text.startswith(("ask the user", "prd-from-idea")))
+                self.assertIn("inventory first", text)   # the direct door is still named
+                self.assertIn("founder-intelligence", text)
+                self.assertIn("ask the user", text)
+
+    def test_no_founder_field_routes_as_before(self) -> None:
+        for phase in phases.PHASES:
+            with self.subTest(phase=phase):
+                self.assertIsNone(ss.founder_step({"phase": phase}, self.root))
+
+    def test_pending_routes_to_founder_intelligence_and_prints_labels(self) -> None:
+        out = self.show(self.meta())
+        self.assertIn("READY_FOR_FOUNDER_APPROVAL", out)
+        self.assertIn("Next step proposal", out)
+        self.assertIn("founder-intelligence", out.split("Next step proposal")[1])
+
+    def test_approved_new_routes_to_prd_from_idea_with_playbook(self) -> None:
+        import hashlib
+        pb = self.root / ".workflow/founder/founder-playbook.md"
+        pb.write_text("approved\n")
+        step = ss.founder_step(self.meta(decision="approved", approved_by_user=True, approval_quote="sì",
+                                         playbook_sha256=hashlib.sha256(pb.read_bytes()).hexdigest()), self.root)
+        self.assertIn("prd-from-idea", step)
+        self.assertIn("founder-playbook.md", step)
+
+    def test_approved_but_changed_playbook_asks_for_reapproval(self) -> None:
+        # The gate would refuse prd_drafted; proposing the PRD would waste a whole PRD before the refusal.
+        pb = self.root / ".workflow/founder/founder-playbook.md"
+        pb.write_text("approved text\n")
+        import hashlib
+        meta = self.meta(decision="approved", playbook_sha256=hashlib.sha256(pb.read_bytes()).hexdigest(),
+                         approved_by_user=True, approval_quote="sì")
+        self.assertIn("prd-from-idea", ss.founder_step(meta, self.root))
+        pb.write_text("approved text\nedited after\n")
+        step = ss.founder_step(meta, self.root)
+        self.assertNotIn("prd-from-idea,", step)
+        self.assertIn("approve", step)
+        pb.unlink()
+        self.assertIn("approve", ss.founder_step(meta, self.root))
+
+    def test_ready_for_approval_proposes_presenting_not_continuing(self) -> None:
+        step = ss.founder_step(self.meta(research="complete", decision="pending"), self.root)
+        self.assertIn("present the Playbook to the founder", step)
+        self.assertNotIn("continue the Playbook", step)
+        self.assertIn("continue the Playbook", ss.founder_step(self.meta(research="in_progress"), self.root))
+
+    def test_approved_new_past_the_prd_routes_normally(self) -> None:
+        self.assertIsNone(ss.founder_step(self.meta(phase="tasks_split", decision="approved"), self.root))
+
+    def test_approved_existing_routes_to_apply_handoff(self) -> None:
+        step = ss.founder_step(self.meta(phase="tasks_split", mode="existing", decision="approved"), self.root)
+        for word in ("handoff.md", "prd-from-idea", "prd-to-tasks"):
+            self.assertIn(word, step)
+
+    def test_stop_proposes_nothing_and_says_how_to_reopen(self) -> None:
+        step = ss.founder_step(self.meta(decision="stop", reason="no market"), self.root)
+        self.assertIn("stopped", step)
+        self.assertIn("founder.py start", step)
+        self.assertNotIn("prd-from-idea", step)
+
+    def test_bypassed_routes_to_inventory(self) -> None:
+        self.assertIsNone(ss.founder_step(self.meta(phase="empty", decision="bypassed", reason="x"), self.root))
+        out = self.show(self.meta(phase="empty", decision="bypassed", reason="internal tool"))
+        self.assertIn("inventory first", out.split("Next step proposal")[1])
+
+    def test_works_without_the_skill_installed(self) -> None:
+        saved = ss.FOUNDER_SCRIPT
+        ss.FOUNDER_SCRIPT = self.root / "nowhere" / "founder.py"
+        try:
+            self.assertIn("pending", ss.founder_line(self.meta()["founder"]))
+            self.assertIn("founder-intelligence", ss.founder_step(self.meta(), self.root))
+        finally:
+            ss.FOUNDER_SCRIPT = saved
+
+
 if __name__ == "__main__":
     unittest.main()

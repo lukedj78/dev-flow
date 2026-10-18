@@ -48,6 +48,7 @@ esac
 SKILLS=(
   # Core
   dev-flow
+  founder-intelligence
   prd-from-idea
   prd-to-tasks
   wireframe-canvas

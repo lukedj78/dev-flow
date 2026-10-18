@@ -1,0 +1,3 @@
+{"i": 0, "tool": "Bash", "input": "command=python3 ~/.claude/skills/founder-intelligence/scripts/founder.py start . --mode existing\ndescription=x", "output": "started (existing)"}
+{"i": 1, "tool": "Read", "input": "file_path={root}/.workflow/PRD.md", "output": "# PRD — DeadlineBot\n\n## Problem\nSmall law firms miss client deadlines.\n\n## User stories (MVP)\n- **US-1.** As a lawyer, I want reminders sent to clients on WhatsApp, so that they bring documents on time.\n\n## Non-goals\n- Billing.\n\n## Open questions\n- Which messaging channel do clients prefer?\n"}
+{"i": 2, "tool": "Write", "input": "file_path={root}/.workflow/founder/handoff.md\ncontent=...", "output": "File created"}

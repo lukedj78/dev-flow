@@ -82,6 +82,11 @@ A "dev-flow project" is a **standard codebase root** (the directory that contain
 │   ├── DESIGN.md                 # design system per Google design.md spec
 │   ├── screenshots/              # raw or annotated UI references
 │   │   └── *.{png,jpg}
+│   ├── founder/                  # only on the founder path (founder-intelligence), absent otherwise
+│   │   ├── founder-playbook.md   # the strategic document the founder approves
+│   │   ├── sources.md            # evidence register: URL, date read, what it supports, decisions that depend on it
+│   │   ├── interviews/NN-<who>.md  # notes of real interviews, written or pasted by the founder
+│   │   └── handoff.md            # existing projects only: proposed PRD/scope/metric changes for dev-flow
 │   └── decisions/                # ADR-style decisions, one per file (optional)
 │       └── 0001-stack.md
 ├── docs/wireframes/              # ← screen-inventory.md + png/<ID>-{desktop,phone}.png (wireframe-canvas)
@@ -207,6 +212,50 @@ Every project with a UI draws all its screens before any code is scaffolded (the
 ```
 
 The opt-out is `{ "skipped": true, "reason": "<sentence>" }`; a skip without a reason does not count. **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `monorepo_initialized` or `scaffolded` while the block is missing, unapproved, short of two artboards per screen, or pointing at an inventory that is not on disk** (`dev-flow/scripts/wireframes_gate.py`). Projects already past that point are not blocked; `show_state.py` flags them, and flags an approved canvas whose screenshots are not yet on the issues. Agent-only projects (`framework: "agent"`) are not affected. After approval the PNGs live in `docs/wireframes/png/<ID>-desktop.png` / `<ID>-phone.png` and are commented on every tracker issue whose story maps to the screen.
+
+### `inventory` field (owned by `dev-flow/scripts/inventory.py`)
+
+"Does this already exist?" answered before any PRD: in the house, in tools already paid for, in the Claude ecosystem, outside (`dev-flow/references/before-you-build.md`). Written only through `inventory.py record`:
+
+```json
+"inventory": {
+  "verdict": "have-it | adapts | halfway | build | skipped",
+  "summary": "<one paragraph>", "searched": ["<channel or query>", "..."], "not_covered": ["<channel not reached>"],
+  "reason": "<required when skipped>", "ran_at": "<ISO-8601 UTC>"
+}
+```
+
+A verdict other than `skipped` needs a non-empty `searched`; `skipped` needs a `reason`. **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `prd_drafted` without it** (`dev-flow/scripts/inventory_gate.py`). On the founder path, `founder-intelligence` records this verdict at its feasibility stage, so the gate is the same on both paths.
+
+### `founder` field (optional, owned by `founder-intelligence`)
+
+For a commercial idea whose market is not settled, the founder path replaces the inventory step: research, customer discovery, competitors, business model and MVP scope, collected in a Playbook the founder approves before any PRD (the user's decision, 2026-10-17; `docs/superpowers/specs/2026-10-17-founder-intelligence-design.md`). Written only through `founder-intelligence/scripts/founder.py`:
+
+```json
+"founder": {
+  "mode": "new | existing",
+  "research": "in_progress | complete",
+  "decision": "pending | approved | approved_experiment | revise | stop | bypassed",
+  "playbook": ".workflow/founder/founder-playbook.md",
+  "version": 3, "playbook_sha256": "<sha256 of the Playbook as approved>",
+  "open_hypotheses": ["H2", "H5"],
+  "approved_at": "<ISO-8601 UTC>", "approved_by_user": true, "approval_quote": "<the founder's words>",
+  "experiment": { "scope": "…", "objective": "…", "constraints": "…", "acceptance": "…" },
+  "reason": "<why revise, stop or bypassed>"
+}
+```
+
+Research and decision are two axes, because a Playbook can be approved with hypotheses still open. The labels people read are derived from them (`show_state.py`, `founder.py status`):
+
+| Label | When |
+|---|---|
+| `RESEARCH_COMPLETE` | `research = complete` |
+| `NEEDS_VALIDATION` | `open_hypotheses` not empty (shown alongside the others) |
+| `READY_FOR_FOUNDER_APPROVAL` | `research = complete` and `decision = pending` |
+| `APPROVED_FOR_DEVFLOW` | `decision = approved` or `approved_experiment` |
+| `REVISE_OR_STOP` | `decision = revise` or `stop` |
+
+**Applies only when present.** A project without the field is on the direct path and nothing here concerns it. With `mode: "new"`, **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `prd_drafted` unless the decision is `approved` or `approved_experiment` with the founder's quote and a Playbook whose sha256 still matches, or `bypassed` with a reason** (`dev-flow/scripts/founder_gate.py`). A Playbook edited after approval needs a new `founder.py approve`. With `mode: "existing"` (invoked on a project already past the PRD) the gate does not apply; the result is `handoff.md`, applied with `prd-from-idea` / `prd-to-tasks` once the founder agrees. Approval is not product-market fit: open hypotheses stay listed.
 
 ### `phase` enum (canonical)
 

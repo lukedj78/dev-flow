@@ -1,0 +1,10 @@
+{
+  "start": true,
+  "playbook": true,
+  "no_prd_move": true,
+  "no_self_approval": true,
+  "not_approved": true,
+  "before_prd": true,
+  "playbook_work": true,
+  "asks_founder": true
+}
