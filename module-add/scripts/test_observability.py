@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -226,3 +227,59 @@ class FakeIngest(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IngestSafety(Fixture):
+    """Security review of 2026-10-18: the event_id came from the request and named the file (path traversal), and
+    any web page could post to the local server."""
+
+    def serve(self):
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        out = self.root / "events"
+        server = fi.make_server(port, out)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return port, out
+
+    def post(self, port: int, body: bytes, origin: str | None = None) -> int:
+        headers = {"Content-Type": "application/x-sentry-envelope"}
+        if origin:
+            headers["Origin"] = origin
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/1/envelope/", data=body, method="POST", headers=headers)
+        try:
+            return urllib.request.urlopen(req, timeout=5).status
+        except urllib.error.HTTPError as e:
+            return e.code
+
+    def test_a_traversal_event_id_stays_inside(self) -> None:
+        port, out = self.serve()
+        evil = dict(FakeIngest.EVENT, event_id="../../escaped")
+        self.assertEqual(self.post(port, envelope(evil)), 200)
+        self.assertFalse((self.root / "escaped.json").exists())
+        self.assertFalse((self.root.parent / "escaped.json").exists())
+        files = list(out.glob("*.json"))
+        self.assertEqual(len(files), 1)
+        self.assertRegex(files[0].name, r"^[0-9a-f]{32}\.json$")
+
+    def test_a_foreign_origin_is_refused(self) -> None:
+        port, out = self.serve()
+        self.assertEqual(self.post(port, envelope(FakeIngest.EVENT), origin="https://evil.example"), 403)
+        self.assertEqual(list(out.glob("*.json")), [])
+
+    def test_the_apps_own_localhost_origin_is_accepted(self) -> None:
+        port, out = self.serve()
+        self.assertEqual(self.post(port, envelope(FakeIngest.EVENT), origin="http://localhost:3313"), 200)
+        self.assertEqual(len(list(out.glob("*.json"))), 1)
+
+    def test_an_oversized_body_is_refused(self) -> None:
+        # refused before it is read: the client sees 413, or the connection closed under it — never a stored event
+        port, out = self.serve()
+        try:
+            code = self.post(port, b"x" * (fi.MAX_BODY + 1))
+        except urllib.error.URLError:
+            code = 413
+        self.assertEqual(code, 413)
+        self.assertEqual(list(out.glob("*.json")), [])

@@ -19,10 +19,14 @@ import gzip
 import json
 import re
 import sys
+import uuid
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+MAX_BODY = 5 * 1024 * 1024
+EVENT_ID = re.compile(r"^[0-9a-f]{32}$")
+LOCAL_ORIGIN = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 AUTHORIZATION = re.compile(r'"authorization"\s*:\s*"[^"]+', re.I)
 
@@ -74,20 +78,47 @@ def make_server(port: int, out: Path) -> ThreadingHTTPServer:
     out.mkdir(parents=True, exist_ok=True)
 
     class Handler(BaseHTTPRequestHandler):
+        def refuse(self, code: int) -> None:
+            self.send_response(code)
+            self.end_headers()
+
         def do_POST(self) -> None:   # noqa: N802
-            raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            # a browser sends Origin: the app's own localhost page may post its client errors, no other site may
+            origin = self.headers.get("Origin")
+            if origin and not LOCAL_ORIGIN.match(origin):
+                return self.refuse(403)
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY:
+                return self.refuse(413)
+            raw = self.rfile.read(length)
             try:
                 body = decode(raw, self.headers.get("Content-Encoding"))
                 events = parse_envelope(body) if "/envelope" in self.path else [json.loads(body)]
             except (OSError, ValueError, zlib.error):
                 events = []
             for ev in events:
-                name = f"{ev.get('event_id') or len(list(out.glob('*.json')))}.json"
-                (out / name).write_text(json.dumps(ev, indent=1), encoding="utf-8")
+                # the file name never comes from the request as is: a 32-hex event id, or a fresh one
+                eid = str(ev.get("event_id") or "").lower()
+                target = (out / f"{eid if EVENT_ID.match(eid) else uuid.uuid4().hex}.json").resolve()
+                if target.parent != out.resolve():
+                    continue
+                target.write_text(json.dumps(ev, indent=1), encoding="utf-8")
             self.send_response(200)
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(b"{}")
+
+        def do_OPTIONS(self) -> None:   # noqa: N802 — the browser SDK's preflight, from the app's localhost origin only
+            origin = self.headers.get("Origin") or ""
+            if not LOCAL_ORIGIN.match(origin):
+                return self.refuse(403)
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "POST")
+            self.send_header("Access-Control-Allow-Headers", "content-type, x-sentry-auth")
+            self.end_headers()
 
         def log_message(self, *args) -> None:   # quiet
             pass
