@@ -12,6 +12,16 @@ Print this to the user before deploy, asking them to confirm each. Block on miss
 - [ ] No `console.log` in shipped code (use `expo-dev-tools` logging, dev-only).
 - [ ] No hardcoded localhost URLs or dev secrets.
 
+## Measurement (only if `meta.json#stack.analytics` is not empty)
+
+`launch-audit` does not run on mobile, so its two measurement checks live here. A project that did not ask to
+measure skips this section: that is not a gap.
+
+- [ ] With `product`: `.workflow/PRD.md` has `## Measurement` with the activation event and D7/D30 targets, none
+      `TBD` (else `prd-from-idea`).
+- [ ] The activation event appears in a `track(` call in the app (else `rn-module-add analytics`).
+- [ ] The privacy label and Data safety declare the usage data (`rn-publishing-payments/references/review-guidelines.md`).
+
 ## Configuration
 
 - [ ] `app.json#expo.version` bumped (semver).

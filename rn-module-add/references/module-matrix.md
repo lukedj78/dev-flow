@@ -67,6 +67,18 @@ The skill ALWAYS configures `expo-notifications`. The "provider" choice only cha
 | RevenueCat | `lib/purchases.ts`, `hooks/usePro.ts`, `app/_layout.tsx` patch (configure on sign-in) | **YES** (`react-native-purchases` native SDK) |
 | Stripe (non-digital only) | `lib/stripe.ts` (Checkout session URL handler via expo-web-browser), `expo-web-browser` install | No (WebView only) |
 
+## `analytics`
+
+Opt-in, by level — `references/module-analytics.md`. No `traffic` level on mobile (the store consoles report it).
+
+| Provider | `product` files | Where activation and D7/D30 come from | Native rebuild? |
+|---|---|---|---|
+| Supabase | `lib/analytics/{events,track}.ts`, a migration with the table and an insert-own-rows RLS policy | `module-add/assets/analytics/metrics.sql` in the SQL editor | No |
+| Firebase | `lib/analytics/{events,track}.ts`, a Firestore rule allowing creates of own events | a Node script with the Admin SDK | No (Firestore is already wired) |
+| Custom REST | `lib/analytics/{events,track}.ts` calling `POST /events` | the backend's database | No |
+| tRPC | `lib/analytics/{events,track}.ts` calling `analytics.track` | the backend; the web module's `product` level when it is the monorepo's Next app | No |
+| PostHog (`advanced`) | `PostHogProvider` with `host: "https://eu.i.posthog.com"` in `app/_layout.tsx` | PostHog | **YES** (native modules via `npx expo install`) |
+
 ## Wiring conventions (regardless of provider)
 
 - All client code goes in `lib/`.

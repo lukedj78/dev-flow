@@ -831,7 +831,7 @@
       "name": "rn-module-add",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs d...",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms)....",
       "skill_file": "rn-module-add/SKILL.md",
       "references": [
         "contracts.md",
@@ -841,7 +841,7 @@
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 179,
+      "skill_md_lines": 180,
       "bundle": "dist/rn-module-add.skill"
     },
     {
