@@ -19,6 +19,10 @@ recipes below are for when there is none.
   go on the command line (`/usr/bin/env A=1 pnpm …` or inside the `sh -c`): the launch.json shape has no env field.
 - **Ready is usable, not answering**: on fit-coach the process answered in 4 s and the first `/sign-up` took 56 s
   to compile; wait for the first interactive element to be enabled (hydration), never a fixed time.
+- **Doctor with `HEAD`, not `GET`**: `next dev` keeps a page's stream open, so `curl` on a GET waits for a body
+  that never ends and times out as `000` while the page works (found on fit-coach). `curl -sI` returns the status.
+- **Type only after hydration**: text typed before the first button is enabled stays visible but React holds an
+  empty value, and the submit sends nothing (no POST in the server log). Wait for enabled, then type.
 - **Drive** with the built-in browser: read the accessibility tree, act on elements by role and accessible name,
   fill forms by label. Playwright, if the repo has it, with `getByRole` / `getByLabel`.
 - **Prove** with the accessibility snapshot after the action, a screenshot, the network response of the mutation,
@@ -44,6 +48,10 @@ recipes below are for when there is none.
   feature. The identity comes from the channel, as `eve-agent` requires: use the seeded test identity.
 - **Prove** with the response, the trace (which tools ran, with which arguments) and each tool's side effect read back
   where it landed.
+- **Doctor for free**: `GET /eve/v1/health` (public) and `GET /eve/v1/info` (through the channel's auth, no model
+  call) prove the agent is mounted and exposes its tools. ⚠ When the channel lists `localDev()`, every local caller
+  is admitted under `next dev` / `eve dev` — a request **without** credentials also gets 200 — so a local check does
+  not prove the session auth; that is `eve eval`'s or a preview deployment's job (found on fit-coach).
 - **Watch for**: a model call that costs money on every run — keep prompts per feature to one turn; an approval gate
   that waits for a human (approve it as the test user, or record it as an unreachable precondition).
 
