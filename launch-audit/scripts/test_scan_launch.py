@@ -50,7 +50,8 @@ print("== it finds what is missing ==")
 with tempfile.TemporaryDirectory() as d:
     root = Path(d)
     build(root, {"app/page.tsx": PAGE_BARE, "app/pricing/page.tsx": PAGE_BARE,
-                 "package.json": '{"name":"x"}'})
+                 "package.json": '{"name":"x"}',
+                 ".workflow/meta.json": '{"stack": {"analytics": ["traffic"]}}'})
     f = scan(root)
     check("no metadata → title reported", status(f, "route-title-missing") == "missing")
     check("no metadata → description reported", status(f, "route-description-missing") == "missing")
@@ -348,6 +349,94 @@ with tempfile.TemporaryDirectory() as d:
     check("a dependency's logos and a worktree copy are not ours to audit",
           status(f, "third-party-marks") == "ok")
 
+
+print("\n== measurement: only where the project chose to measure ==")
+MEASURED = """# PRD\n\n## Measurement\n\nDecided before launch, not after. Levels: traffic, product.\n\n- **Activation event**: `invoice_sent` — the first invoice goes out\n- **Retention targets**: D7 ≥ 25 % · D30 ≥ 15 % of activated users\n- **False positives to watch**: sign-ups without an invoice\n- **Events to instrument**: `invoice_sent` (send action)\n"""
+TBD = MEASURED.replace("D7 ≥ 25 %", "D7 ≥ <TBD — needs user input>")
+NO_EVENT = MEASURED.replace("- **Activation event**: `invoice_sent` — the first invoice goes out\n", "")
+
+
+def meta(levels, **extra) -> str:
+    import json
+    return json.dumps({"stack": {"analytics": levels, **extra}})
+
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}', ".workflow/meta.json": '{"stack": {}}'})
+    f = scan(root)
+    check("not measuring → analytics not requested", status(f, "analytics-absent") == "not requested")
+    check("not measuring → targets not requested", status(f, "measurement-targets") == "not requested")
+    check("not measuring → activation not requested", status(f, "activation-instrumented") == "not requested")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"dependencies":{"@vercel/analytics":"^2"}}',
+                 ".workflow/meta.json": meta(["traffic"])})
+    f = scan(root)
+    check("traffic only → analytics ok", status(f, "analytics-absent") == "ok")
+    check("traffic only → no targets demanded", status(f, "measurement-targets") == "ok"
+          and "traffic only" in detail(f, "measurement-targets"))
+    check("traffic only → activation not checked", status(f, "activation-instrumented") == "not requested")
+
+for prd, label in ((None, "no Measurement section"), (TBD, "TBD in a target"), (NO_EVENT, "no activation event")):
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        files = {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}',
+                 "lib/analytics/track.ts": "export async function track() {}\n",
+                 ".workflow/meta.json": meta(["product"])}
+        if prd is not None:
+            files[".workflow/PRD.md"] = prd
+        build(root, files)
+        f = scan(root)
+        check(f"product, {label} → targets missing", status(f, "measurement-targets") == "missing")
+        check(f"product, {label} → routed to prd-from-idea",
+              next(x.routed_to for x in f if x.check == "measurement-targets") == "prd-from-idea")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}',
+                 "lib/analytics/track.ts": "export async function track() {}\n",
+                 ".workflow/meta.json": meta(["product"]), ".workflow/PRD.md": MEASURED})
+    f = scan(root)
+    check("product wiring counts as analytics", status(f, "analytics-absent") == "ok")
+    check("complete Measurement → targets ok", status(f, "measurement-targets") == "ok")
+    check("activation event not in code → missing", status(f, "activation-instrumented") == "missing")
+    check("activation missing → routed to module-add analytics",
+          next(x.routed_to for x in f if x.check == "activation-instrumented") == "module-add analytics")
+    build(root, {"app/actions.ts": "await track(userId, 'invoice_sent', { amount })\n"})
+    check("activation event tracked → ok", status(scan(root), "activation-instrumented") == "ok")
+
+with tempfile.TemporaryDirectory() as d:  # monorepo: .workflow at the root, the app in apps/web
+    root = Path(d)
+    build(root, {"apps/web/app/page.tsx": PAGE_META, "apps/web/package.json": '{"name":"web"}',
+                 "apps/web/lib/analytics/track.ts": "export async function track() {}\n",
+                 "apps/web/app/actions.ts": 'await track(u, "invoice_sent")\n',
+                 ".workflow/meta.json": meta(["product"]), ".workflow/PRD.md": MEASURED})
+    f = scan(root)
+    check("monorepo → targets read from the root", status(f, "measurement-targets") == "ok")
+    check("monorepo → activation found in apps/web", status(f, "activation-instrumented") == "ok")
+
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"dependencies":{"@openpanel/nextjs":"^1"}}',
+                 ".workflow/meta.json": meta(["advanced"], analytics_provider="openpanel")})
+    f = scan(root)
+    check("OpenPanel dependency → analytics ok", status(f, "analytics-absent") == "ok")
+    check("advanced without product → no targets demanded, not 'not requested'",
+          status(f, "measurement-targets") == "ok")
+
+with tempfile.TemporaryDirectory() as d:  # a provider without the advanced level: a hand edit, not a crash
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}',
+                 ".workflow/meta.json": meta([], analytics_provider="posthog")})
+    f = scan(root)
+    check("provider without advanced → findings, no crash", status(f, "analytics-absent") is not None)
+
+with tempfile.TemporaryDirectory() as d:  # an unreadable meta.json is "not measuring", not a traceback
+    root = Path(d)
+    build(root, {"app/page.tsx": PAGE_META, "package.json": '{"name":"x"}', ".workflow/meta.json": "{oops"})
+    check("invalid meta.json → not requested", status(scan(root), "analytics-absent") == "not requested")
 
 print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
 sys.exit(1 if FAIL else 0)

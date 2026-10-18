@@ -462,7 +462,7 @@
         "scan_launch.py",
         "test_scan_launch.py"
       ],
-      "skill_md_lines": 127,
+      "skill_md_lines": 128,
       "bundle": "dist/launch-audit.skill"
     },
     {

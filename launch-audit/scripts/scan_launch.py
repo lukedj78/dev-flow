@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 OK, MISS, UNKNOWN = "ok", "missing", "unknown"
+NOT_REQUESTED = "not requested"   # measurement is opt-in: a project that did not ask is not missing anything
 
 
 @dataclass
@@ -414,17 +415,81 @@ def scan(root: Path) -> list[Finding]:
             if bare else f"all {len(marks)} third-party mark(s) record their source",
             bare[:10] or marks[:10], "the user" if bare else None))
 
-    pkg = src / "package.json"
-    deps = ""
-    if pkg.is_file():
-        deps = pkg.read_text(encoding="utf-8", errors="ignore")
-    analytics = re.search(r"@vercel/analytics|posthog|plausible|umami|@segment|gtag|google-analytics",
-                          deps, re.I)
-    found.append(Finding("analytics-absent", OK if analytics else MISS,
-                         f"found {analytics.group(0)}" if analytics
-                         else "no analytics package in dependencies", [],
-                         None if analytics else "module-add"))
+    found.extend(measurement_findings(root, src))
     return found
+
+
+def read_levels(root: Path) -> list[str]:
+    """`meta.json#stack.analytics` — the measurement levels the user chose. Missing, empty or unreadable: none."""
+    try:
+        levels = (json.loads((root / ".workflow" / "meta.json").read_text(encoding="utf-8")).get("stack") or {}).get("analytics")
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [str(x) for x in levels] if isinstance(levels, list) else []
+
+
+def read_measurement(root: Path) -> dict | None:
+    """The PRD's `## Measurement` section, parsed; None when the PRD has none."""
+    try:
+        text = (root / ".workflow" / "PRD.md").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    m = re.search(r"^## Measurement\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    if not m:
+        return None
+    body = m.group(1)
+
+    def field(pattern: str) -> str | None:
+        hit = re.search(pattern, body)
+        return hit.group(1).strip() if hit else None
+
+    levels = field(r"Levels:\s*([^\n.]*)")
+    return {"levels": [x.strip() for x in levels.split(",")] if levels else [],
+            "activation": field(r"\*\*Activation event\*\*:\s*`([^`]+)`"),
+            "d7": field(r"D7\s*≥\s*([^·\n]+)"), "d30": field(r"D30\s*≥\s*([^\n]+)")}
+
+
+def measurement_findings(root: Path, src: Path) -> list[Finding]:
+    levels = read_levels(root)
+    pkg = src / "package.json"
+    deps = pkg.read_text(encoding="utf-8", errors="ignore") if pkg.is_file() else ""
+    wired = re.search(r"@vercel/analytics|posthog|plausible|umami|@openpanel/|@segment|gtag|google-analytics", deps, re.I)
+    product = (src / "lib" / "analytics" / "track.ts").is_file()
+    out = []
+    if wired or product:
+        out.append(Finding("analytics-absent", OK, f"found {wired.group(0) if wired else 'lib/analytics/track.ts'}"))
+    elif not levels:
+        out.append(Finding("analytics-absent", NOT_REQUESTED,
+                           "measurement not requested (meta.json#stack.analytics is empty) — nothing to wire"))
+    else:
+        out.append(Finding("analytics-absent", MISS, f"levels {', '.join(levels)} chosen but nothing wired",
+                           [], "module-add analytics"))
+    if "product" not in levels:
+        out.append(Finding("measurement-targets", OK if levels else NOT_REQUESTED,
+                           f"{', '.join(levels)} only — no product targets to write" if levels
+                           else "measurement not requested"))
+        out.append(Finding("activation-instrumented", NOT_REQUESTED, "no product level"))
+        return out
+    m = read_measurement(root)
+    gaps = ([] if m else ["no ## Measurement section in .workflow/PRD.md"]) + [
+        f"{name} is missing or TBD" for name in ("activation", "d7", "d30")
+        if m and (not m.get(name) or "TBD" in m[name])]
+    out.append(Finding("measurement-targets", MISS if gaps else OK,
+                       "; ".join(gaps) if gaps else f"activation `{m['activation']}`, D7 ≥ {m['d7']}, D30 ≥ {m['d30']}",
+                       [], "prd-from-idea" if gaps else None))
+    event = (m or {}).get("activation")
+    if not event or "TBD" in event:
+        out.append(Finding("activation-instrumented", UNKNOWN, "no activation event named in the PRD"))
+        return out
+    call = re.compile(r"track\(.*['\"`]" + re.escape(event) + r"['\"`]")
+    hits = [str(p.relative_to(src)) for p in sorted(src.rglob("*.ts*"))
+            if "node_modules" not in p.parts and p.suffix in (".ts", ".tsx")
+            and call.search(p.read_text(encoding="utf-8", errors="ignore"))]
+    out.append(Finding("activation-instrumented", OK if hits else MISS,
+                       f"`{event}` tracked in {len(hits)} file(s)" if hits
+                       else f"the activation event `{event}` is not tracked anywhere", hits[:5],
+                       None if hits else "module-add analytics"))
+    return out
 
 
 def main() -> int:
