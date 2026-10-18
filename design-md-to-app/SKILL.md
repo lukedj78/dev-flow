@@ -722,6 +722,7 @@ Write each file from its template under `references/`:
 
 | File | Template | Why it matters |
 |---|---|---|
+| `app/global-error.tsx` | `references/global-error.template.tsx` | The boundary for an error thrown by the root layout itself, which `error.tsx` cannot catch: it renders its own `<html>`/`<body>`, plain and self-contained. `module-add observability` adds the report to the tracker. |
 | `app/error.tsx` | `references/error.template.tsx` | Root error boundary. Without it, a single uncaught render error blanks the whole app to a Next default page that leaks `error.message` to the user. The template scrubs the message, shows a clean fallback with `reset()`, and surfaces `digest` for log lookup. |
 | `app/loading.tsx` | `references/loading.template.tsx` | Streaming-RSC suspense fallback. Without it, navigating to a route that does any async work hangs on a blank page until the server finishes. The template uses shadcn `<Skeleton>` to render a content-shaped placeholder. |
 | `lib/env.ts` | `references/env.template.ts` | Zod-validated environment at boot. Without it, a missing `DATABASE_URL` only blows up the first time a request hits the DB layer — often in production, never in dev. The template fails fast with a clear message at module-eval time. **Import `env` from this file** instead of reading `process.env` ad hoc. |

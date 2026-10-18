@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+"""fake_ingest.py — a local stand-in for Sentry's ingest, to prove events leave the app without an account.
+
+    python3 fake_ingest.py serve --port 9010 --out .verification/ingest   # DSN: http://public@127.0.0.1:9010/1
+    python3 fake_ingest.py summary .verification/ingest
+
+`serve` accepts the two routes the Sentry SDKs post to — `POST /api/<project>/envelope/` and `/api/<project>/store/`
+— decodes gzip/deflate bodies (the Node SDK compresses), and writes each event as one JSON file. `summary` counts
+them and says which releases they carry and whether any email address or Authorization value got through: the two
+things the module promises (release correlation, nothing personal by default).
+
+It answers 200 to everything it can parse and stores nothing else. Local only: it binds 127.0.0.1. Stdlib only.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import uuid
+import zlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+MAX_BODY = 5 * 1024 * 1024
+EVENT_ID = re.compile(r"^[0-9a-f]{32}$")
+LOCAL_ORIGIN = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$")
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+AUTHORIZATION = re.compile(r'"authorization"\s*:\s*"[^"]+', re.I)
+
+
+def _inflate(body: bytes, wbits: int) -> bytes:
+    d = zlib.decompressobj(wbits)
+    out = d.decompress(body, MAX_BODY + 1)
+    if len(out) > MAX_BODY or d.unconsumed_tail:
+        raise ValueError("the decompressed body is over MAX_BODY")
+    return out
+
+
+def decode(body: bytes, encoding: str | None) -> bytes:
+    """The body, decompressed up to MAX_BODY; over it, ValueError (a small gzip can expand without limit)."""
+    enc = (encoding or "").lower()
+    if enc == "gzip" or body[:2] == b"\x1f\x8b":
+        return _inflate(body, 16 + zlib.MAX_WBITS)
+    if enc == "deflate":
+        try:
+            return _inflate(body, zlib.MAX_WBITS)
+        except zlib.error:
+            return _inflate(body, -zlib.MAX_WBITS)
+    return body
+
+
+def parse_envelope(body: bytes) -> list[dict]:
+    """The event and transaction payloads of a Sentry envelope: a header line, then items, each an item-header line
+    and a payload of `length` bytes (or up to the next newline when no length is given)."""
+    out = []
+    pos = body.find(b"\n")
+    if pos < 0:
+        return out
+    pos += 1
+    while pos < len(body):
+        end = body.find(b"\n", pos)
+        end = len(body) if end < 0 else end
+        try:
+            item = json.loads(body[pos:end] or b"{}")
+        except ValueError:
+            break
+        if not isinstance(item, dict):
+            break
+        pos = end + 1
+        length = item.get("length")
+        if length is None:
+            stop = body.find(b"\n", pos)
+            stop = len(body) if stop < 0 else stop
+        elif isinstance(length, int) and length >= 0:
+            stop = pos + length
+        else:
+            break   # a negative or non-integer length would move the cursor backwards: stop here
+        payload, pos = body[pos:stop], stop + 1
+        if item.get("type") in ("event", "transaction"):
+            try:
+                ev = json.loads(payload)
+            except ValueError:
+                continue
+            if isinstance(ev, dict):
+                out.append(ev)
+    return out
+
+
+def make_server(port: int, out: Path) -> ThreadingHTTPServer:
+    out.mkdir(parents=True, exist_ok=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def read_body(self) -> bytes | None:
+            """The body, whether sent with Content-Length or chunked (the Sentry SDK chunks); None over MAX_BODY;
+            ValueError when a chunk size or the Content-Length is not a valid size."""
+            if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                parts, total = [], 0
+                while True:
+                    size = int(self.rfile.readline().split(b";")[0].strip() or b"0", 16)
+                    if size < 0:
+                        raise ValueError("negative chunk size")
+                    if size == 0:
+                        self.rfile.readline()   # the CRLF after the last chunk
+                        return b"".join(parts)
+                    total += size
+                    if total > MAX_BODY:
+                        return None
+                    parts.append(self.rfile.read(size))
+                    self.rfile.readline()       # the CRLF after each chunk
+            length = int(self.headers.get("Content-Length") or 0)
+            if length < 0:
+                raise ValueError("negative Content-Length")
+            return None if length > MAX_BODY else self.rfile.read(length)
+
+        def refuse(self, code: int) -> None:
+            self.send_response(code)
+            self.end_headers()
+
+        def do_POST(self) -> None:   # noqa: N802
+            # a browser sends Origin: the app's own localhost page may post its client errors, no other site may
+            origin = self.headers.get("Origin")
+            if origin and not LOCAL_ORIGIN.match(origin):
+                return self.refuse(403)
+            try:
+                raw = self.read_body()
+            except ValueError:
+                return self.refuse(400)
+            if raw is None:
+                return self.refuse(413)
+            try:
+                body = decode(raw, self.headers.get("Content-Encoding"))
+                events = parse_envelope(body) if "/envelope" in self.path else [json.loads(body)]
+            except (OSError, ValueError, zlib.error):
+                events = []
+            for ev in (e for e in events if isinstance(e, dict)):
+                # the file name never comes from the request as is: a 32-hex event id, or a fresh one
+                eid = str(ev.get("event_id") or "").lower()
+                target = (out / f"{eid if EVENT_ID.match(eid) else uuid.uuid4().hex}.json").resolve()
+                if target.parent != out.resolve():
+                    continue
+                target.write_text(json.dumps(ev, indent=1), encoding="utf-8")
+            self.send_response(200)
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def do_OPTIONS(self) -> None:   # noqa: N802 — the browser SDK's preflight, from the app's localhost origin only
+            origin = self.headers.get("Origin") or ""
+            if not LOCAL_ORIGIN.match(origin):
+                return self.refuse(403)
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "POST")
+            self.send_header("Access-Control-Allow-Headers", "content-type, x-sentry-auth")
+            self.end_headers()
+
+        def log_message(self, *args) -> None:   # quiet
+            pass
+
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+
+
+def summary(out: Path) -> dict:
+    events = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(out.glob("*.json"))]
+    text = "\n".join(json.dumps(e) for e in events)
+    return {
+        "events": len(events),
+        "releases": sorted({str(e.get("release")) for e in events if e.get("release")}),
+        "levels": sorted({str(e.get("level")) for e in events if e.get("level")}),
+        "messages": [((e.get("exception") or {}).get("values") or [{}])[-1].get("value") or e.get("message") for e in events],
+        "emails": bool(EMAIL.search(text)),
+        "authorization": bool(AUTHORIZATION.search(text)),
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    sub = ap.add_subparsers(dest="op", required=True)
+    s = sub.add_parser("serve")
+    s.add_argument("--port", type=int, default=9010)
+    s.add_argument("--out", type=Path, default=Path(".verification/ingest"))
+    m = sub.add_parser("summary")
+    m.add_argument("out", type=Path)
+    a = ap.parse_args(argv)
+    if a.op == "serve":
+        server = make_server(a.port, a.out)
+        # 127.0.0.1, not localhost: a browser may resolve localhost to ::1, where this server does not listen
+        print(f"fake ingest on http://127.0.0.1:{a.port} — DSN http://public@127.0.0.1:{a.port}/1 — events in {a.out}")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        return 0
+    print(json.dumps(summary(a.out), indent=2, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

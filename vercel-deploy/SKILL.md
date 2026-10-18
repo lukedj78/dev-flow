@@ -79,6 +79,10 @@ Read `meta.json#compliance` (legal), `meta.json#vercel_doctor` (cost/perf), `met
 
 No gate blocks a deploy. Report and let the user decide — that is the existing policy for all five, and this skill does not tighten it.
 
+#### Also check observability (propose, never block)
+
+Read `meta.json#stack.observability`. Empty: say that nobody will know when production breaks, and offer `module-add observability`, errors first. Present: run `python3 <skills>/module-add/scripts/observability_check.py <root>` and state its findings in one line (a `found` finding is named, not hidden). Either way the deploy goes on: the user decides.
+
 #### Also check the Next.js security floor
 
 The five gates read the *code*. `app-security`'s dependency scan sees `next` among the packages, but it reports advisories, not which support line you are on or the floor below — that check is here, and `app-security` points to it. Since 2026-07 that is its own risk: Next.js ships **pre-announced security releases roughly monthly**, with two maintained lines whose labels **move**: as of 2026-10-03 they are still **16.3.x Active LTS** and **15.5.x Maintenance LTS**, and both took the 2026-09-30 patches.

@@ -153,7 +153,7 @@ Commit: `release: deploy v<version> to App Store + Play Store via EAS`.
 ### Step 11 — Print next-steps summary
 
 - Where to view build status: https://expo.dev/accounts/.../projects/.../builds
-- Where to monitor crash reports: Sentry / Bugsnag dashboard (if configured).
+- Where to monitor crash reports: the tracker `rn-module-add observability` wires (Sentry EU or GlitchTip). If `meta.json#stack.observability` is empty, there is none yet: offer that module before the production build.
 - Where to check post-release performance and OTA health: `eas observe:metrics-summary` and `eas channel:insights` — see `references/observability.md`. Run this within the first 24-48h; it's the step that closes the release → observe → decide loop, not optional monitoring theatre.
 - Reminder: review submission can take 24-48h (Apple) or hours (Google).
 - For JS-only fixes post-release: `eas update --branch <name> --channel production` — but ALWAYS smoke-test on the `preview` channel first, then check `references/observability.md` before and after promoting.

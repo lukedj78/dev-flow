@@ -1501,7 +1501,6 @@ The full schema is in [docs/architecture.md](./docs/architecture.md).
 - A code-generation tool that writes business logic for you. The skills generate **structure + conventions + first-pass UI**. Business logic stays human.
 - A CMS. Content layer is project-specific.
 - Hosting. `module-add deploy` produces config; the actual deploy is your call.
-- Observability (error tracking, logs, uptime). Measurement is `module-add analytics`; observability is still per project.
 
 ---
 

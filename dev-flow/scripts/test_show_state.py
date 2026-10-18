@@ -376,3 +376,37 @@ class Scope(unittest.TestCase):
             self.prd(text)
             noted = ss.scope_line({"phase": "module_added"}, self.root) is not None
             self.assertEqual(noted, value.strip() not in ("three users ask",), value)
+
+
+class Observability(unittest.TestCase):
+    """Before the first production deploy a web app with no error tracking gets a note — never a block."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def web(self) -> None:
+        (self.root / "package.json").write_text('{"dependencies": {"next": "16"}}')
+        (self.root / "app").mkdir()
+
+    def test_no_note_before_feature_complete(self) -> None:
+        self.web()
+        self.assertIsNone(ss.observability_line({"phase": "module_added", "stack": {"framework": "next"}}, self.root))
+
+    def test_missing_observability_noted_on_web(self) -> None:
+        self.web()
+        out = ss.observability_line({"phase": "feature_complete", "stack": {"framework": "next"}}, self.root)
+        self.assertIn("module-add observability", out)
+
+    def test_expo_points_to_rn_module_add(self) -> None:
+        (self.root / "package.json").write_text('{"dependencies": {"expo": "58"}}')
+        (self.root / "app.json").write_text('{"expo": {}}')
+        out = ss.observability_line({"phase": "deployed", "stack": {"framework": "expo-rn"}}, self.root)
+        self.assertIn("rn-module-add observability", out)
+
+    def test_present_is_silent(self) -> None:
+        self.web()
+        self.assertIsNone(ss.observability_line({"phase": "deployed", "stack": {"framework": "next", "observability": ["errors"]}}, self.root))

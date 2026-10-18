@@ -183,7 +183,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 307,
+      "skill_md_lines": 308,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -419,7 +419,7 @@
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py"
       ],
-      "skill_md_lines": 1325,
+      "skill_md_lines": 1326,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -530,6 +530,7 @@
         "module-email.md",
         "module-mcp.md",
         "module-motion.md",
+        "module-observability.md",
         "module-payments.md",
         "module-pdf.md",
         "module-realtime.md",
@@ -539,8 +540,13 @@
         "module-voice.md",
         "provider-scaleway.md"
       ],
-      "scripts": [],
-      "skill_md_lines": 180,
+      "scripts": [
+        "fake_ingest.py",
+        "observability_check.py",
+        "surfaces.py",
+        "test_observability.py"
+      ],
+      "skill_md_lines": 181,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -620,7 +626,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 286,
+      "skill_md_lines": 290,
       "bundle": "dist/vercel-deploy.skill"
     },
     {
@@ -879,17 +885,18 @@
       "name": "rn-module-add",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms)....",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics, observability) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, S...",
       "skill_file": "rn-module-add/SKILL.md",
       "references": [
         "contracts.md",
         "decision-tree.md",
         "module-analytics.md",
         "module-cms-sanity.md",
-        "module-matrix.md"
+        "module-matrix.md",
+        "module-observability.md"
       ],
       "scripts": [],
-      "skill_md_lines": 180,
+      "skill_md_lines": 181,
       "bundle": "dist/rn-module-add.skill"
     },
     {
