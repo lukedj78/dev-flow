@@ -1,6 +1,6 @@
 ---
 name: module-add
-description: 'Wire a backend or infrastructure module (auth, database, payments, email, file storage, PDF/document generation, content CMS, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to install + configure the module end-to-end. Always idempotent — running twice does not duplicate config. Use when the user says "add auth", "wire up the database", "set up Stripe", "add file uploads", "generate a PDF invoice/report", "genera un PDF", "add a CMS", "set up Sanity", "expose this as an MCP server", "usare il prodotto da Claude Code", "configure deploy", "module aggiungi auth", or the orchestrator routes here from phase `scaffolded` / `page_generated`. Not for: scaffolding the app (`design-md-to-app`) building UI (`screenshot-to-page`), or an Expo/RN app (`rn-module-add`).'
+description: 'Wire a backend or infrastructure module (auth, database, payments, email, file storage, PDF/document generation, content CMS, deploy config) into an already-scaffolded app. Reads `.workflow/meta.json#stack` for the chosen tech (better-auth, drizzle+neon, stripe, resend, vercel, etc.) and modifies the codebase at the project root to install + configure the module end-to-end. Always idempotent — running twice does not duplicate config. Use when the user says "add auth", "wire up the database", "set up Stripe", "add file uploads", "generate a PDF invoice/report", "genera un PDF", "add a CMS", "set up Sanity", "expose this as an MCP server", "usare il prodotto da Claude Code", "configure deploy", "aggiungi gli analytics", "module aggiungi auth", or the orchestrator routes here from phase `scaffolded` / `page_generated`. Not for: scaffolding the app (`design-md-to-app`) building UI (`screenshot-to-page`), or an Expo/RN app (`rn-module-add`).'
 ---
 
 # module-add — wire a backend/infra module into the scaffold
@@ -25,6 +25,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `cms` | Sanity via `next-sanity` (`sanityFetch` in Server Components; Studio as a `cms/` package — the admin panel) | `references/module-cms.md` | ✅ implemented |
 | `pdf` | Forme (or Takumi) + the [pdfcn](https://www.pdfcn.dev) shadcn registry | `references/module-pdf.md` | ✅ implemented — renderers pre-1.0 |
 | `mcp` | `@modelcontextprotocol/sdk` + `@better-auth/mcp` — the product published **as an MCP server**, one tool per service function | `references/module-mcp.md` | ✅ implemented — requires `auth` with its MCP section |
+| `analytics` | **opt-in, by level** — traffic: Vercel Web Analytics + Speed Insights · product: an `analytics_events` table in the project's database + `track()` + activation/D7/D30 SQL · advanced (on request): PostHog EU, OpenPanel for `eu-sovereign` | `references/module-analytics.md` | ✅ implemented |
 
 **Provider notes** (not modules — where an alternative vendor slots into the modules above):
 
@@ -151,6 +152,7 @@ Tell the user:
 Some modules depend on others. If the user runs them out of order, the skill must:
 
 - `auth` requires `db`. If `stack.db` is `null`, ask: "auth needs a database to store sessions. Set up `db` first?" and route there before `auth`.
+- `analytics` at the `product` level requires `db` (the events live in the project's database) and a signed-in user id (`auth`); `traffic` requires only a Vercel deploy. `analytics` is opt-in: never wire it unless the user asked to measure.
 - `payments` requires `auth` and `db`. Same pattern.
 - `email` is independent.
 - `storage` (Vercel Blob) strongly wants `auth` **and** `db`: the client-upload token route authenticates in `onBeforeGenerateToken` — skip it and the store is world-writable — and the `files` table is what makes an upload ownable, queryable and erasable (DSAR). Ask before wiring it without them.

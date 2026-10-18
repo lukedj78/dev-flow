@@ -20,6 +20,7 @@ def base_signals(**overrides):
         "has_subprocessors_doc": False, "has_retention_doc": False,
         "has_agent": False, "has_memory": False, "has_art9_guard": False,
         "has_manip_guard": False, "is_web": False, "is_mobile": False,
+        "has_cookie_analytics_before_consent": False,
     }
     s.update(overrides)
     return s
@@ -97,6 +98,56 @@ class TestEvaluate(unittest.TestCase):
         for f in evaluate(base_signals(has_auth=True, is_web=True)):
             self.assertIn(f["severity"], {"H", "M", "L"})
             self.assertTrue(f["article"])
+
+
+class TestAnalyticsBeforeConsent(unittest.TestCase):
+    """R11: a client analytics SDK that sets identifiers before the user has consented. Judged per init file,
+    so a consent banner somewhere else in the project does not silence an init that ignores it."""
+
+    INIT = "import posthog from 'posthog-js'\nposthog.init('phc_x', { api_host: '/ph' })\n"
+
+    def signal(self, files: dict) -> bool:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for rel, body in files.items():
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text(body)
+            return scan(root)["has_cookie_analytics_before_consent"]
+
+    def test_r11_fires_on_the_signal(self):
+        self.assertIn("R11", ids(evaluate(base_signals(has_cookie_analytics_before_consent=True))))
+        self.assertNotIn("R11", ids(evaluate(base_signals())))
+
+    def test_an_init_with_cookies_and_no_gate_is_flagged(self):
+        self.assertTrue(self.signal({"instrumentation-client.ts": self.INIT}))
+
+    def test_cookieless_mode_is_not_flagged(self):
+        init = self.INIT.replace("api_host: '/ph'", "api_host: '/ph', cookieless_mode: 'always'")
+        self.assertFalse(self.signal({"instrumentation-client.ts": init}))
+
+    def test_an_init_behind_the_consent_gate_is_not_flagged(self):
+        init = "import { hasConsent } from '@/lib/consent'\n" + self.INIT
+        self.assertFalse(self.signal({"instrumentation-client.ts": init}))
+
+    def test_a_banner_elsewhere_does_not_silence_the_init(self):
+        self.assertTrue(self.signal({"instrumentation-client.ts": self.INIT,
+                                     "components/cookie-banner.tsx": "export function CookieConsent() {}\n"}))
+
+    def test_the_expo_provider_and_the_node_client_are_judged_too(self):
+        provider = 'import { PostHogProvider } from "posthog-react-native"\n<PostHogProvider apiKey={k} options={{ host: "https://eu.i.posthog.com" }} />\n'
+        self.assertTrue(self.signal({"app/_layout.tsx": provider}))
+        gated = provider.replace("options={{", "options={{ defaultOptIn: false, ").replace("<PostHogProvider", "// consent first\n<PostHogProvider")
+        self.assertFalse(self.signal({"app/_layout.tsx": gated}))
+        rn_client = 'import PostHog from "posthog-react-native"\nexport const ph = new PostHog(k, { host: h })\n'
+        self.assertTrue(self.signal({"lib/posthog.ts": rn_client}))
+
+    def test_the_server_sdk_is_not_a_device_identifier(self):
+        server = 'import { PostHog } from "posthog-node"\nconst ph = new PostHog(k, { host: h })\n'
+        self.assertFalse(self.signal({"lib/analytics/track.ts": server}))
+
+    def test_vercel_analytics_and_openpanel_are_not_flagged(self):
+        self.assertFalse(self.signal({"app/layout.tsx": "import { Analytics } from '@vercel/analytics/next'\n<Analytics />\n"}))
+        self.assertFalse(self.signal({"app/layout.tsx": "import { OpenPanelComponent } from '@openpanel/nextjs'\n"}))
 
 
 class TestScanSmoke(unittest.TestCase):

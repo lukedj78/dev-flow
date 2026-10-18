@@ -74,7 +74,7 @@
       "name": "compliance-audit",
       "family": "core",
       "role": "operative",
-      "description": "Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 10-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-trans...",
+      "description": "Run a GDPR + EU AI Act compliance audit on an existing dev-flow project (web / mobile / eve agent) and remediate what it finds. Two modes: Audit (scan the codebase and `meta.json#stack` against a 11-point risk register — DSAR, consent/cookies, EU data residency, retention and PII-scrubbing, AI-trans...",
       "skill_file": "compliance-audit/SKILL.md",
       "references": [
         "contracts.md",
@@ -84,7 +84,7 @@
         "scan.py",
         "test_scan.py"
       ],
-      "skill_md_lines": 126,
+      "skill_md_lines": 127,
       "bundle": "dist/compliance-audit.skill"
     },
     {
@@ -139,7 +139,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 303,
+      "skill_md_lines": 304,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -192,7 +192,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 289,
+      "skill_md_lines": 309,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -462,7 +462,7 @@
         "scan_launch.py",
         "test_scan_launch.py"
       ],
-      "skill_md_lines": 127,
+      "skill_md_lines": 128,
       "bundle": "dist/launch-audit.skill"
     },
     {
@@ -473,6 +473,7 @@
       "skill_file": "module-add/SKILL.md",
       "references": [
         "contracts.md",
+        "module-analytics.md",
         "module-auth.md",
         "module-ci.md",
         "module-cms.md",
@@ -491,7 +492,7 @@
         "provider-scaleway.md"
       ],
       "scripts": [],
-      "skill_md_lines": 178,
+      "skill_md_lines": 180,
       "bundle": "dist/module-add.skill"
     },
     {
@@ -830,16 +831,17 @@
       "name": "rn-module-add",
       "family": "mobile",
       "role": "operative",
-      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs d...",
+      "description": "Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework=\"expo-rn\" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms)....",
       "skill_file": "rn-module-add/SKILL.md",
       "references": [
         "contracts.md",
         "decision-tree.md",
+        "module-analytics.md",
         "module-cms-sanity.md",
         "module-matrix.md"
       ],
       "scripts": [],
-      "skill_md_lines": 179,
+      "skill_md_lines": 180,
       "bundle": "dist/rn-module-add.skill"
     },
     {

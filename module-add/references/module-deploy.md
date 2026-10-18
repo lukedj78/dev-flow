@@ -248,7 +248,7 @@ Tell the user, concretely:
 ## Known caveats
 
 - **Don't override the Build/Install/Output commands for Next.js.** Vercel detects them. Every custom `buildCommand` this repo has seen in the wild was working around a problem better fixed elsewhere.
-- **`NODE_ENV` is `production` in preview builds.** Branch on `VERCEL_ENV`. Getting this wrong is how test emails reach customers and how analytics counts preview traffic.
+- **`NODE_ENV` is `production` in preview builds.** Branch on `VERCEL_ENV`. Getting this wrong is how test emails reach customers and how analytics counts preview traffic (`module-analytics.md` guards both levels on `VERCEL_ENV`).
 - **Hobby plan realities**: single function region, 1 concurrent build, 100 deployments/day, runtime logs kept 1 hour, and Vercel does **not** support connecting a Hobby project to a Git-organization repository. Included usage on Hobby: 100 GB Fast Data Transfer, 1M function invocations, 4 CPU-hrs Active CPU per month.
 - **Env vars now carry a *type*: Config or Secret** (2026-08-24, dashboard + CLI). **Config** values stay readable to authorized members; **Secret** values are **write-only once saved** — the value cannot be read back, so rotation is the fix, never recovery. Choose the type when you add the var, not after: a token or key filed as Config is readable by everyone who can open the project. Anything a runbook says to "go and check the value of" must be a Config, or the runbook is unrunnable.
 - **Env-var changes don't retroactively apply.** *"Any change you make to environment variables are not applied to previous deployments, they only apply to new deployments."* Changing a var requires a redeploy to take effect.

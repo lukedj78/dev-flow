@@ -81,7 +81,7 @@ They ask different questions about the same page and both answers are needed:
 
 | | `compliance-audit` | this skill |
 |---|---|---|
-| Privacy policy | is the **handling** lawful — basis, retention, DSAR, transfers (R1–R10) | does a **page** exist, is it linked, is it reachable |
+| Privacy policy | is the **handling** lawful — basis, retention, DSAR, transfers (R1–R11) | does a **page** exist, is it linked, is it reachable |
 | Identity block | not in scope | (a)–(g), present or not |
 
 A product can hold a perfect lawful basis and publish nothing a user can read. It can also publish a

@@ -63,6 +63,9 @@ Relevant to every EU-based project we ship. Fill it in App Store Connect → Bus
 - Collecting data without disclosing in the Privacy Policy → reject.
 - Privacy nutrition label that lies → reject + ban risk.
 - ATT (App Tracking Transparency) prompt missing if you do cross-app tracking → reject.
+- Measuring usage (`rn-module-add analytics`, `product` or `advanced`) is data collection: the label says **Usage
+  Data, linked to the user, not used for tracking**. First-party events and PostHog do not use the advertising
+  identifier, so no ATT prompt.
 
 ### 5.1.5 — Location
 - Asking for "Always" location when "While Using" suffices → reject.
@@ -75,7 +78,8 @@ Relevant to every EU-based project we ship. Fill it in App Store Connect → Bus
 - High-risk permissions (background location, SMS, call log) require a special declaration → reject without it.
 
 ### Policy: Data safety
-- Data safety form doesn't match what your SDKs collect → reject + warning.
+- Data safety form doesn't match what your SDKs collect → reject + warning. With `stack.analytics` on, declare
+  "App activity" collected and linked to the user, for analytics, deletable with the account.
 
 ### Policy: Target API level
 - Google Play requires targeting a recent Android API level (rolling requirement, roughly the current major − 1 each year — e.g. API 35 in 2025, API 36 by August 31, 2026 for new/updated apps). Check the current deadline at Play Console's target API level policy page before submitting. The Expo SDK you're on handles the underlying `targetSdkVersion` — verify after each SDK bump.

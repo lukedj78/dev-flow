@@ -1,6 +1,6 @@
 # GDPR + EU AI Act checklist & remediation recipes
 
-The 10 risks the skill audits, each with: **what it is**, **audit signals** (what to look for / what `scan.py` flags — verify in code before reporting), **safe-fix** (auto-apply, reversible), and **flag** (decision — never auto-decide). **Not legal advice.**
+The 11 risks the skill audits, each with: **what it is**, **audit signals** (what to look for / what `scan.py` flags — verify in code before reporting), **safe-fix** (auto-apply, reversible), and **flag** (decision — never auto-decide). **Not legal advice.**
 
 Severity guide: **H** = likely non-compliance or store rejection · **M** = gap that needs a control · **L** = hardening.
 
@@ -91,6 +91,22 @@ has an ML service, say so in the report if nobody has ever measured it.
 **Audit signals:** durable per-user memory/personalization used (or usable) to build behavior-scoring or engagement-optimizing features against the user's interest.
 **Safe-fix:** add a guardrail line to the memory instructions: "memory is for user-requested continuity, not for behavior-scoring or manipulative personalization."
 **Flag:** product review of any personalization that steers user behavior.
+
+---
+
+## R11 — Client analytics before consent · Art. 6/7 + ePrivacy · H
+
+**Audit signals:** an analytics SDK initialised in the browser with its default persistence (cookies or
+localStorage) — today `posthog.init(` — in a file that neither sets `cookieless_mode` nor reads the consent gate.
+Judged **per init file**: a consent banner elsewhere in the project does not make that init wait. Heuristic: a gate
+written another way (a wrapper that only calls `init` after consent) is a false positive; read the init before
+reporting. Not concerned: Vercel Web Analytics (cookieless), OpenPanel (cookieless), the product level of
+`module-add analytics` (server-side, keyed by the authenticated user).
+**Safe-fix:** `cookieless_mode: "on_reject"` (nothing captured or stored before the choice), then
+`opt_in_capturing()` and `identify()` only behind `lib/consent.ts`; on Expo, `defaultOptIn: false` and `optIn()` on
+consent (`module-add/references/module-analytics.md`, `rn-module-add/references/module-analytics.md`).
+The pattern counts any mention of "consent" in the init file as a gate: a comment can silence it, so read the file.
+**Flag:** whether identified analytics of logged-in users needs consent at all is a DPO's call.
 
 ---
 

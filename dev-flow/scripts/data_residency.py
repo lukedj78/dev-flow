@@ -71,6 +71,8 @@ IMPLIED = {
     ("deploy", "eas"): "Expo",
     ("push", "expo-notifications"): "Expo",
     ("agent", "eve"): "Vercel",
+    ("analytics_provider", "posthog"): "PostHog",
+    ("analytics_provider", "openpanel"): "OpenPanel",
 }
 
 

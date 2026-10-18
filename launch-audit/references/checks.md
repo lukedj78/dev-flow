@@ -173,12 +173,30 @@ confirmation *page* there would be asking for a regression.
 **Routes to**: `forms`, which owns submit-state discipline.
 
 ### `analytics-absent`
-**Looks for**: any analytics wiring at all.
+**Looks for**: analytics wiring — an analytics package (`@vercel/analytics`, `posthog`, `@openpanel/`…) or the
+product level's `lib/analytics/track.ts` — **only when the project chose to measure** (`meta.json#stack.analytics`
+not empty). A project that did not ask reports `not requested`, which is not a finding: measurement is opt-in.
 
-**Legitimately fine when**: deliberately not measuring — a privacy-forward product may decide this,
-and that is a decision, not an oversight. Record it in `dismissed` with the reason.
+**Legitimately fine when**: deliberately not measuring — leave `stack.analytics` empty and nothing is reported.
 
-**Routes to**: `module-add`.
+**Routes to**: `module-add analytics`.
+
+### `measurement-targets`
+**Looks for**: with the `product` level, a `## Measurement` section in `.workflow/PRD.md` with an activation event and
+D7/D30 retention targets, none of them `TBD`. Read from the project root, also in a monorepo. With only `traffic`
+or `advanced` there are no product targets to write, and the check says so.
+
+**Legitimately fine when**: never with `product` — measuring retention against no target is the false-traction trap
+*The Founder's Playbook* warns about.
+
+**Routes to**: `prd-from-idea`.
+
+### `activation-instrumented`
+**Looks for**: the PRD's activation event in a `track(...)` call in the app's code.
+
+**Legitimately fine when**: the event is tracked by a backend outside this repo — record it in `dismissed`.
+
+**Routes to**: `module-add analytics`.
 
 ---
 

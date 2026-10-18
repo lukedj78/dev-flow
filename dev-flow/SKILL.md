@@ -202,6 +202,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 - **Parallel builds** — the brief every sub-agent gets and the checks its diff passes before it is accepted.
 - **UI quality** — `shadscan`, one of the four pre-deploy gates.
 - **Animated icons** — `animated-icons`, web only, horizontal, no phase bump.
+- **Measurement (opt-in)** — "measure usage", "aggiungi gli analytics", a prototype promoted to a product: `module-add analytics` (web) or `rn-module-add analytics` (Expo), at any phase, a level at a time. Never proposed to a project that did not ask.
 - **The product's own agent-skill** — when the product exposes an API another agent could drive.
 - **Resources the user hands over** — analyse, record in `references/resources.md`, then actually use them.
 

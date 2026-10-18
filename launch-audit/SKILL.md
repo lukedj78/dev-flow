@@ -69,7 +69,7 @@ This is where a marketing checklist turns out to be law. See `references/identit
 | The CTA is **reachable on mobile** | It exists, and on a 375px viewport it is below three paragraphs and a hero image |
 | Every CTA **lands somewhere that exists** | A button pointing at `/signup` when the route is `/sign-up` |
 | A **confirmation page** after every form that submits | The form posts and the page sits there; the user submits three times |
-| Analytics | Nobody knows whether anything above worked |
+| Analytics, **when the project chose to measure** | Nobody knows whether anything above worked; or `product` is on with no activation target in the PRD, or the activation event is never tracked |
 
 ## Run, then route
 
@@ -92,7 +92,8 @@ Then route the real ones — this skill **finds**, it does not build:
 | Privacy/terms content, consent, the lawful basis | `compliance-audit` |
 | A11y, loading and empty states, focus | `shadscan` |
 | Image weight, LCP, what it costs | `vercel-doctor` |
-| Analytics wiring | `module-add` |
+| Analytics wiring, an untracked activation event | `module-add analytics` |
+| Measurement targets missing from the PRD | `prd-from-idea` |
 | **The identity block** | **the user.** It is their company name, their address, their VAT number. This skill never invents one, and an invented one is worse than a missing one |
 
 ## `meta.json#launch_audit`

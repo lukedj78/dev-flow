@@ -79,13 +79,21 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
 
-**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; Success criteria take the metrics decided before launch); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
+**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]`, or `["product"]` on Expo — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)
 3. **How do they solve it today?** (status quo / competitors)
 4. **What's the wedge?** (the one thing this product does better than the status quo — be ruthless, one sentence)
 5. **What does success look like in 6 months?** (one or two measurable signals — MAU, revenue, retention, qualitative quotes)
+   Then, once: **"Do you want to measure how the product is used?"** Measurement is opt-in. **No** — a prototype, an
+   internal tool — ends the subject: no `## Measurement`, no `stack.analytics`, no follow-up. **Yes** asks, in one
+   batch, the moment a user first gets the value (the **activation event**, a `snake_case` past-tense name such as
+   `invoice_sent`), how many activated users should be back after a week and after a month (**D7/D30**), what would
+   look like traction but is not (**false positives**), and which **events** to record; record `stack.analytics` as
+   `["traffic", "product"]` unless the user narrows it — `["product"]` when `stack.framework = "expo-rn"`, which has no
+   traffic level. The D7/D30 targets mean "back on day 7 / day 30", the definition the SQL uses. It can also be switched on later with `module-add analytics`
+   (`rn-module-add analytics` on Expo).
 6. **What's the primary target — web, mobile (iOS+Android), both (monorepo), or desktop?** (forces a stack decision early). Map the answer → `meta.json#stack.framework`:
    - "web" / "web app" / no answer → `stack.framework: "next"` (current default for web)
    - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
@@ -177,7 +185,8 @@ When no one can answer — a background or `claude -p` session, a batch rebuild 
 1. Answer each question **from the brief**: the pasted idea, the converted document under `.workflow/_source/`, a transcript. Prefer the source's own words; cite the section, page or timestamp that decided it.
 2. Where the brief is silent, take the **contract default**: Q6 → the product type's stack bundle in `dev-flow` §Stack decisions; Q7 → `"shadcn"`; Q8 → `"tanstack-form"`; Q9 → `null`; locales `["en", "it"]`. Where there is no default — audience, problem, wedge, success criteria — write `<TBD — needs user input>` exactly as the constraint below says, never a plausible guess.
 3. Record every derived or defaulted answer in **`PRD.md` §Open questions** as `Assumed: <answer> — because <source | contract default>`, and in the `history` entry as `inputs.assumptions`. That list *is* the interview, deferred: the user reviews it instead of answering live.
-4. **Never derive the topology shape** when Q9 is `eve` (single app / monorepo / agent-only): write `needs a human: shape`, draft everything in the PRD that does not depend on it, and hand off.
+4. **No measurement without an explicit request.** If the brief does not ask to measure usage, leave `## Measurement` out and `stack.analytics` unset; do not record it as an open question.
+5. **Never derive the topology shape** when Q9 is `eve` (single app / monorepo / agent-only): write `needs a human: shape`, draft everything in the PRD that does not depend on it, and hand off.
 
 ### Step 4 — Draft the documents
 
@@ -238,6 +247,17 @@ without this product? Use a concrete scenario.>
 - **US-3.** …
 
 (3–5 stories. If the user listed more, mark the rest as "Post-MVP" in a separate section.)
+
+## Measurement
+
+<Only if the user chose to measure; otherwise leave the whole section out.>
+
+Decided before launch, not after. Levels: traffic, product.
+
+- **Activation event**: `<event_name>` — <what the user has done when they first get the value>
+- **Retention targets**: D7 ≥ <n> % · D30 ≥ <n> % of activated users (back on day 7 / day 30)
+- **False positives to watch**: <e.g. sign-ups without activation; revenue without retention>
+- **Events to instrument**: `<event_name>` (where it fires) · …
 
 ## Non-goals
 

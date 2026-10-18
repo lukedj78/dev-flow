@@ -1,6 +1,6 @@
 ---
 name: rn-module-add
-description: 'Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework="expo-rn" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: "add auth", "wire up db", "set up Supabase", "set up Firebase", "add payments", "add push" (the server-side part), "add a CMS", "set up Sanity", "admin panel for content", "aggiungi un CMS", "aggiungi modulo X". Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap), or a Next.js web app (module-add).'
+description: 'Use to wire a backend/infra module (auth, db, storage, realtime, push, payments, cms, analytics) into a scaffolded Expo + RN app. Reads .workflow/meta.json with stack.framework="expo-rn" and the user-chosen provider for each module (Supabase, Firebase, custom REST, tRPC, RevenueCat, Sanity for cms). Installs deps, generates the wiring code (lib/auth.ts, lib/supabase.ts, etc.), updates meta.json#stack to record the choice. Always idempotent. Triggers on: "add auth", "wire up db", "set up Supabase", "set up Firebase", "add payments", "add push" (the server-side part), "add a CMS", "set up Sanity", "admin panel for content", "aggiungi un CMS", "misura l''uso dell''app", "aggiungi modulo X". Not for: building UI for the module (rn-add-screen does the login screen, etc.), client-side knowledge only (rn-backend, rn-push-notifications), scaffolding (rn-bootstrap), or a Next.js web app (module-add).'
 ---
 
 # rn-module-add — wire a backend/infra module into a scaffolded RN app
@@ -18,6 +18,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
   - `push` module → `meta.json#stack.push` (new sub-key)
   - `payments` module → `meta.json#stack.payments`
   - `cms` module → `meta.json#stack.cms` (new sub-key — content the app only reads)
+  - `analytics` module → `meta.json#stack.analytics` (a list of levels; opt-in) and `stack.analytics_provider` with `advanced` — `references/module-analytics.md`
 - Sets `meta.json#phase = "module_added"` after the first module, then leaves it.
 - Always idempotent: re-running with same provider detects existing wiring and exits 0.
 
@@ -56,7 +57,7 @@ If `stack.framework == "monorepo"`, all subsequent file paths are relative to `a
 
 ### Step 2 — Identify the module + provider
 
-Module the user requested: one of `auth | db | storage | realtime | push | payments | cms`.
+Module the user requested: one of `auth | db | storage | realtime | push | payments | cms | analytics`. `analytics` is opt-in: never wire it unless the user asked to measure.
 
 If the user didn't specify a provider, default to:
 - `auth`, `db`, `storage`, `realtime` → **Supabase** (the default in `rn-backend/references/decision-tree.md`).
