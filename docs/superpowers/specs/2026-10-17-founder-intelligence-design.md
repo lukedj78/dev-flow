@@ -447,8 +447,16 @@ Fuori da questa skill, come lavori separati dopo Founder Intelligence, in quest'
 4. **Osservabilità web** (M): un modulo in `module-add` per errori, log strutturati e uptime.
 5. **Audit del debito ordinato** (M): una modalità di dev-flow, dopo `deployed`, che compone gli
    audit esistenti con un controllo sulla copertura dei test e li ordina.
-6. **Triage dei bug** (S): etichette di gravità e un percorso leggero per una singola funzione in
-   `linear-scrum`.
+6. **Triage dei bug e più sistemi di task management** (S + L): etichette di gravità e un percorso
+   leggero per una singola funzione; e, su richiesta dell'utente (2026-10-18), la skill di project
+   management (oggi `linear-scrum`) supporta **Linear, Jira e GitHub** (Issues e Projects) come
+   sistema di task management, con lo stesso metodo scrum e lo stesso contratto, invece di tre skill
+   separate. **Il servizio si sceglie in fase di progettazione**, come le altre scelte di stack (una
+   domanda in `prd-from-idea`, registrata in `meta.json`), in base al tipo di progetto e di cliente:
+   Linear era la scelta iniziale, non l'unica. La skill cambia nome, perché non è più legata a un
+   fornitore (proposte: `scrum`, `sprint-board`). Da decidere nel suo design: il nome della skill e del
+   campo, come si migra un progetto già in Linear, e la policy di dev-flow che oggi dice "ogni
+   progetto in Linear".
 
 Non li farei: SOC 2 e HIPAA (finché un prodotto non punta all'enterprise), il data flywheel, e
 il documento di architettura o il log di sessione per progetto (il contratto e la history di

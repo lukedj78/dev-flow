@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **52 skills (10 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **53 skills (11 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 52. Restart Claude Code if you don't see them in /skills.
+# Should print 53. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -159,6 +159,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | Skill | What it does |
 |---|---|
 | **`dev-flow`** | The orchestrator — reads `.workflow/meta.json` and proposes what to do next |
+| `founder-intelligence` | Optional, for a commercial idea whose market is not settled: research, founder interview, competitors, business model and MVP scope in an evidence-tagged Playbook the founder approves before any PRD. Replaces the inventory step on that path; invocable later on an existing project |
 | `prd-from-idea` | Idea paragraph → `PROJECT.md` + `PRD.md` |
 | `prd-to-tasks` | `PRD.md` → `tasks.md` (importable into beads / Linear / GitHub Issues) |
 | `wireframe-canvas` | Screen inventory → every screen as a desktop + phone artboard on a Design canvas, approved before any scaffold; then the PNGs on the issues |
@@ -897,6 +898,10 @@ phase=deployed         → "next"    → maintenance loop: screenshot-to-page / 
 - `scripts/init_workflow.py <project-root> [--name "Project Name"]` — creates `.workflow/` with a fresh `meta.json`.
 - `scripts/show_state.py <project-root>` — prints current phase, files present, proposed next step. On a project already past `scaffolded` without the design lint, it prints what is missing and the command that fixes it.
 - `scripts/update_meta.py <project-root> set-phase <phase>` — moves the phase forward, refuses regression, and holds the **phase gates** (the same list for `append-history --phase-after`): the inventory to leave `idea_captured`, the wireframe canvas to reach `monorepo_initialized` or `scaffolded`, and three more at `scaffolded`. The design-lint gate refuses it until `design-md-to-app/scripts/setup_design_lint.py --check` passes or `stack.design_lint = "none"` is recorded with `stack_config.design_lint_reason` (mobile, agent-only and MUI projects are not affected). The registry-intake gate refuses it, for a Next app on a Tailwind UI or an eve agent, until `registry-intake/scripts/registry_intake.py check` passes or `stack.registry_intake = "none"` is recorded with `stack_config.registry_intake_reason`. A third gate, for the same Next apps on a Tailwind UI, refuses `scaffolded` and every later phase until the design lint carries `design/no-handmade-ui` and the write-time primitives guard is installed (`scripts/primitives_guard_gate.py`, checked through `design-md-to-app/scripts/setup_primitives_guard.py --check`) or `stack.primitives_guard = "none"` is recorded with its reason. Skills move phase through it so the gates run.
+
+### `founder-intelligence` — is it worth building? (optional)
+
+For a **commercial idea whose market is not settled**, the alternative door to the inventory step: research, an adaptive founder interview, competitors by tier, a customer-discovery kit and the synthesis of real interviews (never simulated), business model, MVP boundaries and the metrics decided before launch, feasibility with what already exists to reuse, go-to-market and a validation roadmap. All of it lands in `.workflow/founder/founder-playbook.md`, every claim tagged `[source]`, `[founder]`, `[interview]`, `[estimate]` or `[hypothesis]`. **No PRD until the founder approves it**: once the path has started, `update_meta.py set-phase` refuses `prd_drafted` until `founder.py approve --user-said "…"` records their words and the Playbook's hash (an edit afterwards needs a new approval), or the path is bypassed with a reason. Then `prd-from-idea` builds on the Playbook instead of re-asking. Prototypes, refactors and internal tools keep the direct path, unchanged. On an existing project it produces proposed PRD changes (`handoff.md`). Method adapted from Anthropic's *The Founder's Playbook* (May 2026).
 
 ### `prd-from-idea` — paragraph → PRD
 

@@ -149,6 +149,7 @@ esac
 SKILLS=(
   # Core orchestrator + stack-agnostic flow
   dev-flow
+  founder-intelligence
   prd-from-idea
   prd-to-tasks
   wireframe-canvas
