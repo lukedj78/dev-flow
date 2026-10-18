@@ -41,6 +41,8 @@ EVIDENCE_DIR = ".verification/evidence"
 STORY = re.compile(r"^\s*[-*]\s+\*\*(US-\d+(?:\.\d+)*)(?:\s*\([^)]*\))?[.:]?\*\*[.:]?\s+(.+?)\s*$", re.M)
 STORY_ID = re.compile(r"\bUS-\d+(?:\.\d+)*\b")
 STORY_FILE = re.compile(r"^(US-\d+(?:\.\d+)*)(?:-.*)?\.md$")
+NOTE_START = "<!-- app-verification:start -->"
+NOTE_END = "<!-- app-verification:end -->"
 VERIFICATION_KEYS = {"skill", "features", "source", "proven_at", "proven_feature", "evidence", "maintained_at",
                      "maintain_outcome"}
 
@@ -339,10 +341,44 @@ def _scaffold_other(root: Path, surface: "sf.Surface") -> dict:
             "written": written, "kept": kept, "stories": 0, "kind": surface.kind}
 
 
+def agent_file(root: Path) -> Path:
+    """Where the project's standing instructions for agents live: AGENTS.md, else CLAUDE.md, else a new AGENTS.md."""
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        if (root / name).is_file():
+            return root / name
+    return root / "AGENTS.md"
+
+
+def _note(names: list[str]) -> str:
+    manuals = ", ".join(f"`.claude/skills/verify-{n}/`" for n in names)
+    return (f"{NOTE_START}\n## Proving a feature (app-verification)\n\n"
+            f"Before saying a feature works, prove it on the running app with this project's verification manual: "
+            f"{manuals}. Follow its Launch, Doctor, Drive, Evidence and Cleanup, then report what you did and where the "
+            f"evidence is. A journey that cannot be driven is reported as such, with the reason, never proven through a "
+            f"neighbouring one. Never drive or stop an instance you did not start.\n{NOTE_END}\n")
+
+
+def write_agents_note(root: Path, names: list[str]) -> Path:
+    """One marked block in the agent file, rewritten in place on every run so it names the current manuals."""
+    path = agent_file(root)
+    text = read(path)
+    block = _note(names)
+    if NOTE_START in text and NOTE_END in text:
+        head, rest = text.split(NOTE_START, 1)
+        text = head + block + rest.split(NOTE_END, 1)[1].lstrip("\n")
+    else:
+        text = (text.rstrip("\n") + "\n\n" if text.strip() else "") + block
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def scaffold_all(root: Path) -> list[dict]:
-    """One manual per surface the project has; a project where none is detected gets the web manual."""
+    """One manual per surface the project has; a project where none is detected gets the web manual. The agent
+    file gets the instruction to use them (AGENTS.md, or CLAUDE.md)."""
     found = sf.surfaces(root.resolve())
-    return [scaffold(root, s.name) for s in found] or [scaffold(root, "web")]
+    results = [scaffold(root, s.name) for s in found] or [scaffold(root, "web")]
+    write_agents_note(root.resolve(), [s.name for s in found] or ["web"])
+    return results
 
 
 def _sections(text: str) -> list[str]:
@@ -442,6 +478,9 @@ def check_all(root: Path) -> list[str]:
                             f"run `verify_map.py scaffold {root}`")
         else:
             problems += [f"verify-{s.name}: {p}" for p in check(root, s.name)]
+    if NOTE_START not in read(agent_file(root)):
+        problems.append(f"{agent_file(root).name}: no instruction to prove features with the manual — run "
+                        f"`verify_map.py scaffold {root}`, which writes it")
     for name in orphans(root, {s.name for s in found}):
         problems.append(f"verify-{name}: no surface named {name} any more (renamed or removed?) — move what it says "
                         f"into the new surface's manual, then delete it")
