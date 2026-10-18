@@ -59,6 +59,7 @@ class Fixture(unittest.TestCase):
         """A manual with nothing left to fill: the shape check() must accept."""
         self.write(".workflow/PRD.md", PRD)
         self.write(".gitignore", "node_modules\n.verification/\n")
+        vm.write_agents_note(self.root, ["web"])   # a complete setup includes the agent-file instruction
         m = ".claude/skills/verify-web"
         sections = "\n\n".join(f"## {s}\n\nFilled {s.lower()} text." for s in vm.SECTIONS)
         self.write(f"{m}/SKILL.md", "---\nname: verify-web\ndescription: Drive Notes web.\n---\n\n# Verify Notes\n\n"
@@ -421,3 +422,49 @@ class ReviewFixes(Fixture):
         self.write(".workflow/meta.json", json.dumps({"history": []}))
         with redirect_stdout(io.StringIO()):
             self.assertEqual(vm.main(["record", str(self.root), "--json", '{"skill": "x"}']), 2)
+
+
+class AgentsNote(Fixture):
+    """create writes one instruction into the project's agent file, so an agent proves before it says "done"."""
+
+    def web(self) -> None:
+        self.write(".workflow/PRD.md", PRD)
+        self.write("package.json", '{"dependencies": {"next": "16"}}')
+        self.write("app/page.tsx", "")
+
+    def test_scaffold_writes_the_note_into_agents_md(self) -> None:
+        self.web()
+        self.write("AGENTS.md", "# Project rules\n\nUse pnpm.\n")
+        vm.scaffold_all(self.root)
+        text = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("# Project rules\n\nUse pnpm.\n"))   # what was there stays
+        self.assertIn(vm.NOTE_START, text)
+        self.assertIn(".claude/skills/verify-web/", text)
+
+    def test_the_note_is_written_once_and_kept_current(self) -> None:
+        self.web()
+        self.write("AGENTS.md", "# Rules\n")
+        vm.scaffold_all(self.root)
+        self.write("agent/agent.ts", "")
+        self.write("next.config.ts", "export default withEve({})\n")
+        vm.scaffold_all(self.root)
+        text = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(text.count(vm.NOTE_START), 1)
+        self.assertIn(".claude/skills/verify-agent/", text)
+
+    def test_claude_md_when_there_is_no_agents_md(self) -> None:
+        self.web()
+        self.write("CLAUDE.md", "# Claude\n")
+        vm.scaffold_all(self.root)
+        self.assertIn(vm.NOTE_START, (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertFalse((self.root / "AGENTS.md").exists())
+
+    def test_agents_md_is_created_when_neither_exists(self) -> None:
+        self.web()
+        vm.scaffold_all(self.root)
+        self.assertIn(vm.NOTE_START, (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_check_flags_a_missing_note(self) -> None:
+        self.complete_manual()
+        (self.root / "AGENTS.md").unlink()
+        self.assertTrue(any("AGENTS.md" in p for p in vm.check_all(self.root)), vm.check_all(self.root))

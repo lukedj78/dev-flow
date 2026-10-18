@@ -69,6 +69,11 @@ monorepo): `references/stack-recipes.md`.
    (loading, empty, error, success). Without it, the index lists the surface's own routes and says so. Everything
    that needs the code is a `<fill: …>`. Re-running never overwrites: a filled file is kept, and a new story or tool
    gets its file and its line in the index.
+
+   Scaffold also writes one instruction into the project's agent file — `AGENTS.md`, else `CLAUDE.md`, else a new
+   `AGENTS.md` — in a block marked `<!-- app-verification:start/end -->`: before saying a feature works, prove it
+   with these manuals. The block is rewritten in place on every run, so it always names the current manuals, and
+   everything else in the file is left as it was. `check` reports it if it is missing.
 4. **Fill** the six sections, the index's baseline, and the first 3–5 features — US-1 first — from the code: the real
    command, the real accessible names, the real end state. Add the launch command to the project's `.claude/launch.json` under the
    name the Launch section gives, so Claude Code's preview tools and the manual start the app the same way. ⚠ The
