@@ -23,6 +23,9 @@ recipes below are for when there is none.
   that never ends and times out as `000` while the page works (found on fit-coach). `curl -sI` returns the status.
 - **Type only after hydration**: text typed before the first button is enabled stays visible but React holds an
   empty value, and the submit sends nothing (no POST in the server log). Wait for enabled, then type.
+- **A custom build directory** (`NEXT_DIST_DIR=.next/verify`) keeps the run's build away from the user's `.next`,
+  but `next dev` adds it to `tsconfig.json`'s `include` on first start: note whether the file was clean at launch
+  and `git checkout -- tsconfig.json` at Cleanup if it was (found on Archi Studio).
 - **Drive** with the built-in browser: read the accessibility tree, act on elements by role and accessible name,
   fill forms by label. Playwright, if the repo has it, with `getByRole` / `getByLabel`.
 - **Prove** with the accessibility snapshot after the action, a screenshot, the network response of the mutation,

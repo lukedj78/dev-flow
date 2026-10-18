@@ -100,6 +100,14 @@ The full pass, with its three invariants: `references/maintain.md`.
   the diff and decides.
 - **Credentials never in chat or in the manual.** Test accounts come from the project's seed or example files, and the
   manual names the file, not the password.
+- **Prove one commit.** Record `git rev-parse HEAD` at launch and have the doctor fail if it moves: a project in
+  active development can be merged into or switched under the run (Archi Studio, 2026-10-18: `main` moved two PRs
+  mid-run, files vanished, the page reloaded). When it moves, stop, clean up, relaunch — or verify in a separate
+  `git worktree` nobody else touches.
+- **Leave the project as you found it.** A custom build directory (`NEXT_DIST_DIR`) makes `next dev` add it to
+  `tsconfig.json`'s `include`: record whether the file was clean at launch and restore it at Cleanup.
+- **Prefer the project's isolated test stack** when it has one (an in-memory database, a fixed sign-in code, a mock
+  model): no shared data to clean, and an agent proven for free. Archi Studio's Playwright config had all three.
 - **Not a gate.** It never bumps `phase` and never blocks a deploy.
 
 ## Relationship to other skills

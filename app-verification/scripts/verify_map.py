@@ -36,7 +36,8 @@ FILL = re.compile(r"<fill:[^>]*>")
 LOCALE_SEGMENTS = {"[locale]", "[lang]", "[lng]"}
 STATE_NAMES = {"L": "loading", "E": "empty", "Er": "error", "S": "success"}
 EVIDENCE_DIR = ".verification/evidence"
-STORY = re.compile(r"^\s*-\s+\*\*(US-\d+)\.\*\*\s+(.+?)\s*$", re.M)
+# `- **US-1.** …`, `- **US-1 (P1).** …`, `- **US-1:** …`, `- **US-1** …` — the PRD template and what projects wrote
+STORY = re.compile(r"^\s*-\s+\*\*(US-\d+)(?:\s*\([^)]*\))?[.:]?\*\*[.:]?\s+(.+?)\s*$", re.M)
 
 FILL_TEXT = {
     "Launch": "<fill: the exact command that starts the app for verification, its port and env vars, and how to tell "
@@ -152,7 +153,7 @@ def routes(root: Path) -> list[str]:
 
 def slug(sentence: str) -> str:
     """What the user wants, up to six words: `I want (to) <this>, so that …` → `<this>`."""
-    m = re.search(r"\bI want(?: to)?\s+(.+?)(?:,?\s+so that\b|[.,;]|$)", sentence)
+    m = re.search(r"\b(?:I want(?: to)?|voglio)\s+(.+?)(?:,?\s+(?:so that|così che|così da|in modo da)\b|[.,;]|$)", sentence)
     action = m.group(1) if m else sentence
     words = re.findall(r"[a-z0-9]+", action.lower())[:6]
     return "-".join(words) or "feature"
@@ -193,7 +194,11 @@ def _skill_md(app: str, project: str, kind: str = "web", mounted_in: str | None 
 
 
 def _feature_md(sid: str, sentence: str, screens: list[Screen]) -> str:
-    subs = [f"- `{sid.lower()}-{STATE_NAMES.get(st, st).lower()}` {STATE_NAMES.get(st, st)} state of {s.id} {s.name}"
+    def state_id(st: str) -> str:   # `Er (bloccato)` → `error-bloccato`: one id per screen and state, no spaces
+        head, _, rest = st.partition(" ")
+        return "-".join(re.findall(r"[a-z0-9]+", (STATE_NAMES.get(head, head) + " " + rest).lower()))
+    subs = [f"- `{sid.lower()}-{s.id.lower()}-{state_id(st)}` {STATE_NAMES.get(st.split(' ')[0], st)} state of {s.id} {s.name}"
+            + (f" ({st.split(' ', 1)[1].strip('()')})" if " " in st else "")
             for s in screens for st in s.states]
     subs.append("- <fill: the story's branches — create, cancel, edit, the paths its acceptance names>")
     how = [f"- {s.id} {s.name} — `{s.route}` ({', '.join(s.roles) or 'any role'})" for s in screens] \
@@ -208,9 +213,11 @@ def _feature_md(sid: str, sentence: str, screens: list[Screen]) -> str:
 
 def _readme_md(project: str, entries: list[tuple[str, str, str]], source: str, found_routes: list[str]) -> str:
     index = "\n".join(f"- [{sid} — {sentence}](./{name})" for sid, sentence, name in entries) or "- (no stories in the PRD)"
-    origin = ("Screens, routes, roles and states come from `docs/wireframes/screen-inventory.md`." if source == "wireframes"
+    origin = ("Screens, routes, roles and states come from `docs/wireframes/screen-inventory.md`. The inventory's routes "
+              "are the design's: check each against the app before driving (on Archi Studio four had moved, `/sign-in` "
+              "→ `/it/login`), and write the real one in the feature file." if source == "wireframes"
               else "There is no screen inventory (`docs/wireframes/screen-inventory.md`): the entry points below were "
-                   "read from the app's routes (a leading `[locale]` segment dropped: it is the language prefix) and must be matched to the stories by hand.\n\nRoutes found:\n\n"
+                   "read from the app's routes (a leading `[locale]` segment dropped: it is the language prefix — add it back, e.g. `/it/…`, where the app always shows it) and must be matched to the stories by hand.\n\nRoutes found:\n\n"
                    + ("\n".join(f"- `{r}`" for r in found_routes) or "- (none)"))
     return (f"# {project} verification map\n\nThe maintained source for proving {project}'s user-facing behaviour. "
             f"Read this index before driving the app, then use the matching feature file as the recipe.\n\n{origin}\n\n"
@@ -318,7 +325,14 @@ def _scaffold_other(root: Path, surface: "sf.Surface") -> dict:
     index = "\n".join(f"- [{t}](./{f}.md)" for f, t in feats) or "- (no tools found)"
     origin = (f"Features are the agent's tools, one file per file in `{surface.path}/tools/`." if surface.kind == "agent"
               else f"There is no PRD story or screen for a {surface.kind} surface: list its journeys here.")
-    put(m / "features" / "README.md",
+    readme = m / "features" / "README.md"
+    if readme.exists():   # a feature added since the first run joins the index; the filled part is left alone
+        text = read(readme)
+        missing = [(f, t) for f, t in feats if f"{f}.md" not in text]
+        if missing:
+            readme.write_text(text.rstrip("\n") + "\n" + "\n".join(f"- [{t}](./{f}.md)" for f, t in missing) + "\n",
+                              encoding="utf-8")
+    put(readme,
         f"# {project} {surface.name} verification map\n\n{origin}\n\n## Baseline preconditions\n\n"
         f"- <fill: what every recipe needs>\n\n## Proof and skip reporting\n\n- Capture the request and the resulting "
         f"state, not only the response.\n- A side effect is proven by a second, read-only view of where it landed.\n"

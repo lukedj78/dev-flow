@@ -79,12 +79,32 @@ class Parsing(Fixture):
         self.assertEqual(vm.stories(prd), [("US-1", "As a trainer, I want to invite."),
                                            ("US-2", "As a client, I want to log.")])
 
+    def test_stories_with_a_priority_or_a_colon(self) -> None:
+        # found on Archi Studio: `- **US-1 (P1).** Come titolare …` — 46 stories read as 0
+        prd = "- **US-1 (P1).** Come titolare, voglio creare lo studio.\n- **US-2:** As a client, I want to log.\n- **US-3** Uno.\n"
+        self.assertEqual([sid for sid, _ in vm.stories(prd)], ["US-1", "US-2", "US-3"])
+        self.assertEqual(vm.stories(prd)[0][1], "Come titolare, voglio creare lo studio.")
+
     def test_slug_takes_what_the_user_wants(self) -> None:
         # found on fit-coach: "I want a progress view" fell back to the whole sentence
         self.assertEqual(vm.slug("As a personal trainer, I want a progress view per client, so that I see trends."),
                          "a-progress-view-per-client")
         self.assertEqual(vm.slug("As a client, I want to log my meals, so that we follow it."), "log-my-meals")
         self.assertEqual(vm.slug("Trainers can export data."), "trainers-can-export-data")
+
+    def test_slug_reads_italian_stories(self) -> None:
+        # found on Archi Studio: every file was named `come-titolare-…` — "voglio" was not read as "I want"
+        self.assertEqual(vm.slug("Come titolare di studio, voglio creare lo studio e invitare collaboratori, così che ognuno veda."),
+                         "creare-lo-studio-e-invitare-collaboratori")
+        self.assertEqual(vm.slug("Come architetto, voglio esportare in DXF, così da lavorare con altri."), "esportare-in-dxf")
+
+    def test_sub_feature_ids_are_unique_and_clean(self) -> None:
+        # found on Archi Studio: `us-1-error` four times (one per screen), `us-1-er (bloccato)` with spaces
+        screens = [vm.Screen("A1", "A", "Accesso", "/sign-in", ["visitatore"], ["US-1"], ["Er"]),
+                   vm.Screen("A2", "A", "Codice", "/sign-in/code", ["visitatore"], ["US-1"], ["Er", "Er (bloccato)"])]
+        text = vm._feature_md("US-1", "Come titolare, voglio entrare.", screens)
+        ids = [line.split("`")[1] for line in text.splitlines() if line.startswith("- `")]
+        self.assertEqual(ids, ["us-1-a1-error", "us-1-a2-error", "us-1-a2-error-bloccato"])
 
     def test_inventory_rows(self) -> None:
         rows = vm.inventory(INVENTORY)
@@ -268,3 +288,13 @@ class Surfaces(Fixture):
             vm.main(["scaffold", str(self.root)])
         self.assertIn("verify-web", out.getvalue())
         self.assertIn("verify-agent", out.getvalue())
+
+    def test_rescaffold_adds_new_tools_to_the_index(self) -> None:
+        # found on Archi Studio: PR #325 added five tools mid-run; the files arrived, the index kept listing one
+        self.web_and_mounted_agent()
+        vm.scaffold_all(self.root)
+        self.write("agent/tools/measure.ts", "export default {}\n")
+        vm.scaffold_all(self.root)
+        index = (self.root / ".claude/skills/verify-agent/features/README.md").read_text(encoding="utf-8")
+        self.assertIn("tool-measure.md", index)
+        self.assertEqual(index.count("tool-current-studio.md"), 1)
