@@ -37,10 +37,16 @@ monorepo): `references/stack-recipes.md`.
 3. **Scaffold.**
 
    ```bash
-   python3 <skills>/app-verification/scripts/verify_map.py scaffold <project-root> [--app web|mobile|agent]
+   python3 <skills>/app-verification/scripts/verify_map.py scaffold <project-root>
    ```
 
-   One feature file per `- **US-N.** …` story in `.workflow/PRD.md`. With `docs/wireframes/screen-inventory.md` the
+   **One manual per surface the project has**, found by `surfaces.py` — the one module that decides what a project
+   is made of (canonical in `dev-flow/scripts/`, vendored here): `web`, `mobile`, `agent`, `api`, `cli`, or `other`
+   for anything in `apps/*` / `packages/*` that can be started. No list to keep up to date: a project with a Next app,
+   an eve agent it serves and a Python service gets `verify-web`, `verify-agent` and `verify-ml`. An agent mounted in
+   the web app (`withEve()`) gets a manual whose Launch points to the web's: it never starts on its own. `--app
+   <name>` forces one surface. For a UI surface, one feature file per `- **US-N.** …` story in `.workflow/PRD.md`;
+   for an agent, one per tool; for an api, cli or other surface, one journey file to fill. With `docs/wireframes/screen-inventory.md` the
    files arrive with their screens, routes, roles and states (loading, empty, error, success); without it the index
    lists the app's routes and says so. Everything that needs the code is a `<fill: …>`. Re-running never overwrites:
    a filled file is kept, a new story gets its file.
@@ -58,8 +64,11 @@ monorepo): `references/stack-recipes.md`.
 6. **Check.**
 
    ```bash
-   python3 <skills>/app-verification/scripts/verify_map.py check <project-root> [--app …]
+   python3 <skills>/app-verification/scripts/verify_map.py check <project-root>
    ```
+
+   Every surface first: a surface with no manual is a problem of its own (`verify-agent: no manual for the agent
+   surface at agent`).
 
    It refuses a `<fill: …>` left anywhere, a missing section, a story without a file, a feature file out of shape or
    missing from the index, a script that is not executable or that SKILL.md never names, an evidence directory git

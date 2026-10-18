@@ -49,6 +49,6 @@ recipes below are for when there is none.
 
 ## Monorepo
 
-One manual per app — `verify-web`, `verify-mobile`, `verify-agent` — each scaffolded with `--app <name>` from the
-project root, each with its own Launch and port. A journey that crosses apps (the mobile app calls the web API) lives
+One manual per app, named after its directory in `apps/*` — found by `surfaces.py`, so `scaffold` with no `--app`
+creates them all — each with its own Launch and port. A journey that crosses apps (the mobile app calls the web API) lives
 in the manual of the app the user touches, and its preconditions name the other app's launch.

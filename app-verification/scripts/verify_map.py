@@ -27,6 +27,9 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import surfaces as sf  # noqa: E402 — vendored copy of dev-flow/scripts/surfaces.py; lint_skills.py keeps it identical
+
 SECTIONS = ("Launch", "Doctor", "Drive", "Evidence", "Cleanup", "Isolation")
 FEATURE_SECTIONS = ("Sub-features", "How to get to it (user POV)", "Driving it with", "Gotchas")
 FILL = re.compile(r"<fill:[^>]*>")
@@ -159,8 +162,29 @@ def manual_dir(root: Path, app: str) -> Path:
     return root / ".claude" / "skills" / f"verify-{app}"
 
 
-def _skill_md(app: str, project: str) -> str:
-    sections = "\n\n".join(f"## {s}\n\n{FILL_TEXT[s]}" for s in SECTIONS)
+UI_KINDS = ("web", "mobile")
+DRIVE_HINT = {
+    "web": "the built-in browser (or the repo's Playwright), by ARIA role and accessible name",
+    "mobile": "the iOS simulator (or the repo's Maestro flows), by accessibilityLabel / testID",
+    "agent": "a request to the agent's channel (its HTTP API, its MCP channel) with a fixed prompt per tool, as the seeded test identity",
+    "api": "HTTP requests to the service's endpoints, with a test credential from the project's example config",
+    "cli": "the command in its own terminal session, with literal arguments",
+    "other": "whatever this surface exposes — find out from its scripts and say how",
+}
+
+
+def _skill_md(app: str, project: str, kind: str = "web", mounted_in: str | None = None) -> str:
+    text = dict(FILL_TEXT)
+    text["Drive"] = text["Drive"].replace("<fill: the harness for this stack (references/stack-recipes.md) with",
+                                          f"<fill: {DRIVE_HINT.get(kind, DRIVE_HINT['other'])} — with")
+    if mounted_in:
+        text["Launch"] = (f"This surface is served by the `{mounted_in}` surface: launch it with "
+                          f"`.claude/skills/verify-{mounted_in}/` (its Launch section) and come back here once that "
+                          f"manual's Doctor passes. It never starts on its own.\n\n<fill: the URL prefix it is served "
+                          f"under and how a caller authenticates to it locally.>")
+        text["Cleanup"] = (f"Cleanup is `verify-{mounted_in}`'s: this surface started nothing of its own.\n\n<fill: "
+                           f"anything this surface's journeys create (sessions, records) and how to remove it.>")
+    sections = "\n\n".join(f"## {s}\n\n{text[s]}" for s in SECTIONS)
     return (f"---\nname: verify-{app}\ndescription: <fill: one sentence naming the app ({project}), the surface "
             f"({app}) and when to reach for this manual — to prove a feature works on the real app.>\n---\n\n"
             f"# Verify {project} ({app})\n\nThis manual is for the next agent, read cold mid-task: it takes you from "
@@ -210,8 +234,27 @@ def _project(root: Path) -> str:
     return str(meta.get("project_name") or root.name)
 
 
+def _tools(root: Path, surface: "sf.Surface") -> list[tuple[str, str]]:
+    """An agent's features are its tools: (id, title) per file in <agent>/tools/."""
+    base = root / surface.path
+    tools_dir = base / "tools" if (base / "tools").is_dir() else base / "agent" / "tools"
+    out = []
+    for p in sorted(tools_dir.glob("*")) if tools_dir.is_dir() else []:
+        if p.suffix in (".ts", ".js", ".mjs") and not p.stem.startswith(("_", "index")) and ".test" not in p.name:
+            out.append((f"tool-{re.sub(r'[^a-z0-9]+', '-', p.stem.lower()).strip('-')}", f"the `{p.stem}` tool"))
+    return out
+
+
+def _surface(root: Path, app: str) -> "sf.Surface":
+    found = [s for s in sf.surfaces(root) if s.name == app]
+    return found[0] if found else sf.Surface("web", app, ".")
+
+
 def scaffold(root: Path, app: str = "web") -> dict:
     root = root.resolve()
+    surface = _surface(root, app)
+    if surface.kind not in UI_KINDS:
+        return _scaffold_other(root, surface)
     m = manual_dir(root, app)
     story_list = stories(read(root / ".workflow" / "PRD.md"))
     inv_path = root / "docs" / "wireframes" / "screen-inventory.md"
@@ -230,7 +273,7 @@ def scaffold(root: Path, app: str = "web") -> dict:
         written.append(rel)
 
     project = _project(root)
-    put(m / "SKILL.md", _skill_md(app, project))
+    put(m / "SKILL.md", _skill_md(app, project, surface.kind, surface.mounted_in))
     features = m / "features"
     existing = {p.name.split("-", 2)[0] + "-" + p.name.split("-", 2)[1]: p.name
                 for p in features.glob("US-*-*.md")} if features.is_dir() else {}
@@ -249,7 +292,45 @@ def scaffold(root: Path, app: str = "web") -> dict:
     else:
         put(readme, _readme_md(project, entries, source, found_routes))
     return {"path": str(m.relative_to(root)), "source": source, "written": written, "kept": kept,
-            "stories": len(story_list)}
+            "stories": len(story_list), "kind": surface.kind}
+
+
+def _scaffold_other(root: Path, surface: "sf.Surface") -> dict:
+    """A surface that is not a UI: an agent's features are its tools; an api, cli or other surface starts with one
+    feature file to fill, because there is no PRD story or screen to seed it from."""
+    m = manual_dir(root, surface.name)
+    written, kept = [], []
+
+    def put(p: Path, text: str) -> None:
+        rel = str(p.relative_to(root))
+        if p.exists():
+            kept.append(rel)
+            return
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+        written.append(rel)
+
+    project = _project(root)
+    put(m / "SKILL.md", _skill_md(surface.name, project, surface.kind, surface.mounted_in))
+    feats = _tools(root, surface) if surface.kind == "agent" else [(f"{surface.name}-main", f"the main {surface.kind} journey")]
+    for fid, title in feats:
+        put(m / "features" / f"{fid}.md", _feature_md(fid, title, []))
+    index = "\n".join(f"- [{t}](./{f}.md)" for f, t in feats) or "- (no tools found)"
+    origin = (f"Features are the agent's tools, one file per file in `{surface.path}/tools/`." if surface.kind == "agent"
+              else f"There is no PRD story or screen for a {surface.kind} surface: list its journeys here.")
+    put(m / "features" / "README.md",
+        f"# {project} {surface.name} verification map\n\n{origin}\n\n## Baseline preconditions\n\n"
+        f"- <fill: what every recipe needs>\n\n## Proof and skip reporting\n\n- Capture the request and the resulting "
+        f"state, not only the response.\n- A side effect is proven by a second, read-only view of where it landed.\n"
+        f"- Report an unreachable path with the unmet precondition.\n\n## Features\n\n{index}\n")
+    return {"path": str(m.relative_to(root)), "source": "tools" if surface.kind == "agent" else "none",
+            "written": written, "kept": kept, "stories": 0, "kind": surface.kind}
+
+
+def scaffold_all(root: Path) -> list[dict]:
+    """One manual per surface the project has; a project where none is detected gets the web manual."""
+    found = sf.surfaces(root.resolve())
+    return [scaffold(root, s.name) for s in found] or [scaffold(root, "web")]
 
 
 def _sections(text: str) -> list[str]:
@@ -278,10 +359,16 @@ def check(root: Path, app: str = "web") -> list[str]:
     index = read(features / "README.md")
     if not index:
         problems.append("features/README.md is missing")
-    files = sorted(features.glob("US-*.md")) if features.is_dir() else []
-    for sid, _ in stories(read(root / ".workflow" / "PRD.md")):
-        if not any(f.name.startswith(f"{sid}-") for f in files):
-            problems.append(f"features/: story {sid} has no feature file")
+    surface = _surface(root, app)
+    files = sorted(f for f in features.glob("*.md") if f.name != "README.md") if features.is_dir() else []
+    if surface.kind in UI_KINDS:
+        for sid, _ in stories(read(root / ".workflow" / "PRD.md")):
+            if not any(f.name.startswith(f"{sid}-") for f in files):
+                problems.append(f"features/: story {sid} has no feature file")
+    elif surface.kind == "agent":
+        for fid, _ in _tools(root, surface):
+            if not (features / f"{fid}.md").is_file():
+                problems.append(f"features/: tool {fid} has no feature file")
     for f in files:
         heads = _sections(read(f))
         order = [next((i for i, h in enumerate(heads) if h.startswith(want)), None) for want in FEATURE_SECTIONS]
@@ -304,11 +391,25 @@ def check(root: Path, app: str = "web") -> list[str]:
     return problems
 
 
+def check_all(root: Path) -> list[str]:
+    """Every surface has its manual, and every manual is complete. Problems are prefixed by the manual."""
+    root = root.resolve()
+    found = sf.surfaces(root) or [sf.Surface("web", "web", ".")]
+    problems = []
+    for s in found:
+        if not (manual_dir(root, s.name) / "SKILL.md").is_file():
+            problems.append(f"verify-{s.name}: no manual for the {s.kind} surface at {s.path} — "
+                            f"run `verify_map.py scaffold {root}`")
+        else:
+            problems += [f"verify-{s.name}: {p}" for p in check(root, s.name)]
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("op", choices=("scaffold", "check"))
     ap.add_argument("project_root", type=Path)
-    ap.add_argument("--app", default="web")
+    ap.add_argument("--app", default=None, help="one surface by name; every surface when omitted")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     root = a.project_root
@@ -316,16 +417,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
     if a.op == "scaffold":
-        r = scaffold(root, a.app)
+        results = [scaffold(root, a.app)] if a.app else scaffold_all(root)
         if a.json:
-            print(json.dumps(r, indent=2))
+            print(json.dumps(results if not a.app else results[0], indent=2))
         else:
-            print(f"{r['path']}: {r['stories']} stories found, entry points from {r['source']}; "
-                  f"{len(r['written'])} written, {len(r['kept'])} kept.")
-            if r["stories"] == 0:
-                print("No `- **US-N.** …` story in .workflow/PRD.md — the map has no features to seed.")
+            for r in results:
+                what = (f"{r['stories']} stories found, entry points from {r['source']}" if r["kind"] in UI_KINDS
+                        else f"{r['kind']} surface, features from {r['source']}")
+                print(f"{r['path']}: {what}; {len(r['written'])} written, {len(r['kept'])} kept.")
+                if r["kind"] in UI_KINDS and r["stories"] == 0:
+                    print("  No `- **US-N.** …` story in .workflow/PRD.md — the map has no features to seed.")
         return 0
-    problems = check(root, a.app)
+    problems = check(root, a.app) if a.app else check_all(root)
     if a.json:
         print(json.dumps({"problems": problems}, indent=2))
     else:

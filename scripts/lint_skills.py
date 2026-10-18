@@ -746,6 +746,9 @@ VENDORED_SOURCE = [
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
       for skill in ("design-md-to-app", "forms", "founder-intelligence", "linear-scrum", "registry-intake", "wireframe-canvas")),
+    # What a project is made of (web, mobile, agent, api, cli, other). One answer for every skill: app-security
+    # had its own Next/Expo detection and missed Expo configured by app.config.ts (2026-10-18).
+    *(("dev-flow/scripts/surfaces.py", f"{skill}/scripts/surfaces.py") for skill in ("app-security", "app-verification")),
     # The RN version pins. refresh_stack_defaults.py rewrites both tables; the prose around them drifted
     # by hand (rn-bootstrap's still said NativeWind had no v5 when rn-fundamentals had it in preview).
     ("rn-fundamentals/references/stack-defaults.md", "rn-bootstrap/references/stack-defaults.md"),

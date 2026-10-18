@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta_io  # noqa: E402 — reads meta.json, refusing an invalid one with exit 2
+import surfaces  # noqa: E402 — what the project is made of, the one place that decides it
 import phases  # noqa: E402 — the phase enum and its aliases, shared with update_meta.py
 
 # Next-step proposals per phase, keyed by `stack.framework`: THE routing table. dev-flow/SKILL.md
@@ -193,11 +194,19 @@ def verification_line(meta: dict, root: Path) -> str | None:
     phase = routing_phase(meta.get("phase"))
     if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index(first):
         return None
+    found = surfaces.surfaces(root, meta)
+    missing = [s for s in found if not (root / ".claude" / "skills" / f"verify-{s.name}" / "SKILL.md").is_file()]
+    if not found and not isinstance(meta.get("verification"), dict) \
+            and not any((root / ".claude" / "skills").glob("verify-*/SKILL.md")):
+        missing = [surfaces.Surface("web", "web", ".")]
+    if missing:   # one manual per surface the project has (surfaces.py)
+        names = ", ".join(f"verify-{s.name} ({s.kind}" + (f", served by {s.mounted_in})" if s.mounted_in else ")")
+                          for s in missing)
+        return (f"Verification: missing manual for {names} — app-verification create (how to launch, drive and "
+                "prove each surface, written once into .claude/skills/)")
     block = meta.get("verification")
     if not isinstance(block, dict):
-        on_disk = any((root / ".claude" / "skills").glob("verify-*/SKILL.md"))
-        return None if on_disk else ("Verification: no manual yet — app-verification create (how to launch, drive and "
-                                     "prove this app's features, written once into .claude/skills/)")
+        return None
     seen = block.get("maintained_at") or block.get("proven_at") or ""
     changes = [h for h in meta.get("history") or [] if isinstance(h, dict) and h.get("skill") in MATERIAL_SKILLS
                and str(h.get("ran_at") or "") > seen]

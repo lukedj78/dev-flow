@@ -27,6 +27,9 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import surfaces as sf  # noqa: E402 — vendored copy of dev-flow/scripts/surfaces.py; lint_skills.py keeps it identical
+
 OK, FOUND, NOT_CHECKED, NOT_APPLICABLE = "ok", "found", "not checked", "not applicable"
 
 CODE_CHECKS = ("server-action-unauthenticated", "route-handler-unauthenticated", "query-by-id-unscoped",
@@ -57,12 +60,8 @@ class Finding:
 
 
 def source_roots(root: Path) -> list[Path]:
-    """The project root, plus every app and package in a monorepo."""
-    out = [root]
-    for group in ("apps", "packages"):
-        if (root / group).is_dir():
-            out += sorted(p for p in (root / group).iterdir() if p.is_dir())
-    return out
+    """The project root, plus every app and package in a monorepo (surfaces.py decides, for every skill)."""
+    return sf.source_roots(root)
 
 
 def walk_sources(base: Path, root: Path, nested: tuple = ()):
@@ -108,25 +107,13 @@ def session_calls(root: Path) -> list[str]:
     return list(DEFAULT_SESSION_CALLS) + extra
 
 
-def dependencies(base: Path) -> set[str]:
-    try:
-        pkg = json.loads(read(base / "package.json") or "{}")
-    except ValueError:
-        return set()
-    return set(pkg.get("dependencies") or {}) | set(pkg.get("devDependencies") or {}) if isinstance(pkg, dict) else set()
-
-
 def is_expo(base: Path) -> bool:
-    """Expo Router has an app/ directory too: app.json, app.config.*, or expo without next in package.json."""
-    deps = dependencies(base)
-    if "next" in deps:
-        return False
-    return ("expo" in deps or any(base.glob("app.config.*"))
-            or ((base / "app.json").is_file() and '"expo"' in read(base / "app.json")))
+    return sf.is_expo(base)
 
 
 def is_next(root: Path) -> bool:
-    return any(any((base / d).is_dir() for d in ("app", "src/app")) and not is_expo(base) for base in source_roots(root))
+    """The Next.js checks apply when the project has a web surface (surfaces.py)."""
+    return any(s.kind == "web" for s in sf.surfaces(root))
 
 
 TOP_DECL = re.compile(r"^(?:export\s+(?:default\s+)?)?(?:async\s+)?(?:function\b|const\b|let\b|var\b|class\b|type\b|interface\b|enum\b)"

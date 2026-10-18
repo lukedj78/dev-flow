@@ -284,6 +284,18 @@ class Verification(unittest.TestCase):
                                     history=[{"skill": "module-add", "ran_at": "2026-10-10T00:00:00Z"},
                                              {"skill": "spec-review", "ran_at": "2026-10-13T00:00:00Z"}]))
 
+    def test_missing_manual_named_per_surface(self) -> None:
+        # Archi Studio / fit-coach: a Next app serving an eve agent has two surfaces, so two manuals
+        (self.root / "package.json").write_text('{"dependencies": {"next": "16.3.8", "eve": "1.0.0"}}')
+        (self.root / "agent").mkdir()
+        (self.root / "agent" / "agent.ts").write_text("export default {}\n")
+        skill = self.root / ".claude" / "skills" / "verify-web" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: verify-web\n---\n")
+        out = self.line(phase="page_generated", stack={"framework": "next"})
+        self.assertIn("verify-agent", out)
+        self.assertNotIn("verify-web", out.split("missing")[-1] if "missing" in out else out)
+
     def test_agent_projects_from_scaffolded(self) -> None:
         self.assertIn("create", self.line(phase="scaffolded", stack={"framework": "agent"}))
 

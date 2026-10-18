@@ -85,6 +85,7 @@
       ],
       "scripts": [
         "scan_security.py",
+        "surfaces.py",
         "test_scan_security.py"
       ],
       "skill_md_lines": 141,
@@ -103,10 +104,11 @@
         "stack-recipes.md"
       ],
       "scripts": [
+        "surfaces.py",
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 118,
+      "skill_md_lines": 127,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -160,6 +162,7 @@
         "registry_intake_gate.py",
         "research.py",
         "show_state.py",
+        "surfaces.py",
         "test_contract_version.py",
         "test_data_residency.py",
         "test_founder_gate.py",
@@ -173,6 +176,7 @@
         "test_primitives_guard_gate.py",
         "test_research.py",
         "test_show_state.py",
+        "test_surfaces.py",
         "test_update_meta.py",
         "test_wireframes_gate.py",
         "update_meta.py",

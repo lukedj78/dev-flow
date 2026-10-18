@@ -227,3 +227,44 @@ class Check(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Surfaces(Fixture):
+    """One manual per surface the project has, detected by surfaces.py (the user's decision, 2026-10-18)."""
+
+    def web_and_mounted_agent(self) -> None:
+        self.write(".workflow/PRD.md", PRD)
+        self.write("package.json", '{"dependencies": {"next": "16.3.8", "eve": "1.0.0"}}')
+        self.write("app/page.tsx", "export default function P() { return null }\n")
+        self.write("next.config.ts", "export default withEve({})\n")
+        self.write("agent/agent.ts", "export default {}\n")
+        self.write("agent/tools/current_studio.ts", "export default {}\n")
+        self.write("agent/tools/find_rooms.ts", "export default {}\n")
+
+    def test_scaffold_every_surface(self) -> None:
+        self.web_and_mounted_agent()
+        results = vm.scaffold_all(self.root)
+        self.assertEqual(sorted(r["path"] for r in results), [".claude/skills/verify-agent", ".claude/skills/verify-web"])
+        agent = (self.root / ".claude/skills/verify-agent/SKILL.md").read_text(encoding="utf-8")
+        launch = agent.split("## Launch")[1].split("## ")[0]
+        self.assertIn("verify-web", launch)   # mounted: it starts with the web app, never on its own
+
+    def test_agent_features_are_its_tools(self) -> None:
+        self.web_and_mounted_agent()
+        vm.scaffold_all(self.root)
+        names = sorted(p.name for p in (self.root / ".claude/skills/verify-agent/features").glob("*.md"))
+        self.assertEqual(names, ["README.md", "tool-current-studio.md", "tool-find-rooms.md"])
+
+    def test_check_flags_a_missing_surface_manual(self) -> None:
+        self.web_and_mounted_agent()
+        vm.scaffold(self.root, "web")
+        problems = vm.check_all(self.root)
+        self.assertTrue(any("verify-agent" in p and "no manual" in p for p in problems), problems)
+
+    def test_cli_without_app_does_every_surface(self) -> None:
+        self.web_and_mounted_agent()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            vm.main(["scaffold", str(self.root)])
+        self.assertIn("verify-web", out.getvalue())
+        self.assertIn("verify-agent", out.getvalue())
