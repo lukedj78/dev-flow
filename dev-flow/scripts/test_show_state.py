@@ -47,6 +47,12 @@ class Routing(unittest.TestCase):
     def test_no_framework_means_next(self) -> None:
         self.assertEqual(ss.next_step("scaffolded", None), ss.PHASE_NEXT_BY_STACK["next"]["scaffolded"])
 
+    def test_feature_complete_proposes_app_security_on_every_stack(self) -> None:
+        # the fifth pre-deploy gate applies to every stack: all of them have dependencies and secrets
+        for fw in ss.PHASE_NEXT_BY_STACK:
+            for phase in ("feature_complete", "deployed"):
+                self.assertIn("app-security", ss.next_step(phase, fw), (fw, phase))
+
     def test_an_unrecognized_framework_is_not_guessed(self) -> None:
         self.assertIn("refuses to guess", ss.next_step("scaffolded", "astro"))
 

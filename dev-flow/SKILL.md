@@ -57,8 +57,8 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `scaffolded` → primitives guard check (setup_design_lint.py --check)  THEN  screenshot-to-page  OR  module-add (project-infra-setup first if the account does not exist)
 - `page_generated` → spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page
 - `module_added` → spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done
-- `feature_complete` → gates: compliance-audit + vercel-doctor + shadscan + launch-audit  THEN  vercel-deploy
-- `deployed` → maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit after material changes
+- `feature_complete` → gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy
+- `deployed` → maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes
 - never reached on this stack: `monorepo_initialized`
 
 **`expo-rn`**
@@ -69,8 +69,8 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `scaffolded` → rn-add-screen (UI)  OR  rn-module-add (auth/db/storage/realtime/push/payments)
 - `page_generated` → spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen
 - `module_added` → spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done
-- `feature_complete` → gate: compliance-audit  THEN  rn-eas-deploy
-- `deployed` → maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit after material changes
+- `feature_complete` → gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy
+- `deployed` → maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes
 - never reached on this stack: `monorepo_initialized`
 
 **`monorepo`**
@@ -82,16 +82,16 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `scaffolded` → web: primitives guard check THEN screenshot-to-page / module-add · mobile: rn-add-screen / rn-module-add · agent: eve-agent · shared: monorepo-add-shared-package / monorepo-sync-types
 - `page_generated` → spec-review  THEN  module-add / rn-module-add  OR  more screens
 - `module_added` → spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done
-- `feature_complete` → gates: compliance-audit (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply
-- `deployed` → maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit after material changes
+- `feature_complete` → gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply
+- `deployed` → maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes
 
 **`agent` (shape ③ — no web app)**
 
 - `prd_drafted` → eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)
 - `tasks_split` → linear-scrum (Setup)  THEN  eve-agent (bootstrap)
 - `scaffolded` → eve-agent (capability mode)  OR  eve-registry-porting — set phase feature_complete when the build is done
-- `feature_complete` → gate: compliance-audit  THEN  eve deploy
-- `deployed` → maintenance loop — more capabilities (eve-agent), compliance-audit after material changes
+- `feature_complete` → gates: compliance-audit + app-security  THEN  eve deploy
+- `deployed` → maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes
 - never reached on this stack: `design_extracted`, `monorepo_initialized`, `page_generated`, `module_added`
 
 <!-- END:routing-table -->
@@ -186,8 +186,8 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 | `scaffolded` | **Check the primitives guard first** (`show_state.py` flags it; `setup_design_lint.py --check`): without it no write is refused and `set-phase` will not move on. Then `screenshot-to-page` if `screenshots/` has unmapped images; **`project-infra-setup` first when a module needs an account that does not exist yet** (Vercel project, Neon, Resend, Blob, DNS); then `module-add` to wire auth/db/etc. (**the inventory step first** when the capability is new — a subscription already paid for may cover it); `forms` for any form-building request; iterate. |
 | `page_generated` | **Propose `spec-review`** on the diff; `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
 | `module_added` | **The inventory step first for each further capability** — the same reason as at `scaffolded`: a tool already paid for may cover it. Then **propose `spec-review`** on the branch just landed (cheapest while it is still open — does the diff match `PRD.md`/`tasks.md`, and the declared stack?); `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. When the build is done, advance to `feature_complete` (all stacks) → the pre-deploy gates, then deploy. |
-| `feature_complete` | **Propose the four pre-deploy gates**: `compliance-audit` (legal — GDPR/AI-Act, any stack) + `vercel-doctor` (cost/perf — web on Vercel) + `shadscan` (UI quality + a11y — web on shadcn) + `launch-audit` (commercial readiness — web; metadata on every route, the legal and identity pages, a CTA someone can reach). They ask four different questions and none substitutes for another: an app can pass the first three and still have no way to buy and no company name on it. Then deploy: mobile (`expo-rn`) → `rn-eas-deploy`; web → `vercel-deploy`; agent → `eve deploy`. |
-| `deployed` | Maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` after material changes; telemetry monitoring. |
+| `feature_complete` | **Propose the five pre-deploy gates**: `compliance-audit` (legal — GDPR/AI-Act, any stack) + `vercel-doctor` (cost/perf — web on Vercel) + `shadscan` (UI quality + a11y — web on shadcn) + `launch-audit` (commercial readiness — web; metadata on every route, the legal and identity pages, a CTA someone can reach) + `app-security` (can the code be attacked — dependencies, secrets, authorization and IDOR; any stack, the Next.js checks on web only). They ask five different questions and none substitutes for another: an app can pass the first three and still have no way to buy and no company name on it, and pass all four with every Server Action open to anyone who sends a POST. Then deploy: mobile (`expo-rn`) → `rn-eas-deploy`; web → `vercel-deploy`; agent → `eve deploy`. |
+| `deployed` | Maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` + `app-security` after material changes; telemetry monitoring. |
 | anything else | Treat as `empty` (forward-compatible). |
 
 **Policies** — each lives in **`references/policies.md`**; read the one that applies before acting on it:
@@ -200,7 +200,8 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 - **Cost/perf** — `vercel-doctor`, the pre-deploy gate for web projects on Vercel.
 - **Review** — `spec-review` on every change that lands, whatever the phase.
 - **Parallel builds** — the brief every sub-agent gets and the checks its diff passes before it is accepted.
-- **UI quality** — `shadscan`, one of the four pre-deploy gates.
+- **UI quality** — `shadscan`, one of the five pre-deploy gates.
+- **Security** — `app-security`, the fifth pre-deploy gate: any time, any stack, and after every material change.
 - **Animated icons** — `animated-icons`, web only, horizontal, no phase bump.
 - **Measurement (opt-in)** — "measure usage", "aggiungi gli analytics", a prototype promoted to a product: `module-add analytics` (web) or `rn-module-add analytics` (Expo), at any phase, a level at a time. Never proposed to a project that did not ask.
 - **The product's own agent-skill** — when the product exposes an API another agent could drive.
@@ -216,7 +217,7 @@ When the user confirms, invoke the specialist skill with explicit input:
 
 The specialist skill writes its outputs into `.workflow/`, updates `phase` and appends to `history` in `meta.json`.
 
-After the specialist returns, **read `meta.json` again**. For a skill that owns a phase move (the scaffolders, `prd-from-idea`, `prd-to-tasks`, the deploy skills), confirm the phase advanced; if it didn't, the specialist either errored, the user aborted, or a phase gate refused it — `update_meta.py` prints which — so propose the next move accordingly. **Horizontal skills never bump the phase by design** (the four gates, `spec-review`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `linear-scrum`, `eve-agent` in capability mode): for them, confirm the `history` entry they append instead. An unchanged phase after one of those is success, not failure.
+After the specialist returns, **read `meta.json` again**. For a skill that owns a phase move (the scaffolders, `prd-from-idea`, `prd-to-tasks`, the deploy skills), confirm the phase advanced; if it didn't, the specialist either errored, the user aborted, or a phase gate refused it — `update_meta.py` prints which — so propose the next move accordingly. **Horizontal skills never bump the phase by design** (the five gates, `spec-review`, `forms`, `data-fetching`, `state-discipline`, `transitions`, `linear-scrum`, `eve-agent` in capability mode): for them, confirm the `history` entry they append instead. An unchanged phase after one of those is success, not failure.
 
 ### Step 4 — Loop
 

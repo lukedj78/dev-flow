@@ -1,0 +1,5 @@
+{"results": [{"source": {"path": "pnpm-lock.yaml", "type": "lockfile"},
+  "packages": [
+    {"package": {"name": "next", "version": "15.2.0", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-f82v-jwr5-mffw", "aliases": ["CVE-2025-29927"], "summary": "Authorization bypass in Next.js middleware"}]},
+    {"package": {"name": "axios", "version": "1.6.0", "ecosystem": "npm"}, "vulnerabilities": [{"id": "GHSA-8hc4-vh64-cxmj", "aliases": ["CVE-2024-39338"], "summary": "Server-Side Request Forgery in axios"}]}
+  ]}]}

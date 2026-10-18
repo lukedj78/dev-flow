@@ -8,7 +8,7 @@ description: >-
   and article mapping) and Remediate (apply the safe mechanical mitigations, flag the ones needing a
   legal decision, never deciding legal basis or high-risk for the user). A pre-deploy gate; run it any
   time. Triggers: "audit GDPR", "compliance check", "AI Act", "siamo conformi?", "DSAR / cancellazione
-  account / cookie consent / data residency". Not for: the other pre-deploy gates (vercel-doctor, shadscan, launch-audit), legal advice or DPIA sign-off (a DPO confirms),
+  account / cookie consent / data residency". Not for: the other pre-deploy gates (vercel-doctor, shadscan, launch-audit, app-security), legal advice or DPIA sign-off (a DPO confirms),
   building features, or writing the PRD (use prd-from-idea).
 ---
 

@@ -1,9 +1,10 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 53,
+  "skill_count": 54,
   "families": {
     "core": [
+      "app-security",
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
@@ -70,6 +71,24 @@
     ]
   },
   "skills": [
+    {
+      "name": "app-security",
+      "family": "core",
+      "role": "operative",
+      "description": "Check whether an app's own code can be attacked before it ships — vulnerable dependencies, secrets in the code and in git history, Next.js authorization gaps (Server Actions and route handlers without a session check, queries by id with no owner filter — IDOR), data over-exposure, secrets in public ...",
+      "skill_file": "app-security/SKILL.md",
+      "references": [
+        "contracts.md",
+        "dynamic.md",
+        "review.md"
+      ],
+      "scripts": [
+        "scan_security.py",
+        "test_scan_security.py"
+      ],
+      "skill_md_lines": 141,
+      "bundle": "dist/app-security.skill"
+    },
     {
       "name": "compliance-audit",
       "family": "core",
@@ -139,7 +158,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 304,
+      "skill_md_lines": 305,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -514,7 +533,7 @@
       "name": "shadscan",
       "family": "web",
       "role": "operative",
-      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of four pre-deploy gates, with `compliance-audit` ...",
+      "description": "Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of five pre-deploy gates, with `compliance-audit` ...",
       "skill_file": "shadscan/SKILL.md",
       "references": [
         "contracts.md"
@@ -572,7 +591,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 284,
+      "skill_md_lines": 286,
       "bundle": "dist/vercel-deploy.skill"
     },
     {

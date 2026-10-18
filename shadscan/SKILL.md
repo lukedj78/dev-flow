@@ -1,6 +1,6 @@
 ---
 name: shadscan
-description: 'Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of four pre-deploy gates, with `compliance-audit` (legal), `vercel-doctor` (cost) and `launch-audit` (launch readiness); dev-flow proposes it at `feature_complete` and in the `deployed` maintenance loop. Use when the user says "shadscan", "audit my UI", "check accessibility", "is this app accessible", "a11y audit", "missing loading/empty states", "UI quality check", or dev-flow routes here before a web deploy. Refuses for non-React / non-shadcn targets (mobile RN is out of scope). Not for: legal/privacy audit (use compliance-audit), Vercel cost (use vercel-doctor), launch readiness (use launch-audit), designing the UI (use design-md-to-app), or writing tests (use write-tests).'
+description: 'Audit a React/shadcn app for missing UI fundamentals — accessibility, interaction, empty/error/loading states, form wiring, responsive shell, production polish — with the shadscan CLI, then route each real fix to the dev-flow skill that owns it. One of five pre-deploy gates, with `compliance-audit` (legal), `vercel-doctor` (cost), `launch-audit` (launch readiness) and `app-security` (code security); dev-flow proposes it at `feature_complete` and in the `deployed` maintenance loop. Use when the user says "shadscan", "audit my UI", "check accessibility", "is this app accessible", "a11y audit", "missing loading/empty states", "UI quality check", or dev-flow routes here before a web deploy. Refuses for non-React / non-shadcn targets (mobile RN is out of scope). Not for: legal/privacy audit (use compliance-audit), Vercel cost (use vercel-doctor), launch readiness (use launch-audit), designing the UI (use design-md-to-app), or writing tests (use write-tests).'
 ---
 
 # shadscan — UI-quality & accessibility pre-deploy gate for React/shadcn apps
@@ -240,7 +240,7 @@ in code before reporting a delta**, rather than trusting that two runs minutes a
 ## dev-flow hook
 
 Horizontal capability — run any time. dev-flow **proposes it as a pre-deploy gate** at `feature_complete`,
-one of four: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)** · `launch-audit` (commercial readiness).
+one of five: `compliance-audit` (legal) · `vercel-doctor` (cost) · **`shadscan` (UI quality + a11y)** · `launch-audit` (commercial readiness) · `app-security` (code security).
 Re-run it in the `deployed` maintenance loop to catch UI regressions. It records `meta.json#shadscan` +
 `history` and **never bumps `phase`**. It never *blocks* the deploy on its own — it surfaces the score and
 the open decisions so the user decides.

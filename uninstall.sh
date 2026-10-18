@@ -55,6 +55,7 @@ SKILLS=(
   project-infra-setup
   linear-scrum
   compliance-audit
+  app-security
   spec-review
   product-to-agent-skill
   registry-intake

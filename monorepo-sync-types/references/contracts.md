@@ -258,6 +258,24 @@ Research and decision are two axes, because a Playbook can be approved with hypo
 
 **Applies only when present.** A project without the field is on the direct path and nothing here concerns it. With `mode: "new"`, **`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `prd_drafted` unless the decision is `approved` or `approved_experiment` with the founder's quote and a Playbook whose sha256 still matches, or `bypassed` with a reason** (`dev-flow/scripts/founder_gate.py`). A Playbook edited after approval needs a new `founder.py approve`. With `mode: "existing"` (invoked on a project already past the PRD) the gate does not apply; the result is `handoff.md`, applied with `prd-from-idea` / `prd-to-tasks` once the founder agrees. Approval is not product-market fit: open hypotheses stay listed.
 
+### `security` field (owned by `app-security`)
+
+The fifth pre-deploy gate — **can someone use this app to read or change what is not theirs?** Written by `app-security` after each run (`docs/superpowers/specs/2026-10-18-app-security-design.md`):
+
+```json
+"security": {
+  "last_run_at": "<ISO-8601 UTC>",
+  "tools": { "deps": "osv-scanner | pnpm-audit | npm-audit | not-run", "secrets": "gitleaks | not-run",
+             "static": "semgrep | not-run" },
+  "findings": { "open": 3, "fixed": 5, "accepted": [{ "check": "…", "reason": "…" }] },
+  "dynamic": { "ran_at": "…", "tool": "strix", "proven": 1 } | null
+}
+```
+
+`tools` records which scanner answered for each area; `not-run` means the area was **not checked**, never that it was clean. `accepted` carries the user's reason for each risk they keep, so the next run does not raise it as new. `dynamic` is `null` until the user asks for a Strix run (`app-security/references/dynamic.md`). Reports, never blocks, never bumps `phase`; always a `history` entry.
+
+A project whose session helpers have other names declares them in **`stack_config.security_session_calls`** (an array of function names, e.g. `["requireMember", "withOrg"]`), added to the defaults `getSession`, `getCurrentUserId`, `getCurrentTenantId`, `requireUser`, `verifySession` and `auth(`. Only a call inside a Server Action or route handler's body counts as a session check.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.
@@ -275,7 +293,7 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 | `scaffolded` | all | `app/` exists with framework + UI library installed — **every primitive of it** (`shadcn add --all`), so golden rule 3 always has something to compose | next-stack-skill (`screenshot-to-page` web / `rn-add-screen` mobile) or `module-add` / `rn-module-add` |
 | `page_generated` | all | At least one route is implemented from a screenshot or PRD | `module-add` / `rn-module-add`, more screen-gen runs |
 | `module_added` | all | Auth/DB/payments/etc. wired up | iterative — repeat as needed; leads to `feature_complete` when the build is done (all stacks) |
-| `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gates — `compliance-audit` (any stack), plus `vercel-doctor`, `shadscan` and `launch-audit` for web — then deploy: web → `vercel-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
+| `feature_complete` | all | All planned features built and tested; ready to ship | pre-deploy gates — `compliance-audit` and `app-security` (any stack), plus `vercel-doctor`, `shadscan` and `launch-audit` for web — then deploy: web → `vercel-deploy`, mobile → `rn-eas-deploy`, agent → `eve deploy` |
 | `deployed` | all | Live in production (web on Vercel / mobile on App Store + Play Store / agent via `eve deploy`) | maintenance loop (web: `screenshot-to-page` / `module-add`; mobile: `rn-add-screen` / `rn-eas-build-submit-update`; re-run `compliance-audit` after material changes) |
 
 **Notes**:

@@ -11,6 +11,7 @@ Print this to the user before deploy, asking them to confirm each. Block on miss
 - [ ] `npx expo doctor` exits 0 (or only documented warnings).
 - [ ] No `console.log` in shipped code (use `expo-dev-tools` logging, dev-only).
 - [ ] No hardcoded localhost URLs or dev secrets.
+- [ ] `app-security` ran: dependencies and secrets checked (or reported *not checked*), and no secret in an `EXPO_PUBLIC_` variable — it ships in plain text inside the bundle.
 
 ## Measurement (only if `meta.json#stack.analytics` is not empty)
 

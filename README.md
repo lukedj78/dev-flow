@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **53 skills (11 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **54 skills (12 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 53. Restart Claude Code if you don't see them in /skills.
+# Should print 54. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -166,6 +166,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `project-infra-setup` | GitHub repo, Vercel project, Neon / Blob / Resend connectors, DNS and secrets, set up from the CLI |
 | `linear-scrum` | Take a project into Linear and run it with agile scrum — cycles, estimates, sprint planning, velocity reports; Linear as source of truth |
 | `compliance-audit` | GDPR + EU AI Act audit of an existing project (11-point risk register) + safe auto-remediation; flags legal decisions. Horizontal; proposed as a pre-deploy gate |
+| `app-security` | Can this code be attacked? Vulnerable dependencies, secrets in code and git history, Server Actions and routes with no session or ownership check (IDOR), data over-exposure — scanned, then read against an OWASP checklist; an opt-in Strix level proves exploits. The fifth pre-deploy gate |
 | `spec-review` | Review a diff on two axes — does it match `PRD.md`/`tasks.md`, and does it obey the contract it was built under? Parallel sub-agents, reported side by side, never merged |
 | `figma-to-design-md` | Figma URL → `DESIGN.md` (Google design.md spec) + screenshots |
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
@@ -883,6 +884,7 @@ phase=module-added     → write-tests / rn-write-tests  OR  iterate
                          → eventually the stack's deploy skill, once feature-complete
 phase=feature_complete → gates: compliance-audit (any stack)  +  vercel-doctor (web on Vercel)
                                 +  shadscan (web on shadcn)  +  launch-audit (web)
+                                +  app-security (any stack)
                          "next"    → vercel-deploy
                          "expo-rn" → rn-eas-deploy
                          eve agent → eve deploy
@@ -964,6 +966,12 @@ Four barriers, each mechanical: an **allowlist** (a new registry is the user's d
 **How it works**: scores the codebase against a fixed **11-point risk register** (R1 DSAR · R2 consent/cookies · R3 EU data residency & transfers · R4 retention/TTL & PII-scrubbing · R5 AI-transparency Art. 50 · R6 high-risk Annex III/DPIA · R7 PII in logs · R8 sub-processors · R9 special-category data · R10 memory/manipulation · R11 client analytics before consent). `scripts/scan.py` is a fast first-pass signal; every hit is verified in code before it lands in the report. **R4 has one dimension a code read cannot reach**: scrubbing that exists and silently does not work. Where the scrubber is a *model* rather than a regex it can return zero findings on a document full of them and answer `200` — so the audit asks what the model was trained on versus what the product ingests, whether the checked rules outrank it, whether a zero-finding result is surfaced rather than read as a clean document, and whether a token limit is being crossed in silence. **Auto-applies only the safe, mechanical fixes and flags every decision** (which EU region, legal basis, whether high-risk) — it never decides law for you. Horizontal capability: run it any time; dev-flow proposes it as a **pre-deploy gate** at `feature_complete` and re-runs it in the `deployed` maintenance loop. Records `meta.json#compliance`, never bumps `phase`. **Not legal advice** — it produces engineering findings + a DPIA template; a DPO/counsel confirms.
 
 **The decision it audits is taken earlier.** Where the data lives is decided at the stack decision, not discovered at the audit: `dev-flow` asks four questions (EU data subjects, sensitive categories, sector residency, CLOUD Act) and records `stack.data_residency` = `eu` · `eu-sovereign` · `none` with [`dev-flow/scripts/data_residency.py`](./dev-flow/scripts/data_residency.py); every `module-add` / `rn-module-add` sets the provider's EU region and adds it to one register (`meta.json#compliance.sub_processors` → `docs/compliance/subprocessors.md`); this skill then checks the code against that record. A provider with no EU option is **flagged with its transfer basis and never blocks** — the phase gate only refuses an undecided residency. The how-to is [`dev-flow/references/eu-data-sovereignty.md`](./dev-flow/references/eu-data-sovereignty.md): a table of 13 service categories with the default, its EU setting and European alternatives, each row sourced on the vendor's own page (2026-09-15), and the regulations with primary links and a re-verification cadence — including the AI Act as amended by Regulation (EU) 2026/1744 (Annex III high-risk from 2 Dec 2027, Art. 50 from 2 Aug 2026) and the pending DPF appeal C-703/25 P. Found on the way: Anthropic's own API has no EU inference, Resend's EU region moves sending but not storage, Firebase Auth runs only in the US.
+
+### `app-security` — can this code be attacked?
+
+The fifth pre-deploy gate, and the question none of the other four asks: can someone use this app to read or change what is not theirs? Three levels. A **scan** ([`scripts/scan_security.py`](./app-security/scripts/scan_security.py)) runs OSV-Scanner (or `pnpm audit` / `npm audit`), gitleaks and Semgrep when they are installed, plus eight Next.js checks of our own: Server Actions and mutating routes with no session call, queries by id with no owner filter, actions that return a raw row, secrets in `NEXT_PUBLIC_`, server modules without `server-only`, raw SQL, missing security headers. A **review** reads every flagged file, and every action and route, against an OWASP Top 10:2025 checklist ([`references/review.md`](./app-security/references/review.md)), because a session check that never checks ownership passes every scanner. A **dynamic** level, only on request, runs Strix against the app on `next start` or a preview and reports only what an exploit proved ([`references/dynamic.md`](./app-security/references/dynamic.md)).
+
+Two rules carry it. A tool that is missing, offline or unparseable reads **not checked**, never clean, and the report never calls a project clean. And nothing is installed without asking: the report prints the command. Records `meta.json#security`, with the user's reason on every risk they keep; never bumps `phase`, never blocks.
 
 ### `figma-to-design-md` — Figma → DESIGN.md
 
@@ -1246,7 +1254,7 @@ Fixing annotix's sitemap then paid for a fourth. Listing the legal pages meant t
 
 **Why that reading step is the skill.** On the first real run, **only 2 of 9 `fix` items survived it.** shadscan invents nothing — every string it quoted was really in the file it named — but it cannot follow a prop across a component boundary, climb to a wrapper, see through a `render` prop, or know that a subtree renders to WebGL instead of the DOM. A suppressed focus ring whose wrapper carries `focus-within:ring`, a pending state lifted into the parent, a `fallback={null}` inside a `<Canvas>` — all reported, none defects. **The better-composed the codebase, the more false positives it produces.** The skill encodes which rule kinds to trust: *does this file exist?* is reliable, *is this component semantically complete?* is not.
 
-This is one of the **four pre-deploy gates** (with `launch-audit`, which came later), and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
+This is one of the **five pre-deploy gates** (with `launch-audit` and `app-security`, which came later), and the one that closes a real hole: `compliance-audit` reads the legal surface and `vercel-doctor` the cost surface, but until now **nothing mechanically verified that the UI we prescribe actually got built**. Two of shadscan's rules are verbatim our own contract — `animations-respect-reduced-motion` is the core rule of `transitions`, and the label/error-association rules are what `forms` specifies.
 
 **The discipline: never optimise for the score.** shadscan says this itself — *do not add unused infrastructure solely to increase the audit score*. A command menu nobody asked for is a regression that scores well. Web only (DOM/React rules); no phase bump; never blocks the deploy on its own.
 

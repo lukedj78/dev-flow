@@ -1,0 +1,3 @@
+{"results": [{"check_id": "typescript.react.security.audit.react-dangerouslysetinnerhtml", "path": "app/post/[slug]/page.tsx", "start": {"line": 12}, "extra": {"severity": "WARNING", "message": "dangerouslySetInnerHTML with user input"}},
+             {"check_id": "javascript.lang.security.audit.path-traversal", "path": "app/api/file/route.ts", "start": {"line": 8}, "extra": {"severity": "ERROR", "message": "Path traversal"}}],
+ "errors": [], "version": "1.180.0"}
