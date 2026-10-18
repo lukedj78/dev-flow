@@ -539,7 +539,12 @@
         "module-voice.md",
         "provider-scaleway.md"
       ],
-      "scripts": [],
+      "scripts": [
+        "fake_ingest.py",
+        "observability_check.py",
+        "surfaces.py",
+        "test_observability.py"
+      ],
       "skill_md_lines": 180,
       "bundle": "dist/module-add.skill"
     },
