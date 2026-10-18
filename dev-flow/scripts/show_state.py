@@ -23,8 +23,8 @@ import phases  # noqa: E402 — the phase enum and its aliases, shared with upda
 # module_added row for a phase the contract says it never reaches.
 # All phase keys are snake_case (contract §phase enum); legacy kebab-case is normalized below.
 COMMON_NEXT = {
-    "empty":            "inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea  — optional alternative for a commercial idea whose market is not settled: founder-intelligence instead of the inventory",
-    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'; optional alternative for a commercial idea: founder-intelligence",
+    "empty":            "ask the user which kind of project this is — a product to sell whose market is not settled → founder-intelligence (the full check before any PRD); a prototype, internal tool, refactor or decided product → inventory first (references/before-you-build.md, inventory.py scan)  THEN  prd-from-idea",
+    "idea_captured":    "prd-from-idea (expand PROJECT.md into PRD.md) — the inventory first if PROJECT.md has no 'what exists already'; if the user has not chosen yet, ask the user whether a full check (founder-intelligence) should come first",
 }
 
 PHASE_NEXT_BY_STACK = {

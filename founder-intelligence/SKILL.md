@@ -1,6 +1,6 @@
 ---
 name: founder-intelligence
-description: 'Decide whether a commercial idea is worth building before dev-flow builds it: research, an adaptive founder interview, competitors by tier, a customer-discovery kit and the synthesis of real interviews, business model, MVP boundaries, feasibility (what already exists to reuse), go-to-market and a validation roadmap, collected in an evidence-tagged `.workflow/founder/founder-playbook.md` the founder approves. Optional: the alternative door to dev-flow''s inventory step for a new product whose market is not settled. Also invocable later on an existing project, producing proposed PRD changes. No PRD before approval: `update_meta.py set-phase` refuses it once the path has started. Triggers: "is this worth building", "founder playbook", "valida l''idea di business", "analisi di mercato per la mia idea", "rivediamo la strategia di prodotto". Not for: the PRD itself (prd-from-idea), technical tasks, refactors, prototypes or internal tools (dev-flow direct), pre-deploy launch checks (launch-audit).'
+description: 'The full check of a commercial idea before dev-flow builds it: research, founder interview, competitors, customer-discovery kit and synthesis of real interviews, business model, MVP boundaries, feasibility and reuse, go-to-market, validation roadmap, in an evidence-tagged `.workflow/founder/founder-playbook.md` the founder approves. The alternative door to dev-flow''s inventory step for a product whose market is not settled; dev-flow asks which door on every new idea. Also invocable later on an existing project. No PRD before approval: `update_meta.py set-phase` refuses it once started. Triggers: "fammi un controllo completo dell''idea", "vale la pena costruirlo?", "is this worth building", "analisi di mercato per la mia idea", "founder playbook", "rivediamo la strategia di prodotto". Not for: the PRD itself (prd-from-idea), technical tasks, refactors, prototypes or internal tools (dev-flow direct), pre-deploy launch checks (launch-audit).'
 ---
 
 # founder-intelligence — what is worth building, and why
@@ -21,8 +21,9 @@ The two doors (the user's decision, 2026-10-17):
 - **dev-flow direct**: a prototype, a refactor, an internal tool, a technical task, a product already
   decided. Unchanged: inventory, then `prd-from-idea`.
 
-dev-flow proposes this skill in one line when it sees the signals; the direct path stays the default and
-the user chooses. **Later invocation**: on a project already past the PRD, run in `existing` mode. The
+The user does not have to remember this skill's name: on every new idea dev-flow asks which kind of project
+it is, and the answer picks the door. "Fammi un controllo completo dell'idea" or "vale la pena costruirlo?" lead
+here directly. **Later invocation**: on a project already past the PRD, run in `existing` mode. The
 project's PROJECT.md, PRD.md, tasks and code are the starting context, and the result is `handoff.md`.
 
 ## Rules that do not bend

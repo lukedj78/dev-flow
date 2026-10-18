@@ -139,14 +139,14 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 299,
+      "skill_md_lines": 303,
       "bundle": "dist/dev-flow.skill"
     },
     {
       "name": "founder-intelligence",
       "family": "core",
       "role": "discovery",
-      "description": "Decide whether a commercial idea is worth building before dev-flow builds it: research, an adaptive founder interview, competitors by tier, a customer-discovery kit and the synthesis of real interviews, business model, MVP boundaries, feasibility (what already exists to reuse), go-to-market and a va...",
+      "description": "The full check of a commercial idea before dev-flow builds it: research, founder interview, competitors, customer-discovery kit and synthesis of real interviews, business model, MVP boundaries, feasibility and reuse, go-to-market, validation roadmap, in an evidence-tagged `.workflow/founder/founder-...",
       "skill_file": "founder-intelligence/SKILL.md",
       "references": [
         "contracts.md",
@@ -159,7 +159,7 @@
         "meta_io.py",
         "test_founder.py"
       ],
-      "skill_md_lines": 118,
+      "skill_md_lines": 119,
       "bundle": "dist/founder-intelligence.skill"
     },
     {

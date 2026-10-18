@@ -148,9 +148,10 @@ class FounderPath(unittest.TestCase):
         for phase in ("empty", "idea_captured"):
             with self.subTest(phase=phase):
                 text = ss.COMMON_NEXT[phase]
-                self.assertTrue(text.startswith(("inventory first", "prd-from-idea")))
+                self.assertTrue(text.startswith(("ask the user", "prd-from-idea")))
+                self.assertIn("inventory first", text)   # the direct door is still named
                 self.assertIn("founder-intelligence", text)
-                self.assertIn("optional", text)
+                self.assertIn("ask the user", text)
 
     def test_no_founder_field_routes_as_before(self) -> None:
         for phase in phases.PHASES:
