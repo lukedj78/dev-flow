@@ -18,7 +18,7 @@ The skill is interactive — it asks the user a small number of high-leverage qu
 - Orchestrator (`dev-flow`) routes here when `phase` is `empty` or `idea_captured`.
 - A `PROJECT.md` exists but `PRD.md` doesn't — the skill expands the brief into requirements.
 
-If a `PRD.md` already exists, the skill enters **revise mode**: it reads the current PRD, asks what's wrong, and edits in place. It does not silently overwrite.
+If a `PRD.md` already exists, the skill enters **revise mode**: it reads the current PRD, asks what's wrong, and edits in place. It does not silently overwrite. A change that **adds or removes a story** is a scope change: it passes the scope check first (`references/scope-check.md`) and is recorded with `scripts/scope.py record`, one row in `## Scope changes`. A PRD that predates `## Scope rules` gets the section here (question 7b).
 
 ## Contract
 
@@ -79,7 +79,7 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
 
-**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]`, or `["product"]` on Expo — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
+**From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]`, or `["product"]` on Expo — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. `## Scope rules` takes the evidence and the exclusions from Playbook §12, and `Who decides` is the founder — question 7b is not asked. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
 2. **What's the problem they have right now?** (in their own words, not yours)
@@ -174,6 +174,10 @@ For `PRD.md`, after `PROJECT.md` is in place, ask:
 
 6. **What are the 3–5 user stories that define an MVP?** (in `As a … I want … so that …` form; if user gives more, ask which 3–5 are non-negotiable)
 7. **What is explicitly out of scope?** (forces clarity)
+7b. **Quale prova ti farebbe aggiungere una funzione prima del lancio?** — the PRD's `## Scope rules` (three lines:
+   the evidence that lets a feature in, what never enters before launch whatever the evidence, who decides). With no
+   answer, propose one ("three test users hit the same wall, or a story cannot be completed without it") and mark it
+   as your proposal. On the founder path it is not asked: the evidence and the exclusions come from Playbook §12, and `Who decides` is the founder.
 8. **What technical constraints exist?** (must use Postgres, must be GDPR-compliant, must integrate with X, etc. — `null` is a fine answer)
 
 If the user pastes a long brief, parse it and ask only the unanswered questions. Don't make them re-state things they already wrote.
@@ -263,6 +267,12 @@ Decided before launch, not after. Levels: traffic, product.
 
 <What the MVP explicitly does not include. Be opinionated.>
 
+## Scope rules
+
+- **A new feature enters the MVP when**: <the evidence, e.g. "three test users hit the same wall", "a story cannot be completed without it">
+- **Not before launch, whatever the evidence**: <e.g. "a second payment provider", "an admin panel">
+- **Who decides**: <the user, or the named owner>
+
 ## Technical constraints
 
 <Anything that constrains the engineering choices: required tech, compliance, integration deadlines.
@@ -307,3 +317,10 @@ Do **not** silently invoke the next skill. The user (or the orchestrator) decide
 - **Don't pad.** The PRD's value is being decision-forcing, not exhaustive. A 2-page PRD that names the wedge clearly is better than a 10-page PRD full of platitudes.
 - **One h1 only.** The h1 is the project name. Sub-sections are h2.
 - **Don't number user stories with backend IDs** (no `JIRA-123`-style). Use `US-1, US-2, ...` so they survive renaming.
+- **Scope is decided, not drifted into.** A story added or removed after the PRD exists passes the scope check and is recorded with `scripts/scope.py record`: see `references/scope-check.md`.
+
+## Reference files
+
+- `references/scope-check.md` — the check a new request passes, its four outcomes, descope, the founder path.
+- `scripts/scope.py` — `check` the PRD's `## Scope rules`, `record` a decision in `## Scope changes`.
+- `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).

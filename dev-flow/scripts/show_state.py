@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -225,6 +226,39 @@ def verification_line(meta: dict, root: Path) -> str | None:
             "app-verification maintain")
 
 
+SCOPE_SCRIPT = Path(__file__).resolve().parents[2] / "prd-from-idea" / "scripts" / "scope.py"
+
+
+def _scope_check():
+    """prd-from-idea's `scope.check`: one answer to "are the scope rules written?" — a second, lighter copy here
+    disagreed with it on TBD, an empty line and a half-edited placeholder (final review, 2026-10-18)."""
+    if not SCOPE_SCRIPT.is_file():
+        return None
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("scope_for_show_state", SCOPE_SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.check
+
+
+def scope_line(meta: dict, root: Path) -> str | None:
+    """A note when a PRD exists past prd_drafted without complete `## Scope rules`. Never a block: a new request
+    is checked against these rules before it becomes work."""
+    phase = routing_phase(meta.get("phase"))
+    prd = root / ".workflow" / "PRD.md"
+    check = _scope_check()
+    if (check is None or phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index("prd_drafted")
+            or not prd.is_file()):
+        return None
+    problems = check(prd.read_text(encoding="utf-8", errors="ignore"))
+    if not problems:
+        return None
+    where = ("on the founder path: the evidence and the exclusions from Playbook §12, `Who decides` is the founder"
+             if isinstance(meta.get("founder"), dict) else "prd-from-idea, revise mode (question 7b)")
+    return (f"Scope: the PRD's `## Scope rules` is not complete ({problems[0].split(': ', 1)[-1]}); {where}. A new "
+            f"request passes prd-from-idea/references/scope-check.md before it becomes work.")
+
+
 def founder_labels(founder: dict) -> list[str] | None:
     if not FOUNDER_SCRIPT.is_file():
         return None
@@ -431,6 +465,9 @@ def main() -> int:
         print()
 
     if (note := verification_line(meta, root)):
+        print(note)
+        print()
+    if (note := scope_line(meta, root)):
         print(note)
         print()
 

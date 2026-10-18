@@ -60,6 +60,7 @@ Do **one** logical operation per invocation, then stop. Every mode is idempotent
 - **Pull status/velocity**: read issue states + completed points from Linear (`list_issues`, `list_cycles`).
 - **Sprint planning**: move items from `Backlog`/`Todo` into the active cycle up to the **velocity target** (`meta.json#scrum.velocity_target`; learned from past cycles, asked on the first). See `references/scrum-model.md`.
 - **Report**: produce a sprint/velocity summary **to chat** (points committed vs done, carry-over, blocked issues). Do not write a report file.
+- **An issue created mid-sprint that matches no PRD story** is a scope change: it passes `prd-from-idea/references/scope-check.md` before it enters the cycle, and the outcome is recorded in the PRD (`scope.py record`). **A descoped story's issues** go back to the backlog, with the reason in a comment — never deleted.
 - Append history `{ "skill": "linear-scrum", "action": "sync", … }`.
 
 ## Definition of Done (per run)
