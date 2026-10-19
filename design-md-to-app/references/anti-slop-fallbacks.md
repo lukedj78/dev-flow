@@ -145,7 +145,9 @@ Or in Tailwind shorthand: `active:scale-[0.98]`. Pure CSS, no JS. Should land on
 
 When writing `app/loading.tsx` or any in-page loading state for invented routes, use **content-shaped skeletons** (a `<Skeleton>` rectangle the size of the heading, etc.) instead of generic circular spinners. shadcn's `<Skeleton>` pulses with Tailwind's core `animate-pulse` (opacity only) — that is the whole animation. **No moving gradient sweep** ("shimmer") on a skeleton: it is a decorative gradient (rule 11), and `tw-animate-css` ships none (`transitions/references/tw-animate-css.md`). *Corrected 2026-10-19:* this rule used to say it did. (The one sanctioned sweep is the chat status marker on a running line — `references/chat-and-typeset.md` — a state, not decoration, and it stops under reduced motion.)
 
-This is already pinned in `references/loading.template.tsx`. The fallback rule reinforces: never reach for `<Spinner />` or a `<Loader2 className="animate-spin" />` as a default.
+This is already pinned in `references/loading.template.tsx`. **Content-shaped means measured**, not guessed: once the
+route has data, `references/skeleton-audit.md` sizes each skeleton to the loaded UI and proves the page does not jump
+(CLS ≤ 0.05, the render probe's `layout-shift`). The fallback rule reinforces: never reach for `<Spinner />` or a `<Loader2 className="animate-spin" />` as a default.
 
 ### 10. Stagger via CSS cascade, not JS
 

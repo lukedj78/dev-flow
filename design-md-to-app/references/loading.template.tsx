@@ -6,6 +6,10 @@
  * `loading.tsx` at the route level (e.g., `app/dashboard/loading.tsx`).
  *
  * Uses shadcn's `<Skeleton>` primitive (installed by `add --all`).
+ *
+ * This is a PLACEHOLDER SHAPE: a heading and six cards, guessed before the route has data. Once it does, size the
+ * skeleton to the loaded UI — same containers, measured blocks, sizes on the scale — and prove the page no longer
+ * jumps (CLS <= 0.05): references/skeleton-audit.md.
  */
 import { Skeleton } from "@/components/ui/skeleton";
 

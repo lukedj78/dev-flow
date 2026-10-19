@@ -111,7 +111,7 @@
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 194,
+      "skill_md_lines": 195,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -425,6 +425,7 @@
         "shadcn-mapping.md",
         "shadcn-styles.md",
         "showcase-template.md",
+        "skeleton-audit.md",
         "spec.md"
       ],
       "scripts": [
@@ -437,7 +438,7 @@
         "test_setup_primitives_guard.py",
         "test_templates.py"
       ],
-      "skill_md_lines": 1348,
+      "skill_md_lines": 1351,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
