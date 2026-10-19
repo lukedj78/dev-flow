@@ -1488,8 +1488,11 @@ class Hooks(unittest.TestCase):
         silent = "echo registry_intake; echo {} > registry-lock.json"
         self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": silent}}),
                              "mentioning the word is not an invocation")
-        # One direct call of our own script is exempt, and still only one.
-        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
+        # One direct call of our own script is exempt, and still only one — identified against the
+        # project's own copy, never by basename.
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check .", root))
         # `$S` is NOT exempt any more: an eleventh review showed the arm that allowed it exempted
         # `python3 $S check` whatever the variable held. We cannot see what it holds, so it asks —
         # and `approve` asks regardless, for being a decision.
@@ -1503,7 +1506,7 @@ class Hooks(unittest.TestCase):
                          "echo registry_intake.py",
                          "python3 registry_intake.py"):
             with self.subTest(command=not_ours):
-                self.assertFalse(ri.our_invocation(not_ours), not_ours)
+                self.assertFalse(ri.our_invocation(not_ours, root), not_ours)
         self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {
             "command": "python3 .claude/hooks/registry_intake.py check ."}}), "no noise on our own call")
 
@@ -1523,9 +1526,14 @@ class Hooks(unittest.TestCase):
         `… check .\npython3 -c "…"` merged two commands into ONE token list with no operator in it
         and passed the test — the same hole as `;` a round earlier, through whitespace. Asking what
         the token list LACKS was the wrong shape; the test asks what the command IS."""
-        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\npython3 -c "x"'))
-        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\recho x'))
-        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\npython3 -c "x"', root))
+        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\recho x', root))
+        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check .", root))
+        # No project root, no exemption: there is nothing to identify the script against, and the
+        # fallback that trusted the basename there granted it on a spelling alone.
+        self.assertFalse(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
 
     def test_the_lock_changing_is_noticed_however_the_command_spelled_it(self) -> None:
         """The answer to a chain of findings about globs, braces and quotes in the lock's name:
@@ -1712,7 +1720,7 @@ class AfterTheCommand(Base):
             with self.subTest(forged=forged):
                 path.write_text(forged)
                 report = ri.hook_post_report(self.event()) or ""
-                self.assertIn("no snapshot from before this command", report)
+                self.assertIn("no before-state for this command", report)
                 self.assertIn("@evil", report)
 
     def test_a_command_that_names_the_baseline_is_denied(self) -> None:
@@ -1758,7 +1766,7 @@ class AfterTheCommand(Base):
         snap.write_text(snap.read_text() + " ")
         report = ri.hook_post_report(self.event("never-pre"))
         self.assertIn("edited after approval", report or "")
-        self.assertIn("no snapshot", report or "")
+        self.assertIn("no before-state", report or "")
 
     def test_a_cd_inside_the_command_does_not_lose_the_snapshot(self) -> None:
         # The PostToolUse payload carries the cwd *after* the command; keyed on the raw cwd, a `cd sub`

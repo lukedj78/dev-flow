@@ -1058,7 +1058,29 @@ def hook_post_report(payload: dict) -> str | None:
     new = now if before is None else [p for p in now if p not in before]
     # Did the record of what a PERSON decided change during this command? The text gates ask about
     # commands that look like they will write it; this notices that one did, whatever it looked like.
-    if before_lock is not None and sha256(lock_path(root)) != before_lock:
+    #
+    # And with NO baseline it says so rather than nothing. The comment four lines up already said a
+    # missing baseline is not a clean one — then this field was added one round later and gated on
+    # that same field being present, so deleting the file hid the lock change completely. The same
+    # lesson, one field over, in the same function.
+    if before_lock is None:
+        # A thirteenth review asked for this to report on its own, and that is where I stopped
+        # following the reviews. Without a baseline the lock's prior state is UNKNOWABLE, and a
+        # project whose pre-hook did not run would then get "I cannot tell" on every single command
+        # — the wall of findings this file already warns makes people switch a gate off. The hole it
+        # worries about is shut one layer up instead, and measurably: a command that deletes or
+        # writes the baseline is DENIED at PreToolUse through all three doors (`rm` with a glob, a
+        # redirect, and the write tools). So the unknown is said out loud only beside something else
+        # worth reading, and never on its own.
+        if not new:
+            return None
+        return ("Registry intake has no before-state for this command, so these are all the current "
+                "registry problems, not only the ones it introduced — and it cannot say whether "
+                f"{LOCK} changed while the command ran:\n"
+                + "".join(f"  - {p}\n" for p in new)
+                + f"Check the record with `git diff -- {LOCK}`, then go through registry intake "
+                  "(see AGENTS.md).")
+    if sha256(lock_path(root)) != before_lock:
         return (f"{LOCK} changed while that command ran. It records what a person decided — every "
                 "registry, item, skill, MCP server and hook approval in it carries a `--by`. If you "
                 "did not run `allow`, `approve`, `skill-approve`, `mcp-approve` or `hook-approve`, "
@@ -1066,11 +1088,6 @@ def hook_post_report(payload: dict) -> str | None:
                 + ("\nThe registry problems it reports now:\n" + "".join(f"  - {p}\n" for p in new) if new else ""))
     if not new:
         return None
-    if before is None:
-        return ("Registry intake has no snapshot from before this command, so these are all the current "
-                "registry problems, not only the ones it introduced:\n"
-                + "".join(f"  - {p}\n" for p in new)
-                + "Fix them, or go through registry intake (see AGENTS.md).")
     return ("The shell command just run changed governed registry state:\n"
             + "".join(f"  - {p}\n" for p in new)
             + "Put it back, or go through registry intake: `registry_intake.py review|approve|install <root> <item>` "
@@ -3207,18 +3224,20 @@ def our_invocation(command: str, root: Path | None = None) -> bool:
         return False
     if Path(tokens[1]).name != "registry_intake.py":
         return False
-    if root is not None:
-        # By identity when we can: a basename is a spelling, and this file has paid for that
-        # confusion once already (`evil_registry_intake.py` ended with the right one).
-        named = Path(tokens[1]) if Path(tokens[1]).is_absolute() else root / tokens[1]
-        for real in (root / HOOK_COPY, Path(__file__).resolve()):
-            try:
-                if named.exists() and real.exists() and named.samefile(real):
-                    return True
-            except OSError:
-                pass
+    # By identity, never by basename: a basename is a spelling, and this file has paid for that
+    # confusion once already (`evil_registry_intake.py` ended with the right one). With no project
+    # root there is nothing to identify it against, so there is no exemption — the fallback that
+    # trusted the basename there was an exemption granted on a spelling alone.
+    if root is None:
         return False
-    return True
+    named = Path(tokens[1]) if Path(tokens[1]).is_absolute() else root / tokens[1]
+    for real in (root / HOOK_COPY, Path(__file__).resolve()):
+        try:
+            if named.exists() and real.exists() and named.samefile(real):
+                return True
+        except OSError:
+            pass
+    return False
 
 
 def may_install(command: str) -> bool:
