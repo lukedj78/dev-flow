@@ -102,6 +102,12 @@ jobs:
       - name: Lint all skills
         run: python3 scripts/lint_skills.py
 
+      # app-verification's render probe needs Node >= 22 (built-in WebSocket); the runner's Chrome is
+      # already installed. Without this its browser tests skip — counted, but not run.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       # One step for every suite: run_skill_tests.py discovers each <skill>/scripts/test_*.py tracked
       # by git, fails on a red suite and on one that ran zero tests, and prints the skips. CI used to
       # name the files one by one and ran 4 of 17.

@@ -105,12 +105,13 @@
       ],
       "scripts": [
         "meta_io.py",
+        "render_probe.mjs",
         "surfaces.py",
         "test_render_probe.py",
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 165,
+      "skill_md_lines": 190,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -436,7 +437,7 @@
         "test_setup_primitives_guard.py",
         "test_templates.py"
       ],
-      "skill_md_lines": 1339,
+      "skill_md_lines": 1348,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -627,7 +628,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 195,
+      "skill_md_lines": 198,
       "bundle": "dist/transitions.skill"
     },
     {

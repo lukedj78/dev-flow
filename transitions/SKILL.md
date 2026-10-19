@@ -144,7 +144,10 @@ Scaffold `lib/motion/` : `tokens.ts` (from DESIGN.md `motion` block or defaults)
 Pick the **best-fit** transition from the library for the component/context, at the **lowest viable tier**, propose it in one line with the rationale (which tier + why), then wire it using the tokens. Always include the reduced-motion fallback. Never introduce a new magic number — if the library lacks a fit, add a *tokenized* entry to `transitions.ts` rather than inlining.
 
 ### Audit (find ad-hoc motion)
-Run `python scripts/scan_motion.py <root>` for a first-pass signal, then verify each hit in code. Report un-tokenized durations/easings, `duration-[Xms]`/`ease-[…]` Tailwind arbitraries, inline `cubic-bezier`, `@keyframes` animating layout props, transitions with no `prefers-reduced-motion` path, and Tier-3 usage where Tier 0/1 would do. See `references/audit-recipe.md`. The scan is a **signal, not a verdict**.
+Run `python scripts/scan_motion.py <root>` for a first-pass signal, then verify each hit in code. The scan reads
+source; to prove non-negotiable ② on the running page, run `app-verification`'s render probe
+(`node <skills>/app-verification/scripts/render_probe.mjs <url>`): its `reduced-hidden` finding lists text that is
+visible normally and stays invisible with reduced motion — an entrance with no reduced-motion path. Report un-tokenized durations/easings, `duration-[Xms]`/`ease-[…]` Tailwind arbitraries, inline `cubic-bezier`, `@keyframes` animating layout props, transitions with no `prefers-reduced-motion` path, and Tier-3 usage where Tier 0/1 would do. See `references/audit-recipe.md`. The scan is a **signal, not a verdict**.
 
 ### Refine (swap to tokens)
 In a given file, replace hardcoded durations/easings with the nearest token (round to the token scale) and add any missing reduced-motion fallback. Every change is a reviewable diff.

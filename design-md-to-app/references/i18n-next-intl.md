@@ -191,6 +191,20 @@ function Cta() {
 
 Drop `[locale]` segment, `routing.ts`, `navigation.ts`, and `proxy.ts`. `i18n/request.ts` returns a fixed/cookie-derived `locale`. Put `<NextIntlClientProvider>` in `app/layout.tsx`. Use plain `next/link`. Switch locale by writing a cookie + `revalidate`. Everything else (`useTranslations`, `getTranslations`, formatting) is identical.
 
+## Headlines in every locale
+
+Italian runs 15–30% longer than English, so a headline written and fitted in English breaks in Italian — on a phone
+first. The rule that headlines take two lines at most (anti-slop rule 13, `wireframe-canvas/references/
+page-argument.md`) is a rule about **the longest locale**:
+
+- Fit the phone artboard and the build to the longer text at 390 px. When a headline only fits in one language,
+  rewrite it in the other; do not drop it to a smaller slot for one locale.
+- A deliberate line break is a tag in the message — `"title": "Invoices out<br></br>in two minutes"` rendered with
+  `t.rich('title', {br: () => <br />})` — so each language places its own, or none. Never a `<br>` in the JSX around
+  one language's words.
+- Measure it, do not guess: `node <skills>/app-verification/scripts/render_probe.mjs http://localhost:<port>/it --widths 390`
+  reports every heading that wraps past two lines (`headline-lines`); run it on `/en` and `/it`.
+
 ## Integration in dev-flow
 
 - Wired at **scaffold** by `design-md-to-app` (full-scaffold mode) — `stack.i18n="next-intl"`, `stack.locales=["en","it"]`.

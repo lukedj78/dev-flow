@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>probe: broken</title>
+<style>
+  /* One defect per finding id the render probe reports. */
+  @font-face { font-family: "Ghost"; src: url("ghost-missing.woff2") format("woff2"); }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 40px; line-height: 1.1; margin: 0 16px; }
+  h2 { font-family: "Ghost", serif; }
+  .wide { width: 2000px; height: 20px; background: #ccc; }                 /* overflow-x */
+  .reveal { opacity: 0; animation: in 200ms ease-out forwards; }
+  @keyframes in { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }  /* reduced-hidden: stays at 0 */
+  aside { position: fixed; top: 0; left: 0; width: 45%; height: 100vh; background: #eee; } /* sidebar-phone */
+</style>
+</head>
+<body>
+  <aside>Sidebar</aside>
+  <h1>A headline far too long to fit in two lines on a phone screen at all</h1>
+  <h2>Set in a typeface that never loads</h2>
+  <p class="reveal">This paragraph only appears through an animation.</p>
+  <img src="missing-picture.png" alt="a picture that is not there" width="200" height="100">
+  <div class="wide"></div>
+</body>
+</html>

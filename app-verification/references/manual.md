@@ -43,6 +43,11 @@ like on this app.
 > `.verification/evidence/<UTC timestamp>/`: the accessibility snapshot and a screenshot after the action, and the
 > row read back with `pnpm db:query "select title from notes where title = 'Release checklist'"`.
 
+For a web surface, add the render probe on the routes the feature touches, in each locale — its report and one
+screenshot per width land in the evidence directory, and a FAIL there is a finding like any other:
+
+> `node <skills>/app-verification/scripts/render_probe.mjs http://localhost:3100/it/notes --out .verification/evidence/<ts>/probe-it`
+
 ### Cleanup
 
 Stop what this run started, by the PID and port it recorded — never `pkill node`. Remove scratch data. Keep the

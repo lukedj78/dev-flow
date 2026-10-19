@@ -804,7 +804,16 @@ Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12
    browser_navigate(url: "http://localhost:3000")
    browser_take_screenshot()
    ```
-   Then visit `/`, `/showcase`, and 1–2 placeholder routes. Spot-check:
+   Then visit `/`, `/showcase`, and 1–2 placeholder routes. **Measure before you look**: run the render probe on
+   each, in both locales — it reports horizontal overflow with the culprit, headings over two lines, text hidden
+   under reduced motion, fonts that never loaded, broken images and a sidebar covering the phone:
+
+   ```bash
+   node <skills>/app-verification/scripts/render_probe.mjs http://localhost:3000/en --widths 1440,390
+   node <skills>/app-verification/scripts/render_probe.mjs http://localhost:3000/it --widths 1440,390
+   ```
+
+   Fix every FAIL, then spot-check what it cannot judge:
    - No horizontal scroll
    - All primary nav reachable (hamburger visible)
    - Hero headline doesn't overflow (clamps under 40px)
