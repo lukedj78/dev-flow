@@ -1791,6 +1791,12 @@ SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
 # `pnpm build` hook earned a finding with nothing behind it. A real interpreter later in the
 # segment (`env python3 x`, `pnpm exec node x`) raises it on its own.
 DELEGATES = re.compile(r"npm|pnpm|yarn|npx|bunx|uv|uvx|pipx|env")
+# `npx x`, `pnpm dlx x`, `uvx x`: the package is FETCHED and run, at every call, at whatever version
+# the registry serves then. Unreviewable by anyone, which is H9's own definition.
+FETCHERS = re.compile(r"npx|bunx|uvx|pipx")
+FETCH_SUBCOMMAND = {"dlx", "exec"}
+# `git+https://…`, `github:owner/repo`: a URL wearing a package spec.
+REMOTE_SPEC = re.compile(r"://|^git\+|^(?:github|gitlab|bitbucket):")
 # Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence.
 SEPARATORS = {"&&", "||", ";", "|", "&", ";;", "(", ")"}
 
@@ -1850,9 +1856,14 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         """A path has a separator, or a script extension, or exists here. An option's value does not."""
         return "/" in token or bool(SCRIPT_EXT.search(token)) or (root / token).is_file()
 
-    interp, resolved, inline, code_next, cur_flags, piped = False, False, False, None, (), False
+    # TWO variables, not one. `interp` raised the H11 gap AND gated the URL finding, so suppressing
+    # it to quieten `pnpm build` also silenced `npx https://evil.test/pkg` — `([], [])` again. Every
+    # noise fix in this function has cost a control until each was given its own flag: `named` is
+    # "a program we recognise ran here", `interp` is "and it runs FILES, so a missing one is a gap".
+    named, interp, resolved, inline, code_next, cur_flags, piped = False, False, False, False, None, (), False
+    fetcher: str | None = None
 
-    def close_segment() -> None:
+    def close_segment() -> None:        # noqa: C901 — the four shapes we cannot read
         """What this command segment left unaccounted for.
 
         An interpreter fed on **stdin** reads code nobody reviewed: `curl -s https://host/p |
@@ -1860,6 +1871,14 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         `sh|bash|zsh`. Suppressing the gap after a pipe — written one commit before this one, to
         keep a test tidy — was the same control regression the H9 comment above warns about, and
         it removed the last finding that caught the shape. So a pipe makes it worse, not quieter."""
+        if fetcher is not None and not resolved:
+            # `npx x` fetches a package and runs it, at every call, at whatever version the registry
+            # serves then — unreviewable, which is H9's own definition. But `pipx run ./tool.py`
+            # fetches nothing: a local file was given instead, so the note is dropped. This reads
+            # `resolved` on purpose — it is what "a package, or a file?" means — and not to quieten
+            # a control, which is the mistake the two flags above exist to prevent.
+            unresolved.append((f"{fetcher} — fetches and runs a package at every call, unpinned", "expansion"))
+            return
         if not interp or resolved or inline:
             return
         if piped:
@@ -1909,18 +1928,26 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             continue
         flags = inline_flags(Path(token).name)
         if flags is not None and "/" not in token:   # a bare program name, not a file
-            cur_flags = flags
-            interp = interp or not DELEGATES.fullmatch(Path(token).name)
+            cur_flags, named = flags, True
+            name = Path(token).name
+            interp = interp or not DELEGATES.fullmatch(name)
+            if FETCHERS.fullmatch(name):
+                fetcher = token
+            continue
+        if token in FETCH_SUBCOMMAND and named:         # `pnpm dlx x`, `npm exec x`
+            fetcher = token
             continue
         if token.startswith("-"):
             # An option, or its value, which `is_path` below declines on its own: `-W ignore`,
             # `uv run`, `--loader x` — a value is not a separator, an extension or a file here.
             continue
-        if "://" in token:
-            # `deno run https://host/x.ts` runs code off the network and H1 only catches a pipe —
-            # but a URL handed to `curl` or `wget` is H1's and H2's business, not a script of ours.
-            if interp:
-                unresolved.append((f"{token} — code from a URL", "computed"))
+        if REMOTE_SPEC.search(token):
+            # `deno run https://host/x.ts`, `npx git+https://host/r`: code off the network, and H1
+            # only catches a pipe. A URL handed to `curl` or `wget` is H1's and H2's business, so
+            # this needs a program we recognise — but ANY of them, delegates included, because
+            # `npx <url>` is the shape that got through when this read `interp`.
+            if named:
+                unresolved.append((f"{token} — code from the network", "computed"))
                 resolved = True
             continue
         if is_path(token):
