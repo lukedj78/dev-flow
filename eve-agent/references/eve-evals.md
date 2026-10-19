@@ -109,7 +109,7 @@ content this defends against is `eve-patterns.md` §11.)
 - `t.succeeded()` — run didn't fail and didn't park on unanswered HITL. `t.parked()` — cleanly parked on HITL input.
 - `t.messageIncludes(token)` — joined assistant text contains string/RegExp.
 - `t.calledTool(name, opts?)` / `t.notCalledTool(name)` / `t.usedNoTools()` / `t.maxToolCalls(n)` / `t.toolOrder([...names])`.
-- `t.calledSubagent(name, opts?)` — delegation; `t.loadedSkill(skill, opts?)` — sugar for `calledTool("load_skill", { input: { skill } })`.
+- `t.calledSubagent(name, opts?)` — delegation; `t.loadedSkill(skill, opts?)` — reads the run's `skillLoads` (since 0.76.0 skill loads are **not** tool calls: they no longer count toward `toolCallCount`, `usedNoTools` or `maxToolCalls`, while `eve__search` calls do). `calledTool`/`notCalledTool`/`toolOrder`/`requireToolCall` **throw** on `eve__tool`, `eve__skill` and the retired names (`load_skill`, `task_wait`, `task_cancel`, `final_output`, `connection_search`, `connection_execute`) — assert on the entry the call reaches (`<connection>__<tool>`) instead. Before 0.76.0 `notCalledTool` on one of those names always passed, so an old eval could have been green for nothing.
 - `t.noFailedActions()` — no tool/subagent/skill failure.
 - `t.event(type, opts?)` / `t.notEvent(type, opts?)` / `t.eventOrder([...matchers])` / `t.eventsSatisfy(label, predicate)` — event-stream escape hatches.
 - `turn.outputEquals(value)` / `turn.outputMatches(schema)` — structured output.
@@ -123,6 +123,7 @@ content this defends against is `eve-patterns.md` §11.)
 **Severity (chain on any assertion):**
 - `.gate(threshold?)` — hard; a miss marks the eval `failed` and `eve eval` exits non-zero.
 - `.soft(threshold?)` / `.atLeast(threshold)` — tracked; a below-threshold miss marks the eval `scored` (only blocks under `--strict`).
+- **`t.score(evaluation)`** (0.79.0) records a 0–1 score you computed yourself — name it with `.label(key)`, gate it with `.gate()` / `.atLeast()`. `eve eval` warns when two soft assertions in one eval share a name with different scores.
 
 ## LLM judge
 
@@ -205,7 +206,7 @@ ships. The behaviour you actually want to gate on still needs a real model somew
 - **JUnit** — XML for CI annotations. Prefer the CLI flag so the pipeline owns the path: `eve eval --junit .eve/junit.xml`.
 - **Braintrust** — uploads to experiments (needs the `braintrust` package + `BRAINTRUST_API_KEY`). Configure in `defineEvalConfig({ reporters: [Braintrust({ projectName })] })` or per-eval. Gate assertions log as `gate:`-prefixed binary scores for diffing.
 
-Disable configured reporters with `--skip-report`. Custom reporters implement `onRunStart` / `onEvalComplete` / `onRunComplete`.
+Disable configured reporters with `--skip-report`. Custom reporters implement `onRunStart` / `onEvalComplete` / `onRunComplete`. ⚠️ **Since 0.79.0 `AssertionResult.score`, `threshold` and `passed` are optional** (`score` is absent when the scorer threw; `threshold`/`passed` when no rule applies) and a `key` was added — **a custom reporter must treat `passed === false` as the failure signal**, never `!passed`, or every ungated assertion reads as a failure. Labeled assertions now report to Braintrust and Datadog under the bare label (`grounding`, not `score [grounding]`), so labeled metrics start a new series after the upgrade.
 
 ## Running
 

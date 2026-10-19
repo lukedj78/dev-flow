@@ -101,12 +101,15 @@ More prebuilt capabilities ship as **extensions** in the eve integrations direct
 
 ## Skill — `agent/skills/<name>.md`
 
-An on-demand procedure the framework-owned `load_skill` tool pulls into the active turn when
+An on-demand procedure the framework-owned `eve__skill` tool (`load_skill` until 0.76.0) pulls into the active turn when
 the request matches the skill's description (or the user names it). Three shapes: flat
 `agent/skills/<name>.md`, packaged `agent/skills/<name>/SKILL.md` (with sibling `references/`,
 `assets/`, `scripts/`), or TypeScript via `defineSkill` from `eve/skills`. Write the
 description as a **task trigger, not a label**. Skills are per-agent scoped — a subagent's
-skills are invisible to the root.
+skills are invisible to the root. **Name rules since 0.76.0**: ASCII letters, digits, `_` and `-`, starting
+alphanumeric, at most 64 characters — the compiler rejects anything else, and a dynamic resolver
+returning one is skipped. `deferred: true` in the frontmatter (or on `defineSkill`) drops the skill
+from the system prompt; the model finds it with `eve__search`. Worth it past a dozen skills.
 
 ## Channel — `eve add channel/<kind>`
 
@@ -371,7 +374,11 @@ Client-side the same shape applies: `client.sessions.create(input)` and
 
 Auth + access to an external service via **MCP** or **OpenAPI**. The filename is the
 connection id; tools surface to the model as `<connection>__<tool>` and are discoverable via
-the built-in `connection_search`. The model never sees the URL or credentials.
+the catalog tools `eve__search` / `eve__tool` (they replaced `connection_search` /
+`connection_execute` in 0.76.0; a query like `linear__` searches one connection). `eve__search` never
+asks the user to sign in — `eve__tool({ name: "linear" })` does. The model never sees the URL or
+credentials. Since 0.79.0 a connection approval policy also receives the MCP server's
+`toolAnnotations` (`readOnlyHint`, `destructiveHint`).
 
 **Check the eve integrations directory first** — <https://eve.dev/integrations> lists **50+ prebuilt MCP/OpenAPI connections** (Stripe, Supabase, Notion, Linear, Sentry, PostHog, Vercel, PlanetScale, Datadog, Airtable, Cloudinary, Mixpanel, Zapier, …). Adopt the official/prebuilt one over hand-authoring a `defineMcpClientConnection` / `defineOpenAPIConnection` when it exists — same ecosystem-first rule as everywhere in dev-flow.
 
@@ -694,7 +701,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 
 Build with `eve extension build` (scaffold with `eve extension init <name>`), publish to a registry, then consume it from agents as above. Verified at 0.45.0: `defineExtension` comes from **`eve/extension`**, the author's entrypoint is **`extension/extension.ts`** default-exporting the handle, an optional [Standard Schema](https://standardschema.dev) types consumer settings — and **config schemas must validate synchronously**. Older refs: `node_modules/eve/docs/`.
 
-### The two extensions that ship *inside* `eve` (0.71)
+### The extensions that ship *inside* `eve` (0.71; `git` split out of `code` in 0.76)
 
 Neither is a registry package: both are in the `eve` dependency you already have, so "install" means
 mounting or, for one of them, nothing at all.
@@ -708,7 +715,26 @@ import code from "eve/extensions/code";
 export default code({});            // no GitHub / Vercel auth; add the options when needed
 ```
 
-It contributes file-editing and search tools, an authenticated `gh` tool, coding skills, a
+⚠️ **GitHub moved out in 0.76.0 → `eve/extensions/git`.** `code({})` no longer contributes `code__gh`,
+`code__pr` or any GitHub instructions. Mount the git extension next to it:
+
+```ts
+// agent/extensions/git.ts
+import git from "eve/extensions/git";
+export default git({});             // GitHub instructions + git__pr (commit, push, `gh pr create --draft` via the shell's gh)
+// git({ github: { … } })           // adds the Connect-brokered git__gh tool and the signed-commit git__pr
+```
+
+`code({ github })`, `gh` from `eve/extensions/code/tools` and the GitHub helpers from
+`eve/extensions/code/sandbox` still work but are `@deprecated` in the `.d.ts` (pointing at
+`eve/extensions/git` and `eve/extensions/git/tools`). Since 0.80.0 `git({ github })` takes an
+`authorize` callback, run once per `gh` invocation with the caller, the declared repository and the
+repo-scoped token; returning `false` blocks the command. **It gates caller × repository, not
+individual operations**, and an allowed command runs with the *app token's* permissions, not the
+caller's GitHub permissions — so it is the place to stop a Slack user reaching a repo they could not
+open themselves, and nothing finer.
+
+It contributes file-editing and search tools, coding skills, a
 **read-only** worker subagent (`worker.model` defaults to `openai/gpt-5.6-terra-fast`,
 `worker.reasoning` to `xhigh`) and sandbox bootstrap helpers. The tooling is installed in the
 sandbox environment's `prepare`, not at mount time:
@@ -727,7 +753,7 @@ the sandbox file and its environment options, *not* from the imported helpers. S
 sandbox file (the same reasoning as `revalidationKey`'s removal, §Sandbox in `eve-concepts.md`).
 
 **The part worth copying even if you never mount it: credentials stay outside the sandbox.** With the
-default `vercel.delivery: "firewall"`, Vercel tokens **never enter sandbox processes**; the `gh` tool
+default `vercel.delivery: "firewall"`, Vercel tokens **never enter sandbox processes**; the `gh` tool (now `git__gh`)
 requests a token scoped to **exactly one repository per invocation**, the process gets a placeholder
 `GH_TOKEN`, and the firewall exchanges it on matching GitHub requests. Your `github.broker` callback
 receives the header-transform rules and then `null` to remove the lease — **and it must preserve your

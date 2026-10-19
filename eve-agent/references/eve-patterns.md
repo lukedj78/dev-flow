@@ -161,6 +161,16 @@ export interface MemoryStore {
 > explicit `provider` is no longer required — pass one to override, or
 > `vercelScheduleProvider` from `eve/experimental/schedules/vercel` to customise the endpoint.
 >
+> **0.76.0 → 0.80.0 moved it again, which is the point of "experimental".** Schedules can now be
+> **updated** (timing, or a complete payload replacement with prepared-payload approval) — and a
+> payload replacement **makes the updating caller the new creator**, so creator-bound execution
+> follows whoever last edited the payload, not who first created the job. **Custom schedule providers
+> must now implement `update`**, and `preparePayload` receives `operation: "create" | "update"`
+> (both in the shipped `.d.ts`). 0.80.0: a scheduled session and its local tasks can manage schedules
+> themselves (auth scope and approval policies still apply), and `tool: "deferred"` keeps the
+> generated management tools out of the initial tool list. Add to the invariant list: **who is the
+> creator after an update** is a tenancy question, check it the same way as tenant+user.
+>
 > **Read the recipe below anyway, and then decide.** It is the version that works on any eve and owes
 > nothing to an experimental API, and its invariants — tenant+user on every operation, key unique
 > within scope, scope as part of the *query* — are what you must verify `defineDynamicSchedules`
@@ -230,7 +240,7 @@ export default defineHook({
 
 ## 6. Data governance — the read-vs-egress boundary
 
-**Reframe:** the useful question isn't "what may the agent *read*?" but "what may *leave*?" An agent can usually read all of *its own* org's data; the risk is **egress** — to third-party tools (LLM/search APIs), into the sandbox, into logs. Codify it as an **agent skill** the model loads before touching data (advertised via `load_skill`), not as ad-hoc prompt text.
+**Reframe:** the useful question isn't "what may the agent *read*?" but "what may *leave*?" An agent can usually read all of *its own* org's data; the risk is **egress** — to third-party tools (LLM/search APIs), into the sandbox, into logs. Codify it as an **agent skill** the model loads before touching data (advertised and loaded via `eve__skill`), not as ad-hoc prompt text.
 
 **Enforce it at the connection, not in the prompt.** An MCP server exposes whatever it exposes; narrow it where you declare it. The SRE agent pins Datadog to 19 named operations with `?toolsets=core,software-delivery` on the MCP URL, and GitHub to a read-only `repo-explorer` preset with gist operations excluded — so "may look, may not touch" is a property of the tool list the model can even see, rather than an instruction it can be argued out of.
 

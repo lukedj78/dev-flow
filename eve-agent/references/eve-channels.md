@@ -80,6 +80,17 @@ than degrading to a question.
 uploadPolicy: { allowedMediaTypes: ["image/*", "application/pdf"], maxBytes: 10 * 1024 * 1024 }
 ```
 
+Since **0.77.0** eve applies `uploadPolicy` to **every staged file** — including links it downloads
+itself — on the final bytes and their *verified* media type (checked against the bytes, not the
+declared type); a file over the cap or of a disallowed type reaches the model as a note instead of
+failing the turn. When a channel's `fetchFile` returns `null` (or there is none) **eve now fetches a
+public `https:` link itself** (25 MB cap, 30 s timeout, at most 10 links per message) rather than
+handing the URL to the model provider. Only PNG/JPEG/GIF/WebP up to 3 MiB and 8000 px per side, and
+PDFs up to 20 MiB, go to the model as bytes; everything else arrives as a labelled sandbox path. A
+custom `fetchFile` can throw `attachmentError(message)` from `eve/channels` to tell the model why a
+file did not arrive while the original error stays in the logs. **Egress note:** eve's own
+downloader is a new outbound fetch from the app runtime, driven by links users post.
+
 **Gating inbound with `onMessage`.** On the installed types (re-verified against **0.47.6** — the
 shape has not moved since 0.27.6, and it now also carries an optional `title` that overrides the
 workflow run title without changing what the model receives):
@@ -206,6 +217,12 @@ teamsChannel({ files: { enabled: true, allowedHosts: ["..."] } })
 WhatsApp has no first-class eve channel and nothing under `eve add channel/…` installs it: it
 rides the **Chat SDK** (see `eve-capabilities.md` §Channel → Chat SDK for the shared shape and
 the Resend worked example) with a WhatsApp adapter, authored by hand like the Resend example.
+
+⚠️ **Version floor (eve 0.80.0): `chat` and the `@chat-adapter/*` packages at `^4.42.0`.** eve
+vendors chat 4.42.0 and declares the optional `chat` peer at `^4.42.0` (read in the shipped
+`package.json`); **chat 4.41 broke Workflow DevKit workflows in host apps** (vercel/chat#969). The
+4.39.0 line recorded in the 0.47.6 note above is below the floor — pin the adapters to the same
+minor as `chat`.
 
 ```ts
 // agent/channels/whatsapp.ts

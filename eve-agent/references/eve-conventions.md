@@ -15,7 +15,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineAgent`, `defineRemoteAgent` | `eve` |
 | `defineTool`, `disableTool`, `defineDynamic`, `toolOutput`, background-task types | `eve/tools` |
 | approval policies `always` / `once` / `never` (+ `Approval`/`ApprovalContext`/`ApprovalStatus` types) | `eve/tools/approval` (types also on `eve/tools`) |
-| built-in tool definitions — `bash`, `readFile`, `writeFile`, `todo`, `webFetch`, `loadSkill` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/todo`, `/web_fetch`, `/load_skill`. **`eve/tools/defaults` was removed in 0.45.0** |
+| built-in tool definitions — `bash`, `readFile`, `writeFile`, `webFetch` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/todo`, `/web_fetch`. **`eve/tools/defaults` was removed in 0.45.0; `eve/tools/load_skill` in 0.76.0** (skills load through the framework's `eve__skill`, which has no override subpath) |
 | the opt-in ones, not registered by default — `glob`, `grep`, `workflow` (lowercase since 0.64), `sleep`, `webSearch` | `eve/tools/glob`, `/grep`, `/workflow`, `/sleep`, `/web_search` |
 | `defineSkill` | `eve/skills` |
 | `defineInstructions` | `eve/instructions` |
@@ -115,6 +115,19 @@ approval: ({ session, toolInput }) => {
 },
 ```
 
+**Approval is consent, never a loan of identity (eve 0.78.0).** An approved call always runs as
+the **requester** — their identity, connections and credentials, policy re-checked before dispatch
+— whoever approved it. This **reverses** the rule eve shipped before 0.78.0 (and its docs stated):
+"if a tool is approved by another user, the approved call runs with that user's auth", which let a
+requester borrow an approver's access. A tool that genuinely must act with the approver's access
+says so explicitly: `ctx.approval.responder` is the approving principal and
+`ctx.approval.responder.getToken(provider)` resolves *their* token (0.79.1, `defineTool` only); gate
+who may approve with an `approval.response` policy on `response.principal`. Two smaller additions:
+`approval: { request, prompt: ({ input }) => "…" }` puts an input-aware summary on the approval card
+(0.79.0), and a connection policy now receives the MCP server's `toolAnnotations`
+(`readOnlyHint`, `destructiveHint`) — **a hint the server declares about itself**, so skip approval on
+`readOnlyHint` only for a server you trust.
+
 Markdown schedules dispatch turns as the app principal (`authenticator: "app"`,
 `principalId: "eve:app"`, `principalType: "runtime"`) — match all three in a policy to skip
 approval for automated turns while still prompting humans (then pair with idempotency keys,
@@ -152,11 +165,24 @@ principal. **Never derive tenant/user from model input** — only from verified
 ## Built-in default harness
 
 The model already has up to ten tools with zero code — and **the set is smaller than it used to
-be**. Always on: `bash`, `read_file`, `write_file`, `web_fetch`, `todo`. Conditional: `agent`
+be**. Always on: `bash`, `read_file`, `write_file`, `web_fetch` (**`todo` was removed in 0.65.0** — an `agent/tools/todo.ts`, even a `disableTool()` sentinel, now fails the build). Conditional: `agent`
 (root session only), `ask_question` (only where the session can request input), `web_search` (only
-on a provider that supports it), `load_skill` (only when skills are declared), `connection_search`
-(only when connections are declared). **The harness advertises only what the current session
+on a provider that supports it), and the **catalog tools** `eve__skill` (any skill), `eve__tool`
+(anything it can call: a deferred tool or agent, or a connection) and `eve__search` (anything
+`eve__tool` can call, plus deferred skills). **The harness advertises only what the current session
 actually has**, so "it's built in" and "the model can see it right now" are two different claims.
+
+⚠️ **0.76.0 renamed everything eve adds itself into a reserved `eve` namespace, with no aliases.**
+`load_skill` → `eve__skill` (input `{ name }`, not `{ skill }`; the `eve/tools/load_skill` export is
+**gone** from the `exports` map), `connection_search` + `connection_execute` → `eve__search` +
+`eve__tool`, `task_wait`/`task_cancel` → `eve__task_wait`/`eve__task_cancel`, `final_output` →
+`eve__reply`. A tool, subagent, skill, connection or extension mount named `eve` or `eve__*` fails
+to build; a connection owns every name under `<connection>__`. **Saved "always approve" decisions on
+connection tools reset**, because approvals are now keyed `<connection>__<tool>`. Update evals,
+approval policies, hooks and channel code that match the old names. Skill names: ASCII letters,
+digits, `_`, `-`, start alphanumeric, ≤ 64 chars. New: `deferred: true` on a tool or skill (and
+`tool: "deferred"` on an agent) keeps it out of the initial tool list and findable via
+`eve__search` — the lever for an agent with many tools.
 
 **`glob` and `grep` left the default set in 0.39.0.** They are still framework tools, but an agent
 that wants them has to say so — one line each:
@@ -446,8 +472,14 @@ Two things to do with this rather than nod at it:
 `agent.session` and `agent.channel.delivery`. The changelog's own instruction is to move dashboards
 to the per-activation `invoke_agent` span instead.
 
-Read the current set from the build, not from a dashboard someone wrote last quarter —
-`dist/src/tracing/agent-span-contract.js`, verified at **0.54.3**:
+Read the current set from the build, not from a dashboard someone wrote last quarter. ⚠️ **The file
+that held it is gone**: `dist/src/tracing/agent-span-contract.js` (verified at **0.54.3**) does not
+exist at **0.80.1**, because 0.79.0 moved eve's spans onto a shared tracing library, published in
+0.80.1 as **`@vercel/agent-runs`** (`createAgentRun` / `AgentRun`, framework-neutral, bundled under
+`dist/src/compiled/@vercel/agent-runs/` — no new runtime dependency). The constant is now inline:
+`grep -r '"agent.trace.schema.version"' node_modules/eve/dist` reads **4** at 0.80.1, and the span
+names below still occur in `dist`. The changelog says schema 4 is unchanged across the move, and the
+build agrees:
 
 ```js
 AGENT_TRACE_SCHEMA_VERSION = 4
@@ -466,6 +498,30 @@ project has dashboards or alerts on eve spans, pin the schema version next to th
 constant on every upgrade. Same failure shape as `compliance-audit`'s traceability requirement
 (§5 of `eve-patterns.md`): the audit trail that quietly stopped recording is worse than none, because
 it is trusted.
+
+### Tracing now decides transcript retention too (eve 0.80.0)
+
+The session's resolved trace capture decision **also selects Workflow run-data retention**: when the
+policy allows both inputs and outputs, the World's default period; when it drops the trace or
+excludes either direction, eve requests deletion of durable payloads and streams **when the run
+ends** (`experimental_retention: 0`). With the default `tracePolicy` that means **private and
+unknown-audience sessions outside development lose their stored transcript at the end**, even with
+no destination installed, and a later history read returns **`410 session_expired`** (the TypeScript
+client fails on the first response instead of retrying, 0.79.1). Override on the agent:
+
+```ts
+export default defineAgent({
+  model: "…",
+  experimental: { workflow: { retention: "default" } },   // keep; or 0 to always delete
+});
+```
+
+Three consequences. **A feature that reads old sessions** (`stream({ follow: false })`, a
+"conversation history" screen, `transcriptReducer()` over a predecessor) breaks under the default —
+persist what you need from inside a tool, which is what the `.d.ts` comment says. **Destination
+`exportPolicy` filters do not change it**, and deletion does not delete exported traces. And it is
+a *request*: a World that does not recognise the value keeps the data. The compliance reading is in
+`compliance-audit` R4.
 
 ### What each trace records — `tracePolicy` (0.46.0, extended 0.47.4)
 

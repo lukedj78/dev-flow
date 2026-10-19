@@ -223,6 +223,8 @@ Logging and observability (how-to: `module-add/references/module-observability.m
 
 The model call is the transfer that matters: self-hosting the eve runtime does not move inference.
 
+**eve's `web_search` is a second, smaller one, and since eve 0.76.0 you pick its processor.** On AI Gateway models the default is Exa (a US third party); `webSearch({ provider: "native" })` sends the query to the model vendor already on this table instead (OpenAI, Anthropic, Google), with `fallback: "exa" | "parallel" | "browserbase"` for other vendors. A query carries the user's words, so record the search provider as a processor, or disable the tool (`eve-agent/references/eve-concepts.md` §Default harness).
+
 ### 4.11 Queues, background jobs, workflows
 
 | Option | Role | EU setting | Caveat | Source |

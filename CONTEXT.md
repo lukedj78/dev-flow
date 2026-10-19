@@ -119,7 +119,7 @@ _Avoid_: bare "the registry".
 
 ## ⚠️ "Skill" — ours vs eve's
 
-An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `load_skill`. It is **not** one of this repo's skills. Write "an eve agent skill" in full whenever both could be meant.
+An **eve agent skill** is a markdown file under `agent/skills/` inside a *user's* eve agent — procedural knowledge the model loads at runtime with `eve__skill` (`load_skill` before eve 0.76.0). It is **not** one of this repo's skills. Write "an eve agent skill" in full whenever both could be meant.
 
 ## ⚠️ `design.md` — two unrelated artefacts
 

@@ -40,11 +40,11 @@ export default defineDynamic({ events: { "turn.started": (_e, ctx) =>
   defineInstructions({ markdown: `…per-caller context from ctx.session.auth…` }) } });
 ```
 
-Instructions vs skills: **same context, different timing** — instructions load always; skills load on demand via `load_skill`. Long procedures belong in `skills/`, not instructions.
+Instructions vs skills: **same context, different timing** — instructions load always; skills load on demand via `eve__skill` (`load_skill` until 0.76.0). Long procedures belong in `skills/`, not instructions.
 
 ## Context control — what the model sees
 
-Layered visibility, not everything-in-the-prompt: `instructions.md` (always) + dynamic instructions (per-caller) + on-demand `skills/` (advertised, loaded via `load_skill`) + runtime tools for file/workspace inspection (a shallow workspace hint, not inlined contents). This keeps prompts compact and defers non-essential info. Manage growth by putting identity in `instructions.md`, procedures in `skills/`, integrations in `tools/`, specialization in subagents, and files behind sandbox/workspace tools — not the prompt. `compaction` handles overflow automatically.
+Layered visibility, not everything-in-the-prompt: `instructions.md` (always) + dynamic instructions (per-caller) + on-demand `skills/` (advertised, loaded via `eve__skill`; a `deferred: true` skill is not advertised at all and is found with `eve__search`) + runtime tools for file/workspace inspection (a shallow workspace hint, not inlined contents). This keeps prompts compact and defers non-essential info. Manage growth by putting identity in `instructions.md`, procedures in `skills/`, integrations in `tools/`, specialization in subagents, and files behind sandbox/workspace tools — not the prompt. `compaction` handles overflow automatically.
 
 ## Default harness — the built-in tools + loop
 
@@ -56,14 +56,16 @@ eve runs the agent loop (model calls, tool execution, compaction) and ships buil
 
   ```ts title="agent/tools/web_search.ts"
   import { webSearch } from "eve/tools/web_search";
-  export default webSearch({ provider: "parallel" });   // "exa" (Gateway default) | "parallel"
+  export default webSearch({ provider: "parallel" });   // "exa" (Gateway default) | "parallel" | "native"
   ```
 
   Direct provider models keep their own native search instead. So the older worry — *which model you route to decides whether you get search* — holds for direct providers and **not** for the Gateway, where search is a property of the gateway. Only reach for `defineTool()` when you want your own implementation; the provider's own built-in search (one `tools/web_search.ts` per provider, as shadcn's `chatbot-template` does) is the pattern for the non-Gateway case.
-- Session: `ask_question` (mid-turn input), `todo` (durable per-session list), `load_skill`, `connection_search` (discover/call connection tools), `agent` (delegate to a fresh instance, root-only).
+
+  **0.76.0 added `webSearch({ provider: "native" })`** for Gateway models: the vendor's own hosted search (OpenAI web search, Anthropic web search, Google Search grounding for Gemini 3+), with no separate key. A Gateway model from another vendor then gets **no** `web_search` unless you add `fallback: "exa" | "parallel" | "browserbase"`. On direct providers only OpenAI, Anthropic and Gemini 3+ get search; Gemini before 3 lost Google Search in 0.76.0 (it made the model drop every other tool). **For the EU egress question this is a choice of processor**: `native` sends the query to the model vendor, `exa`/`parallel` to a third party — see `dev-flow/references/eu-data-sovereignty.md` §4.10.
+- Session: `ask_question` (mid-turn input), `agent` (delegate to a fresh instance, root-only), and the **catalog tools** `eve__skill` / `eve__search` / `eve__tool` (load a skill, find and call deferred tools, agents and every connection tool — they replaced `load_skill`, `connection_search` and `connection_execute` in **0.76.0**, no aliases). **There is no `todo` tool any more**: 0.65.0 removed it and its `eve/tools/todo` export, and an `agent/tools/todo.ts` — even one exporting `disableTool()` — now **fails the build**, because there is no default left to disable.
 
 Customize:
-- **Override** — `agent/tools/<slug>.ts` spreading the default: `import { writeFile } from "eve/tools/write_file"; export default defineTool({ ...writeFile, async execute(i, ctx) {…} });` — **`eve/tools/defaults` was removed in 0.45.0**; every built-in now lives on its own subpath, named after the *tool* (`eve/tools/read_file`, `/write_file`, `/web_fetch`, `/load_skill`, `/todo`, `/bash`) while the export keeps camelCase (`readFile`, `writeFile`, `webFetch`, `loadSkill`).
+- **Override** — `agent/tools/<slug>.ts` spreading the default: `import { writeFile } from "eve/tools/write_file"; export default defineTool({ ...writeFile, async execute(i, ctx) {…} });` — **`eve/tools/defaults` was removed in 0.45.0**; every built-in now lives on its own subpath, named after the *tool* (`eve/tools/read_file`, `/write_file`, `/web_fetch`, `/bash`) while the export keeps camelCase (`readFile`, `writeFile`, `webFetch`). `/todo` went in 0.65.0 and `/load_skill` in 0.76.0 — neither has a replacement subpath.
 - **Opt in** — the framework tools that are *not* registered by default are one re-export each: `export { glob as default } from "eve/tools/glob"` (same for `grep`), `workflow()` from `eve/tools/workflow` (**lowercase since 0.64 — `experimental_workflow` and the uppercase `Workflow` framework tool were removed**), `sleep()` from `eve/tools/sleep`. **The filename is what names the tool**, not the export.
 - **Disable** — `agent/tools/bash.ts` → `export default disableTool();` (from `eve/tools`).
 - **Extend** — new tools with fresh slugs join the built-ins.
@@ -140,7 +142,7 @@ resumable task — only the model can tell from the conversation whether it need
 turn rule below is what keeps that safe.
 
 **No turn ends while a task is working.** If the model stops talking with tasks outstanding, eve
-parks the turn exactly as `task_wait` does, appends the results and calls the model again *in the
+parks the turn exactly as `eve__task_wait` does, appends the results and calls the model again *in the
 same turn*. `turn.waiting` marks each park (`on: "input"` when a person must act, else `"tasks"`); a
 `step.started` with the same `turnId` means it resumed; `turn.completed` and `session.waiting` come
 only when the turn really ends. **No result ever starts a turn on its own.** In a root session the
@@ -164,12 +166,12 @@ An idle resumable task isn't working and doesn't hold anything.
   timeout exists**: the only bound is `limits.sessionTimeoutMs`, 30 days by default, so a body that
   needs a deadline **races `sleep` against its own work**. A cancel gives the body **30 seconds** to
   unwind; a `serve` body that hasn't returned to `receive()` by then ends and the task finishes.
-- **Instruct the model to use `task_wait` sparingly.** Results arrive without it; it exists for the
+- **Instruct the model to use `eve__task_wait` sparingly** (`task_wait` until 0.76.0). Results arrive without it; it exists for the
   case where the model deliberately withholds a message from the person while waiting. In child and
   schedule sessions the built-in prompt tells the model to wait rather than reply, because only the
   final reply reaches the caller.
-- `task_cancel` stops one task's current work; `session.cancel()` cancels the turn, the `execute`
-  calls it waits on and **every working task**. A steering message ends a `task_wait` and aborts the
+- `eve__task_cancel` stops one task's current work; `session.cancel()` cancels the turn, the `execute`
+  calls it waits on and **every working task**. A steering message ends an `eve__task_wait` and aborts the
   `abortSignal` of an awaited `execute` call, but **never interrupts a task** — the model reads the
   message and decides per task whether to keep, correct (call again with its `taskId`) or cancel.
 
@@ -186,13 +188,13 @@ An idle resumable task isn't working and doesn't hold anything.
 >
 > **What is not fixed: reading and continuing.** The ownership check landed on *approvals*, not on
 > the tasks themselves — eve still does not check which caller started a task, so the paragraphs
-> below stand for `task_wait`, `task_cancel`, the `[Tasks]` note, and a continued `serve` task that
+> below stand for `eve__task_wait`, `eve__task_cancel`, the `[Tasks]` note, and a continued `serve` task that
 > keeps the state its body built for an earlier caller. Approving under someone else's turn is now
 > refused; *resuming their work* is not.
 
 **eve does not check which caller started a task.** Tasks belong to the session's open turn, not to
 the caller that created them, so in a session several people share — **a Slack thread is the normal
-case** — the model working for one person can read, continue or `task_cancel` a task another person
+case** — the model working for one person can read, continue or `eve__task_cancel` a task another person
 started. Worse for `serve`: a continued resumable task **keeps the state its body built for earlier
 calls**, and the continuing call runs with *its own* caller's auth. Anonymous callers share one
 identity.
@@ -321,7 +323,7 @@ export default defineWorkflowTool({
   - **`ctx.agents`** (0.60.1; the root copy target lands at `ctx.agents.agent` in 0.61.0) — the effective callable-agent descriptions, including subagents hidden from the parent model, for a body that decides where to delegate. Reading it **in a step throws** (0.61.1), with the same rule for `ctx.agent()`/`ctx.ask()`.
   - `getSandbox` is unavailable anywhere, and **`getSkill` no longer exists at all** (removed in 0.71 with `SkillHandle` and `SkillFile`). **`getToken`/`requireAuth` live on the step context**: a `"use step"` helper that takes `ctx` directly receives a restricted `WorkflowStepToolContext` (`session`, `callId`, `toolName`, `abortSignal`, `getToken`, `requireAuth`). Read `ctx.agents`, call `ctx.agent()` and `ctx.ask()` in the body; pass a step only the serializable values it needs.
 - **`yield` reports progress, `await` suspends — and background mode publishes nothing.** A body may be an async generator. In **default** execution `yield value` emits an `action.partial` snapshot for the pending call (last-write-wins per tool-call id, never entering model history as an intermediate result). In **background** execution the value is *consumed without publishing progress or requesting a parent turn*: 0.63 removed background execution from `defineTool` and dynamic tools altogether, along with the `TaskExec` and `postMessage` authoring APIs, and delivers each cohort's completed/failed/cancelled outcomes in one automatic report. **`yield task.postMessage(...)` no longer exists** — do not write it. `return value` settles the call; with no return, the last yield becomes the output (or `null`). Prefer an explicit return when progress and result have different shapes.
-- **`ctx.abortSignal` is durable** — it survives replay, aborts on a steered turn, `task_cancel` or the session ending, and a step that receives it observes the abort. Pass it into the steps that should stop and clean up in `try/finally`.
+- **`ctx.abortSignal` is durable** — it survives replay, aborts on a steered turn, `eve__task_cancel` or the session ending, and a step that receives it observes the abort. Pass it into the steps that should stop and clean up in `try/finally`.
 - **Two independent axes, and since 0.71 the second one is which function you export.** Durable suspension (`ctx.ask`, an awaited `createHook`/`createWebhook`, `sleep` — all from the vendored `workflow` package) is orthogonal to *how the call runs*, and `execution: "background"` is **gone**: you rename `execute` to **`task(input, ctx)`** and drop the option (the body is unchanged; `defineWorkflowTool` rejects `execution` with an error that says exactly this). `execute` is an ordinary tool call and the turn waits for its result; `task` runs as a task and its result arrives as a `task.result` message at a step boundary; **`serve(receive, ctx)`** is the third form, for work the model should be able to send more input to while it runs. One behaviour changed for *every* `execute` tool: **a steering message now aborts its `ctx.abortSignal`**, which is why `dismissible` was dropped from `ctx.ask` — a new message withdraws the open questions of the calls the turn waits on (a withdrawn question now resolves `{ status: "cancelled" }`, and the `input.resolved` outcome `"dismissed"` is now `"cancelled"`). A question that must survive new messages is asked from a `task`.
 - Input must be a plain JSON object, and the tool must live under `agent/tools/` — a `defineDynamic` resolver cannot return a workflow tool.
 - The workflow's identity derives from the executor's module path and function name; renaming or moving it starts a *new* workflow lineage, and a run resumed on a deployment that no longer has it fails naming the missing workflow.
@@ -332,7 +334,7 @@ This is the general form of the `deploy`/`refund_order`/`render_video` shapes `e
 
 ### Remove the defaults you did not ask for — before the first run
 
-eve gives **every** agent `bash`, `read_file`, `write_file`, `web_fetch`, `web_search`, `todo` and (in the root session) `agent`. Authoring your own tools **adds** to that set; `defineDynamic` adds to it too. Nothing in the scaffold narrows it, so a storefront assistant ships holding a shell unless you take it away.
+eve gives **every** agent `bash`, `read_file`, `write_file`, `web_fetch`, `web_search` and (in the root session) `agent`. Authoring your own tools **adds** to that set; `defineDynamic` adds to it too. Nothing in the scaffold narrows it, so a storefront assistant ships holding a shell unless you take it away.
 
 This is not hypothetical. The reference implementation's shopping assistant, asked *"a waterproof shell for commuting, under 150"*, opened its first turn with `bash` running `env | grep`. It was reaching for the environment because it had no catalog tool (see the serialization trap above) — but it could only reach at all because the default was there.
 

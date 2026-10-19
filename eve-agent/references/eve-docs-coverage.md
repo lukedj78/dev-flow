@@ -2,6 +2,76 @@
 
 Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/` — the published package ships its full docs **and a CHANGELOG**, which is the only place the breaking-change history exists (eve.dev has no changelog page). `npm pack eve@<version>` is enough; you do not need to install it.
 
+> **Verification pass 2026-10-19 against eve@0.80.1 — thirteen releases, a namespace, and a reversed security rule.**
+> `npm pack` of **0.75.1 and 0.80.1**, `diff -rq` of the two `docs/` trees (**49 pages differ, 1 new**:
+> `guides/frontend/tanstack`), the `CHANGELOG` from 0.76.0 forward, and the shipped `.d.ts`, `dist` and
+> `exports` map for every identifier below. Thirteen stable releases in ten days (0.76.0 → 0.80.1).
+>
+> **① The `eve` namespace, with no aliases** (0.76.0). `load_skill` → `eve__skill` (input `{ name }`),
+> `connection_search`/`connection_execute` → `eve__search`/`eve__tool`, `task_wait`/`task_cancel` →
+> `eve__task_wait`/`eve__task_cancel`, `final_output` → `eve__reply`; `eve`/`eve__*` names fail the
+> build, a connection owns `<name>__*`, saved connection "always approve" decisions reset. In the
+> package: `./tools/load_skill` **gone from `exports`**, `"task_wait"`/`"final_output"` **0** in `dist`,
+> `eve__task_wait` 13, `eve__skill` 20; the four `load_skill` hits left are the retired-name table and
+> the replay shim that fills `name` from `input.skill`. Fixed in `eve-conventions.md` §Built-in default
+> harness + §Import map, `eve-concepts.md` §Default harness + §Tasks, `eve-capabilities.md` §Skill +
+> §Connection, `eve-evals.md` (`loadedSkill`, and `calledTool` now **throws** on retired names —
+> before, `notCalledTool` on them always passed), `eve-patterns.md`, and the repo's `CONTEXT.md`.
+>
+> **② Approval is consent, not a loan of identity** (0.78.0, reversing the earlier rule). An approved
+> call now always runs as the **requester**; before, a call approved by someone else ran with the
+> approver's credentials — a privilege escalation. 0.79.1 adds `ctx.approval.responder.getToken()` for
+> a tool that deliberately acts as the approver (`readonly responder: SessionAuthContext` in the
+> `.d.ts`). We had never written the old rule down, so nothing was false; the new invariant is in
+> `eve-conventions.md` §Durability (with `approval.prompt` 0.79.0 and connection `toolAnnotations`),
+> and the **below-0.78 finding** in `compliance-audit` next to the task-ownership note. The task
+> ownership hole itself is **unchanged** — `tools/tasks.md` still says eve does not check which
+> caller started a task.
+>
+> **③ GitHub left `eve/extensions/code`** (0.76.0) for `eve/extensions/git` (+ `/tools`, `/sandbox`,
+> all three new in `exports`); `code({})` no longer contributes `code__gh`/`code__pr`; the old
+> surface is `@deprecated` in the `.d.ts`. 0.80.0 adds `git({ github: { authorize } })`, which gates
+> caller × repository, not operations. `eve-capabilities.md` §Extension.
+>
+> **④ Tracing now decides transcript retention** (0.80.0). Private and unknown-audience sessions outside
+> development request Workflow deletion at run end; `experimental.workflow.retention` overrides
+> (`readonly retention?` in `shared/agent-definition.d.ts`; `experimental_retention` must be `0` or
+> `"default"` in `dist`). The `@workflow/core` `.d.ts` adds what the changelog does not: **a World that
+> does not recognise the value keeps the data**. `eve-conventions.md` §Observability (new subsection)
+> and `compliance-audit` R4.
+>
+> **⑤ Smaller breaks.** Dynamic schedules gain `update`; **custom providers must implement it**, and a
+> payload replacement makes the updater the creator (0.76.0, `operation: "create" | "update"` in the
+> `.d.ts`) — `eve-patterns.md` §4, beside the recipe, as the rule says. `AssertionResult.score`/
+> `threshold`/`passed` optional and `t.score()` added (0.79.0) — `eve-evals.md`. `read_file`'s output
+> `image` → `file`, with PDFs (0.77.0; `file?: { …, pages? }` in `tools/provided/read-file.d.ts`).
+> `eve/vue`/`eve/svelte` drop the internal `Session*` projection types (0.77.0; 0 hits in all three
+> framework `.d.ts`). Peers: **`ai ^7.0.137`** (0.77.0) and **`chat ^4.42.0`** (0.80.0, chat 4.41 breaks
+> Workflow DevKit) — `eve-channels.md`, whose 0.47.6 note pinned the adapters at 4.39.0.
+>
+> **⑥ Wrong before this range, and caught only because this pass read `exports`.** The `todo` tool
+> and `eve/tools/todo` were **removed in 0.65.0** — inside the range the 2026-10-03 pass covered — and
+> four of our lines still listed it as always-on, plus an import-map row. Worse than stale: 0.65.0 makes
+> an `agent/tools/todo.ts` **fail the build even as a `disableTool()` sentinel**, so a hardening step
+> that copied our list would have broken the agent. Fixed in `eve-conventions.md` and
+> `eve-concepts.md`. And **the span-contract file we cite is gone**: `dist/src/tracing/agent-span-contract.js`
+> does not exist at 0.80.1, because 0.79.0 moved spans onto a shared library published in 0.80.1 as
+> `@vercel/agent-runs`. Schema version is still **4** (inline in `dist`), the four span names still
+> occur — `eve-conventions.md` now says where to grep.
+>
+> **Changelog vs `dist`.** No contradiction this time, but two places where the shipped source said
+> more: the retention request can be silently ignored by a World (④), and the `load_skill` hits in
+> `dist` look like a surviving alias until you read them — they are the *refusal* table (①).
+>
+> **Noted, not written up.** `webSearch({ provider: "native" })` (0.76.0; recorded as a processor
+> choice in `eve-concepts.md` and `eu-data-sovereignty.md` §4.10); eve downloading attachment links
+> itself and `uploadPolicy` on every staged file (0.77.0, a paragraph in `eve-channels.md`);
+> stranded sessions, `SessionStrandedError` and `ctx.session.predecessor` + `transcriptReducer()`
+> (0.76.1–0.76.2); `modelOptions.promptCache` for a 1-hour Anthropic cache (0.76.2); sandbox commands
+> get `AI_AGENT=eve` (0.78.0); a 10-minute stalled-stream timeout (0.77.0); `followIdle: false`
+> (0.79.1, already in `eve-web-integration.md`); experimental Connect event subscriptions (0.80.0).
+> `eve-web-integration.md` was re-verified against 0.80.1 the same morning (commit 90afb85).
+
 > **Verification pass 2026-08-12 against eve@0.31.3.** All 15 cited subpaths and all 16 cited exports exist; `eve add` / `eve registry` / `eve extension build` / `eve channels list` confirmed (and no `eve channels add`, as documented). The Slack hook set and `ctx.*` surface match. **One table was wrong**: the channel-kind list — `channel/linear` does not exist (it is `channel/linear-agent`, or the `eve add linear` bundle), `teams`/`telegram`/`twilio` are hand-authored rather than registry items, and `twilio` was missing entirely.
 >
 > **Verification pass 2026-08-16 against eve@0.38.3** (eve shipped 0.32.0 through 0.38.3 in the four
@@ -528,6 +598,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/client/output-schema` | `eve-concepts.md` §Agent config (`outputSchema`) + evals structured-output | ↪ |
 | `/docs/guides/frontend/{overview,nextjs}` | `eve-web-integration.md` (`withEve()` + `useEveAgent()`) | ✅ |
 | `/docs/guides/frontend/{nuxt,sveltekit,use-eve-agent-svelte,use-eve-agent-vue}` | dev-flow web is **Next-only**; RN consumes over HTTP (`eve/client`) | ⛔ |
+| `/docs/guides/frontend/tanstack` — **new page, eve 0.76.2** | **Not covered.** `eve/tanstack` is a Vite plugin running an eve agent inside a TanStack Start app (Nitro proxies `/eve/v1/**` in dev, Vercel deploys eve as a sibling service); `eve add channel/web` now asks Next.js or TanStack. Same position as the other non-Next frontends — dev-flow web is Next-only — so it would become a section of `eve-web-integration.md` only if TanStack Start ever joins the stack | ⛔ |
 | `/docs/guides/deployment/{overview,vercel,self-hosting}` | `eve-scaffold.md` §Deploy + `eve-conventions.md` §self-host | ✅ |
 
 ## Observability, telemetry, providers
