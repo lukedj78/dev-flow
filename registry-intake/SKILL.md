@@ -330,9 +330,24 @@ silence. Interpreter names are kept for three smaller jobs: telling a bare progr
 carrying the inline flag that means *the next token is code*, and raising **H11** when a command
 names one and we resolved nothing.
 
-Two limits of that are written down rather than fixed: inside an inline string (`bash -c '…'`) a
-script must be a file that **exists** here, because an argument to `rm` is otherwise read as one;
-and `shlex.split("a;b")` returns a single token, so the separator handling is a floor, not a fence.
+An eighth review read that one, and its first finding was **a regression written one commit
+earlier, by me, to keep an assertion of mine tidy**: I had suppressed the gap after a pipe on the
+grounds that `curl … | sh` is H1's. But H1 only ever matched a pipe into `sh|bash|zsh`, so
+`curl -s https://host/p | python3` resolved nothing and reported nothing — a downloaded script,
+run, with a tick from `check`. It is the control regression the H9 note above warns about, repeated
+one commit later by the person who wrote the warning. A pipe now makes the gap **worse** (H9
+block), not quieter, and H1 covers every interpreter family. Two more from the same review:
+`shlex.split("a;b")` returns one token, so `ok.py;python3` was half a path and half the next
+command and was dropped in silence — operators are tokenised now; and `bash -c "bash -c '…'"` hit
+the recursion limit, which reported nothing, because a limit had been treated as a verdict.
+
+**The convergence test for this function is not "no findings left" — it is that every shape we
+cannot read ends in a finding.** Four of them now do: no file resolved (H11), code on stdin (H9
+block), inline code nested past the limit (H9 block), a token only a shell can finish (H9). What is
+written down rather than fixed: inside an inline string a script must be a file that exists here,
+because an argument to `rm` is otherwise read as one — anything that merely looks like a script
+there is reported, not read; and `pnpm`, `npx` and `env` run a package script or hand over, so they
+never raise the gap themselves.
 
 ## Where it runs
 

