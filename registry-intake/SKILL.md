@@ -312,10 +312,27 @@ both measuring `([], [])`, nothing resolved and nothing said:
   `run` as the file — which had invented a path, reported it missing and blocked, the oldest
   mistake of this function for the third time.
 
-The lesson is not about interpreters. **Every one of these six findings was a check whose failure
-mode was silence**, and in four of them the silence came from a *list* of the shapes we knew:
-extensions, flag names, interpreter names. A list of what to look for is a list of what to miss, so
-the gap itself has to be a finding — which is what H11 is for.
+A seventh review read *that* fix and found five more, which is where the method had to change
+rather than the lists. `node -r ./ok.js evil` read `ok.js` and not `evil`; `python3 -W ignore tool`
+resolved `<root>/ignore`, reported it missing and blocked, with the real script unread; a script
+named `env` was skipped as a program name; `bash -c 'python3 evil'` left the script unread; and
+`deno run https://host/x.ts` ran code off the network with no finding at all, because H1 needs a
+pipe.
+
+**Every one of these eleven findings was a check whose failure mode was silence, and nine of them
+came from a *list* of the shapes we knew** — extensions, flag names, interpreter names, option
+tables. A list of what to look for is a list of what to miss. So the question is no longer *which
+token is the script*, which needs an option table per interpreter and loses whenever the table is
+short. It is **which tokens are paths**: a path has a separator, or a script extension, or exists in
+the project. An option's value (`ignore`, `run`, `-W`) has none of those and a script has all three,
+and neither needs us to know the interpreter — so a name we fail to recognise can no longer cause
+silence. Interpreter names are kept for three smaller jobs: telling a bare program name from a file,
+carrying the inline flag that means *the next token is code*, and raising **H11** when a command
+names one and we resolved nothing.
+
+Two limits of that are written down rather than fixed: inside an inline string (`bash -c '…'`) a
+script must be a file that **exists** here, because an argument to `rm` is otherwise read as one;
+and `shlex.split("a;b")` returns a single token, so the separator handling is a floor, not a fence.
 
 ## Where it runs
 
