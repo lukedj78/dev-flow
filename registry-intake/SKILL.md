@@ -236,6 +236,7 @@ here where we carried none.
 | H9 | review / **block** | **a shell resolves the command and we cannot.** An expansion a reader can follow (`$HOME/bin/tool.sh`, a glob) is a review; a command that **computes what it runs** (`$(…)`, a backtick) blocks, because that is the one shape nobody can review. Inventing a path from the literal text would instead report a file that never existed |
 | H10 | block | the settings file **does not parse** — nothing in it was reviewed, and silence is not a pass |
 | H11 | review | an **interpreter is named and no file resolved** — so nothing was read. Not an inline command (`-c`, `-e` carry their code in the text, which the rules above judge) and not a reviewed script: a gap, which says so rather than passing quietly |
+| H12 | block → info | **not in the shape a machine can read**, so no machine reviewed what is here. Cleared only by `hook-approve --by <them>`, which records that a *person* read it — and never clears any other code |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
 Blocking findings fail `check`, and **there is no acceptance path** — not an omission. The first
@@ -379,6 +380,40 @@ written down rather than fixed: inside an inline string a script must be a file 
 because an argument to `rm` is otherwise read as one — anything that merely looks like a script
 there is reported, not read; and `pnpm`, `npx` and `env` run a package script or hand over, so they
 never raise the gap themselves.
+
+### The recogniser, and why the heuristic stopped being the gate
+
+Eleven findings in a week, across seven reviews, and one measurement explains all of them: only
+*one* was about shell syntax. The rest were my own lists (extensions, flag names, interpreter names,
+option tables) and my own noise fixes. The cause is structural — **that function parses someone
+else's grammar**, and a heuristic over an unbounded grammar has no last bug. Patching it faster
+than it is attacked is not a plan.
+
+So the gate moved. A hook command is **recognised**, not parsed:
+
+```
+<an interpreter we know, or a file here>   <one file inside the project>   <plain arguments>
+```
+
+No chaining, no redirection, no URL, no inline code, no command substitution. Matched: we read the
+script, and every rule above applies as before. Not matched: **H12 blocks**, because no machine read
+it — and a person can, with `hook-approve <root> --by <them>`, which pins the exact command text and
+the sha256 of each project file it names. Edit the text or the script and the approval dies.
+
+Three properties make the door safe rather than the acceptance path the note above refuses:
+
+- **It clears H12 and nothing else.** `hook-approve` refuses outright while any other code blocks:
+  approving a *shape* is never approving a command. `curl … | sh` stays blocked whoever read it.
+- **`--by` is required**, and the PreToolUse `ask` gate covers the command, so the user confirms it
+  like `allow`, `approve`, `skill-approve` and `mcp-approve`.
+- **It was measured before it was built.** All 46 hook commands in the 16 projects that have any —
+  ours and the hand-written `node "$CLAUDE_PROJECT_DIR"/scripts/guard/primitives-guard.mjs pre` —
+  match the shape, so the gate raised **zero** findings on the day it landed. A gate whose first act
+  is a wall of blocks is a gate people switch off.
+
+What this buys is not fewer bugs in the heuristic. It is that a bug there **stops being a bypass**:
+the heuristic now decides which file to read inside a shape already known to be readable, so getting
+it wrong misreads a file instead of switching off a control.
 
 ## Where it runs
 

