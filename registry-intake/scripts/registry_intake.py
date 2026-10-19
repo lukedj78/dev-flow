@@ -1797,8 +1797,15 @@ FETCHERS = re.compile(r"npx|bunx|uvx|pipx")
 FETCH_SUBCOMMAND = {"dlx", "exec"}
 # A runner's own subcommand is not its operand: in `pipx run ./tool.py` the file that answers
 # "a package, or a file?" is one token further along, and reading `run` as the answer made every
-# `uv run ./script` report a fetch that never happens.
-RUNNER_WORDS = {"run", "exec", "dlx", "x", "task", "script"}
+# `uv run ./script` report a fetch that never happens. Per program, though — `npx run x` runs the
+# npm package *called* `run`, and reading it as a subcommand lost the fetch note.
+RUNNER_WORDS = {"uv": {"run", "tool"}, "pipx": {"run"}, "pnpm": {"dlx", "exec", "run"},
+                "yarn": {"dlx", "run"}, "npm": {"exec", "run"}, "bun": {"run", "x"},
+                "deno": {"run", "task"}, "npx": set(), "bunx": set(), "uvx": set()}
+# `@scope/name`, `name@1.2.3`, `file:./x`: what a package manager is handed. A scoped spec contains
+# a slash, so `is_path` called it a path, `npx @scope/evil` resolved `<root>/@scope/evil` and — the
+# file not existing — earned an **H8 block**: a fetched package reported as a missing local file.
+PACKAGE_SPEC = re.compile(r"^@[^/\s]+/[^/\s]+(?:@[^\s]*)?$|^[A-Za-z0-9][\w.-]*@[^\s]+$")
 # `git+https://…`, `github:owner/repo`: a URL wearing a package spec.
 REMOTE_SPEC = re.compile(r"://|^git\+|^(?:github|gitlab|bitbucket):")
 # Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence.
@@ -1866,6 +1873,7 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
     # "a program we recognise ran here", `interp` is "and it runs FILES, so a missing one is a gap".
     named, interp, resolved, inline, code_next, cur_flags, piped = False, False, False, False, None, (), False
     fetcher: str | None = None
+    prog_name = ""
     fetch_operand = False          # the token right after the runner decides package-or-file
 
     def close_segment() -> None:        # noqa: C901 — the four shapes we cannot read
@@ -1929,7 +1937,7 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             # `fetcher` and `named` used to survive the separator, so one `npx` reported itself
             # twice and the next segment's own gap was lost. A segment's state ends with it.
             interp, resolved, inline, cur_flags = False, False, False, ()
-            named, fetcher, fetch_operand = False, None, False
+            named, fetcher, fetch_operand, prog_name = False, None, False, ""
             piped = token == "|"
             continue
         if token in cur_flags:                       # THIS program's inline flag: code follows
@@ -1938,12 +1946,12 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         flags = inline_flags(Path(token).name)
         if flags is not None and "/" not in token:   # a bare program name, not a file
             cur_flags, named = flags, True
-            name = Path(token).name
+            name = prog_name = Path(token).name
             interp = interp or not DELEGATES.fullmatch(name)
             if FETCHERS.fullmatch(name):
                 fetcher, fetch_operand = token, True
             continue
-        if token in RUNNER_WORDS and named:             # `pnpm dlx x`, `npm exec x`, `uv run x`
+        if token in RUNNER_WORDS.get(prog_name, ()) and named:   # `pnpm dlx x`, `uv run x`
             if token in FETCH_SUBCOMMAND:
                 fetcher = token
             fetch_operand = fetcher is not None        # still pending: the operand is the next one
@@ -1962,14 +1970,19 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
                 resolved = True
             fetch_operand = False      # a URL is not the local file that would drop the note
             continue
-        took = is_path(token) and add(token)
         if fetch_operand:
             # ONLY the token straight after the runner answers "a package, or a file?". `pipx run
             # ./tool.py` fetches nothing; `npx evil-pkg ./local.js` fetches evil-pkg whatever the
             # second argument is, and reading any resolved path in the segment had silenced it.
-            if took:
-                fetcher = None
+            # And a package spec is not a path however many slashes it has, while a path need not
+            # start with `./` — `.claude/hooks/tool` is how our own hooks are written, and demanding
+            # an explicit prefix here lost the script instead of the note.
             fetch_operand = False
+            if PACKAGE_SPEC.fullmatch(token) or not is_path(token):
+                resolved = True        # a package, named: the note stands and no path is invented
+                continue
+            fetcher = None
+        took = is_path(token) and add(token)
         resolved = took or resolved
     close_segment()
     return out, unresolved

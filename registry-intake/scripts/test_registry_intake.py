@@ -1157,6 +1157,28 @@ class Hooks(unittest.TestCase):
                 r2 = self.project(("Stop", command), scripts={".claude/hooks/tool": "print(1)\n"})
                 self.assertEqual(ri.hook_scripts(r2, command)[1], [], "a file was given, not a package")
 
+    def test_a_package_spec_is_not_a_local_file(self) -> None:
+        """An eleventh review. `@scope/name` contains a slash, so `is_path` called it a path:
+        `npx @scope/evil` resolved `<root>/@scope/evil` and — no such file — earned an H8 **block**,
+        a fetched package reported as a missing local file. That one has a cost either way round,
+        because a scoped package in a hook is ordinary and H8 fails `check`.
+
+        And `npx run x` runs the npm package *called* `run`: reading it as a subcommand, which only
+        `uv`, `pipx`, `pnpm`, `yarn`, `npm`, `bun` and `deno` have, lost the fetch note."""
+        for command in ("npx @scope/evil-pkg", "bunx @scope/evil", "npx evil-pkg@1.0.0"):
+            with self.subTest(command=command):
+                codes = self.codes(("Stop", command))
+                self.assertNotIn("H8", [c for c, _ in codes], "no package read as a missing file")
+                self.assertIn(("H9", "review"), codes, "and the fetch is still reported")
+        # `npx run ./x.js` keeps the note; the H8 beside it is right, because that project has no
+        # such file and a hook pointing at a missing script refuses every matching call.
+        self.assertIn(("H9", "review"), self.codes(("Stop", "npx run ./x.js")))
+        # A project-relative path is still a path: demanding `./` here lost the script, not the note.
+        root = self.project(("Stop", "pipx run .claude/hooks/tool"),
+                            scripts={".claude/hooks/tool": "print(1)\n"})
+        self.assertEqual([str(x) for x in ri.hook_scripts(root, "pipx run .claude/hooks/tool")[0]],
+                         [f"{root}/.claude/hooks/tool"])
+
     def test_a_package_script_is_not_a_missing_file(self) -> None:
         """`pnpm`, `npx` and `env` run a package script or hand over to the next program, so an
         H11 gap on them is a finding with nothing behind it — every `pnpm build` hook earned one."""

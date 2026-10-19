@@ -360,6 +360,18 @@ Both say the same thing — **a note is not the segment's answer, and a segment'
 segment.** The suppression also asked the wrong question: `npx evil-pkg ./local.js` was silent
 because the note read *did anything here resolve?* instead of *what was handed to the runner?*
 
+An eleventh review brought three, and the measurement disagreed with one of them: `npx -p evil-pkg
+./x.js` and `uvx --with evil ./x.js` do emit the note, because an option's value is not path-shaped
+and consumes the slot correctly — so that suggested fix would have been churn. The two that were
+real both came from the same mistake, and it is not a parsing one: **`@scope/name` contains a
+slash, so `is_path` called it a path.** `npx @scope/evil` resolved `<root>/@scope/evil`, found no
+such file, and raised an **H8 block** — a fetched package reported as a missing local one, which
+costs either way round, because a scoped package in a hook is ordinary and H8 fails `check`. In the
+runner's operand slot the question is now *package or path*, and a package spec is neither a file
+nor a gap. (Demanding an explicit `./` there, as suggested, lost `.claude/hooks/tool` — the way our
+own hooks are written — so the fix would have dropped the script instead of the note.) The other:
+`npx run x` runs the npm package *called* `run`; subcommands belong to the programs that have them.
+
 **The convergence test for this function is not "no findings left" — it is that every shape we
 cannot read ends in a finding.** Four of them now do: no file resolved (H11), code on stdin (H9
 block), inline code nested past the limit (H9 block), a token only a shell can finish (H9). What is
