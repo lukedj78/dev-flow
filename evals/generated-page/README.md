@@ -33,12 +33,18 @@ turns it into one, which belongs in a project's own CI rather than in this repo'
 `components/ui/**` is skipped: those files come from the shadcn / Base UI CLI, and
 grading them grades upstream. `--include-vendored` turns them back on.
 
-## The sixteen checks
+## The twenty checks
 
-Twelve find something that should not be there — `h-screen`, `#000` in an ink
+Sixteen find something that should not be there — `h-screen`, `#000` in an ink
 position, `John Doe`, `Acme`, `99.99%`, `john@example.com`, marketing filler,
 Unsplash for a stub photo, a layout-forcing animation, a spinner where a skeleton
-belongs, `01 / 02 / 03` on non-sequential sections, an invented gradient.
+belongs, `01 / 02 / 03` on non-sequential sections, an invented gradient, **proof
+the generator wrote** ("Trusted by 3,847 teams", a 4.9/5 rating), **the generator's
+own signature** on the client's page, **content that starts at `opacity-0` with no
+`motion-reduce:` path**, and **a chart filled with a gradient**.
+
+Under i18n the words live in `messages/*.json`, not in the TSX, so the two copy
+checks — `filler-word` and `invented-proof` — read the message catalogues too.
 
 Four find something that should be there and is not, which is the failure mode
 nobody catches in review because **a missing file produces no diff**: i18n with both
@@ -100,7 +106,7 @@ self-test.
 ## What this cannot do
 
 **It only catches failures someone already wrote down.** Every check here exists
-because a rule exists; a page can pass all sixteen and still be bad in a way nobody
+because a rule exists; a page can pass all of them and still be bad in a way nobody
 has named yet. Treat a clean run as "no *known* mechanical failure", never as "good".
 
 **And it says nothing about whether the page is any good.** Hierarchy, whether the

@@ -1,1 +1,1 @@
-{ "hero": { "title": "Book a session" } }
+{ "hero": { "title": "Book a session" }, "footer": { "copyright": "© {year} Studio", "proofSlot": "Customer stories — TBD" } }

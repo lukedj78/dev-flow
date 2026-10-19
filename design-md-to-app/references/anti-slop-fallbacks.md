@@ -2,7 +2,8 @@
 
 When DESIGN.md is **silent** on a value, or when scaffolding pages **not present** in the source Figma (sign-in, /contact, /coaches index, journal placeholders), don't reach for the LLM's statistically average default — it tilts toward a recognizable "AI generic" aesthetic. This file pins better defaults.
 
-Adapted from `taste-skill` (Leonxlnx/taste-skill), reduced to rules that are **CSS-portable** (no JS animation library required) and **compatible with Step 4.5c** (verbatim-Figma rule). These fallbacks fire **only** when the source is silent — they NEVER override a value the DESIGN.md or Figma source actually specifies.
+Adapted from `taste-skill` (Leonxlnx/taste-skill, MIT) — v1 for rules 1–10, v2.1.1 (re-read 2026-10-19) for the
+corrections to rules 3, 5, 6, 9, 10 and for rules 12–13 — reduced to rules that are **CSS-portable** (no JS animation library required) and **compatible with Step 4.5c** (verbatim-Figma rule). These fallbacks fire **only** when the source is silent — they NEVER override a value the DESIGN.md or Figma source actually specifies.
 
 ## When these rules apply
 
@@ -42,16 +43,30 @@ The rule against `h-screen` is still **universal**: it applies even when Figma s
 
 The rest of the web-on-a-phone layer — the hover state that sticks after a tap, the grey flash, inputs that zoom the page, the 300 ms tap delay, pull-to-refresh, the notch, long-press selecting a button's label, a carousel that scrolls the page instead — is **`references/mobile-web.md`**, including the four-line baseline to ship before the first component.
 
-### 3. Realistic placeholder data
+### 3. Sample data, yes — invented proof, never
 
-When inventing data for stub routes (placeholder rows in a dashboard, sample journal posts, demo coach profiles), use organic-feeling values, not patterns the LLM defaults to:
+Two kinds of invented content, and they are not the same thing.
+
+**Sample data** fills a screen so the design is seen at full density: rows in a dashboard, demo coach profiles,
+sample journal posts, a menu's dishes when the brief has none. It is expected, it is realistic, and every piece of it
+goes into `fallbacks_applied` so the client can swap it.
+
+**Proof** is what a visitor reads as a fact about the business: how many customers it has, how they rate it, who
+trusts it, what the press said, which logos use it, a business statistic on a public page. **Proof is never
+invented.** The slot ships empty with a `TBD` (or is left out of the page) and the hand-off lists it under
+`proof_left_empty`. *Corrected 2026-10-19:* this rule used to recommend "organic" statistics such as `3,847 members`
+for any invented number. On a public page that is fake proof made to look measured — the more convincing it is, the
+more likely it ships. taste-skill v2 draws the same line ("proof is never invented").
+
+For sample data, use organic-feeling values, not the patterns the LLM defaults to:
 
 - ❌ Names: "John Doe", "Jane Smith", "Sarah Chan" — recognized as AI defaults.
 - ✅ Names: realistic but non-generic — "Marina Lourenço", "Tomás Capellini", "Eliška Novák", "Anne-Sophie Le Goff". Mix nationalities, surnames with diacritics, hyphenated forms.
 - ❌ Brand names: "Acme", "Nexus", "SmartFlow", "Synergy", "Apex". Banned.
 - ✅ Brand names: contextual + premium — "Performance Driven Gym", "Notarius", "Aetherfield", "Graphite".
 - ❌ Stat values: `99%`, `99.99%`, `50%`, `1234`, `1,000,000`. Banned.
-- ✅ Stat values: organic — `47.2%`, `3,847 members`, `+1 (312) 847-1928`, `$24,580`.
+- ✅ Stat values **in sample data** (an app screen's rows and charts): organic — `47.2%`, `3,847 rows`, `$24,580`.
+  Never the same figure as a claim on a public page ("3,847 members trust us"): that is proof.
 - ❌ Email/phone: `john@example.com`, `555-1234`. Banned **unless** Figma uses these as placeholders (then preserve verbatim per Step 4.5c).
 - ✅ Email/phone: realistic format — `marina.lourenco@studio.gym`, `+39 02 9876 5432`.
 
@@ -64,15 +79,26 @@ When you must write copy for a TBD page (sign-in CTA, contact form, legal), avoi
 
 The Figma file's actual brand voice (extracted via Step 4.5c) is the authority. When inventing for TBD pages, copy the brand's tone register — terse, direct — and avoid generic SaaS-marketing register.
 
-### 5. No Unsplash for invented stub photos
+### 5. Pictures: the real thing first, a placeholder last and logged
 
-Unsplash links break (photo gets removed from CDN, ID changes silently). For TBD pages that need a placeholder image:
+A random photo is a placeholder with extra steps: it says nothing about this client and it ships, because nobody
+remembers it was a stand-in. When the source has no picture for a slot, take the first that exists:
 
-- ✅ `https://picsum.photos/seed/<deterministic-string>/<w>/<h>` — Lorem Picsum, deterministic via seed.
-- ✅ Static SVG placeholder generated at build time (a tinted block with the alt text rendered as a label).
-- ⚠️ Unsplash IDs are tolerated when the user has **already specified** them (e.g., perf-gym uses `lib/photos.ts` with curated Unsplash IDs). Don't rip those out — that's an existing decision, not a new default.
+1. **The project's own** pictures, product shots, footage.
+2. **For software, a real fragment of the product** — a crop of an actual screen built from the project's own
+   primitives, with sample data that adds up. Never a "dashboard" of grey bars.
+3. **Drawn in code from the subject** — its objects, its material, its interface — in the palette's real colours, one
+   consistent flat language (`references/illustrations.md` for libraries and licences).
+4. **Type and colour alone**: a field of the brand colour with the headline set large beats a stock picture.
+5. **`https://picsum.photos/seed/<deterministic-string>/<w>/<h>` only as a draft**, logged in `fallbacks_applied`
+   with `"replace_before_launch": true` and listed in the hand-off. Never on a page declared done.
 
-For new scaffolds where the user hasn't picked a photo source: default to Picsum-with-seed.
+- ❌ Unsplash for invented stubs: links break (the photo is removed, the ID changes silently).
+- ⚠️ Unsplash IDs are tolerated when the user has **already specified** them (e.g., perf-gym uses `lib/photos.ts`
+  with curated Unsplash IDs). Don't rip those out — that's an existing decision, not a new default.
+
+*Corrected 2026-10-19:* Picsum-with-seed used to be the default. It is now the last resort, after taste-skill v2's
+order of preference (own → real fragment → drawn → type alone).
 
 ### 6. No 3-equal-card row layout
 
@@ -80,8 +106,12 @@ The "3 horizontal feature cards" pattern is the AI-generated default for "show 3
 
 - 2-column zig-zag (image left/right alternating).
 - Asymmetric grid (`grid-cols-[2fr_1fr_1fr]`).
-- Numbered vertical list with a single feature image to the side.
-- Horizontal scroll on mobile, 2-up + 1 below on desktop.
+- One large item and two smaller ones beside it, ordered by importance.
+- A plain list with a single feature image to the side — numbered only if the items are a sequence the reader follows
+  in order (rule 11).
+
+*Corrected 2026-10-19:* this list used to offer a "numbered vertical list" — which rule 11 bans for non-sequential
+items — and "horizontal scroll on mobile", which on a phone reads as a row cut off at the screen edge.
 
 This rule **bows** to Figma — if the source shows 3 equal cards, do 3 equal cards (verbatim wins). It applies only when scaffolding for an under-specified DESIGN.md.
 
@@ -113,7 +143,7 @@ Or in Tailwind shorthand: `active:scale-[0.98]`. Pure CSS, no JS. Should land on
 
 ### 9. Skeleton loaders, never spinners
 
-When writing `app/loading.tsx` or any in-page loading state for invented routes, use **content-shaped skeletons** (a `<Skeleton>` rectangle the size of the heading, etc.) instead of generic circular spinners. shadcn ships `<Skeleton>` and `tw-animate-css` ships the shimmer animation — combine.
+When writing `app/loading.tsx` or any in-page loading state for invented routes, use **content-shaped skeletons** (a `<Skeleton>` rectangle the size of the heading, etc.) instead of generic circular spinners. shadcn's `<Skeleton>` pulses with Tailwind's core `animate-pulse` (opacity only) — that is the whole animation. **No moving gradient sweep** ("shimmer"): it is a decorative gradient (rule 11), and `tw-animate-css` ships none (`transitions/references/tw-animate-css.md`). *Corrected 2026-10-19:* this rule used to say it did.
 
 This is already pinned in `references/loading.template.tsx`. The fallback rule reinforces: never reach for `<Spinner />` or a `<Loader2 className="animate-spin" />` as a default.
 
@@ -125,15 +155,19 @@ When you need a staggered reveal of N items (3 cards, 6 nav links) on a page tha
 {items.map((item, i) => (
   <div
     key={item.id}
-    className="opacity-0 animate-in fade-in slide-in-from-bottom-4 fill-mode-forwards"
-    style={{ animationDelay: `${i * 80}ms`, animationDuration: "600ms" }}
+    className="opacity-0 animate-in fade-in slide-in-from-bottom-4 fill-mode-forwards motion-reduce:animate-none motion-reduce:opacity-100"
+    style={{ animationDelay: `${i * 60}ms`, animationDuration: "600ms" }}
   >
     {item.body}
   </div>
 ))}
 ```
 
-Pure CSS. Zero JS bundle cost. Achieves taste-skill's "staggerChildren" feel. If the project later adds `module-add motion`, the wrappers in `components/motion/` replace this pattern, but for the default scaffold, CSS cascade is the fallback.
+Pure CSS. Zero JS bundle cost. Achieves taste-skill's "staggerChildren" feel. **The `motion-reduce:` pair is not
+optional:** the item starts at `opacity-0`, so without it a reduced-motion user — or anyone whose animation fails —
+never sees the content (`check.py` counts it as `hidden-without-reduced-motion`; the render probe measures it on the
+running page as `reduced-hidden`). The gap is 30–80 ms (`transitions/references/animation-standards.md`), and a
+stagger never blocks interaction while it plays. If the project later adds `module-add motion`, the wrappers in `components/motion/` replace this pattern, but for the default scaffold, CSS cascade is the fallback.
 
 ### 11. Composition reflexes — the tells that are structural, not textual
 
@@ -171,6 +205,43 @@ alignment and one intentional tension. An empty page is not a restrained page.
 centred hero over a card grid, build a centred hero over a card grid — Step 4.5c wins, always. These
 apply only where the source is silent and something has to be invented.
 
+### 12. Numbers and charts in app screens
+
+Most of our projects are products with dashboards, and a dashboard is where invented layout shows first. When the
+source is silent (adapted from taste-skill v2's app-screen rules):
+
+- **A delta's colour says good or bad, not up or down.** Rising churn is red. A zero or undefined change is neutral
+  grey with no arrow. A change from nothing is "+4 (new)", never "+100%".
+- **Figures right-aligned in their column and `tabular-nums`**, so digits line up and a column can be read down.
+- **One figure in one place.** The same number in a KPI card, a chart caption and a table header is three things to
+  keep in sync and one to trust. The figure that answers the screen's question may sit one step larger than its
+  siblings (`text-3xl` against `text-2xl`), never in a different face.
+- **Charts are shadcn Chart** (golden rule 3), configured — not replaced:
+  - at most **four hues**, taken from the `--chart-*` tokens: one accent for the series that matters, neutrals for
+    the rest; colour encodes a series or nothing;
+  - **no gradient area fill** — a solid `--chart-*` fill at low opacity (`check.py`: `chart-gradient-fill`); the
+    shadcn area-chart examples ship a `linearGradient`, so remove it when copying one;
+  - a direct label on the line or bar beats a legend; one finding stated in the title beats "Revenue";
+  - straight segments without point markers unless the points are the data.
+- **An empty section keeps its frame and its heading**, with one line saying why it is empty and the action that fills
+  it. A panel that disappears when empty moves everything below it.
+- **Sample figures add up.** Rows sum to the total shown; a percentage has its denominator.
+
+### 13. Copy shape — what an invented sentence should look like
+
+Rule 4 bans words; this bans shapes. When the brand voice (Step 4.5c) does not decide it:
+
+- **A headline is a statement about this product**, not a slogan that fits any product: "Invoices out in two
+  minutes" — not "Work smarter". Put the nearest competitor's name in it: if it still works, rewrite it.
+- **Two lines at most, at every width, in the longest locale** — Italian runs 15–30% longer than English
+  (`references/i18n-next-intl.md` §Headlines in every locale).
+- **One supporting sentence right under the headline** that says plainly what the thing is and does.
+- **A button names what it does** ("Send the invoice"), never "Get started" or "Learn more" alone.
+- **No eyebrow label above a heading to carry information the heading should carry.** (The showcase's section
+  eyebrows are part of its specimen format and stay.)
+- More English tells to avoid in invented copy: "In today's fast-paced world", "Say goodbye to", "Take X to the next
+  level", "Whether you're X or Y", "Unlock", "Supercharge", "Effortless", "Look no further".
+
 ## Hand-off
 
 When the scaffold runs, log every fallback you used to `_design-md-mapping.json` under a `fallbacks_applied` key:
@@ -189,6 +260,12 @@ When the scaffold runs, log every fallback you used to `_design-md-mapping.json`
       "where": "lib/queries/coaches.ts",
       "value": "Marina Lourenço, Tomás Capellini, Eliška Novák, Anne-Sophie Le Goff",
       "reason": "Coaches page not in source Figma — invented per Step 4.5c TBD policy"
+    }
+  ],
+  "proof_left_empty": [
+    {
+      "where": "app/(marketing)/page.tsx — customer-stories section",
+      "reason": "no customer quotes or counts supplied; slot shows the TBD banner"
     }
   ]
 }

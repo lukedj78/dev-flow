@@ -1721,7 +1721,7 @@ claude plugin validate . --strict                  # the marketplace entry
 
 ```bash
 # Grade a generated app against the rules the skill that generated it states —
-# 16 checks, self-tested against their own fixtures
+# mechanical checks, self-tested against their own fixtures
 python3 evals/generated-page/check.py ~/projects/my-app
 python3 evals/generated-page/check.py --selftest      # CI: every check must fire on bad, stay silent on good
 

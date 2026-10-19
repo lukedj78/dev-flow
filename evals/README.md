@@ -4,7 +4,7 @@ Three things live here now, answering different questions.
 
 - **`run_evals.py`** — property-based golden tests for the deterministic *scripts*
   that back several skills (this file).
-- **[`generated-page/check.py`](./generated-page/README.md)** — sixteen mechanical
+- **[`generated-page/check.py`](./generated-page/README.md)** — mechanical
   checks over a *generated app*, asking whether the generation followed the rules the
   skill that produced it states. Different target, different failure mode, its own
   self-test; start from its README.
