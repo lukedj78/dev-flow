@@ -1718,10 +1718,43 @@ SUBSTITUTION = re.compile(r"\$\(|`")
 # `python3 .claude/hooks/tool` resolved to nothing: no script was read, no finding was raised, and
 # the hook passed `check` — the body of a file that runs on every tool call, never opened. Renaming
 # a script was enough. A file is a script because something runs it, not because of its name.
-INTERPRETERS = SHELLS | set(INLINE_CODE)
+#
+# By FAMILY, not by exact name. A set of literal names (`python3`, `node`) let `python3.12`,
+# `node20`, `tsx`, `ts-node` and `uv run` through with nothing read — the same bypass one rename
+# further along, which a sixth review measured as `([], [])`: nothing resolved AND nothing said.
+INLINE_BY_FAMILY: list[tuple[re.Pattern, tuple[str, ...]]] = [
+    (re.compile(r"(?:python|pypy)\d*(?:\.\d+)*"), ("-c",)),
+    (re.compile(r"node\d*"), ("-e", "--eval", "-p", "--print")),
+    (re.compile(r"deno"), ("eval",)),
+    (re.compile(r"bun"), ("-e",)),
+    (re.compile(r"ruby|perl"), ("-e",)),
+    (re.compile(r"php"), ("-r",)),
+    # A SHELL's inline flag is `-c` and only `-c`. Treating `-e` as inline for everything — it is
+    # `errexit` to a shell, `eval` to node — made `bash -e .claude/hooks/evil` resolve to nothing
+    # and raise nothing: a plausible-looking flag as an off switch.
+    (re.compile(r"sh|bash|zsh|fish|dash|ksh|csh|tcsh"), ("-c",)),
+    (re.compile(r"tsx|ts-node|lua|luajit|Rscript|osascript|env|uv|uvx|pipx"), ()),
+]
+INTERPRETER_NAME = re.compile("|".join(f"(?:{pat.pattern})" for pat, _ in INLINE_BY_FAMILY))
 SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
-# The code is on the command line, so there is no file to read; HOOK_RULES have judged the text.
-INLINE_FLAGS = {"-c", "--command", "-e", "--eval", "-p", "--print", "-r", "eval"}
+# Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence —
+# every script in the command is still resolved, this just stops one interpreter's search for ITS
+# operand from running into the next command.
+SEPARATORS = {"&&", "||", ";", "|", "&", ";;", "(", ")"}
+# `uv run x`, `pipx run x`, `deno run x`: the first word is a subcommand, not the file. Reading it as
+# the operand resolved `<root>/run` — a file that never existed, reported missing, H8 *block*, with
+# the real script still unread. The invented path is the older mistake of this function, twice over.
+RUNNER_SUBCOMMAND = re.compile(r"uv|uvx|pipx|deno|bun|npx|bunx|npm|pnpm|yarn")
+SUBCOMMANDS = {"run", "exec", "dlx", "x", "task", "script"}
+
+
+def inline_flags(name: str) -> tuple[str, ...] | None:
+    """The flags that mean "the code is on this command line" for THIS interpreter, or None if the
+    name is not an interpreter at all."""
+    for pat, flags in INLINE_BY_FAMILY:
+        if pat.fullmatch(name):
+            return flags
+    return None
 
 HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
     ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
@@ -1803,21 +1836,32 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, 
             out.append(path)
 
     for i, token in enumerate(tokens):
-        if "://" in token or Path(token).name not in INTERPRETERS:
+        if "://" in token:
             continue
-        rest = tokens[i + 1:]
-        if any(t in INLINE_FLAGS for t in rest[:3]):
+        flags = inline_flags(Path(token).name)
+        if flags is None:
             continue
-        for cand in rest:
-            if "://" in cand:
+        # Options are read only until the first operand. Scanning "the first three tokens" for an
+        # inline flag meant `python3 .claude/hooks/tool -c` — the flag AFTER the script — counted as
+        # inline: the script still ran, and the check went quiet.
+        inline, operand = False, None
+        for cand in tokens[i + 1:]:
+            if cand in SEPARATORS:
                 break
-            if cand.startswith("-"):
+            if cand in SUBCOMMANDS and RUNNER_SUBCOMMAND.fullmatch(Path(token).name):
                 continue
-            if Path(cand).name in INTERPRETERS:  # `env python3 x`: the next one decides
-                break
-            add(cand)
+            if cand.startswith("-") or cand == "eval":
+                if cand in flags:
+                    # What follows is the code, not a file. `bash -c 'cmd' name` passes `name` as
+                    # $0, so there is no script there either — resolving it would invent one.
+                    inline = True
+                    break
+                continue
+            operand = cand
             break
-        else:
+        if operand is not None and "://" not in operand and inline_flags(Path(operand).name) is None:
+            add(operand)          # `env python3 x`: the operand IS an interpreter, so the next turn decides
+        elif not inline and operand is None:
             # An interpreter with nothing we could resolve is not an inline command and not a
             # reviewed script: it is a gap, and a gap says so rather than passing quietly.
             unresolved.append((f"{token} — no file resolved in `{command.strip()[:80]}`", "no-script"))

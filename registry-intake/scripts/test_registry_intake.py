@@ -1013,6 +1013,48 @@ class Hooks(unittest.TestCase):
         self.assertIn(("H1", "review"), [(f.code, f.level) for f in ri.review_hooks(root)],
                       "the body is read now, so what it runs is reported")
 
+    def test_the_ways_an_interpreter_can_be_written(self) -> None:
+        """A sixth review, on the commit that added the line above. Both findings measured
+        `([], [])` — nothing resolved AND nothing said, the exact failure the fix was for.
+
+        An inline flag was looked for in "the first three tokens", so `python3 tool -c` — the flag
+        AFTER the script — counted as inline. `-e` was inline for every interpreter, but to a shell
+        it is `errexit`, so `bash -e evil` was an off switch written as a plausible flag. And the
+        interpreter set held literal names, so one rename (`python3.12`, `tsx`, `uv run`) walked
+        past all of it."""
+        for command in ("python3 .claude/hooks/tool -c",
+                        "bash -e .claude/hooks/tool",
+                        "python3.12 .claude/hooks/tool",
+                        "node20 .claude/hooks/tool",
+                        "tsx .claude/hooks/tool",
+                        "ts-node .claude/hooks/tool",
+                        "uv run .claude/hooks/tool",
+                        "pipx run .claude/hooks/tool",
+                        "env python3 .claude/hooks/tool"):
+            with self.subTest(command=command):
+                scripts, unresolved = ri.hook_scripts(Path("/tmp/p"), command)
+                self.assertEqual([str(x) for x in scripts], ["/tmp/p/.claude/hooks/tool"],
+                                 "the file that runs is read whatever the command calls it")
+                self.assertEqual(unresolved, [])
+
+    def test_a_runner_subcommand_is_not_the_file(self) -> None:
+        """`uv run x` resolved `<root>/run`: a file that never existed, reported missing, H8 block —
+        with the real script still unread. Inventing a path is this function's oldest mistake."""
+        for command in ("uv run .claude/hooks/tool", "deno run app.ts", "pnpm dlx tool.js"):
+            with self.subTest(command=command):
+                scripts, _ = ri.hook_scripts(Path("/tmp/p"), command)
+                self.assertNotIn("/tmp/p/run", [str(x) for x in scripts])
+                self.assertNotIn("/tmp/p/dlx", [str(x) for x in scripts])
+
+    def test_inline_code_is_judged_as_text_and_invents_no_file(self) -> None:
+        """`-c` is a shell's inline flag and `-e` is node's; after one, what follows is code.
+        `bash -c 'cmd' name` passes `name` as $0, so there is no script there to resolve either."""
+        for command in ('python3 -c "print(1)"', 'node -e "require(\'x\')"', "bash -c 'rm -rf /tmp/x'"):
+            with self.subTest(command=command):
+                self.assertEqual(ri.hook_scripts(Path("/tmp/p"), command), ([], []), "no file, no gap")
+        self.assertIn(("H5", "block"), self.codes(("Stop", "bash -c 'rm -rf /tmp/x'")),
+                      "the text is still judged by the rules")
+
     def test_an_interpreter_with_no_file_resolved_is_a_finding(self) -> None:
         """Silence was the old answer whenever nothing resolved. A gap says so."""
         self.assertIn(("H11", "review"), self.codes(("Stop", "python3")))

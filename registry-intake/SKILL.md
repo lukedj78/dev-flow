@@ -298,6 +298,25 @@ A fifth review found three more, and the pattern in all three is the same: **a c
   recomputes from the project where no temporary file can suppress anything; this cache only moves
   the report earlier, so its failure mode must be noise, never silence.
 
+A sixth review read the commit that fixed those and found the same failure inside the fix, twice —
+both measuring `([], [])`, nothing resolved and nothing said:
+
+- **An inline flag was looked for in "the first three tokens".** So `python3 .claude/hooks/tool -c`
+  — the flag *after* the script — counted as code on the command line. Options are read only until
+  the first operand now.
+- **`-e` was inline for every interpreter.** To node it is `eval`; to a shell it is `errexit`. So
+  `bash -e .claude/hooks/evil` was an off switch written as a plausible flag. Inline flags are per
+  interpreter: `-c` for a shell, and only `-c`.
+- **Interpreters were literal names.** One rename walked past all of it: `python3.12`, `node20`,
+  `tsx`, `ts-node`, `uv run`. They are matched by family now, and `uv run x` no longer resolves
+  `run` as the file — which had invented a path, reported it missing and blocked, the oldest
+  mistake of this function for the third time.
+
+The lesson is not about interpreters. **Every one of these six findings was a check whose failure
+mode was silence**, and in four of them the silence came from a *list* of the shapes we knew:
+extensions, flag names, interpreter names. A list of what to look for is a list of what to miss, so
+the gap itself has to be a finding — which is what H11 is for.
+
 ## Where it runs
 
 - **Automatically at scaffold.** `design-md-to-app` (Step 4.10), `monorepo-bootstrap` (Step 8) and
