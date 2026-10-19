@@ -14,6 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import promote as pr  # noqa: E402
 import scan_promotion as sp  # noqa: E402
 
 
@@ -77,6 +78,35 @@ class WebAreas(unittest.TestCase):
             with contextlib.redirect_stdout(out):
                 sp.scan_one_root_web(root, "next")
             self.assertIn("`PostCard`", out.getvalue())
+
+
+class SuffixNames(unittest.TestCase):
+    """A component whose name ends another's (Card, PostCard) must not be mistaken for it. Found on a branch of
+    2026-08-12, recovered 2026-10-19: promoting Card rewrote the import of PostCard, and the scan counted PostCard's
+    importers as Card's."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        write(self.root, "app/a/page.tsx", 'import { Card } from "./_components/Card"\n')
+        write(self.root, "app/b/page.tsx", 'import { PostCard } from "@/components/feed/PostCard"\n')
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_scan_counts_only_the_component_itself(self) -> None:
+        self.assertEqual({p.relative_to(self.root).as_posix() for p in sp.count_imports("Card", self.root)},
+                         {"app/a/page.tsx"})
+
+    def test_promote_finds_only_the_component_itself(self) -> None:
+        self.assertEqual([p.relative_to(self.root).as_posix() for p in pr.find_importers("Card", self.root)],
+                         ["app/a/page.tsx"])
+
+    def test_promote_never_rewrites_another_components_import(self) -> None:
+        importers = [self.root / "app/a/page.tsx", self.root / "app/b/page.tsx"]
+        pr.rewrite_imports(importers, [], self.root / "components/shared/Card.tsx", self.root, "Card")
+        self.assertEqual((self.root / "app/b/page.tsx").read_text(), 'import { PostCard } from "@/components/feed/PostCard"\n')
+        self.assertIn('"@/components/shared/Card"', (self.root / "app/a/page.tsx").read_text())
 
 
 if __name__ == "__main__":
