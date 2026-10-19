@@ -18,7 +18,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PROBE = HERE / "render_probe.mjs"
 FIXTURES = HERE / "fixtures" / "probe"
-IDS = {"overflow-x", "headline-lines", "reduced-hidden", "font-fallback", "broken-image", "sidebar-phone"}
+IDS = {"overflow-x", "headline-lines", "reduced-hidden", "font-fallback", "broken-image", "sidebar-phone"}  # + layout-shift, own fixture
 
 
 def node_major() -> int:
@@ -107,6 +107,20 @@ class Measure(unittest.TestCase):
                 r = probe((FIXTURES / "clean.html").as_uri(), "--widths", "390", env={"TMPDIR": tmp})
                 self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual([p.name for p in Path(tmp).iterdir() if p.name.startswith("render-probe-")], [])
+
+    def test_a_guessed_skeleton_is_a_layout_shift_with_the_moved_elements(self) -> None:
+        report = self.run_json("skeleton-shift.html", "--widths", "1440")
+        shifts = [f for f in report["findings"] if f["id"] == "layout-shift"]
+        self.assertEqual(len(shifts), 1, report["findings"])
+        self.assertEqual(shifts[0]["level"], "FAIL")
+        self.assertTrue(any("below" in el or "list" in el for el in shifts[0]["elements"]), shifts)
+        self.assertGreater(report["cls"]["1440"], 0.1)
+
+    def test_throttle_is_accepted_and_validated(self) -> None:
+        r = probe((FIXTURES / "clean.html").as_uri(), "--json", "--widths", "390", "--throttle", "fast-3g")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["findings"], [])
+        self.assertEqual(probe((FIXTURES / "clean.html").as_uri(), "--throttle", "bogus").returncode, 2)
 
     def test_strict_turns_a_fail_into_exit_1(self) -> None:
         r = probe((FIXTURES / "broken.html").as_uri(), "--strict", "--widths", "390")

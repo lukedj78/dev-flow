@@ -2,6 +2,7 @@
 // render_probe.mjs — measure a running page in headless Chrome, the things no source scan can see.
 //
 //   node render_probe.mjs <url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS]
+//                             [--throttle slow|fast-3g|<kbps>]   slower network, so a skeleton stays up long enough
 //   node render_probe.mjs --find-browser
 //
 // shadscan, check.py and the design lint read source. This opens the page and measures it at each width:
@@ -11,6 +12,8 @@
 //   font-fallback   a declared @font-face used on the page failed to load                              WARN
 //   broken-image    an <img> finished loading with no picture                                          FAIL
 //   sidebar-phone   on a phone (≤ 480px) a sidebar covers more than 30% of the width                   FAIL
+//   layout-shift    the page jumps while it loads — a skeleton or a late block that is not the size of what
+//                   replaces it: cumulative layout shift > 0.05 WARN, > 0.1 FAIL, with the elements that moved
 //
 // Adapted from the idea of taste-skill v2's inspector (Leonxlnx/taste-skill, MIT) — not its code and not its rules —
 // with one deliberate difference: it serves no files. Give it the dev server's URL (or a file:// path); a probe that
@@ -26,7 +29,14 @@ import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS]";
+const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS] [--throttle slow|fast-3g|<kbps>]";
+// web-vitals: CLS <= 0.1 is "good". dev-flow's target for a measured skeleton is 0.05.
+const CLS_WARN = 0.05, CLS_FAIL = 0.1;
+// Chrome DevTools' presets, in bytes per second and ms of latency.
+const THROTTLE = {
+  "slow": { latency: 400, downloadThroughput: (400 * 1024) / 8, uploadThroughput: (400 * 1024) / 8 },
+  "fast-3g": { latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 },
+};
 const SETTLE_MS = 500;
 // A cold `next dev` compile of a first route can take well over 30 s; the default leaves room for it.
 const DEFAULT_TIMEOUT_S = 60;
@@ -40,7 +50,7 @@ function fail(code, message) {
 
 function parseArgs(argv) {
   const opts = { widths: [1440, 768, 390], json: false, strict: false, out: null, url: null, findBrowser: false,
-    timeoutMs: DEFAULT_TIMEOUT_S * 1000 };
+    timeoutMs: DEFAULT_TIMEOUT_S * 1000, throttle: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") opts.json = true;
@@ -48,6 +58,13 @@ function parseArgs(argv) {
     else if (a === "--find-browser") opts.findBrowser = true;
     else if (a === "--widths") opts.widths = String(argv[++i] || "").split(",").map(Number).filter((n) => n > 0);
     else if (a === "--out") opts.out = argv[++i];
+    else if (a === "--throttle") {
+      const v = String(argv[++i] || "");
+      const kbps = Number(v);
+      if (THROTTLE[v]) opts.throttle = THROTTLE[v];
+      else if (kbps > 0) opts.throttle = { latency: 150, downloadThroughput: (kbps * 1024) / 8, uploadThroughput: (kbps * 1024) / 8 };
+      else fail(2, "--throttle takes slow, fast-3g or a number of kbit/s");
+    }
     else if (a === "--timeout") {
       const s = Number(argv[++i]);
       if (!(s > 0)) fail(2, "--timeout needs a number of seconds");
@@ -161,7 +178,7 @@ function connect(url) {
 // ─── what runs in the page ──────────────────────────────────────────────────────────────────────────────────────
 // Kept as one function so it is evaluated, not injected as a script tag: the page's CSP does not apply to it.
 
-function measureInPage() {
+async function measureInPage() {
   const vw = window.innerWidth;
   // The comparison key between the normal and the reduced-motion load: tag + position only. Classes change with
   // state (a reveal script adds `.in` only when motion is allowed), so a key with classes never matches across loads.
@@ -276,8 +293,30 @@ function measureInPage() {
     }
   }
 
+  // Layout shifts since navigation (buffered), the way web-vitals counts them: shifts within 500 ms of user input
+  // are excluded, and transforms (entrances) never produce one.
+  const shifts = await new Promise((resolve) => {
+    const out = [];
+    try {
+      const po = new PerformanceObserver((list) => { out.push(...list.getEntries()); });
+      po.observe({ type: "layout-shift", buffered: true });
+      setTimeout(() => { po.disconnect(); resolve(out); }, 100);
+    } catch { resolve(out); }
+  });
+  let cls = 0;
+  const moved = new Map();
+  for (const s of shifts) {
+    if (s.hadRecentInput) continue;
+    cls += s.value;
+    for (const src of s.sources || []) {
+      const el = src.node && (src.node.nodeType === 1 ? src.node : src.node.parentElement);
+      if (el && el.isConnected) moved.set(path(el), (moved.get(path(el)) || 0) + s.value);
+    }
+  }
+  const movedTop = [...moved.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([p]) => p);
+
   return {
-    pageWidth, vw, href: location.href,
+    pageWidth, vw, href: location.href, cls: Math.round(cls * 1000) / 1000, moved: movedTop,
     culprits: culprits.slice(0, 5).map((el) => `${path(el)} (${Math.round(el.getBoundingClientRect().right)}px)`),
     headings, text, failedFonts: [...new Set(failedFonts)], brokenImages, sidebars,
   };
@@ -320,8 +359,13 @@ async function evaluate(cdp, sessionId, expression) {
   return res.result.value;
 }
 
-async function probePage(cdp, sessionId, url, width, reduced, timeoutMs) {
+async function probePage(cdp, sessionId, url, width, reduced, timeoutMs, throttle) {
   const phone = width <= 480;
+  // Throttled only in the normal pass, which is the one that measures layout shift; the reduced-motion pass compares
+  // visibility after load and gains nothing from waiting longer.
+  await cdp.send("Network.emulateNetworkConditions", throttle && !reduced
+    ? { offline: false, ...throttle }
+    : { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
   await cdp.send("Emulation.setDeviceMetricsOverride",
     { width, height: phone ? 844 : 900, deviceScaleFactor: 1, mobile: false }, sessionId);
   await cdp.send("Emulation.setEmulatedMedia",
@@ -368,6 +412,11 @@ function findingsFor(width, normal, reduced) {
   for (const s of normal.sidebars) {
     add("FAIL", "sidebar-phone", `a sidebar covers ${s.share}% of a ${normal.vw}px phone`, [s.el]);
   }
+  if (normal.cls > CLS_WARN) {
+    add(normal.cls > CLS_FAIL ? "FAIL" : "WARN", "layout-shift",
+      `the page shifts while it loads (CLS ${normal.cls}; target ≤ ${CLS_WARN}) — size the skeleton or the late block to what replaces it`,
+      normal.moved);
+  }
   return out;
 }
 
@@ -404,18 +453,21 @@ async function main() {
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
     await cdp.send("Page.enable", {}, sessionId);
     await cdp.send("Runtime.enable", {}, sessionId);
+    await cdp.send("Network.enable", {}, sessionId);
 
     const findings = [];
     const finalUrls = new Set();
+    const cls = {};
     if (opts.out) mkdirSync(opts.out, { recursive: true });
     for (const width of opts.widths) {
-      const normal = await probePage(cdp, sessionId, opts.url, width, false, opts.timeoutMs);
+      const normal = await probePage(cdp, sessionId, opts.url, width, false, opts.timeoutMs, opts.throttle);
       finalUrls.add(normal.href);
+      cls[width] = normal.cls;
       if (opts.out) {
         const shot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId);
         writeFileSync(join(opts.out, `probe-${width}.png`), Buffer.from(shot.data, "base64"));
       }
-      const reduced = await probePage(cdp, sessionId, opts.url, width, true, opts.timeoutMs);
+      const reduced = await probePage(cdp, sessionId, opts.url, width, true, opts.timeoutMs, null);
       findings.push(...findingsFor(width, normal, reduced));
     }
 
@@ -424,7 +476,7 @@ async function main() {
     const notes = strip(finalUrl) !== strip(opts.url)
       ? [`redirected: ${opts.url} → ${finalUrl} — the findings are about the page that was measured`] : [];
     const report = {
-      url: opts.url, final_url: finalUrl, notes, widths: opts.widths, measured_at: new Date().toISOString(), findings,
+      url: opts.url, final_url: finalUrl, notes, widths: opts.widths, measured_at: new Date().toISOString(), cls, findings,
       summary: { fail: findings.filter((f) => f.level === "FAIL").length, warn: findings.filter((f) => f.level === "WARN").length },
     };
     if (opts.out) writeFileSync(join(opts.out, "probe.json"), JSON.stringify(report, null, 2) + "\n");
@@ -438,7 +490,7 @@ async function main() {
         for (const el of f.elements) process.stdout.write(`      ${el}\n`);
       }
       process.stdout.write(findings.length ? `${report.summary.fail} FAIL, ${report.summary.warn} WARN\n`
-        : "  ✓ nothing measured wrong (overflow, headings, reduced motion, fonts, images, phone sidebar)\n");
+        : "  ✓ nothing measured wrong (overflow, headings, reduced motion, fonts, images, phone sidebar, layout shift)\n");
     }
     return opts.strict && report.summary.fail ? 1 : 0;
   } finally {
