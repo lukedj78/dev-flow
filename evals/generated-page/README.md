@@ -33,11 +33,11 @@ turns it into one, which belongs in a project's own CI rather than in this repo'
 `components/ui/**` is skipped: those files come from the shadcn / Base UI CLI, and
 grading them grades upstream. `--include-vendored` turns them back on.
 
-## The twenty-one checks
+## The twenty-two checks
 
-Seventeen find something that should not be there — `h-screen`, `#000` in an ink
+Eighteen find something that should not be there — `h-screen`, `#000` in an ink
 position, `John Doe`, `Acme`, `99.99%`, `john@example.com`, marketing filler,
-Unsplash for a stub photo, a layout-forcing animation, a spinner where a skeleton
+Unsplash for a stub photo, a layout-forcing animation, an animated shadow, a spinner where a skeleton
 belongs, `01 / 02 / 03` on non-sequential sections, an invented gradient, **proof
 the generator wrote** ("Trusted by 3,847 teams", a 4.9/5 rating), **the generator's
 own signature** on the client's page, **an entrance that can never show** (`opacity-0` under a

@@ -174,8 +174,10 @@ translation, scale, parallax and overshoot. Screen transitions become `animation
   silently; migrate the screen whole.
 - **120 fps needs a flag.** On ProMotion iPhones third-party animations are capped at 60 unless
   `CADisableMinimumFrameDurationOnPhone` is set in `infoPlist`. Recent Expo SDKs set it by default —
-  confirm it rather than assume. With it, the frame budget is 8 ms, not 16, which is why keeping motion
-  off the RN runtime matters more here than on web.
+  confirm it rather than assume. With it, the frame budget is 8 ms, not 16 — the same 8 ms the web side
+  designs against (`transitions/references/animation-standards.md` §Frame budget); what is different here is
+  the JS thread: a frame of animation logic that runs on the RN runtime competes with every render, so it
+  belongs in a worklet on the UI thread.
 
 ## ⚠️ Feel is judged on a release build, on the slowest device you support
 

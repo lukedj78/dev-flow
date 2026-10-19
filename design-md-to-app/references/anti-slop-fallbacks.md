@@ -122,12 +122,22 @@ When writing `transition` or `@keyframes` for invented motion (skeleton loaders,
 - `top` / `left` / `right` / `bottom` (forces layout)
 - `width` / `height` (forces layout + paint)
 - `margin` / `padding` (forces layout)
-- `background-color` on large elements (forces full repaint)
+- `background-color` on large elements (a repaint wherever the browser does not composite it)
+- `box-shadow` / `border-radius` (a repaint every frame — the shadow is the one people miss)
 
 Replace with:
 - `top: 10px` → `transform: translateY(10px)`
 - `width: 0 → 100%` → `transform: scaleX(0) → scaleX(1)` with `transform-origin: left`
-- `background-color: red` on a hero → place a `transform: translateZ(0)` overlay div instead
+- `background-color: red` on a hero → fade the **opacity** of an overlay in the target colour
+- a growing `box-shadow` on hover → fade the opacity of a pseudo-element that carries the final shadow
+  (`after:shadow-lg after:opacity-0 hover:after:opacity-100`, recipe and trade-offs in
+  `transitions/references/animation-standards.md` §Frame budget). A primitive's own focus-ring transition
+  (`transition-[color,box-shadow]`) stays as shadcn ships it.
+
+*Corrected 2026-10-19:* the background swap used to say "a `transform: translateZ(0)` overlay" — promoting a layer
+changes nothing about the colour change; animating the overlay's opacity is what makes it composite-only. And no
+`will-change` by default: only after a measured shift, on the animating element (`transitions/references/
+animation-standards.md` §Frame budget).
 
 This is universal CSS-best-practice and costs nothing to follow. `tw-animate-css` (already shipped via shadcn) follows this pattern in its built-in classes.
 
