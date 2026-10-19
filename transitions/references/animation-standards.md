@@ -254,6 +254,58 @@ test is whether you can say which personality it serves.
 The one pair with no formula: **opacity against height** when items enter and exit a list. Adjust
 until it feels right, then look again tomorrow.
 
+## Frame budget — every frame has to finish in time
+
+Re-read 2026-10-19 from emilkowalski/skills' `animation-performance` (MIT, added upstream 2026-10-11). Good easing at
+30 fps reads as broken; performance is what lets the motion register at all.
+
+**The budget is 8 ms, not 16.7.** 60 fps gives 16.7 ms a frame; on a 120 Hz screen — most phones, many laptops — it
+is 8 ms. Design against the smaller number, and never conclude "it is smooth" from a fast laptop: the bar is a
+mid-range phone. Say which findings came from code and which need a recording on a device.
+
+**What you animate decides the cost of each frame:**
+
+| Tier | Properties | Cost |
+|---|---|---|
+| Composite only | `transform`, `opacity` (and, unevenly across browsers, `filter`, `clip-path`, `background-color`) | cheapest — its own layer |
+| Paint + composite | `box-shadow`, `border-radius`, `color` | no re-measuring, a redraw every frame |
+| Layout + paint + composite | `width`, `height`, `padding`, `margin`, `top`, `left`, `border-width` | most expensive — one growing element moves everything around it |
+
+Swap down a tier: size → `scale()`; position → `translate()` (percentages are relative to the element itself, which
+is right for drawers and toasts of unknown size); `display`/`visibility` → `opacity`; **`box-shadow` → the opacity of a
+layer (a pseudo-element) that carries the final shadow, or `filter: drop-shadow()`** — the swap people miss, because a
+shadow looks harmless and repaints the element every frame. A colour change on a large surface → the opacity of an
+overlay in the target colour. Animating a sidebar's `margin-left` re-lays out the whole dashboard beside it 60 times a
+second; `translateX` moves only the sidebar.
+
+**Where it runs decides whether a busy page can stall it.** JavaScript driving frames (`requestAnimationFrame`, GSAP,
+`motion/react` components) runs on the main thread; CSS transitions, keyframes and the Web Animations API (Motion's
+`animate()`) can run off it. Motion that plays **while the page is busy** — a route change, a fetch, hydration — belongs
+in CSS, WAAPI or a View Transition. Vercel's dashboard animated its active-tab indicator with a shared `layoutId`
+animation, which stuttered because the next page was loading at that moment; moving it to CSS fixed it. Motion's
+`x`/`y`/`scale` shorthands go through CSS variables and are not accelerated: keep them by default, and use the
+`transform` string when the motion must survive a busy main thread (`motion-library.md` §Motion runtime).
+
+**Two traps that use `transform` and still drop frames:**
+- **React state per frame.** A hand-rolled loop that calls `setState` every frame re-renders the component every
+  8–16 ms. Write `ref.current.style.transform` or a Motion value (`y.set(next)`) instead. `scan_motion.py` flags a
+  setter inside a `requestAnimationFrame` loop as `state-per-frame`.
+- **An inherited CSS variable.** Writing a drag distance to `--swipe-amount` on a parent recalculates style for every
+  descendant every frame — Vaul's drawer lagged past ~20 items. Set `transform` on the element directly
+  (`css-var-per-frame`).
+
+**Blur** under 20 px when animated (2–5 px softens a crossfade). **`will-change: transform`** is the last step, not the
+first: only after a measured one-pixel shift at the start or end of a motion, or for an expensive paint such as a large
+blurred element — on the element that animates, one property, never on `*`, `body` or a large container (every layer
+costs GPU memory; `will-change-broad`). **Never `transition: all`.**
+
+**Diagnose in this order** (most frequent cause first), and name the cause before changing code: ① which properties
+animate (layout, then `box-shadow`/`border-radius`) → ② does the jank coincide with navigation, fetching or hydration
+→ ③ a state update per frame → ④ does it get worse as content grows (an inherited CSS variable, too many nodes) → ⑤ an
+animated CSS variable, directly or through `x`/`y` → ⑥ blur above 20 px → ⑦ only then `will-change`. Confirm with a
+recording — the DevTools Performance panel for dropped frames and long tasks, the Animations panel to slow it down —
+on a real mid-range phone over remote debugging; desktop CPU throttling models a slow CPU, not a weak GPU.
+
 ## When feel cannot be judged from code — the checks to name instead of guessing
 
 A reviewer (human or agent) who cannot run the UI should say so and point at these rather than

@@ -155,7 +155,7 @@ Tier 0 — content-shaped `<Skeleton>` (per anti-slop rule 9) with Tailwind's co
 ## Layout (Tier 2–3)
 
 ### card resize / list reorder / shared-element
-Tier 2 (**View Transitions API**) for same-document DOM changes without React overhead; Tier 3 (`layout` / `layoutId` in Motion) when already on Motion and you need spring. Never animate `width`/`height` by hand.
+Tier 2 (**View Transitions API**) for same-document DOM changes without React overhead; Tier 3 (`layout` / `layoutId` in Motion) when already on Motion and you need spring. Never animate `width`/`height` by hand. ⚠️ **Not `layoutId` for anything that moves during a route change** — a nav or tab indicator plays while the next page loads, and a JS-driven layout animation on a busy main thread stutters (Vercel's dashboard tab indicator; `animation-standards.md` §Frame budget): use CSS or a View Transition there.
 ```tsx
 // Tier 2 — same-doc swap
 document.startViewTransition?.(() => flushSync(() => setState(next)));

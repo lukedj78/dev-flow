@@ -20,11 +20,15 @@ It greps for the smells below and prints a JSON list of `file:line` hits per cat
 | **Animating layout props** — `transition-all`, keyframes on `width`/`height`/`top`/`left`/`box-shadow` | main-thread thrash | rewrite on `transform`/`opacity` (Tier 1) or lift to Tier 2/3 |
 | **Tier-3 for a Tier-0 job** — `motion/react` import used only for a fade/slide | ~40kb + forced `"use client"` for nothing | downgrade to `tw-animate-css` |
 | **`transition-all`** | animates every property, including layout | scope to `transition-transform`/`transition-opacity`/`transition-colors` |
+| **Paint props** (`paint-prop-anim`) — `transition: box-shadow`/`border-radius`, `transition-shadow` | a repaint every frame; cheap on a small focus ring, costly on a large hover card | fade a layer carrying the final shadow, or `filter: drop-shadow()`; leave a primitive's focus ring alone |
+| **Broad `will-change`** (`will-change-broad`) — `all`, a list, or on `*`/`body`/`:root` | every promoted layer costs GPU memory, and on the common path it fixes nothing | remove; add back one property on the animating element only after a measured shift |
+| **State per frame** (`state-per-frame`) — a React setter inside a `requestAnimationFrame` loop | a re-render every 8–16 ms | write `ref.current.style` or a Motion value; keep state for the end value |
+| **CSS variable per frame** (`css-var-per-frame`) — `style.setProperty("--x", …)` from a gesture or frame loop | it inherits: every descendant recalculates style each frame, worse as content grows | set `transform` on the element directly |
 | **Un-tokenized `@keyframes`** in component CSS | should live in the library, tokenized | move to `lib/motion/`, reference vars |
 
 ## 3. Report shape
 
-Group by severity: **A11y** (missing reduced-motion) → **Performance** (layout props, `transition-all`) → **Consistency** (magic numbers, inline easings) → **Weight** (Tier-3 overkill). Per finding: `file:line`, the smell, the token/tier it should use, and the one-line fix. Lead with a posture summary (is there a token layer at all? is `stack.motion.tokens` true?).
+Group by severity: **A11y** (missing reduced-motion) → **Performance** (layout props, `transition-all`, state or CSS variables per frame, paint props, broad `will-change` — ordered by cost: layout before paint, busy-main-thread before idle) → **Consistency** (magic numbers, inline easings) → **Weight** (Tier-3 overkill). Per finding: `file:line`, the smell, **the cause it addresses**, the token/tier it should use, the one-line fix, and **`Verified: from code` or `needs a device recording`** — never "it is smooth" from a fast laptop (`animation-standards.md` §Frame budget). Lead with a posture summary (is there a token layer at all? is `stack.motion.tokens` true?).
 
 ## 4. Refine order (when the user approves)
 

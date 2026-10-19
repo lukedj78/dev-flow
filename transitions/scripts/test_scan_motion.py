@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scan_motion import classify_line, missing_reduced_motion, scan
+from scan_motion import classify_line, frame_smells, missing_reduced_motion, scan
 
 
 class TestClassifyLine(unittest.TestCase):
@@ -39,6 +39,80 @@ class TestClassifyLine(unittest.TestCase):
     def test_first_match_wins_transition_all_before_duration(self):
         # transition-all is the more important smell; rule order puts it first
         self.assertEqual(classify_line('className="transition-all duration-[500ms]"'), "transition-all")
+
+
+class TestPaintAndLayers(unittest.TestCase):
+    """Re-read of emilkowalski/skills' animation-performance (2026-10-11): box-shadow and border-radius are paint, not
+    layout; will-change is a last resort on the animating element, never everything."""
+
+    def test_box_shadow_is_paint_not_layout(self):
+        self.assertEqual(classify_line("  transition: box-shadow 200ms ease;"), "paint-prop-anim")
+
+    def test_tailwind_transition_shadow_is_paint(self):
+        self.assertEqual(classify_line('className="transition-shadow hover:shadow-lg"'), "paint-prop-anim")
+
+    def test_border_radius_is_paint(self):
+        self.assertEqual(classify_line("  transition: border-radius 150ms;"), "paint-prop-anim")
+
+    def test_width_is_still_layout(self):
+        self.assertEqual(classify_line("  transition: width 200ms ease;"), "layout-prop-anim")
+
+    def test_will_change_all_or_a_list_is_broad(self):
+        self.assertEqual(classify_line("  will-change: all;"), "will-change-broad")
+        self.assertEqual(classify_line("  will-change: transform, opacity, filter;"), "will-change-broad")
+
+    def test_will_change_on_the_animating_element_is_fine(self):
+        self.assertIsNone(classify_line('className="will-change-transform"'))
+        self.assertIsNone(classify_line("  will-change: transform;"))
+
+
+class TestFrameSmells(unittest.TestCase):
+    def test_will_change_on_a_global_selector(self):
+        css = "body {\n  margin: 0;\n  will-change: transform;\n}\n.card { color: red }"
+        self.assertEqual([c for _, c, _ in frame_smells(css)], ["will-change-broad"])
+
+    def test_set_state_in_a_frame_loop(self):
+        code = ("function tick() {\n  setY((y) => y + 1);\n  requestAnimationFrame(tick);\n}\n"
+                "requestAnimationFrame(tick);")
+        self.assertEqual([c for _, c, _ in frame_smells(code)], ["state-per-frame"])
+
+    def test_set_state_in_an_inline_loop(self):
+        code = "const loop = () => requestAnimationFrame(() => {\n  setX(x + 1);\n  requestAnimationFrame(loop);\n});"
+        self.assertEqual([c for _, c, _ in frame_smells(code)], ["state-per-frame"])
+
+    def test_a_one_shot_frame_is_not_per_frame(self):
+        # annotix: open a dialog on the next frame after mount — once, not every frame
+        self.assertEqual(frame_smells("const id = window.requestAnimationFrame(() => setOpen(true))"), [])
+
+    def test_a_setter_near_but_outside_the_frame_callback_is_fine(self):
+        # smart-travel: a state setter a few lines after an unrelated rAF
+        code = "requestAnimationFrame(() => el.focus());\nconst setNights = (k, n) => setRows((c) => c);"
+        self.assertEqual(frame_smells(code), [])
+
+    def test_set_property_is_not_a_state_setter(self):
+        code = "function tick() {\n  root.style.setProperty('--x', '1px');\n  requestAnimationFrame(tick);\n}"
+        self.assertNotIn("state-per-frame", [c for _, c, _ in frame_smells(code)])
+
+    def test_a_ref_write_inside_request_animation_frame_is_fine(self):
+        code = "requestAnimationFrame(() => {\n  ref.current.style.transform = `translateY(${y}px)`;\n});"
+        self.assertEqual(frame_smells(code), [])
+
+    def test_css_variable_written_from_a_gesture(self):
+        code = "function onPointerMove(e) {\n  el.style.setProperty('--swipe-amount', `${dy}px`);\n}"
+        self.assertEqual([c for _, c, _ in frame_smells(code)], ["css-var-per-frame"])
+
+    def test_css_variable_set_once_is_fine(self):
+        self.assertEqual(frame_smells("root.style.setProperty('--brand', color);"), [])
+
+    def test_scan_reports_frame_smells_with_their_line_and_skips_agent_worktrees(self):
+        loop = "export function Drag() {\n  function tick() {\n    setY((y) => y + 1);\n    requestAnimationFrame(tick);\n  }\n}\n"
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "drag.tsx").write_text(loop)
+            Path(d, ".claude/worktrees/agent-x").mkdir(parents=True)
+            Path(d, ".claude/worktrees/agent-x/drag.tsx").write_text(loop)
+            hits = [(f["file"], f["line"], f["category"]) for f in scan(Path(d))]
+            self.assertIn(("drag.tsx", 3, "state-per-frame"), hits)
+            self.assertFalse(any(h[0].startswith(".claude") for h in hits), hits)
 
 
 class TestMissingReducedMotion(unittest.TestCase):
