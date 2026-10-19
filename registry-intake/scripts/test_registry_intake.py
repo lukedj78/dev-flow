@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import datetime as dt
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1470,6 +1471,61 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(asked("Edit", file_path=str(root / "app/page.tsx")))
         self.assertIsNone(asked("Bash", command=f"python3 .claude/hooks/registry_intake.py check {root}"),
                           "our own read-only call is not a question")
+
+    def test_naming_the_lock_never_downgrades_a_refusal(self) -> None:
+        """A tenth review and the other session's reviewer found this one independently, and it was
+        mine from an hour earlier: the lock-naming check sat BEFORE the deny rules and returned
+        early, so `shadcn add @evil/x && cat registry-lock.json` went from a refusal to a question.
+        A deny downgraded to an ask by the noise fix meant to sit beside it — the fourth time in a
+        day that lowering noise switched off a control."""
+        why = ri.hook_decision({"tool_name": "Bash", "tool_input": {
+            "command": "shadcn add @evil/x && cat registry-lock.json"}})
+        self.assertIsNotNone(why, "the install is still refused")
+
+    def test_an_exemption_is_earned_by_shape_not_by_a_word(self) -> None:
+        """`"registry_intake" not in command` was a substring exemption, so a command could exempt
+        itself by mentioning the word — and then wrote the lock with no prompt at all."""
+        silent = "echo registry_intake; echo {} > registry-lock.json"
+        self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": silent}}),
+                             "mentioning the word is not an invocation")
+        # One direct call of our own script is exempt, and still only one.
+        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
+        self.assertTrue(ri.our_invocation("python3 $S approve . @x/item --by luca"))
+        for not_ours in ("python3 registry_intake.py check . && rm -rf /tmp/x",
+                         "python3 registry_intake.py check . > out.txt",
+                         "echo registry_intake.py",
+                         "python3 registry_intake.py"):
+            with self.subTest(command=not_ours):
+                self.assertFalse(ri.our_invocation(not_ours), not_ours)
+        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {
+            "command": "python3 .claude/hooks/registry_intake.py check ."}}), "no noise on our own call")
+
+    def test_the_before_state_file_cannot_be_written_either(self) -> None:
+        """The write gate denied the lock and our script but not the file `hook-post` compares
+        against — writing which decides what the next report is allowed to say."""
+        self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "tool_input": {
+            "file_path": "/tmp/registry-intake-0123456789abcdef.json"}}))
+
+    def test_setup_from_the_vendored_copy_finishes_and_says_what_it_skipped(self) -> None:
+        """Reported by the other session with a traceback: `import meta_io` from the vendored hook
+        raised ModuleNotFoundError *after* the matcher had been rewired — a half-done setup. And a
+        bare import there would have loaded whatever `meta_io.py` the PROJECT carried, since Python
+        puts the script's own directory first on sys.path: our tool running project code. It is
+        loaded by path from beside this script, and only when this script is the skill's own."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        hooks = root / ".claude" / "hooks"
+        hooks.mkdir(parents=True, exist_ok=True)
+        copy = hooks / "registry_intake.py"
+        copy.write_bytes(Path(ri.__file__).read_bytes())
+        before = (root / ".workflow" / "meta.json").read_text()
+        out = subprocess.run([sys.executable, str(copy), "setup", str(root)],
+                             capture_output=True, text=True, cwd=str(root))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("left alone", out.stdout + out.stderr)
+        self.assertIn("enforced", out.stdout + out.stderr, "it says what the key should read")
+        self.assertEqual((root / ".workflow" / "meta.json").read_text(), before,
+                         "and it did not half-write it")
 
     def test_the_prompt_names_the_project_the_command_names(self) -> None:
         """Re-reading argv with regexes took `root` from the payload's cwd while the command named

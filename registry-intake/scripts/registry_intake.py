@@ -39,6 +39,7 @@ import argparse
 import datetime as dt
 import difflib
 import hashlib
+import importlib.util
 import json
 import re
 import shlex
@@ -2457,7 +2458,24 @@ def record(root: Path, value: str) -> None:
     # Imported here, not at the top: `setup` vendors this one file into .claude/hooks/ as the hook,
     # without meta_io.py beside it. The hook never records, so only this function needs the copy.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.py keeps the copies identical
+    # Loaded BY PATH from beside this script, and only when this script is the skill's own copy.
+    # A bare `import meta_io` from the vendored hook crashed `setup` run inside a project
+    # (ModuleNotFoundError, after the matcher had already been rewired — a half-done setup with a
+    # traceback). Worse than the crash: Python puts the script's own directory first on sys.path,
+    # so from `.claude/hooks/` that import would load whatever `meta_io.py` the project happened to
+    # carry — our own tool executing project code. Neither is worth fixing by vendoring a second
+    # file into every project.
+    here = Path(__file__).resolve().parent
+    module = here / "meta_io.py"
+    if here.name != "scripts" or not module.is_file():
+        print(f"note: {meta.relative_to(root) if meta.is_relative_to(root) else meta} left alone — "
+              f"stack.registry_intake should read \"{value}\". This is the vendored hook, which does "
+              "not carry dev-flow's meta_io; run `setup` from the installed skill, or set the key "
+              "with dev-flow's `update_meta.py`.")
+        return
+    spec = importlib.util.spec_from_file_location("registry_intake_meta_io", module)
+    meta_io = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(meta_io)
 
     with meta_io.locked(meta.parent):
         d = json.loads(meta.read_text())
@@ -2914,6 +2932,11 @@ def hook_decision(payload: dict) -> str | None:
         which = protected_file(root, written_path(tool_input))
         if which == LOCK:
             return LOCK_DENIAL
+        if BASELINE_PATH.search(written_path(tool_input)):
+            return ("this writes the file `hook-post` uses as the state from before the command, so "
+                    "writing it decides what the next report is allowed to say. Nothing legitimate "
+                    "needs it: `registry_intake.py check <root>` recomputes everything from the "
+                    "project instead.")
         if which == HOOK_COPY:
             return (f"{HOOK_COPY} is this skill's own script, vendored. `check` trusts it only while "
                     "it is byte-identical to the installed skill, so an edit here does not customise "
@@ -2925,12 +2948,6 @@ def hook_decision(payload: dict) -> str | None:
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not isinstance(command, str):
         raise TypeError("tool_input.command is not a string")
-    # A shell redirect writes the lock as surely as the Edit tool does, and this branch saw none of
-    # it: the gate above closed one door while `echo … > registry-lock.json` stayed open. Naming it
-    # is not parsing it — what the command DOES with the lock is the unbounded question, so a
-    # command that merely names it goes to the user, and an invocation of this script does not.
-    if LOCK in command and "registry_intake" not in command:
-        return None                      # handed to hook_ask, which asks rather than refuses
     if BASELINE_PATH.search(command):
         return ("this command names registry intake's own before-state file. That file is how "
                 "`hook-post` tells a problem the command introduced from one that was already there, "
@@ -3064,7 +3081,10 @@ def hook_ask(payload: dict) -> str | None:
     if tool != "Bash":
         return None
     command = tool_input.get("command") or ""
-    if LOCK in command and "registry_intake" not in command:
+    # Reached only when nothing above DENIED: every deny rule runs first now. Putting this check
+    # before them turned `shadcn add @evil/x && cat registry-lock.json` from a refusal into a
+    # question — a deny downgraded to an ask by the noise fix that was meant to sit beside it.
+    if LOCK.lower() in command.lower().replace("\\", "") and not our_invocation(command):
         return (f"this command names {LOCK}, registry intake's record of what a person decided. "
                 "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
                 "know which of the two this is.")
@@ -3112,6 +3132,27 @@ def hook_ask(payload: dict) -> str | None:
 # `registry-intake-<16 hex>.json` under TMPDIR. Narrow on purpose: `registry-intake/` (the skill
 # directory) and `chore/registry-intake-hook` (a branch) are ordinary and must not be denied.
 BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
+
+
+OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "hook", "hook-post",
+             "skill-review", "skill-approve", "mcp-review", "mcp-approve", "hook-review", "hook-approve"}
+
+
+def our_invocation(command: str) -> bool:
+    """Is this ONE direct call of this script, and nothing else?
+
+    `"registry_intake" not in command` was a substring exemption, so
+    `echo registry_intake; echo {} > registry-lock.json` exempted itself by mentioning the word —
+    and the whole command went unasked. An exemption has to be earned by the shape of the command,
+    not by a word appearing somewhere in it."""
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return False
+    if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens) or SUBSTITUTION.search(command):
+        return False
+    named = [t for t in tokens if t.endswith("registry_intake.py") or ENV_REF.fullmatch(t)]
+    return len(named) == 1 and any(t in OUR_VERBS for t in tokens)
 
 
 def may_install(command: str) -> bool:

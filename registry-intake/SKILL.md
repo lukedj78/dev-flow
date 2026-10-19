@@ -441,6 +441,15 @@ Two reviews read the door itself, and the second found something larger than the
 A project wired before this needs `setup` (or `hook-approve`'s own `check`) run once: the matcher
 changed, so `check` reports the old wiring until it is widened.
 
+**`setup` run from the vendored hook** used to crash there — `import meta_io` raised
+`ModuleNotFoundError` *after* the matcher had been rewired, leaving a half-done setup and a
+traceback (found by the session vendoring it into a project, not by a review). The worse half is
+quieter: Python puts the script's own directory first on `sys.path`, so from `.claude/hooks/` that
+import would load whatever `meta_io.py` the **project** happened to carry — our own tool executing
+project code, from the one directory this skill exists to distrust. It is loaded by path from beside
+this script now, and only when this script is the skill's own copy; from a vendored one `setup`
+finishes, says which key it could not record and what to run instead.
+
 A ninth review read that gate and found **six ways past it**, because it compared
 `Path(file_path).name` with the lock's name — one spelling of one file. Through it went: a symlink
 named `notes.md` pointing at the lock; `Registry-Lock.json`, the same file on a case-insensitive
@@ -452,6 +461,20 @@ which the Bash branch never looked at. A governed file is identified by **identi
 lock and our own script are **denied**, the wiring and a shell command that merely *names* the lock
 are **asked**, because reading it is harmless and what a shell does with it is the unbounded
 question again.
+
+A tenth review — and the other session's reviewer, independently, which is how two of these were
+confirmed — found three more in that same gate, two of them the same mistake in a new place:
+
+- **The lock-naming check sat before the deny rules and returned early**, so
+  an ungoverned `add` followed by `cat registry-lock.json` went from a refusal to a question. A deny
+  downgraded to an ask by the noise fix meant to sit beside it: the **fourth** time in one day that
+  lowering noise switched off a control. Every deny rule runs first now.
+- **The exemption was a substring.** `"registry_intake" not in command` let a command exempt itself
+  by mentioning the word — `echo registry_intake; echo {} > registry-lock.json` wrote the lock with
+  no prompt at all. An exemption is earned by the *shape* of the command now: one direct call of
+  this script, a known subcommand, no operators, no redirect, no substitution.
+- The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
+  which decides what the next report is allowed to say.
 
 The same review caught the consent prompt lying. It re-read argv with regexes and took the project
 from the payload's cwd, so `hook-approve <other-project>` listed *this* project's hooks while the
