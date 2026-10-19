@@ -229,12 +229,13 @@ here where we carried none.
 | H1 | block | pipes a remote script into a shell — the command is whatever that URL serves today |
 | H2 | block | sends the environment or a credential to the network (`printenv \| curl`, a token in a header) |
 | H3 | block | writes persistence **outside** the project: `crontab`, `launchctl load`, a shell rc |
-| H4 | block | the script only ever answers `permissionDecision: "allow"` — a hook that approves instead of deciding, which is the inverse of ours |
+| H4 | review / **block** | the script answers `permissionDecision: "allow"`. If it never answers `deny` or `ask` it approves instead of deciding, which is the inverse of ours, and blocks; if it decides elsewhere too it is **still reported**, at review, because what the `allow` covers is a thing a person reads |
 | H5 | block | a destructive command run automatically, with nobody to confirm it |
 | H6 | review | the script lives outside the project, or is reached by an absolute path — unreviewable in a diff, and broken on every other machine |
 | H7 | review | detaches a background process that outlives the call |
 | H9 | review / **block** | **a shell resolves the command and we cannot.** An expansion a reader can follow (`$HOME/bin/tool.sh`, a glob) is a review; a command that **computes what it runs** (`$(…)`, a backtick) blocks, because that is the one shape nobody can review. Inventing a path from the literal text would instead report a file that never existed |
 | H10 | block | the settings file **does not parse** — nothing in it was reviewed, and silence is not a pass |
+| H11 | review | an **interpreter is named and no file resolved** — so nothing was read. Not an inline command (`-c`, `-e` carry their code in the text, which the rules above judge) and not a reviewed script: a gap, which says so rather than passing quietly |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
 Blocking findings fail `check`, and **there is no acceptance path** — not an omission. The first
@@ -274,6 +275,28 @@ invented path had at least *blocked*, for the wrong reason. So H9 splits: an exp
 follow is a review, a command that computes what it runs blocks. The same review found the quieter
 one — a `settings.json` that does not parse was swallowed and read as *no hooks, no findings*,
 which is H10 now.
+
+A fifth review found three more, and the pattern in all three is the same: **a check that answers
+"nothing to report" when it should answer "I could not look".**
+
+- **An interpreter decides what a token is.** Scripts were found by *extension*, so
+  `python3 .claude/hooks/tool` resolved to none — the body of a file that runs on every tool call
+  was never opened, and renaming the script was the whole bypass. Now the first non-flag argument of
+  a known interpreter is the script whatever it is called, and an interpreter with nothing resolved
+  is H11 instead of silence.
+- **H4 cleared itself on the word `deny`.** The test was `deny` anywhere in the body, so one such
+  string — a comment, a docstring, a rule that merely names it — turned a *block* into nothing. An
+  `allow` decision is now always a finding; the other decision sets the level, not whether it is said.
+- **`hook-post`'s before-state is state the attacker shares.** It is a file under `TMPDIR` in a path
+  the agent's own command can compute, so the command can rewrite it to contain the problems it is
+  about to cause, and the report goes quiet. There is **no fix by integrity**: the hook runs as the
+  same user, from a file the command can read, so any key it could verify with is a key the command
+  could read — an HMAC there would be theatre, and it is better to write that down than to ship it.
+  What is done instead: only the exact list the pre-hook writes is trusted (`set(json.loads(...))`
+  accepted a forged dict as a set of its keys), deleting it still reports everything, and a command
+  that names the path is denied before it runs. The control is `check` at the phase gate, which
+  recomputes from the project where no temporary file can suppress anything; this cache only moves
+  the report earlier, so its failure mode must be noise, never silence.
 
 ## Where it runs
 

