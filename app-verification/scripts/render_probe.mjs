@@ -82,18 +82,27 @@ function launch(browser) {
   const child = spawn(browser, [
     "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
     "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars",
-    "--mute-audio", "about:blank",
-  ], { stdio: ["ignore", "ignore", "pipe"] });
+    "--mute-audio", "--disable-breakpad", "--disable-crash-reporter", "about:blank",
+    // Its own process group: Chrome's helpers (zygote, GPU, crashpad) outlive the main process on Linux and keep
+    // writing into the profile; the cleanup signals the whole group.
+  ], { stdio: ["ignore", "ignore", "pipe"], detached: process.platform !== "win32" });
   const exited = new Promise((resolve) => child.once("exit", resolve));
   // Chrome's helpers keep writing into the profile for a moment after the main process dies: wait for the exit,
   // then remove with retries — an immediate rmSync left `Default/Reporting and NEL-journal` behind in 2 of 20 runs.
+  const signal = (sig) => {
+    try { process.platform === "win32" ? child.kill(sig) : process.kill(-child.pid, sig); } catch {}
+  };
   const cleanup = async () => {
-    if (child.exitCode === null) {
-      try { child.kill("SIGTERM"); } catch {}
+    if (child.exitCode === null && child.signalCode === null) {
+      signal("SIGTERM");
       await Promise.race([exited, new Promise((r) => setTimeout(r, 3000))]);
-      if (child.exitCode === null) { try { child.kill("SIGKILL"); } catch {} await exited; }
     }
-    try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch {}
+    signal("SIGKILL");  // whatever of the group is still alive
+    // Remove until it is gone: a helper finishing its last write can recreate a file after the first pass.
+    for (let i = 0; i < 20 && existsSync(profile); i++) {
+      try { rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }); } catch {}
+      if (existsSync(profile)) await new Promise((r) => setTimeout(r, 150));
+    }
   };
   const ws = new Promise((resolve, reject) => {
     let buf = "";
