@@ -169,7 +169,7 @@ _Avoid_: store, repo.
 
 ## ⚠️ The vendored contract is duplication **on purpose**
 
-`references/contracts.md` is **byte-identical in 41 skills** — roughly 2.8 MB of the same file. It looks
+`references/contracts.md` is **byte-identical in 44 skills** — roughly 3.6 MB of the same file. It looks
 like waste, and sooner or later someone will try to "fix" it with a symlink, a single shared copy, or a
 build step that injects it.
 

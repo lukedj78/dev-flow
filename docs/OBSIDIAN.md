@@ -13,7 +13,7 @@ Obsidian rewrites the files in `.obsidian/` as you change settings. Commit those
 | Note | What it is |
 |---|---|
 | **[knowledge-index](knowledge-index.md)** | the **MOC** — every domain we're expert in → its doc-grounded how-to → the upstream to re-verify |
-| [../README](../README.md) | the product view: what the 41 skills are and how to install them |
+| [../README](../README.md) | the product view: what the skills are and how to install them |
 | [../dev-flow/references/contracts.md](../dev-flow/references/contracts.md) | rule zero, the golden rules, the `meta.json` schema — the load-bearing document |
 | [vercel-changelog-watch](vercel-changelog-watch.md) | the dated log of ecosystem watch passes |
 
@@ -22,14 +22,14 @@ Pin `knowledge-index.md` as your home note (right-click the tab → Pin).
 ## How the vault is laid out
 
 ```
-<skill-name>/SKILL.md          41 of these — the skill itself (frontmatter = name + description)
+<skill-name>/SKILL.md          one per skill — the skill itself (frontmatter = name + description)
 <skill-name>/references/*.md   the doc-grounded how-tos and recipes it reads
 docs/                          cross-cutting docs, this file, the knowledge index, assets
 scripts/ bootstrap/ evals/     tooling, templates, eval fixtures
 dist/                          generated .skill bundles — EXCLUDED from the vault
 ```
 
-The 41 skill folders are deliberately **flat** at the root: that mirrors the install target (`~/.claude/skills/<name>/`) and keeps ~385 cross-skill links working. The logical grouping into six families lives in `skills.json` (generated from the taxonomy in `scripts/build_skills_registry.py`), not in the folder tree.
+The skill folders are deliberately **flat** at the root: that mirrors the install target (`~/.claude/skills/<name>/`) and keeps ~385 cross-skill links working. The logical grouping into six families lives in `skills.json` (generated from the taxonomy in `scripts/build_skills_registry.py`), not in the folder tree.
 
 ## What's configured
 
@@ -40,7 +40,7 @@ The 41 skill folders are deliberately **flat** at the root: that mirrors the ins
 ## What it's good for
 
 - **Graph view** — see which references a skill actually pulls in, and spot orphans (a reference nothing links to is usually a reference nobody reads).
-- **Backlinks** — open `dev-flow/references/contracts.md` and see all 41 skills that vendor it; open a how-to and see which skills depend on it.
+- **Backlinks** — open `dev-flow/references/contracts.md` and see every skill that vendors it; open a how-to and see which skills depend on it.
 - **Search** — full-text across every skill at once, which is how you check "do we already document X?" before writing it (rule zero: don't invent what we already know).
 - **Periodic refresh** — walk `knowledge-index.md`, open each how-to, re-verify its upstream, note the pass.
 

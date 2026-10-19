@@ -1,6 +1,6 @@
 # dev-flow
 
-![dev-flow v1.0.0 — map of the dev-flow skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r13.png)
+![dev-flow v1.0.0 — map of the dev-flow skills: phase pipeline (Plan · Design · Build · Ship), web/mobile/agent tracks, eve agent engine, cross-cutting layers and pre-deploy gates, the three rules every skill is held to plus the ecosystem-first library defaults, plugin install, full index](./docs/assets/dev-flow-map-v1-r14.png)
 
 **📖 [Browse every skill →](https://lukedj78.github.io/dev-flow/)** — one page per skill: what it does, when it applies, what it deliberately doesn't, and the references it ships. Generated from `skills.json`, so it can't drift from the suite.
 
@@ -226,6 +226,7 @@ The orchestrator routes through phases:
 1. dev-flow            → init_workflow .  (creates .workflow/meta.json, phase=empty)
 2. prd-from-idea       → PROJECT.md + PRD.md  (phase=prd_drafted)
 3. prd-to-tasks        → tasks.md  (phase=tasks_split)
+   scrum               → issues + sprint 1 on the tracker chosen in the PRD
 4. image-to-design-md  → DESIGN.md  (asks for reference screenshots)
    OR figma-to-design-md if you have a Figma URL
 5. wireframe-canvas    → screen inventory + every screen on a Design canvas (desktop 1440 + phone 390), approved
@@ -889,7 +890,8 @@ phase=feature_complete → gates: compliance-audit (any stack)  +  vercel-doctor
                          "next"    → vercel-deploy
                          "expo-rn" → rn-eas-deploy
                          eve agent → eve deploy
-phase=deployed         → "next"    → maintenance loop: screenshot-to-page / module-add,
+phase=deployed         → debt audit first (dev-flow: every audit + the tests, one ordered list)
+                         "next"    → maintenance loop: screenshot-to-page / module-add,
                                      re-run the gates after material changes
                          "expo-rn" → maintenance loop: rn-add-screen for new features,
                                      rn-eas-build-submit-update for OTA hotfixes
@@ -915,6 +917,8 @@ For a **commercial idea whose market is not settled**, the alternative door to t
 - `.workflow/PRD.md` — product requirements (user stories, acceptance criteria, non-goals, open questions).
 
 **How it works**: the skill asks you 5–8 high-leverage questions, parses your answer, fills the templates. It refuses to invent: if you can't answer "who is this for", it writes `<TBD — needs user input>` rather than guess.
+
+Two of those answers shape what comes after the PRD. **`## Scope rules`** — three lines: what evidence lets a new feature into the MVP, what stays out before launch whatever the evidence, and who decides — checked by `scripts/scope.py check`, and used later by the scope check every mid-build feature request goes through. **The tracker** — Linear, Jira or GitHub — recorded in `meta.json#tracker.provider`, where `scrum` will run the sprints.
 
 ### `project-infra-setup` — the third-party environments, from the CLI
 
