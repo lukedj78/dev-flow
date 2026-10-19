@@ -1,1 +1,15 @@
-{ "hero": { "title": "Book a session" }, "footer": { "copyright": "© {year} Studio", "proofSlot": "Customer stories — TBD" } }
+{
+ "hero": {
+  "title": "Book a session"
+ },
+ "footer": {
+  "copyright": "© {year} Studio",
+  "proofSlot": "Customer stories — TBD"
+ },
+ "pricing": {
+  "starter": "Up to 3 teams",
+  "growth": "Up to 25 teams",
+  "enterprise": "For 10+ clients",
+  "sample": "Graphite has 42 customers"
+ }
+}

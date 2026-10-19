@@ -143,7 +143,7 @@ Or in Tailwind shorthand: `active:scale-[0.98]`. Pure CSS, no JS. Should land on
 
 ### 9. Skeleton loaders, never spinners
 
-When writing `app/loading.tsx` or any in-page loading state for invented routes, use **content-shaped skeletons** (a `<Skeleton>` rectangle the size of the heading, etc.) instead of generic circular spinners. shadcn's `<Skeleton>` pulses with Tailwind's core `animate-pulse` (opacity only) — that is the whole animation. **No moving gradient sweep** ("shimmer"): it is a decorative gradient (rule 11), and `tw-animate-css` ships none (`transitions/references/tw-animate-css.md`). *Corrected 2026-10-19:* this rule used to say it did.
+When writing `app/loading.tsx` or any in-page loading state for invented routes, use **content-shaped skeletons** (a `<Skeleton>` rectangle the size of the heading, etc.) instead of generic circular spinners. shadcn's `<Skeleton>` pulses with Tailwind's core `animate-pulse` (opacity only) — that is the whole animation. **No moving gradient sweep** ("shimmer") on a skeleton: it is a decorative gradient (rule 11), and `tw-animate-css` ships none (`transitions/references/tw-animate-css.md`). *Corrected 2026-10-19:* this rule used to say it did. (The one sanctioned sweep is the chat status marker on a running line — `references/chat-and-typeset.md` — a state, not decoration, and it stops under reduced motion.)
 
 This is already pinned in `references/loading.template.tsx`. The fallback rule reinforces: never reach for `<Spinner />` or a `<Loader2 className="animate-spin" />` as a default.
 
@@ -155,7 +155,7 @@ When you need a staggered reveal of N items (3 cards, 6 nav links) on a page tha
 {items.map((item, i) => (
   <div
     key={item.id}
-    className="opacity-0 animate-in fade-in slide-in-from-bottom-4 fill-mode-forwards motion-reduce:animate-none motion-reduce:opacity-100"
+    className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both motion-reduce:animate-none"
     style={{ animationDelay: `${i * 60}ms`, animationDuration: "600ms" }}
   >
     {item.body}
@@ -163,11 +163,24 @@ When you need a staggered reveal of N items (3 cards, 6 nav links) on a page tha
 ))}
 ```
 
-Pure CSS. Zero JS bundle cost. Achieves taste-skill's "staggerChildren" feel. **The `motion-reduce:` pair is not
-optional:** the item starts at `opacity-0`, so without it a reduced-motion user — or anyone whose animation fails —
-never sees the content (`check.py` counts it as `hidden-without-reduced-motion`; the render probe measures it on the
-running page as `reduced-hidden`). The gap is 30–80 ms (`transitions/references/animation-standards.md`), and a
-stagger never blocks interaction while it plays. If the project later adds `module-add motion`, the wrappers in `components/motion/` replace this pattern, but for the default scaffold, CSS cascade is the fallback.
+Pure CSS. Zero JS bundle cost. Achieves taste-skill's "staggerChildren" feel. Three details carry it:
+
+- **No `opacity-0` on the element.** `tw-animate-css`'s `enter` keyframe has only a `from` frame: it animates *from*
+  `fade-in`'s opacity 0 *to the element's own opacity*. Put `opacity-0` on the element and the entrance runs 0 → 0 —
+  the content is invisible for everyone, with or without reduced motion (`check.py`: `hidden-for-everyone`).
+- **`fill-mode-both`** holds the `from` frame during `animationDelay`, so later items do not flash in before their
+  turn, and keeps the end state after.
+- **`motion-reduce:animate-none`**: a reduced-motion user gets the items in place at once — visible, because nothing
+  else hides them.
+
+*Corrected 2026-10-19 (final review of the taste-skill port):* this rule shipped `opacity-0 animate-in … fill-mode-forwards`,
+which hides the content for every visitor; `transitions/references/motion-library.md` already had the right form.
+A custom keyframe that does end at opacity 1 (`animate-[fade-up_…_forwards]` on an `opacity-0` element) is the other
+shape, and there `motion-reduce:opacity-100` is the half that matters (`hidden-without-reduced-motion`; the render
+probe measures it on the running page as `reduced-hidden`). The gap is 30–80 ms
+(`transitions/references/animation-standards.md`), and a stagger never blocks interaction while it plays. If the
+project later adds `module-add motion`, the wrappers in `components/motion/` replace this pattern, but for the default
+scaffold, CSS cascade is the fallback.
 
 ### 11. Composition reflexes — the tells that are structural, not textual
 

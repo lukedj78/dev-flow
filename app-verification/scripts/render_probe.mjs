@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // render_probe.mjs — measure a running page in headless Chrome, the things no source scan can see.
 //
-//   node render_probe.mjs <url> [--widths 1440,768,390] [--json] [--strict] [--out DIR]
+//   node render_probe.mjs <url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS]
 //   node render_probe.mjs --find-browser
 //
 // shadscan, check.py and the design lint read source. This opens the page and measures it at each width:
@@ -18,16 +18,20 @@
 //
 // Zero dependencies: Node >= 22 (built-in WebSocket) and an installed Chrome, Chromium or Edge (CHROME_PATH to choose).
 // A throwaway profile, removed on exit; nothing written outside --out. A measurement: exit 0, unless --strict and a
-// FAIL (1). Exit 2 bad input, 3 no browser or Node too old.
+// FAIL (1). Exit 2 bad input, 3 the environment (no browser, Node too old, the browser would not start), 4 the page
+// (cannot load, timed out, crashed) — so "environment missing, skip" is never confused with a broken run.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR]";
+const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS]";
 const SETTLE_MS = 500;
-const NAV_TIMEOUT_MS = 30000;
+// A cold `next dev` compile of a first route can take well over 30 s; the default leaves room for it.
+const DEFAULT_TIMEOUT_S = 60;
+
+class PageError extends Error {}  // exit 4: the page, not the machine
 
 function fail(code, message) {
   process.stderr.write(message + "\n");
@@ -35,7 +39,8 @@ function fail(code, message) {
 }
 
 function parseArgs(argv) {
-  const opts = { widths: [1440, 768, 390], json: false, strict: false, out: null, url: null, findBrowser: false };
+  const opts = { widths: [1440, 768, 390], json: false, strict: false, out: null, url: null, findBrowser: false,
+    timeoutMs: DEFAULT_TIMEOUT_S * 1000 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") opts.json = true;
@@ -43,6 +48,11 @@ function parseArgs(argv) {
     else if (a === "--find-browser") opts.findBrowser = true;
     else if (a === "--widths") opts.widths = String(argv[++i] || "").split(",").map(Number).filter((n) => n > 0);
     else if (a === "--out") opts.out = argv[++i];
+    else if (a === "--timeout") {
+      const s = Number(argv[++i]);
+      if (!(s > 0)) fail(2, "--timeout needs a number of seconds");
+      opts.timeoutMs = s * 1000;
+    }
     else if (a === "-h" || a === "--help") { process.stdout.write(USAGE + "\n"); process.exit(0); }
     else if (!opts.url) opts.url = a;
     else fail(2, `unexpected argument: ${a}\n${USAGE}`);
@@ -74,9 +84,16 @@ function launch(browser) {
     "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars",
     "--mute-audio", "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
-  const cleanup = () => {
-    try { child.kill("SIGKILL"); } catch {}
-    try { rmSync(profile, { recursive: true, force: true }); } catch {}
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  // Chrome's helpers keep writing into the profile for a moment after the main process dies: wait for the exit,
+  // then remove with retries — an immediate rmSync left `Default/Reporting and NEL-journal` behind in 2 of 20 runs.
+  const cleanup = async () => {
+    if (child.exitCode === null) {
+      try { child.kill("SIGTERM"); } catch {}
+      await Promise.race([exited, new Promise((r) => setTimeout(r, 3000))]);
+      if (child.exitCode === null) { try { child.kill("SIGKILL"); } catch {} await exited; }
+    }
+    try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch {}
   };
   const ws = new Promise((resolve, reject) => {
     let buf = "";
@@ -108,13 +125,18 @@ function connect(url) {
     }
   };
   const ready = new Promise((resolve, reject) => { sock.onopen = resolve; sock.onerror = () => reject(new Error("cannot reach the DevTools socket")); });
+  // A browser that crashes closes the socket: every call still waiting fails instead of hanging the probe.
+  sock.onclose = () => {
+    for (const { reject } of pending.values()) reject(new PageError("the browser closed the DevTools connection"));
+    pending.clear();
+  };
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
     const id = nextId++;
     pending.set(id, { resolve, reject });
     sock.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
   });
   const once = (method, sessionId, timeoutMs) => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timed out waiting for ${method}`)), timeoutMs);
+    const timer = setTimeout(() => reject(new PageError(`timed out after ${timeoutMs / 1000}s waiting for ${method}`)), timeoutMs);
     const l = (msg) => {
       if (msg.method === method && msg.sessionId === sessionId) {
         clearTimeout(timer);
@@ -132,6 +154,17 @@ function connect(url) {
 
 function measureInPage() {
   const vw = window.innerWidth;
+  // The comparison key between the normal and the reduced-motion load: tag + position only. Classes change with
+  // state (a reveal script adds `.in` only when motion is allowed), so a key with classes never matches across loads.
+  const key = (el) => {
+    const parts = [];
+    for (let e = el; e && e.nodeType === 1 && e !== document.documentElement; e = e.parentElement) {
+      if (e.id) { parts.unshift(`#${e.id}`); break; }
+      const i = e.parentElement ? [...e.parentElement.children].indexOf(e) + 1 : 1;
+      parts.unshift(`${e.tagName.toLowerCase()}:nth-child(${i})`);
+    }
+    return parts.join(">");
+  };
   const path = (el) => {
     const parts = [];
     for (let e = el; e && e.nodeType === 1 && e !== document.documentElement; e = e.parentElement) {
@@ -182,10 +215,22 @@ function measureInPage() {
   const headings = [];
   for (const h of document.querySelectorAll("h1, h2, h3, h4, h5, h6")) {
     if (hiddenByAncestor(h) || !h.textContent.trim()) continue;
-    const range = document.createRange();
-    range.selectNodeContents(h);
-    const tops = new Set([...range.getClientRects()].filter((r) => r.width > 1).map((r) => Math.round(r.top)));
-    headings.push({ tag: h.tagName.toLowerCase(), lines: tops.size, text: h.textContent.trim().slice(0, 60), el: path(h) });
+    // Lines from the heading's text only, clustered by half a line height: an inline icon or a small badge makes
+    // line boxes of different heights, and a Set of rounded tops counted a two-line h1 with both as five lines.
+    const cs = getComputedStyle(h);
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+    const tops = [];
+    const walker = document.createTreeWalker(h, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) if (r.width > 1) tops.push(r.top + r.height / 2);
+    }
+    tops.sort((a, b) => a - b);
+    let lines = 0, last = -Infinity;
+    for (const y of tops) { if (y - last > lh * 0.5) { lines++; last = y; } }
+    headings.push({ tag: h.tagName.toLowerCase(), lines, text: h.textContent.trim().slice(0, 60), el: path(h) });
   }
 
   // text elements and their visibility, keyed by path (compared across the normal and the reduced-motion load)
@@ -194,7 +239,7 @@ function measureInPage() {
     if (!ownText(el) || hiddenByAncestor(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
-    text[path(el)] = opacity(el) >= 0.05;
+    text[key(el)] = { visible: opacity(el) >= 0.05, label: path(el) };
   }
 
   // fonts that failed and are in use
@@ -223,7 +268,7 @@ function measureInPage() {
   }
 
   return {
-    pageWidth, vw,
+    pageWidth, vw, href: location.href,
     culprits: culprits.slice(0, 5).map((el) => `${path(el)} (${Math.round(el.getBoundingClientRect().right)}px)`),
     headings, text, failedFonts: [...new Set(failedFonts)], brokenImages, sidebars,
   };
@@ -253,22 +298,40 @@ async function scrollThrough() {
 
 // ─── the run ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-async function probePage(cdp, sessionId, url, width, reduced) {
+async function navigate(cdp, sessionId, url, timeoutMs) {
+  const loaded = cdp.once("Page.loadEventFired", sessionId, timeoutMs);
+  const nav = await cdp.send("Page.navigate", { url }, sessionId);
+  if (nav.errorText) { loaded.catch(() => {}); throw new PageError(`cannot load ${url}: ${nav.errorText}`); }
+  await loaded;
+}
+
+async function evaluate(cdp, sessionId, expression) {
+  const res = await cdp.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }, sessionId);
+  if (res.exceptionDetails) throw new PageError(`measuring failed: ${res.exceptionDetails.text}`);
+  return res.result.value;
+}
+
+async function probePage(cdp, sessionId, url, width, reduced, timeoutMs) {
   const phone = width <= 480;
   await cdp.send("Emulation.setDeviceMetricsOverride",
     { width, height: phone ? 844 : 900, deviceScaleFactor: 1, mobile: false }, sessionId);
   await cdp.send("Emulation.setEmulatedMedia",
     { features: [{ name: "prefers-reduced-motion", value: reduced ? "reduce" : "no-preference" }] }, sessionId);
-  const loaded = cdp.once("Page.loadEventFired", sessionId, NAV_TIMEOUT_MS);
-  const nav = await cdp.send("Page.navigate", { url }, sessionId);
-  if (nav.errorText) throw new Error(`cannot load ${url}: ${nav.errorText}`);
-  await loaded;
-  await cdp.send("Runtime.evaluate", { expression: `(${scrollThrough})()`, awaitPromise: true }, sessionId);
-  await new Promise((r) => setTimeout(r, SETTLE_MS));
-  const res = await cdp.send("Runtime.evaluate",
-    { expression: `(${measureInPage})()`, returnByValue: true, awaitPromise: true }, sessionId);
-  if (res.exceptionDetails) throw new Error(`measuring failed: ${res.exceptionDetails.text}`);
-  return res.result.value;
+  // Through about:blank every time: navigating to the same URL with a #fragment is same-document — no load event,
+  // and the second pass would wait for one that never comes.
+  await navigate(cdp, sessionId, "about:blank", timeoutMs);
+  await navigate(cdp, sessionId, url, timeoutMs);
+  // A client-side redirect after load destroys the context mid-measure: wait for the new page and measure that.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await evaluate(cdp, sessionId, `(${scrollThrough})()`);
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+      return await evaluate(cdp, sessionId, `(${measureInPage})()`);
+    } catch (err) {
+      if (attempt >= 2 || !/navigated|context|destroyed|not found/i.test(err.message)) throw err;
+      await cdp.once("Page.loadEventFired", sessionId, timeoutMs).catch(() => {});
+    }
+  }
 }
 
 function findingsFor(width, normal, reduced) {
@@ -282,10 +345,10 @@ function findingsFor(width, normal, reduced) {
       add(h.tag === "h1" ? "FAIL" : "WARN", "headline-lines", `${h.tag} wraps to ${h.lines} lines: "${h.text}"`, [h.el]);
     }
   }
-  const hidden = Object.keys(reduced.text).filter((k) => reduced.text[k] === false && normal.text[k] === true);
+  const hidden = Object.keys(reduced.text).filter((k) => !reduced.text[k].visible && normal.text[k] && normal.text[k].visible);
   if (hidden.length) {
     add("FAIL", "reduced-hidden", `${hidden.length} text element(s) visible normally stay invisible with reduced motion`,
-      hidden.slice(0, 5));
+      hidden.slice(0, 5).map((k) => reduced.text[k].label));
   }
   if (normal.failedFonts.length) {
     add("WARN", "font-fallback", `declared font(s) failed to load and fell back: ${normal.failedFonts.join(", ")}`);
@@ -317,30 +380,42 @@ async function main() {
   }
 
   const { ws, cleanup } = launch(browser);
-  process.on("SIGINT", () => { cleanup(); process.exit(130); });
+  for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]]) {
+    process.on(sig, () => { cleanup().finally(() => process.exit(code)); });
+  }
   let cdp;
   try {
-    cdp = connect(await ws);
-    await cdp.ready;
+    try {
+      cdp = connect(await ws);
+      await cdp.ready;
+    } catch (err) {
+      throw Object.assign(new Error(`the browser would not start: ${err.message}`), { exitCode: 3 });
+    }
     const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank" });
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
     await cdp.send("Page.enable", {}, sessionId);
     await cdp.send("Runtime.enable", {}, sessionId);
 
     const findings = [];
+    const finalUrls = new Set();
     if (opts.out) mkdirSync(opts.out, { recursive: true });
     for (const width of opts.widths) {
-      const normal = await probePage(cdp, sessionId, opts.url, width, false);
+      const normal = await probePage(cdp, sessionId, opts.url, width, false, opts.timeoutMs);
+      finalUrls.add(normal.href);
       if (opts.out) {
         const shot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId);
         writeFileSync(join(opts.out, `probe-${width}.png`), Buffer.from(shot.data, "base64"));
       }
-      const reduced = await probePage(cdp, sessionId, opts.url, width, true);
+      const reduced = await probePage(cdp, sessionId, opts.url, width, true, opts.timeoutMs);
       findings.push(...findingsFor(width, normal, reduced));
     }
 
+    const finalUrl = [...finalUrls][0] || opts.url;
+    const strip = (u) => u.split("#")[0];
+    const notes = strip(finalUrl) !== strip(opts.url)
+      ? [`redirected: ${opts.url} → ${finalUrl} — the findings are about the page that was measured`] : [];
     const report = {
-      url: opts.url, widths: opts.widths, measured_at: new Date().toISOString(), findings,
+      url: opts.url, final_url: finalUrl, notes, widths: opts.widths, measured_at: new Date().toISOString(), findings,
       summary: { fail: findings.filter((f) => f.level === "FAIL").length, warn: findings.filter((f) => f.level === "WARN").length },
     };
     if (opts.out) writeFileSync(join(opts.out, "probe.json"), JSON.stringify(report, null, 2) + "\n");
@@ -348,6 +423,7 @@ async function main() {
       process.stdout.write(JSON.stringify(report, null, 2) + "\n");
     } else {
       process.stdout.write(`render probe — ${opts.url} at ${opts.widths.join(", ")}px\n`);
+      for (const n of notes) process.stdout.write(`  note: ${n}\n`);
       for (const f of findings) {
         process.stdout.write(`  ${f.level} ${f.id} @${f.width} — ${f.message}\n`);
         for (const el of f.elements) process.stdout.write(`      ${el}\n`);
@@ -357,9 +433,12 @@ async function main() {
     }
     return opts.strict && report.summary.fail ? 1 : 0;
   } finally {
-    if (cdp) cdp.close();
-    cleanup();
+    if (cdp) {
+      try { await Promise.race([cdp.send("Browser.close"), new Promise((r) => setTimeout(r, 2000))]); } catch {}
+      cdp.close();
+    }
+    await cleanup();
   }
 }
 
-main().then((code) => process.exit(code), (err) => fail(3, `render_probe: ${err.message}`));
+main().then((code) => process.exit(code), (err) => fail(err.exitCode || 4, `render_probe: ${err.message}`));

@@ -111,7 +111,7 @@
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 190,
+      "skill_md_lines": 194,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -348,7 +348,7 @@
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 163,
+      "skill_md_lines": 164,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {

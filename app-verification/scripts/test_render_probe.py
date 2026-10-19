@@ -3,7 +3,7 @@
     cd app-verification/scripts && python3 -m unittest test_render_probe
 
 Skipped (and counted as skipped by run_skill_tests.py) without Node >= 22 or an installed Chrome/Chromium/Edge —
-the probe needs both, and says so with exit code 3, which the last test checks on every machine with Node.
+the probe needs both, and says so with exit code 3 (a page or runtime error is 4), checked on every machine with Node.
 """
 
 from __future__ import annotations
@@ -80,6 +80,33 @@ class Measure(unittest.TestCase):
     def test_the_clean_page_and_its_look_alikes_report_nothing(self) -> None:
         report = self.run_json("clean.html")
         self.assertEqual(report["findings"], [], json.dumps(report["findings"], indent=1))
+
+    def test_a_class_added_by_script_does_not_hide_reduced_hidden(self) -> None:
+        report = self.run_json("reveal-js.html", "--widths", "1440")
+        self.assertEqual({f["id"] for f in report["findings"]}, {"reduced-hidden"}, report["findings"])
+
+    def test_a_fragment_url_loads_both_passes(self) -> None:
+        r = probe((FIXTURES / "clean.html").as_uri() + "#pricing", "--json", "--widths", "390", "--timeout", "20")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["findings"], [])
+
+    def test_a_redirect_is_reported_with_the_final_url(self) -> None:
+        report = self.run_json("redirect.html", "--widths", "390")
+        self.assertTrue(report["final_url"].endswith("clean.html"), report)
+        self.assertIn("redirected", " ".join(report["notes"]))
+
+    def test_a_page_that_cannot_load_is_exit_4_not_3(self) -> None:
+        r = probe("http://127.0.0.1:9/", "--widths", "390", "--timeout", "10")
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotRegex(r.stderr, r"(?m)^\s+at \S")
+
+    def test_the_throwaway_profile_is_removed(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            for _ in range(3):
+                r = probe((FIXTURES / "clean.html").as_uri(), "--widths", "390", env={"TMPDIR": tmp})
+                self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual([p.name for p in Path(tmp).iterdir() if p.name.startswith("render-probe-")], [])
 
     def test_strict_turns_a_fail_into_exit_1(self) -> None:
         r = probe((FIXTURES / "broken.html").as_uri(), "--strict", "--widths", "390")

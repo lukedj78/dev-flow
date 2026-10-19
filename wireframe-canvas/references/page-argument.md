@@ -14,7 +14,9 @@ test, the argument) and fitted to dev-flow: real copy in the user's language, i1
 ## When
 
 When `docs/wireframes/screen-inventory.md` has a screen whose **Roles** include `visitor` — a home, a landing page,
-a pricing or product page, a public listing. A dashboard-only project has none, and `wireframes.py argument` says so.
+a pricing or product page, a public listing. **Every screen a person sees before signing in carries the role
+`visitor`** in the inventory, whatever the PRD calls them ("guest", "prospect"): it is the word the checker reads
+(`visitors`, `visitatore`, `visitatori` count too, and the column may be headed Roles, Role, Ruoli or Ruolo). A dashboard-only project has none, and `wireframes.py argument` says so.
 `wireframes.py approve` refuses public screens without a complete argument, unless `--no-argument "<reason>"`
 records why (the public site is the client's existing one; the only public screen is a sign-in).
 
@@ -45,8 +47,10 @@ Result: <why the sentence does not work for them — or the rewrite it forced>
 ```
 
 `python3 wireframe-canvas/scripts/wireframes.py argument <root>` checks it: at least eight inventory items, an
-`Idea:` line with *becomes*, both competitor lines, every argument row with a section, a claim and a proof, and no
-`<placeholder>`, `TBD` or `…` left in any of them.
+`Idea:` line that links the two halves — *becomes*, or the same word in the user's language (*diventa*, *devient*,
+*wird*, *se convierte en*), or an arrow `→` — both competitor lines, an Argument table with `Section`, `Claim` and
+`Proof` columns (other columns and any order are fine) where every row has all three, and no `<placeholder>` or
+`TBD` left. Labels may be bold (`**Idea:**`).
 
 ## The parts
 

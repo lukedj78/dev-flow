@@ -33,15 +33,17 @@ turns it into one, which belongs in a project's own CI rather than in this repo'
 `components/ui/**` is skipped: those files come from the shadcn / Base UI CLI, and
 grading them grades upstream. `--include-vendored` turns them back on.
 
-## The twenty checks
+## The twenty-one checks
 
-Sixteen find something that should not be there — `h-screen`, `#000` in an ink
+Seventeen find something that should not be there — `h-screen`, `#000` in an ink
 position, `John Doe`, `Acme`, `99.99%`, `john@example.com`, marketing filler,
 Unsplash for a stub photo, a layout-forcing animation, a spinner where a skeleton
 belongs, `01 / 02 / 03` on non-sequential sections, an invented gradient, **proof
 the generator wrote** ("Trusted by 3,847 teams", a 4.9/5 rating), **the generator's
-own signature** on the client's page, **content that starts at `opacity-0` with no
-`motion-reduce:` path**, and **a chart filled with a gradient**.
+own signature** on the client's page, **an entrance that can never show** (`opacity-0` under a
+`tw-animate-css` entrance, whose keyframe ends at the element's own opacity — 0 → 0), **content that starts at
+`opacity-0` with no `motion-reduce:` path**, and **a chart filled with a gradient**. Class lists are read from
+`className` strings and from every literal inside a `cn()` / `clsx()` call.
 
 Under i18n the words live in `messages/*.json`, not in the TSX, so the two copy
 checks — `filler-word` and `invented-proof` — read the message catalogues too.

@@ -18,8 +18,19 @@ REFS = SKILL / "references"
 SHELL = ("site-top-nav.template.tsx", "wordmark-footer.template.tsx")
 
 ARBITRARY_TEXT = re.compile(r"\btext-\[\d")
-# A JSX text node that is a word and not an expression: `>Accedi<`, `> Prodotto <`.
-LITERAL_TEXT = re.compile(r">\s*([A-Za-zÀ-ÿ][^<>{}]*?)\s*<")
+# A JSX text node that is a word and not an expression: `>Accedi<`, `> Prodotto <`, `{count} Label<`.
+# Between two tags it may span lines; after an expression it stays on one line, with no `=` — an import's
+# `} from "…"` and an attribute between two expressions are not text.
+LITERAL_TEXT = re.compile(r">\s*([A-Za-zÀ-ÿ][^<>{}]*?)\s*<|\}[ \t]*([A-Za-zÀ-ÿ][^<>{}\n=]*?)[ \t]*[<{]")
+# An accessible name or alternative text given as a string: read aloud, so it is copy too.
+LITERAL_ATTR = re.compile(r"""\b(?:aria-label|alt|title|placeholder)\s*=\s*["']([^"']+)["']""")
+
+
+def visible_literals(code: str) -> list[str]:
+    """Words a person reads or hears that are not t(...): JSX text and accessible-name strings, in source order."""
+    found = [(m.start(), m.group(1) or m.group(2)) for m in LITERAL_TEXT.finditer(code)]
+    found += [(m.start(), m.group(1)) for m in LITERAL_ATTR.finditer(code)]
+    return [text for _, text in sorted(found)]
 
 
 def templates() -> list[Path]:
@@ -45,8 +56,23 @@ class Templates(unittest.TestCase):
             text = (REFS / name).read_text()
             code = "\n".join(l for l in text.splitlines() if not l.strip().startswith(("*", "//", "/*")))
             with self.subTest(name):
-                self.assertEqual(LITERAL_TEXT.findall(code), [], f"{name}: visible text must be t(...)")
+                self.assertEqual(visible_literals(code), [], f"{name}: visible text must be t(...)")
                 self.assertRegex(code, r"getTranslations\(")
+
+
+class Helper(unittest.TestCase):
+    """visible_literals finds what a person would read or hear that is not a message."""
+
+    def test_text_after_an_expression_and_accessible_names(self) -> None:
+        code = """<p>{count} Label</p><button aria-label="Open menu" /><img alt="Logo" src="/x.png" />"""
+        self.assertEqual(visible_literals(code), ["Label", "Open menu", "Logo"])
+
+    def test_text_on_its_own_line_between_tags(self) -> None:
+        self.assertEqual(visible_literals("<Button>\n  Try again\n</Button>"), ["Try again"])
+
+    def test_messages_classes_and_aria_hidden_are_not_copy(self) -> None:
+        code = """<p className="text-sm">{t("title")}</p><svg aria-hidden="true" /><img alt={t("logo")} />"""
+        self.assertEqual(visible_literals(code), [])
 
 
 class Instructions(unittest.TestCase):

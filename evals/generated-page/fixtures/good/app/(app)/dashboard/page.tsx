@@ -2,5 +2,11 @@
 const ROWS = [{ client: "Eliška Novák", seats: 12 }, { client: "Tomás Capellini", seats: 7 }];
 
 export default function Dashboard() {
-  return <ul>{ROWS.map((r) => <li key={r.client} className="tabular-nums">{r.client} · {r.seats}</li>)}</ul>;
+  return (
+    <section>
+      <p>1,204 customers this quarter</p>
+      <p>You manage 12 clients</p>
+      <ul>{ROWS.map((r) => <li key={r.client} className="tabular-nums">{r.client} · {r.seats}</li>)}</ul>
+    </section>
+  );
 }

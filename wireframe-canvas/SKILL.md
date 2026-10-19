@@ -57,7 +57,8 @@ Show the user the inventory (counts per area, any story you were unsure about) b
 
 ## Step 1.5 — The page argument, when there are public screens
 
-If any row's Roles include `visitor`, write `docs/wireframes/page-argument.md` before drawing that area: the
+Every screen a person sees before signing in carries the role `visitor` in the inventory. If any row has it, write
+`docs/wireframes/page-argument.md` before drawing that area: the
 inventory of eight to twelve things only this client has, the idea sentence with the competitor test, one claim and
 its proof per section (a section with no claim is cut), the optional live thing. Format, the why and the review
 questions: **`references/page-argument.md`**. Check it:

@@ -31,7 +31,13 @@ INVENTORY = "docs/wireframes/screen-inventory.md"
 PNG_DIR = "docs/wireframes/png"
 ARGUMENT = "docs/wireframes/page-argument.md"
 MIN_INVENTORY = 8
-PLACEHOLDER = re.compile(r"<[^>]*>|\bTBD\b|\bTODO\b|\.\.\.|…")
+# A placeholder is a template slot or a marker, or a value that is nothing but dots — "closed Sundays… and August"
+# is real content.
+PLACEHOLDER = re.compile(r"<[^>]*>|\bTBD\b|\bTODO\b|^\s*(?:\.\.\.|…)\s*$")
+# The idea's link word in the languages our users write in, or an arrow (references/page-argument.md).
+IDEA_LINK = re.compile(r"\b(?:becomes|diventa|diventano|devient|wird|se convierte en|se torna|torna-se)\b|→|->", re.I)
+PUBLIC_ROLE = re.compile(r"\b(?:visitors?|visitatori|visitatore|visiteurs?|besucher)\b", re.I)
+ROLE_COLUMNS = ("roles", "role", "ruoli", "ruolo")
 STORY = re.compile(r"\bUS-\d+\b")
 SCREEN_ID = re.compile(r"^[A-Z]{1,3}\d{1,3}[a-z]?$")
 
@@ -73,8 +79,9 @@ def parse_inventory(text: str) -> list[dict]:
             continue
         row = dict(zip(header, c))
         if SCREEN_ID.match(row.get("id", "")):
+            roles = next((row[c] for c in ROLE_COLUMNS if c in row), "")
             rows.append({"id": row["id"], "screen": row.get("screen", ""), "stories": STORY.findall(row.get("stories", "")),
-                         "states": row.get("states", ""), "roles": row.get("roles", "")})
+                         "states": row.get("states", ""), "roles": roles})
     return rows
 
 
@@ -122,7 +129,7 @@ def coverage(root: Path, inventory: str) -> tuple[list[dict], list[str]]:
 
 def public_rows(rows: list[dict]) -> list[dict]:
     """Screens a visitor sees before signing in: the ones that need a page argument."""
-    return [r for r in rows if re.search(r"\bvisitor\b", r["roles"], re.IGNORECASE)]
+    return [r for r in rows if PUBLIC_ROLE.search(r["roles"])]
 
 
 def _section(text: str, title: str) -> str | None:
@@ -139,34 +146,41 @@ def argument_gaps(root: Path) -> list[str]:
     path = root / ARGUMENT
     if not path.is_file():
         return [f"{ARGUMENT} does not exist"]
-    text = path.read_text()
+    text = path.read_text().replace("**", "")  # `**Idea:**` in bold is the same label
     gaps = []
     inv = _section(text, "Inventory")
     items = [l for l in (inv or "").splitlines() if re.match(r"\s*[-*]\s+\S", l) and _filled(l.lstrip(" -*"))]
     if len(items) < MIN_INVENTORY:
         gaps.append(f"## Inventory has {len(items)} inventory items — at least {MIN_INVENTORY} things only this client has")
     idea = re.search(r"^Idea:\s*(.+)$", _section(text, "Idea") or "", re.M)
-    if not idea or not _filled(idea.group(1)) or not re.search(r"\bbecomes\b", idea.group(1), re.I):
-        gaps.append("## Idea needs one line `Idea: On this page, <something of the subject> becomes <the device>`")
+    if not idea or not _filled(idea.group(1)) or not IDEA_LINK.search(idea.group(1)):
+        gaps.append("## Idea needs one line `Idea: On this page, <something of the subject> becomes <the device>` "
+                    "(in the user's language — diventa, devient, wird… — or with →)")
     comp = _section(text, "Competitor test") or ""
     for label in ("Competitor:", "Result:"):
         m = re.search(rf"^{label}\s*(.*)$", comp, re.M)
         if not m or not _filled(m.group(1)):
             gaps.append(f"## Competitor test needs `{label}` filled")
     arg = _section(text, "Argument") or ""
-    rows = [cells(l) for l in arg.splitlines() if l.lstrip().startswith("|")]
-    rows = [r for r in rows[1:] if not all(set(x) <= set("-: ") for x in r)] if rows else []
-    if not rows:
-        gaps.append("## Argument needs a `Section | Claim | Proof` table with one row per section")
-    for r in rows:
-        r = (r + ["", "", ""])[:3]
-        if not all(_filled(x) for x in r):
-            gaps.append(f"## Argument row `{r[0] or '?'}` needs a section, a claim and its proof "
-                        "(a section with no claim is cut)")
+    table = [cells(l) for l in arg.splitlines() if l.lstrip().startswith("|")]
+    head = [h.lower() for h in table[0]] if table else []
+    cols = [head.index(n) if n in head else None for n in ("section", "claim", "proof")]
+    rows = [r for r in table[1:] if not all(set(x) <= set("-: ") for x in r)]
+    if not rows or None in cols:
+        gaps.append("## Argument needs a table with `Section`, `Claim` and `Proof` columns, one row per section")
+    else:
+        for r in rows:
+            section, claim, proof = (r[i] if i < len(r) else "" for i in cols)
+            if not all(_filled(x) for x in (section, claim, proof)):
+                gaps.append(f"## Argument row `{section or '?'}` needs a section, a claim and its proof "
+                            "(a section with no claim is cut)")
     return gaps
 
 
 def cmd_argument(a: argparse.Namespace) -> int:
+    if not (a.root / a.inventory).is_file():
+        print(f"  ✗ {a.inventory} does not exist — write the screen inventory first (Step 1)")
+        return 1
     rows, _ = coverage(a.root, a.inventory)
     public = public_rows(rows)
     if not public:

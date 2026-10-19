@@ -135,8 +135,12 @@ node <skills>/app-verification/scripts/render_probe.mjs http://localhost:<port>/
 - **Give it the dev server's URL**, or a `file://` path for a static page. It serves no files of its own — a probe
   that served the working directory would expose `.env` to every script the page loads.
 - **Per locale**: run it on `/en/...` and `/it/...` — the two-line headline rule is about the longest one.
-- Needs Node ≥ 22 and an installed Chrome, Chromium or Edge (`CHROME_PATH`). No dependency, a throwaway profile,
-  nothing written outside `--out`. Exit 0 (a measurement), 1 with `--strict` and a FAIL, 2 bad input, 3 no browser.
+- Needs Node ≥ 22 and an installed Chrome, Chromium or Edge (`CHROME_PATH`). No dependency, a throwaway profile
+  removed on every exit, nothing written outside `--out`. Exit 0 (a measurement), 1 with `--strict` and a FAIL,
+  2 bad input, **3 the environment** (no browser, Node too old — skip, and say so), **4 the page** (it would not load
+  or timed out — a broken run, never a skip). `--timeout` (default 60 s) leaves room for a cold `next dev` compile.
+- A client-side redirect is followed and reported: the report's `final_url` and a `redirected` note say which page
+  was measured.
 - A finding is a lead, read like shadscan's: open the element, decide, fix the cause. Never hide an element from the
   probe to make it pass.
 

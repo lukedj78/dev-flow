@@ -73,8 +73,7 @@ class Target:
         English — "elevate" is filler in en.json and an ordinary adjective in it.json). Tests and the showcase
         (the design system's specimen page, ours, not the client's copy) are not copy."""
         for path, text in self.files:
-            rel = self.rel(path)
-            if any(m in rel for m in NOT_COPY):
+            if _not_copy(Path(self.rel(path)).as_posix()):
                 continue
             if path.suffix in CODE_SUFFIXES or (_is_messages(path) and _english(path)):
                 yield path, text
@@ -112,7 +111,15 @@ def _english(path: Path) -> bool:
     return bool(parts) and parts[0].split(".")[0].lower().split("-")[0] == "en"
 
 
-NOT_COPY = ("__tests__/", ".test.", ".spec.", "tests/", "e2e/", "showcase")
+# Whole path segments, never substrings: "tests" must not swallow app/contests/, nor "showcase" a case-showcase.tsx.
+NOT_COPY_DIRS = {"__tests__", "tests", "test", "e2e", "showcase"}
+
+
+def _not_copy(rel: str) -> bool:
+    parts = rel.split("/")
+    name = parts[-1]
+    return bool(NOT_COPY_DIRS & set(parts[:-1])) or name.split(".")[0] == "showcase" \
+        or ".test." in name or ".spec." in name
 
 
 def load(root: Path, include_vendored: bool = False) -> Target:
@@ -312,19 +319,38 @@ def decorative_surface(t):
 # Proof is what a visitor reads as a fact about the business: how many customers, how they rate
 # it, who trusts it. A generator that writes "Trusted by 3,847 teams" has written a claim the
 # client never made, and the more organic it looks the more likely it ships (rule 3).
+AUDIENCE = r"(?:customers|clients|teams|companies|businesses|users)"
+COUNT = r"\d+(?:[,.]\d+)*\s*[kKM]?"
 INVENTED_PROOF = re.compile(
     r"\b(?:trusted|loved|relied on) by\b"
-    r"|\bjoin(?:ed)?\s+(?:over\s+|more than\s+)?\d+(?:[,.]\d+)*\s*[kKM]?\+?"
-    r"|\b\d+(?:[,.]\d+)*\s*[kKM]?\+?\s+(?:happy\s+|satisfied\s+)?(?:customers|clients|teams|companies|businesses)\b"
+    rf"|\bjoin(?:ed)?\s+(?:over\s+|more than\s+)?{COUNT}\+?"
+    rf"|\b(?:over|more than)\s+{COUNT}\+?\s+(?:happy\s+|satisfied\s+)?{AUDIENCE}\b"
+    rf"|\b{COUNT}\+\s+(?:happy\s+|satisfied\s+)?{AUDIENCE}\b"
+    rf"|\b{COUNT}\s+(?:happy|satisfied)\s+{AUDIENCE}\b"
     r"|★{3,}|\b[1-5]\.\d\s*/\s*5\b|\b[1-5]\s*/\s*5\s+(?:stars|rating)\b|\bout of 5 stars\b", re.IGNORECASE)
+# "Up to 25 teams", "For 10+ clients", "per 5 users": a plan's limit, not a claim about the business.
+PRICING_QUALIFIER = re.compile(r"\b(?:up to|for|per|max(?:imum)?|unlimited|of)\s*$", re.IGNORECASE)
+# App screens (behind sign-in) hold sample rows, not public claims.
+APP_SEGMENTS = {"(app)", "(dashboard)", "(auth)", "dashboard", "admin", "(admin)"}
 
 
 @check("invented-proof", "medium", "proof written by the generator: customer counts, ratings, 'trusted by' (rule 3)")
 def invented_proof(t):
-    found = _scan(t, INVENTED_PROOF, "invented-proof", "medium",
-                  "leave the slot empty with a TBD, or out, and list it in the hand-off — "
-                  "unless the client supplied the figure, in which case cite where it came from", source=t.copy())
-    return [f for f in found if not f.excerpt.startswith(COMMENT_PREFIXES)]
+    findings = []
+    for path, text in t.copy():
+        if APP_SEGMENTS & set(Path(t.rel(path)).parts):
+            continue
+        for m in INVENTED_PROOF.finditer(text):
+            if PRICING_QUALIFIER.search(text[max(0, m.start() - 20):m.start()]):
+                continue
+            line = text.count("\n", 0, m.start()) + 1
+            excerpt = text.splitlines()[line - 1].strip()[:120]
+            if excerpt.startswith(COMMENT_PREFIXES):
+                continue
+            findings.append(Finding("invented-proof", "medium", t.rel(path), line, excerpt,
+                                    "leave the slot empty with a TBD, or out, and list it in the hand-off — unless "
+                                    "the client supplied the figure, in which case cite where it came from"))
+    return findings
 
 
 COMMENT_PREFIXES = ("*", "//", "/*", "{/*")
@@ -342,24 +368,68 @@ def generator_watermark(t):
     return findings
 
 
-# A class string that starts content invisible and relies on an animation to show it. Without a
-# motion-reduce: variant, a reduced-motion user (or a failed animation) keeps the content hidden.
-CLASS_STRING = re.compile(r"""(?:className|class)\s*=\s*(?:\{\s*)?(["'`])(.*?)\1""", re.S)
+# Class lists as an agent writes them: a className string, or every string literal inside one cn()/clsx()/twMerge()
+# call (shadcn's own form — `cn("opacity-0", "animate-in")` splits the list across arguments).
+CLASS_ATTR = re.compile(r"""(?:className|class)\s*=\s*(["'`])(.*?)\1""", re.S)
+CLASS_CALL = re.compile(r"\b(?:cn|clsx|classNames|twMerge|cva)\s*\(")
+STRING_LITERAL = re.compile(r"""(["'`])((?:(?!\1).)*)\1""", re.S)
+
+
+def class_groups(text: str):
+    """(offset, classes) for each className string and each cn()/clsx() call."""
+    for m in CLASS_ATTR.finditer(text):
+        yield m.start(), m.group(2).split()
+    for m in CLASS_CALL.finditer(text):
+        depth, i = 1, m.end()
+        while i < len(text) and depth:
+            depth += {"(": 1, ")": -1}.get(text[i], 0)
+            i += 1
+        args = text[m.end():i - 1]
+        yield m.start(), [c for s in STRING_LITERAL.finditer(args) for c in s.group(2).split()]
+
+
+# tw-animate-css's `enter` keyframe has only a `from` frame (verified in tw-animate.css): it animates FROM the
+# --tw-enter-* values TO the element's own style. With `opacity-0` on the element the entrance fades 0 → 0 and the
+# content stays invisible for everyone — whatever fill-mode, with or without reduced motion.
+TW_ENTER = {"animate-in", "motion-safe:animate-in"}
+
+
+def _entrances(t, predicate, cid, severity, note):
+    findings = []
+    for path, text in t.code():
+        for offset, classes in class_groups(text):
+            if "opacity-0" in classes and predicate(classes):
+                line = text.count("\n", 0, offset) + 1
+                findings.append(Finding(cid, severity, t.rel(path), line,
+                                        text.splitlines()[line - 1].strip()[:120], note))
+    return findings
+
+
+@check("hidden-for-everyone", "high", "opacity-0 with a tw-animate-css entrance: it fades 0 → 0 (rule 10)")
+def hidden_for_everyone(t):
+    return _entrances(t, lambda c: bool(TW_ENTER & set(c)), "hidden-for-everyone", "high",
+                      "drop opacity-0: `animate-in fade-in fill-mode-both motion-reduce:animate-none` holds the "
+                      "from-frame during the delay and ends visible")
+
+
+def _custom_animation(classes) -> bool:
+    """An entrance that is not tw-animate's: animate-[…] or a project keyframe, plain or motion-safe:."""
+    for c in classes:
+        base = c.split(":", 1)[1] if c.startswith("motion-safe:") else c
+        if base.startswith("animate-") and base not in {"animate-in", "animate-out", "animate-none",
+                                                         "animate-pulse", "animate-spin", "animate-ping",
+                                                         "animate-bounce"}:
+            return True
+    return False
 
 
 @check("hidden-without-reduced-motion", "medium", "content starts at opacity-0 with no reduced-motion path (rule 10)")
 def hidden_without_reduced_motion(t):
-    findings = []
-    for path, text in t.code():
-        for m in CLASS_STRING.finditer(text):
-            classes = m.group(2).split()
-            if ("opacity-0" in classes and any(c.startswith("animate-") for c in classes)
-                    and not any(c.startswith("motion-reduce:") for c in classes)):
-                line = text.count("\n", 0, m.start()) + 1
-                findings.append(Finding("hidden-without-reduced-motion", "medium", t.rel(path), line,
-                                        text.splitlines()[line - 1].strip()[:120],
-                                        "add motion-reduce:animate-none motion-reduce:opacity-100"))
-    return findings
+    return _entrances(t, lambda c: _custom_animation(c) and "motion-reduce:opacity-100" not in c
+                      and not TW_ENTER & set(c),
+                      "hidden-without-reduced-motion", "medium",
+                      "add motion-reduce:opacity-100 (and motion-reduce:animate-none): with the animation removed, "
+                      "opacity-0 is all that is left")
 
 
 CHART_MODULE = re.compile(r"""from\s+["'](?:recharts|@/components/ui/chart|[^"']*/ui/chart)["']""")
@@ -499,11 +569,20 @@ def report(findings: list[Finding], summary: dict, baseline: dict | None) -> Non
 # that cannot do both is either dead or a false-positive generator.
 
 
+# Findings the bad fixtures must produce in a specific file: the per-id "fired somewhere" test cannot see a check
+# that fires on one file and silently skips another (a path rule that dropped `app/contests/` as a test folder).
+EXPECTED_BAD = {("invented-proof", "app/contests/page.tsx")}
+
+
 def selftest() -> int:
     here = Path(__file__).parent
     bad, good = run(here / "fixtures" / "bad"), run(here / "fixtures" / "good")
     fired = {f.check for f in bad}
     ids = [cid for cid, *_ in CHECKS]
+    located = {(f.check, f.file) for f in bad}
+    for cid, file in sorted(EXPECTED_BAD - located):
+        print(f"✗ {cid} did not fire on fixtures/bad/{file}", file=sys.stderr)
+        fired.discard(cid)
 
     silent = [c for c in ids if c not in fired]
     noisy = sorted({f.check for f in good})

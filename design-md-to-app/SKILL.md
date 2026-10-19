@@ -607,7 +607,7 @@ faithful to the source.
 
 Step 4.5c pins the verbatim-Figma rule for content the **source actually shows**. This step covers the inverse: surfaces where DESIGN.md is **silent** and Figma is **absent** (TBD pages, stub data, invented copy, body-only DESIGN.md without YAML tokens). Without explicit defaults, the LLM tilts to recognizable "AI generic" choices — pure black `#000000`, `h-screen` (broken on iOS), "John Doe" placeholders, "Acme" brand names, "Elevate / Seamless" filler words, three equal cards in a row.
 
-`references/anti-slop-fallbacks.md` enumerates 10 portable rules (off-black, `min-h-[100dvh]`, realistic placeholder data, banned filler vocabulary, Picsum over Unsplash, no 3-equal-card default, hardware-accelerated motion, tactile `:active` feedback, skeleton loaders, CSS-cascade stagger). **`references/mobile-web.md`** is the platform layer next to it — the tells that say "this is a website" on a phone (sticky hover, the tap-highlight flash, inputs that zoom, the 300 ms tap delay, the notch, `touch-action`), with a four-line baseline to ship before the first component.
+`references/anti-slop-fallbacks.md` enumerates 13 portable rules (off-black, `min-h-[100dvh]`/`svh`, sample data yes and invented proof never, banned filler vocabulary, real pictures before a logged placeholder, no 3-equal-card default, hardware-accelerated motion, tactile `:active` feedback, skeleton loaders, CSS-cascade stagger, composition reflexes, numbers and charts in app screens, copy shape). **`references/mobile-web.md`** is the platform layer next to it — the tells that say "this is a website" on a phone (sticky hover, the tap-highlight flash, inputs that zoom, the 300 ms tap delay, the notch, `touch-action`), with a four-line baseline to ship before the first component.
 
 **Read it before writing any of these surfaces:**
 - Stub data in `lib/queries/<domain>.ts` for routes not in Figma.
@@ -816,7 +816,7 @@ Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12
    Fix every FAIL, then spot-check what it cannot judge:
    - No horizontal scroll
    - All primary nav reachable (hamburger visible)
-   - Hero headline doesn't overflow (clamps under 40px)
+   - Hero headline fits two lines at 375 in the longer locale (the probe's `headline-lines`)
    - Cards stack vertically
    - Footer columns either accordion-collapse or stack 1-up
    - All buttons ≥ 44px height

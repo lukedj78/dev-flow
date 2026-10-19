@@ -197,6 +197,46 @@ class Argument(Fixture):
         rc, _ = self.approve()
         self.assertEqual(rc, 0)
 
+    def test_the_idea_may_be_written_in_the_users_language_or_with_an_arrow(self) -> None:
+        for idea in ("Idea: In questa pagina, l'orario del tram del 1924 diventa il formato di ogni viaggio.",
+                     "Idea: the 1924 tram timetable → the itinerary format every trip is shown in.",
+                     "**Idea:** On this page, the 1924 tram timetable becomes the itinerary format."):
+            with self.subTest(idea):
+                self.arg.write_text(ARGUMENT.replace(
+                    "Idea: On this page, the 1924 tram timetable becomes the itinerary format every trip is shown in.", idea))
+                rc, out = run("argument", str(self.root))
+                self.assertEqual(rc, 0, out)
+
+    def test_an_ellipsis_inside_real_content_is_not_a_placeholder(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("- closed in August, when the island is for islanders",
+                                             "- closed Sundays… and all of August"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+
+    def test_the_argument_table_is_read_by_header_name(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("| Section | Claim | Proof |\n|---|---|---|",
+                                             "| # | Proof | Section | Claim |\n|---|---|---|---|")
+                            .replace("| Hero | Small groups that see the island by timetable | the timetable itinerary, real stops and times |",
+                                     "| 1 | the timetable itinerary, real stops and times | Hero | Small groups that see the island by timetable |")
+                            .replace("| Trips | Every village visited before it is sold | the 42 villages on the map, with visit dates |",
+                                     "| 2 | the 42 villages on the map, with visit dates | Trips | Every village visited before it is sold |"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+
+    def test_a_missing_inventory_is_a_gap_not_a_pass(self) -> None:
+        self.inv.unlink()
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("screen-inventory.md", out)
+
+    def test_role_column_and_word_variants_count_as_public(self) -> None:
+        for header, role in (("Role", "visitor"), ("Ruoli", "visitatore"), ("Roles", "visitors")):
+            with self.subTest(header=header, role=role):
+                self.inv.write_text(INVENTORY.replace("| Roles |", f"| {header} |").replace("| visitor |", f"| {role} |"))
+                self.arg.unlink(missing_ok=True)
+                rc, out = run("argument", str(self.root))
+                self.assertEqual(rc, 1, out)
+
     def test_approve_refuses_a_public_area_without_an_argument(self) -> None:
         self.arg.unlink()
         rc, out = self.approve()
