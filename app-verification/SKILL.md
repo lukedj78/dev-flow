@@ -1,6 +1,6 @@
 ---
 name: app-verification
-description: 'Give a project a manual for proving its features on the real app, written once and kept true: `.claude/skills/verify-<app>/` with how to launch it until it is usable, a read-only doctor check, how to drive it with the repo''s real selectors, what counts as proof and where it goes, how to stop only what the run started — plus one feature file per PRD story, seeded from the wireframe screen inventory. Two modes: create (scaffold, fill from the code, prove it live once, record `meta.json#verification`) and maintain (re-read every feature from source, drive them all live, fix the manual, report real regressions). Web, Expo and eve. Triggers: "verify the app", "prova che funziona", "verification skill", "come si avvia l''app per provarla", "maintain the verify skill", "il manuale di verifica è aggiornato?". Not for: writing tests (write-tests), UI audits (shadscan), security (app-security), deploying (vercel-deploy).'
+description: 'Give a project a manual for proving its features on the real app, written once and kept true: `.claude/skills/verify-<app>/` with how to launch it until it is usable, a read-only doctor check, how to drive it with the repo''s real selectors, what counts as proof and where it goes, how to stop only what it started — plus one feature file per PRD story, seeded from the wireframe screen inventory, and a headless-Chrome render probe (overflow, wrapped headings, text hidden under reduced motion). Two modes: create (scaffold, fill from the code, prove it live once, record `meta.json#verification`) and maintain (re-read every feature from source, drive them all live, fix the manual, report real regressions). Web, Expo and eve. Triggers: "verify the app", "prova che funziona", "verification skill", "come si avvia l''app per provarla", "maintain the verify skill", "il manuale di verifica è aggiornato?". Not for: writing tests (write-tests), UI audits (shadscan), security (app-security), deploying (vercel-deploy).'
 ---
 
 # app-verification — a manual to prove features on the real app
@@ -120,6 +120,34 @@ and an outcome — `clean`, `changed` or `blocked`. It edits only the manual: a 
 app no longer has is either drift (fix the manual) or a **regression** (report it to the user, never paper over it).
 The full pass, with its three invariants: `references/maintain.md`.
 
+## The render probe — what a screenshot does not tell you
+
+`scripts/render_probe.mjs` opens a page in headless Chrome at 1440, 768 and 390 px and measures what no source scan
+can see: the page wider than the viewport (and the elements causing it), a heading on more than two lines, text that
+stays invisible with reduced motion on, a declared font that never loaded, an image that loaded with no picture, a
+sidebar covering a phone.
+
+```bash
+node <skills>/app-verification/scripts/render_probe.mjs http://localhost:<port>/<route> [--widths 1440,768,390] \
+    [--out .verification/evidence/<UTC timestamp>/probe] [--json] [--strict]
+```
+
+- **Give it the dev server's URL**, or a `file://` path for a static page. It serves no files of its own — a probe
+  that served the working directory would expose `.env` to every script the page loads.
+- **Per locale**: run it on `/en/...` and `/it/...` — the two-line headline rule is about the longest one.
+- Needs Node ≥ 22 and an installed Chrome, Chromium or Edge (`CHROME_PATH`). No dependency, a throwaway profile
+  removed on every exit, nothing written outside `--out`. Exit 0 (a measurement), 1 with `--strict` and a FAIL,
+  2 bad input, **3 the environment** (no browser, Node too old — skip, and say so), **4 the page** (it would not load
+  or timed out — a broken run, never a skip). `--timeout` (default 60 s) leaves room for a cold `next dev` compile.
+- A client-side redirect is followed and reported: the report's `final_url` and a `redirected` note say which page
+  was measured.
+- A finding is a lead, read like shadscan's: open the element, decide, fix the cause. Never hide an element from the
+  probe to make it pass.
+
+The manual's Evidence section names it for the routes a feature touches (`references/manual.md`), and
+`design-md-to-app` runs it at its 375 px verification. The idea comes from taste-skill v2's inspector
+(Leonxlnx/taste-skill, MIT); the code and the rules are ours.
+
 ## Rules
 
 - **Never drive or stop an instance you did not start.** Record the PID and the port at launch; stop those. Never by
@@ -162,4 +190,5 @@ committed in the user's project.
 - `references/manual.md` — the six sections and the feature-file shape, each with a filled example.
 - `references/stack-recipes.md` — driving and proving on web, Expo, eve and in a monorepo.
 - `references/maintain.md` — the maintain pass.
+- `scripts/render_probe.mjs` + `scripts/test_render_probe.py` (fixtures in `scripts/fixtures/probe/`) — the render probe.
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).

@@ -77,8 +77,9 @@ The modifiers alone are inert — they only set custom properties (`--tw-enter-o
 >
 > ⚠️ **There is no built-in shimmer.** The only ready-made animations are `animate-accordion-down` /
 > `animate-accordion-up`, `animate-collapsible-down` / `animate-collapsible-up`, and
-> `animate-caret-blink`. A skeleton shimmer is either Tailwind core's `animate-pulse` or your own
-> Tier-1 `@keyframes` — do not reach for a `shimmer` class from this package; it does not exist.
+> `animate-caret-blink`. A skeleton loader is Tailwind core's `animate-pulse` (opacity) — do not reach
+> for a `shimmer` class from this package; it does not exist. A sweeping gradient shimmer is a
+> decorative gradient (anti-slop rule 11): only when DESIGN.md asks for one, as Tier-1 `@keyframes`.
 
 ## The token bridge — point it at `lib/motion/tokens.ts`
 

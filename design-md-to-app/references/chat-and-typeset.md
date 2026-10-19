@@ -103,11 +103,15 @@ missing, add these Tailwind v4 `@utility` blocks (they consume your theme tokens
 @utility scrollbar-none { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
 @utility scrollbar-gutter-stable { scrollbar-gutter: stable; }
 @utility scroll-fade-b { mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent 100%); }
+/* The one sanctioned sweep: a status marker on a running line ("Working…") — it says something is happening,
+   which is a state, not decoration. Anti-slop rule 9/11's "no moving gradient" is about skeletons and surfaces.
+   Under reduced motion it stops (below). */
 @keyframes ui-shimmer { 100% { transform: translateX(100%); } }
 @utility shimmer { position: relative; overflow: hidden;
   &::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
     background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--foreground) 8%, transparent), transparent);
-    animation: ui-shimmer 1.5s infinite; } }
+    animation: ui-shimmer 1.5s infinite;
+    @media (prefers-reduced-motion: reduce) { animation: none; } } }
 ```
 
 Composition — the **full anatomy** (avatar + attachments included). Wrap it in ONE reusable

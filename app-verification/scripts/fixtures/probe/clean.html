@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>probe: clean</title>
+<style>
+  /* The same shapes done right, plus the look-alikes that must not be reported. */
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; }
+  main { padding: 0 16px; }
+  h1 { font-size: 32px; line-height: 1.1; }
+  .reveal { opacity: 0; animation: in 200ms ease-out forwards; }
+  @keyframes in { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; } }
+  .scroller { overflow-x: auto; }                       /* a wide table inside its own scroller is not page overflow */
+  .scroller table { width: 1200px; }
+  .drawer { position: fixed; top: 0; left: 0; width: 80%; height: 100vh; transform: translateX(-100%); }
+  .hover-only { opacity: 0; }                           /* hidden in both modes: a hover reveal, not a motion bug */
+  .menu { display: none; }
+  aside { display: none; }
+  @media (min-width: 1024px) { aside { display: block; width: 240px; } }
+</style>
+</head>
+<body>
+  <aside>Sidebar on wide screens only</aside>
+  <nav class="drawer" aria-hidden="true">Off-canvas menu</nav>
+  <div class="menu">A closed menu</div>
+  <main>
+    <h1>Invoices out in two minutes</h1>
+    <!-- One short line with an icon and a small badge inside: three boxes of different heights, one line.
+         Short enough to fit on one line in any font (Linux's are wider than macOS's). -->
+    <h1>
+      <svg width="40" height="40" aria-hidden="true" style="vertical-align: middle"><rect width="40" height="40"/></svg>
+      Reports
+      <span style="font-size: 12px; vertical-align: super">new</span>
+    </h1>
+    <p class="reveal">This paragraph animates in, and shows at once with reduced motion.</p>
+    <p class="hover-only">Copy link</p>
+    <img alt="a small inline picture" width="20" height="20"
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20'/%3E%3C/svg%3E">
+    <div class="scroller"><table><tr><td>Wide data</td></tr></table></div>
+  </main>
+</body>
+</html>

@@ -28,13 +28,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 CODE_SUFFIXES = {".tsx", ".ts", ".jsx", ".js", ".css", ".mdx"}
-SKIP_DIRS = {"node_modules", ".next", ".git", "dist", "build", ".turbo", "coverage", ".vercel"}
+# `.claude` holds agent worktrees (whole copies of the app) and project skills: grading them counts
+# every finding once per worktree — the first run of the copy checks reported smart-travel three times.
+SKIP_DIRS = {"node_modules", ".next", ".git", "dist", "build", ".turbo", "coverage", ".vercel", ".claude"}
 
 # Vendored by the shadcn / Base UI CLI, not written by the generation. Grading them
 # grades upstream: the first real run spent 20 of 26 findings inside components/ui/,
@@ -65,6 +68,16 @@ class Target:
             if path.suffix in CODE_SUFFIXES:
                 yield path, text
 
+    def copy(self):
+        """Where a visitor's words live: code and the **English** message catalogues (the copy patterns are
+        English — "elevate" is filler in en.json and an ordinary adjective in it.json). Tests and the showcase
+        (the design system's specimen page, ours, not the client's copy) are not copy."""
+        for path, text in self.files:
+            if _not_copy(Path(self.rel(path)).as_posix()):
+                continue
+            if path.suffix in CODE_SUFFIXES or (_is_messages(path) and _english(path)):
+                yield path, text
+
     def rel(self, path: Path) -> str:
         try:
             return str(path.relative_to(self.root))
@@ -74,8 +87,9 @@ class Target:
     def has(self, *names: str) -> bool:
         return any((self.root / n).exists() for n in names)
 
-    def glob(self, pattern: str) -> list[Path]:
-        return [p for p in self.root.glob(pattern) if not _skipped(p, self.include_vendored)]
+    def named(self, *names: str) -> list[Path]:
+        """Loaded files with one of these names, anywhere under the root."""
+        return [p for p, _ in self.files if p.name in names]
 
 
 def _skipped(path: Path, include_vendored: bool = False) -> bool:
@@ -87,12 +101,39 @@ def _skipped(path: Path, include_vendored: bool = False) -> bool:
     return any(marker in posix for marker in VENDORED)
 
 
+def _is_messages(path: Path) -> bool:
+    return path.suffix == ".json" and "messages" in path.parts
+
+
+def _english(path: Path) -> bool:
+    """messages/en.json, messages/en-US.json, messages/en/Account.json."""
+    parts = path.parts[path.parts.index("messages") + 1:]
+    return bool(parts) and parts[0].split(".")[0].lower().split("-")[0] == "en"
+
+
+# Whole path segments, never substrings: "tests" must not swallow app/contests/, nor "showcase" a case-showcase.tsx.
+NOT_COPY_DIRS = {"__tests__", "tests", "test", "e2e", "showcase"}
+
+
+def _not_copy(rel: str) -> bool:
+    parts = rel.split("/")
+    name = parts[-1]
+    return bool(NOT_COPY_DIRS & set(parts[:-1])) or name.split(".")[0] == "showcase" \
+        or ".test." in name or ".spec." in name
+
+
 def load(root: Path, include_vendored: bool = False) -> Target:
     target = Target(root=root, include_vendored=include_vendored)
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or _skipped(path, include_vendored):
+    # os.walk, pruning SKIP_DIRS before descending: rglob walked every node_modules and dropped it
+    # afterwards, and one real project took over two minutes to grade.
+    paths = []
+    for here, dirs, names in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        paths += [Path(here) / n for n in names]
+    for path in sorted(paths):
+        if _skipped(path, include_vendored):
             continue
-        if path.suffix not in CODE_SUFFIXES and path.name not in {"package.json"}:
+        if path.suffix not in CODE_SUFFIXES and path.name not in {"package.json"} and not _is_messages(path):
             continue
         try:
             target.files.append((path, path.read_text(encoding="utf-8", errors="replace")))
@@ -118,9 +159,9 @@ def check(cid: str, severity: str, description: str):
     return wrap
 
 
-def _scan(target: Target, pattern: re.Pattern, cid: str, severity: str, note=""):
+def _scan(target: Target, pattern: re.Pattern, cid: str, severity: str, note="", source=None):
     out = []
-    for path, text in target.code():
+    for path, text in (source if source is not None else target.code()):
         for m in pattern.finditer(text):
             line = text.count("\n", 0, m.start()) + 1
             excerpt = text.splitlines()[line - 1].strip()[:120] if text else ""
@@ -160,7 +201,7 @@ H_SCREEN = re.compile(r"\bh-screen\b|\bmin-h-screen\b")
 @check("h-screen", "high", "h-screen / min-h-screen instead of min-h-[100dvh] (rule 2)")
 def h_screen(t):
     return _scan(t, H_SCREEN, "h-screen", "high",
-                 "mobile browser chrome makes 100vh taller than the viewport; use 100dvh")
+                 "mobile browser chrome makes 100vh taller than the viewport; 100dvh for a shell, 100svh for a hero")
 
 
 PLACEHOLDER_NAMES = re.compile(r"\bJohn Doe\b|\bJane Smith\b|\bJane Doe\b|\bSarah Chan\b|\bJohn Smith\b")
@@ -187,7 +228,8 @@ ROUND_STATS = re.compile(r'["\'>\s(](?:99\.99%|99%|50%|1,000,000|1234)["\'<\s),]
 @check("round-stat", "medium", "a too-round invented statistic (rule 3)")
 def round_stat(t):
     return _scan(t, ROUND_STATS, "round-stat", "medium",
-                 "organic values read as measured: 47.2%, 3,847 members, $24,580")
+                 "sample data in an app screen: unround values, logged in fallbacks_applied. A statistic on a "
+                 "public page is proof, and proof is never invented (rule 3)")
 
 
 PLACEHOLDER_CONTACT = re.compile(r"\b\w+@example\.com\b|\b555-\d{4}\b")
@@ -201,13 +243,15 @@ def placeholder_contact(t):
 
 FILLER_WORDS = re.compile(
     r"\b(Elevate|Unleash|Seamless|Seamlessly|Next-Gen|Empower|Streamline|"
-    r"Game-changing|Revolutionary|Cutting-edge|Best-in-class)\b", re.IGNORECASE)
+    r"Game-changing|Revolutionary|Cutting-edge|Best-in-class|Supercharge|Effortless|Effortlessly)\b"
+    r"|\bfast-paced world\b|\bnext level\b|\bLook no further\b|\bSay goodbye to\b", re.IGNORECASE)
 
 
-@check("filler-word", "medium", "marketing filler in invented copy (rule 4)")
+@check("filler-word", "medium", "marketing filler in invented copy (rules 4 and 13)")
 def filler_word(t):
-    return _scan(t, FILLER_WORDS, "filler-word", "medium",
-                 "concrete verbs: 'Sign in', 'Send a message', 'Reset your password'")
+    found = _scan(t, FILLER_WORDS, "filler-word", "medium",
+                  "concrete verbs: 'Sign in', 'Send a message', 'Reset your password'", source=t.copy())
+    return [f for f in found if not f.excerpt.startswith(COMMENT_PREFIXES)]
 
 
 UNSPLASH = re.compile(r"images\.unsplash\.com|source\.unsplash\.com")
@@ -272,6 +316,138 @@ def decorative_surface(t):
                  "bows to the source: if Figma shows it, keep it (Step 4.5c) — this only flags invented ones")
 
 
+# Proof is what a visitor reads as a fact about the business: how many customers, how they rate
+# it, who trusts it. A generator that writes "Trusted by 3,847 teams" has written a claim the
+# client never made, and the more organic it looks the more likely it ships (rule 3).
+AUDIENCE = r"(?:customers|clients|teams|companies|businesses|users)"
+COUNT = r"\d+(?:[,.]\d+)*\s*[kKM]?"
+INVENTED_PROOF = re.compile(
+    r"\b(?:trusted|loved|relied on) by\b"
+    rf"|\bjoin(?:ed)?\s+(?:over\s+|more than\s+)?{COUNT}\+?"
+    rf"|\b(?:over|more than)\s+{COUNT}\+?\s+(?:happy\s+|satisfied\s+)?{AUDIENCE}\b"
+    rf"|\b{COUNT}\+\s+(?:happy\s+|satisfied\s+)?{AUDIENCE}\b"
+    rf"|\b{COUNT}\s+(?:happy|satisfied)\s+{AUDIENCE}\b"
+    r"|★{3,}|\b[1-5]\.\d\s*/\s*5\b|\b[1-5]\s*/\s*5\s+(?:stars|rating)\b|\bout of 5 stars\b", re.IGNORECASE)
+# "Up to 25 teams", "For 10+ clients", "per 5 users": a plan's limit, not a claim about the business.
+PRICING_QUALIFIER = re.compile(r"\b(?:up to|for|per|max(?:imum)?|unlimited|of)\s*$", re.IGNORECASE)
+# App screens (behind sign-in) hold sample rows, not public claims.
+APP_SEGMENTS = {"(app)", "(dashboard)", "(auth)", "dashboard", "admin", "(admin)"}
+
+
+@check("invented-proof", "medium", "proof written by the generator: customer counts, ratings, 'trusted by' (rule 3)")
+def invented_proof(t):
+    findings = []
+    for path, text in t.copy():
+        if APP_SEGMENTS & set(Path(t.rel(path)).parts):
+            continue
+        for m in INVENTED_PROOF.finditer(text):
+            if PRICING_QUALIFIER.search(text[max(0, m.start() - 20):m.start()]):
+                continue
+            line = text.count("\n", 0, m.start()) + 1
+            excerpt = text.splitlines()[line - 1].strip()[:120]
+            if excerpt.startswith(COMMENT_PREFIXES):
+                continue
+            findings.append(Finding("invented-proof", "medium", t.rel(path), line, excerpt,
+                                    "leave the slot empty with a TBD, or out, and list it in the hand-off — unless "
+                                    "the client supplied the figure, in which case cite where it came from"))
+    return findings
+
+
+COMMENT_PREFIXES = ("*", "//", "/*", "{/*")
+WATERMARK = re.compile(r"Generated by design-md-to-app")
+
+
+@check("generator-watermark", "medium", "the generator's signature on a client's page (design-md-to-app footer)")
+def generator_watermark(t):
+    findings = []
+    for f in _scan(t, WATERMARK, "generator-watermark", "medium",
+                   "provenance lives in _design-md-mapping.json and /showcase, not on the client's site"):
+        comment = f.excerpt.startswith(COMMENT_PREFIXES)
+        if not comment and "showcase" not in f.file:
+            findings.append(f)
+    return findings
+
+
+# Class lists as an agent writes them: a className string, or every string literal inside one cn()/clsx()/twMerge()
+# call (shadcn's own form — `cn("opacity-0", "animate-in")` splits the list across arguments).
+CLASS_ATTR = re.compile(r"""(?:className|class)\s*=\s*(["'`])(.*?)\1""", re.S)
+CLASS_CALL = re.compile(r"\b(?:cn|clsx|classNames|twMerge|cva)\s*\(")
+STRING_LITERAL = re.compile(r"""(["'`])((?:(?!\1).)*)\1""", re.S)
+
+
+def class_groups(text: str):
+    """(offset, classes) for each className string and each cn()/clsx() call."""
+    for m in CLASS_ATTR.finditer(text):
+        yield m.start(), m.group(2).split()
+    for m in CLASS_CALL.finditer(text):
+        depth, i = 1, m.end()
+        while i < len(text) and depth:
+            depth += {"(": 1, ")": -1}.get(text[i], 0)
+            i += 1
+        args = text[m.end():i - 1]
+        yield m.start(), [c for s in STRING_LITERAL.finditer(args) for c in s.group(2).split()]
+
+
+# tw-animate-css's `enter` keyframe has only a `from` frame (verified in tw-animate.css): it animates FROM the
+# --tw-enter-* values TO the element's own style. With `opacity-0` on the element the entrance fades 0 → 0 and the
+# content stays invisible for everyone — whatever fill-mode, with or without reduced motion.
+TW_ENTER = {"animate-in", "motion-safe:animate-in"}
+
+
+def _entrances(t, predicate, cid, severity, note):
+    findings = []
+    for path, text in t.code():
+        for offset, classes in class_groups(text):
+            if "opacity-0" in classes and predicate(classes):
+                line = text.count("\n", 0, offset) + 1
+                findings.append(Finding(cid, severity, t.rel(path), line,
+                                        text.splitlines()[line - 1].strip()[:120], note))
+    return findings
+
+
+@check("hidden-for-everyone", "high", "opacity-0 with a tw-animate-css entrance: it fades 0 → 0 (rule 10)")
+def hidden_for_everyone(t):
+    return _entrances(t, lambda c: bool(TW_ENTER & set(c)), "hidden-for-everyone", "high",
+                      "drop opacity-0: `animate-in fade-in fill-mode-both motion-reduce:animate-none` holds the "
+                      "from-frame during the delay and ends visible")
+
+
+def _custom_animation(classes) -> bool:
+    """An entrance that is not tw-animate's: animate-[…] or a project keyframe, plain or motion-safe:."""
+    for c in classes:
+        base = c.split(":", 1)[1] if c.startswith("motion-safe:") else c
+        if base.startswith("animate-") and base not in {"animate-in", "animate-out", "animate-none",
+                                                         "animate-pulse", "animate-spin", "animate-ping",
+                                                         "animate-bounce"}:
+            return True
+    return False
+
+
+@check("hidden-without-reduced-motion", "medium", "content starts at opacity-0 with no reduced-motion path (rule 10)")
+def hidden_without_reduced_motion(t):
+    return _entrances(t, lambda c: _custom_animation(c) and "motion-reduce:opacity-100" not in c
+                      and not TW_ENTER & set(c),
+                      "hidden-without-reduced-motion", "medium",
+                      "add motion-reduce:opacity-100 (and motion-reduce:animate-none): with the animation removed, "
+                      "opacity-0 is all that is left")
+
+
+CHART_MODULE = re.compile(r"""from\s+["'](?:recharts|@/components/ui/chart|[^"']*/ui/chart)["']""")
+GRADIENT_DEF = re.compile(r"<linearGradient\b|<radialGradient\b")
+URL_FILL = re.compile(r"""fill\s*=\s*\{?\s*["'`]url\(#""")
+
+
+@check("chart-gradient-fill", "low", "a chart area filled with a gradient (rule 12)")
+def chart_gradient_fill(t):
+    findings = []
+    for path, text in t.code():
+        if CHART_MODULE.search(text) and URL_FILL.search(text):
+            findings += _scan(t, GRADIENT_DEF, "chart-gradient-fill", "low",
+                              "a solid --chart-* fill at low opacity; the gradient is decoration (rule 11)",
+                              source=[(path, text)])
+    return findings
+
+
 # ─── absences ─────────────────────────────────────────────────────────────────
 #
 # The rules above find something that should not be there. These find something
@@ -287,7 +463,7 @@ def _absent(cid: str, severity: str, note: str) -> list[Finding]:
 def i18n_missing(t):
     pkg = t.root / "package.json"
     declared = "next-intl" in pkg.read_text(errors="replace") if pkg.exists() else False
-    messages = {p.stem for p in t.glob("messages/*.json")} | {p.stem for p in t.glob("**/messages/*.json")}
+    messages = {p.stem for p, _ in t.files if _is_messages(p) and p.parent.name == "messages"}
     if not declared and not messages:
         return _absent("i18n-missing", "high",
                        "every frontend ships i18n (next-intl on web), minimum en + it")
@@ -309,8 +485,8 @@ def theme_missing(t):
 
 @check("robustness-missing", "medium", "no error.tsx / loading.tsx at any route level")
 def robustness_missing(t):
-    if t.glob("**/error.tsx") or t.glob("**/error.jsx"):
-        if t.glob("**/loading.tsx") or t.glob("**/loading.jsx"):
+    if t.named("error.tsx", "error.jsx"):
+        if t.named("loading.tsx", "loading.jsx"):
             return []
     return _absent("robustness-missing", "medium",
                    "Step 4.8: an unhandled throw renders the framework's default error page")
@@ -393,11 +569,20 @@ def report(findings: list[Finding], summary: dict, baseline: dict | None) -> Non
 # that cannot do both is either dead or a false-positive generator.
 
 
+# Findings the bad fixtures must produce in a specific file: the per-id "fired somewhere" test cannot see a check
+# that fires on one file and silently skips another (a path rule that dropped `app/contests/` as a test folder).
+EXPECTED_BAD = {("invented-proof", "app/contests/page.tsx")}
+
+
 def selftest() -> int:
     here = Path(__file__).parent
     bad, good = run(here / "fixtures" / "bad"), run(here / "fixtures" / "good")
     fired = {f.check for f in bad}
     ids = [cid for cid, *_ in CHECKS]
+    located = {(f.check, f.file) for f in bad}
+    for cid, file in sorted(EXPECTED_BAD - located):
+        print(f"✗ {cid} did not fire on fixtures/bad/{file}", file=sys.stderr)
+        fired.discard(cid)
 
     silent = [c for c in ids if c not in fired]
     noisy = sorted({f.check for f in good})

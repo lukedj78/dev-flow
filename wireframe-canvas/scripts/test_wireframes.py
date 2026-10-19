@@ -35,6 +35,33 @@ INVENTORY = """# Inventory
 """
 
 
+ARGUMENT = """# Page argument
+
+## Inventory
+- Via dei Sette Portoni, the street the agency is named after
+- the 1924 tram timetable framed in the office
+- forty-two villages, each visited before it is sold
+- the ferry at seven from Milazzo
+- one guide per eight travellers, never more
+- lemon groves of the Conca d'Oro
+- the founders' grandmother's recipe book
+- closed in August, when the island is for islanders
+
+## Idea
+Idea: On this page, the 1924 tram timetable becomes the itinerary format every trip is shown in.
+
+## Competitor test
+Competitor: Sicily Uncovered, two streets away.
+Result: their trips have no timetable of their own — the sentence fails for them.
+
+## Argument
+| Section | Claim | Proof |
+|---|---|---|
+| Hero | Small groups that see the island by timetable | the timetable itinerary, real stops and times |
+| Trips | Every village visited before it is sold | the 42 villages on the map, with visit dates |
+"""
+
+
 def run(*argv: str) -> tuple[int, str]:
     out, err = io.StringIO(), io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -51,6 +78,8 @@ class Fixture(unittest.TestCase):
         (self.root / ".workflow/PRD.md").write_text(PRD)
         self.inv = self.root / "docs/wireframes/screen-inventory.md"
         self.inv.write_text(INVENTORY)
+        self.arg = self.root / "docs/wireframes/page-argument.md"
+        self.arg.write_text(ARGUMENT)
         self.meta_path = self.root / ".workflow/meta.json"
         self.meta_path.write_text(json.dumps({"phase": "design_extracted", "history": [],
                                               "stack": {"framework": "expo-rn", "data_residency": "none"}}))
@@ -122,6 +151,112 @@ class Approve(Fixture):
         self.assertEqual(set_phase(), 1)
         self.approve()
         self.assertEqual(set_phase(), 0)
+
+
+class Argument(Fixture):
+    def test_a_complete_argument_passes(self) -> None:
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+        self.assertIn("✓", out)
+
+    def test_a_short_inventory_is_named(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("- closed in August, when the island is for islanders\n", ""))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1)
+        self.assertIn("7 inventory items", out)
+
+    def test_an_idea_without_becomes_is_named(self) -> None:
+        self.arg.write_text(ARGUMENT.replace(" becomes the itinerary format", ", shown as the format"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1)
+        self.assertIn("Idea:", out)
+
+    def test_an_empty_competitor_test_is_named(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("Result: their trips have no timetable of their own — the sentence fails for them.", "Result:"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1)
+        self.assertIn("Result:", out)
+
+    def test_a_claim_without_proof_is_named(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("| the 42 villages on the map, with visit dates |", "|  |"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1)
+        self.assertIn("Trips", out)
+
+    def test_placeholders_are_gaps(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("Competitor: Sicily Uncovered, two streets away.", "Competitor: <TBD>"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1)
+
+    def test_no_public_screen_needs_no_argument(self) -> None:
+        self.inv.write_text(INVENTORY.replace("| visitor |", "| traveller |"))
+        self.arg.unlink()
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+        self.assertIn("no public screen", out)
+        rc, _ = self.approve()
+        self.assertEqual(rc, 0)
+
+    def test_the_idea_may_be_written_in_the_users_language_or_with_an_arrow(self) -> None:
+        for idea in ("Idea: In questa pagina, l'orario del tram del 1924 diventa il formato di ogni viaggio.",
+                     "Idea: the 1924 tram timetable → the itinerary format every trip is shown in.",
+                     "**Idea:** On this page, the 1924 tram timetable becomes the itinerary format."):
+            with self.subTest(idea):
+                self.arg.write_text(ARGUMENT.replace(
+                    "Idea: On this page, the 1924 tram timetable becomes the itinerary format every trip is shown in.", idea))
+                rc, out = run("argument", str(self.root))
+                self.assertEqual(rc, 0, out)
+
+    def test_an_ellipsis_inside_real_content_is_not_a_placeholder(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("- closed in August, when the island is for islanders",
+                                             "- closed Sundays… and all of August"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+
+    def test_the_argument_table_is_read_by_header_name(self) -> None:
+        self.arg.write_text(ARGUMENT.replace("| Section | Claim | Proof |\n|---|---|---|",
+                                             "| # | Proof | Section | Claim |\n|---|---|---|---|")
+                            .replace("| Hero | Small groups that see the island by timetable | the timetable itinerary, real stops and times |",
+                                     "| 1 | the timetable itinerary, real stops and times | Hero | Small groups that see the island by timetable |")
+                            .replace("| Trips | Every village visited before it is sold | the 42 villages on the map, with visit dates |",
+                                     "| 2 | the 42 villages on the map, with visit dates | Trips | Every village visited before it is sold |"))
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 0, out)
+
+    def test_a_missing_inventory_is_a_gap_not_a_pass(self) -> None:
+        self.inv.unlink()
+        rc, out = run("argument", str(self.root))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("screen-inventory.md", out)
+
+    def test_role_column_and_word_variants_count_as_public(self) -> None:
+        for header, role in (("Role", "visitor"), ("Ruoli", "visitatore"), ("Roles", "visitors")):
+            with self.subTest(header=header, role=role):
+                self.inv.write_text(INVENTORY.replace("| Roles |", f"| {header} |").replace("| visitor |", f"| {role} |"))
+                self.arg.unlink(missing_ok=True)
+                rc, out = run("argument", str(self.root))
+                self.assertEqual(rc, 1, out)
+
+    def test_approve_refuses_a_public_area_without_an_argument(self) -> None:
+        self.arg.unlink()
+        rc, out = self.approve()
+        self.assertEqual(rc, 1)
+        self.assertIn("page-argument.md", out)
+        self.assertNotIn("wireframes", self.meta())
+
+    def test_approve_records_the_argument(self) -> None:
+        rc, _ = self.approve()
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.meta()["wireframes"]["argument"], "docs/wireframes/page-argument.md")
+
+    def test_no_argument_needs_a_reason_and_is_recorded(self) -> None:
+        self.arg.unlink()
+        rc, _ = self.approve("--no-argument", "  ")
+        self.assertEqual(rc, 1)
+        rc, _ = self.approve("--no-argument", "the public site is the client's own agency")
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.meta()["wireframes"]["argument"],
+                         {"skipped": "the public site is the client's own agency"})
 
 
 class Screenshots(Fixture):

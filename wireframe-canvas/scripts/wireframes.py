@@ -2,7 +2,9 @@
 """The wireframe step as commands: check the screen inventory, record the user's approval, track the PNGs.
 
     wireframes.py coverage <root>                      every PRD story maps to >= 1 screen; every row has states
+    wireframes.py argument <root>                      the public area's page argument is complete (or not needed)
     wireframes.py approve  <root> --canvas-url <url> --user-said "<their words>" [--artboards N]
+                           [--no-argument "<reason>"]  public screens need docs/wireframes/page-argument.md
     wireframes.py skip     <root> --reason "..."       explicit opt-out, kept in meta.json
     wireframes.py pngs     <root>                      which docs/wireframes/png/<ID>-{desktop,phone}.png are missing
     wireframes.py targets  <root>                      story -> screens -> PNGs, as JSON
@@ -27,6 +29,15 @@ import meta_io  # vendored copy of dev-flow/scripts/meta_io.py — lint_skills.p
 
 INVENTORY = "docs/wireframes/screen-inventory.md"
 PNG_DIR = "docs/wireframes/png"
+ARGUMENT = "docs/wireframes/page-argument.md"
+MIN_INVENTORY = 8
+# A placeholder is a template slot or a marker, or a value that is nothing but dots — "closed Sundays… and August"
+# is real content.
+PLACEHOLDER = re.compile(r"<[^>]*>|\bTBD\b|\bTODO\b|^\s*(?:\.\.\.|…)\s*$")
+# The idea's link word in the languages our users write in, or an arrow (references/page-argument.md).
+IDEA_LINK = re.compile(r"\b(?:becomes|diventa|diventano|devient|wird|se convierte en|se torna|torna-se)\b|→|->", re.I)
+PUBLIC_ROLE = re.compile(r"\b(?:visitors?|visitatori|visitatore|visiteurs?|besucher)\b", re.I)
+ROLE_COLUMNS = ("roles", "role", "ruoli", "ruolo")
 STORY = re.compile(r"\bUS-\d+\b")
 SCREEN_ID = re.compile(r"^[A-Z]{1,3}\d{1,3}[a-z]?$")
 
@@ -68,8 +79,9 @@ def parse_inventory(text: str) -> list[dict]:
             continue
         row = dict(zip(header, c))
         if SCREEN_ID.match(row.get("id", "")):
+            roles = next((row[c] for c in ROLE_COLUMNS if c in row), "")
             rows.append({"id": row["id"], "screen": row.get("screen", ""), "stories": STORY.findall(row.get("stories", "")),
-                         "states": row.get("states", "")})
+                         "states": row.get("states", ""), "roles": roles})
     return rows
 
 
@@ -115,6 +127,74 @@ def coverage(root: Path, inventory: str) -> tuple[list[dict], list[str]]:
     return rows, problems
 
 
+def public_rows(rows: list[dict]) -> list[dict]:
+    """Screens a visitor sees before signing in: the ones that need a page argument."""
+    return [r for r in rows if PUBLIC_ROLE.search(r["roles"])]
+
+
+def _section(text: str, title: str) -> str | None:
+    m = re.search(rf"^##\s+{re.escape(title)}\s*$(.*?)(?=^##\s|\Z)", text, re.M | re.S | re.I)
+    return m.group(1) if m else None
+
+
+def _filled(value: str) -> bool:
+    return bool(value.strip()) and not PLACEHOLDER.search(value)
+
+
+def argument_gaps(root: Path) -> list[str]:
+    """What is missing from docs/wireframes/page-argument.md (references/page-argument.md has the format)."""
+    path = root / ARGUMENT
+    if not path.is_file():
+        return [f"{ARGUMENT} does not exist"]
+    text = path.read_text().replace("**", "")  # `**Idea:**` in bold is the same label
+    gaps = []
+    inv = _section(text, "Inventory")
+    items = [l for l in (inv or "").splitlines() if re.match(r"\s*[-*]\s+\S", l) and _filled(l.lstrip(" -*"))]
+    if len(items) < MIN_INVENTORY:
+        gaps.append(f"## Inventory has {len(items)} inventory items — at least {MIN_INVENTORY} things only this client has")
+    idea = re.search(r"^Idea:\s*(.+)$", _section(text, "Idea") or "", re.M)
+    if not idea or not _filled(idea.group(1)) or not IDEA_LINK.search(idea.group(1)):
+        gaps.append("## Idea needs one line `Idea: On this page, <something of the subject> becomes <the device>` "
+                    "(in the user's language — diventa, devient, wird… — or with →)")
+    comp = _section(text, "Competitor test") or ""
+    for label in ("Competitor:", "Result:"):
+        m = re.search(rf"^{label}\s*(.*)$", comp, re.M)
+        if not m or not _filled(m.group(1)):
+            gaps.append(f"## Competitor test needs `{label}` filled")
+    arg = _section(text, "Argument") or ""
+    table = [cells(l) for l in arg.splitlines() if l.lstrip().startswith("|")]
+    head = [h.lower() for h in table[0]] if table else []
+    cols = [head.index(n) if n in head else None for n in ("section", "claim", "proof")]
+    rows = [r for r in table[1:] if not all(set(x) <= set("-: ") for x in r)]
+    if not rows or None in cols:
+        gaps.append("## Argument needs a table with `Section`, `Claim` and `Proof` columns, one row per section")
+    else:
+        for r in rows:
+            section, claim, proof = (r[i] if i < len(r) else "" for i in cols)
+            if not all(_filled(x) for x in (section, claim, proof)):
+                gaps.append(f"## Argument row `{section or '?'}` needs a section, a claim and its proof "
+                            "(a section with no claim is cut)")
+    return gaps
+
+
+def cmd_argument(a: argparse.Namespace) -> int:
+    if not (a.root / a.inventory).is_file():
+        print(f"  ✗ {a.inventory} does not exist — write the screen inventory first (Step 1)")
+        return 1
+    rows, _ = coverage(a.root, a.inventory)
+    public = public_rows(rows)
+    if not public:
+        print("no public screen (no `visitor` role in the inventory) — no page argument needed")
+        return 0
+    gaps = argument_gaps(a.root)
+    print(f"{len(public)} public screens ({', '.join(r['id'] for r in public)}), argument {ARGUMENT}")
+    for g in gaps:
+        print(f"  ✗ {g}")
+    if not gaps:
+        print("  ✓ inventory, idea, competitor test and argument are complete")
+    return 1 if gaps else 0
+
+
 def missing_pngs(root: Path, rows: list[dict]) -> list[str]:
     return [f"{PNG_DIR}/{r['id']}-{v}.png" for r in rows for v in ("desktop", "phone")
             if not (root / PNG_DIR / f"{r['id']}-{v}.png").is_file()]
@@ -145,10 +225,28 @@ def cmd_approve(a: argparse.Namespace) -> int:
     if not a.user_said.strip():
         print("Refused: --user-said must quote the user's approval.", file=sys.stderr)
         return 1
+    argument: object = None
+    if public_rows(rows):
+        if a.no_argument is not None:
+            if not a.no_argument.strip():
+                print("Refused: --no-argument needs a reason.", file=sys.stderr)
+                return 1
+            argument = {"skipped": a.no_argument.strip()}
+        else:
+            gaps = argument_gaps(a.root)
+            if gaps:
+                print(f"Refused: the inventory has public screens and {ARGUMENT} is not complete "
+                      "(references/page-argument.md). Write it, or pass --no-argument \"<reason>\".", file=sys.stderr)
+                for g in gaps:
+                    print(f"  ✗ {g}", file=sys.stderr)
+                return 1
+            argument = ARGUMENT
     path, meta = load(a.root)
     wf = {k: v for k, v in (meta.get("wireframes") or {}).items() if k not in ("skipped", "reason")}
     wf.update({"canvas_url": a.canvas_url, "inventory": a.inventory, "screens": len(rows), "artboards": artboards,
                "approved_at": now_iso(), "approved_by_user": True, "approval_quote": a.user_said.strip()})
+    if argument is not None:
+        wf["argument"] = argument
     wf.setdefault("screenshots_posted_at", None)
     meta["wireframes"] = wf
     save(path, meta)
@@ -306,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="op", required=True)
     specs = {
-        "coverage": cmd_coverage, "approve": cmd_approve, "skip": cmd_skip,
+        "coverage": cmd_coverage, "argument": cmd_argument, "approve": cmd_approve, "skip": cmd_skip,
         "pngs": cmd_pngs, "targets": cmd_targets, "comments": cmd_comments, "posted": cmd_posted,
     }
     for name, fn in specs.items():
@@ -317,6 +415,8 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--canvas-url", required=True)
             p.add_argument("--user-said", required=True, help="the user's approval, quoted")
             p.add_argument("--artboards", type=int, default=None)
+            p.add_argument("--no-argument", default=None, metavar="REASON",
+                           help="approve public screens without docs/wireframes/page-argument.md, recorded with the reason")
         if name == "comments":
             p.add_argument("--repo", help="OWNER/NAME, for the image URLs (GitHub)")
             p.add_argument("--ref", help="the commit SHA that holds the PNGs, pinned, not a branch (GitHub)")

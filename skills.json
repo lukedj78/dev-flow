@@ -105,11 +105,13 @@
       ],
       "scripts": [
         "meta_io.py",
+        "render_probe.mjs",
         "surfaces.py",
+        "test_render_probe.py",
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 165,
+      "skill_md_lines": 194,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -335,17 +337,18 @@
       "name": "wireframe-canvas",
       "family": "core",
       "role": "discovery",
-      "description": "The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD's user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, revi...",
+      "description": "Between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD's user stories, for public screens a page argument (an idea of the client's own, a claim and proof per section), then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai ...",
       "skill_file": "wireframe-canvas/SKILL.md",
       "references": [
-        "contracts.md"
+        "contracts.md",
+        "page-argument.md"
       ],
       "scripts": [
         "meta_io.py",
         "test_wireframes.py",
         "wireframes.py"
       ],
-      "skill_md_lines": 146,
+      "skill_md_lines": 164,
       "bundle": "dist/wireframe-canvas.skill"
     },
     {
@@ -431,9 +434,10 @@
         "setup_design_lint.py",
         "setup_primitives_guard.py",
         "test_setup_design_lint.py",
-        "test_setup_primitives_guard.py"
+        "test_setup_primitives_guard.py",
+        "test_templates.py"
       ],
-      "skill_md_lines": 1326,
+      "skill_md_lines": 1348,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -624,7 +628,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 195,
+      "skill_md_lines": 198,
       "bundle": "dist/transitions.skill"
     },
     {
