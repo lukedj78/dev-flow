@@ -723,7 +723,7 @@ Write each file from its template under `references/`:
 | File | Template | Why it matters |
 |---|---|---|
 | `app/global-error.tsx` | `references/global-error.template.tsx` | The boundary for an error thrown by the root layout itself, which `error.tsx` cannot catch: it renders its own `<html>`/`<body>`, plain and self-contained. `module-add observability` adds the report to the tracker. |
-| `app/error.tsx` | `references/error.template.tsx` | Root error boundary. Without it, a single uncaught render error blanks the whole app to a Next default page that leaks `error.message` to the user. The template scrubs the message, shows a clean fallback with `reset()`, and surfaces `digest` for log lookup. |
+| `app/error.tsx` (`app/[locale]/error.tsx` with i18n routing, inside the intl provider) | `references/error.template.tsx` | Root error boundary. Without it, a single uncaught render error blanks the whole app to a Next default page that leaks `error.message` to the user. The template scrubs the message, shows a clean fallback with `reset()`, and surfaces `digest` for log lookup. |
 | `app/loading.tsx` | `references/loading.template.tsx` | Streaming-RSC suspense fallback. Without it, navigating to a route that does any async work hangs on a blank page until the server finishes. The template uses shadcn `<Skeleton>` to render a content-shaped placeholder. |
 | `lib/env.ts` | `references/env.template.ts` | Zod-validated environment at boot. Without it, a missing `DATABASE_URL` only blows up the first time a request hits the DB layer — often in production, never in dev. The template fails fast with a clear message at module-eval time. **Import `env` from this file** instead of reading `process.env` ad hoc. |
 | `lib/queries/<domain>.ts` | `references/queries.template.ts` | Counterpart to `lib/server/<domain>.ts`. **Reads** live here (called from RSC), **mutations** live in `lib/server/`. Keeps the boundary clean — read-from-anywhere, mutate-only-from-actions. |
@@ -779,7 +779,10 @@ For every component you author:
    - "Nav full pill → compact pill with hamburger"
 
    Each of these is a concrete Tailwind class set:
-   - `hero h1`: `text-[40px] lg:text-[64px]` (or use `clamp()` in inline style)
+   - `hero h1`: `text-4xl lg:text-6xl` — the theme's `--text-*` slots, redefined from DESIGN.md (§Typography tokens
+     below), so "64px" is whatever slot DESIGN.md's display level landed on. Never an arbitrary `text-[…]` value
+     or an inline `fontSize`: the project's design lint rejects both. Fit the headline to two lines at 390 px in the **longest**
+     locale (`references/i18n-next-intl.md` §Headlines in every locale).
    - `service grid`: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`
    - `section padding`: `py-12 lg:py-32`
    - `footer columns`: collapse to `<details>` accordion below `md:` OR stack vertically with `grid-cols-1 md:grid-cols-4`
@@ -822,7 +825,7 @@ Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12
 - [ ] DESIGN.md §Responsive Behavior section read and consumed
 - [ ] All grids start `grid-cols-1` and add larger breakpoints as overrides
 - [ ] All hero/section padding starts small and grows: `py-12 lg:py-24`
-- [ ] All hero headlines use `clamp()` or `text-[Xpx] lg:text-[Ypx]`
+- [ ] All hero headlines step through the scale (`text-4xl lg:text-6xl`) and fit two lines at 390 px in every locale
 - [ ] Touch targets ≥ 44×44px (`h-11` minimum on tappable elements)
 - [ ] Nav with 4+ links uses hamburger pattern below `md:` (Sheet primitive)
 - [ ] Decorative SVGs (orbital arcs, etc.) hidden below `lg:` if the design intent is asymmetric placement
@@ -917,9 +920,12 @@ The site-shell has two components, both **mandatory** and both written by this s
 
 **`<SiteTopNav>`** at `components/shared/site/site-top-nav.tsx`:
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 h-14 flex items-center gap-8`.
-- Brand on the left: small logo box (`size-7 rounded-md bg-primary text-surface`) with the project initial + project name in `text-[14px] font-semibold`.
-- Nav links in the middle: 4–6 links to the project's main routes (`/`, `/showcase`, plus 2–4 product routes), `text-[14px] text-on-surface-variant hover:text-on-surface`.
-- Right side: a secondary text link (e.g., `Accedi` / `Sign in`) + the project's primary CTA as a small `<Button>` ("Nuova pratica" / "Reserve" / "Deploy").
+- Brand on the left: small logo box (`size-7 rounded-md bg-primary text-surface`) with the project initial + project name in `text-sm font-semibold`.
+- Nav links in the middle: 4–6 links to the project's main routes (`/`, `/showcase`, plus 2–4 product routes), `text-sm text-on-surface-variant hover:text-on-surface`.
+- Right side: a secondary text link (sign in) + the project's primary CTA as a small `<Button>` named for what it does.
+- **Every label is a message** (`getTranslations("SiteNav")`, en + it — golden rule 2) and `Link` comes from
+  `@/i18n/navigation`; the project's name is a brand constant, not a message. Start from
+  `references/site-top-nav.template.tsx`, which shows the keys for both locales.
 - Background `bg-surface` with `border-b border-outline`.
 
 **`<SiteFooter>`** at `components/shared/site/site-footer.tsx` (or `wordmark-footer.tsx` if the wordmark variant is chosen — see below):
@@ -938,7 +944,12 @@ The footer **must be DESIGN.md-faithful**. Hardcoding the same wordmark template
 
 3. **If the DESIGN.md is silent on the footer, OR explicitly describes a wordmark/marquee footer**, default to the WordmarkFooter pattern below. Editorial / portfolio / brand-focused projects (Aetherfield, Notarius, Wisely-style) live here — a giant lowercase project name **is** the footer's identity.
 
-4. **Always include the mono micro-row at the bottom** regardless of which pattern: two-column flex with `font-mono text-[11px] tracking-wide uppercase text-on-surface-variant` — left "© YEAR Project · regional/legal note", right "Generated by design-md-to-app from .workflow/DESIGN.md". This is the audit signature.
+4. **End with a legal row** whatever the pattern: `© {year} {name}`, the legal links and any regional note
+   (hosting region, VAT number), as one translated message in `text-xs text-on-surface-variant`. **No generator
+   signature.** This is the client's page; that the scaffold came from DESIGN.md is recorded in
+   `_design-md-mapping.json` and visible on `/showcase`, which are ours. *Corrected 2026-10-19:* this step used to
+   demand a monospace "Generated by design-md-to-app" row on every footer — a watermark on a client's site, found
+   live on two projects.
 
 #### WordmarkFooter pattern (the fallback)
 
@@ -946,9 +957,10 @@ When DESIGN.md is silent or asks for a wordmark, write `wordmark-footer.tsx`:
 
 - Background: a soft branded surface — for projects with a brand banner color (Aetherfield lime, Notarius lavender), use it; otherwise `bg-background-primary` or equivalent tinted surface.
 - Container `mx-auto max-w-[1280px] px-6 lg:px-12 pt-16 pb-10 space-y-10`.
-- **Meta row** (top): brand description on the left (eyebrow + 1-2 sentences) + 2-3 columns of nav links on the right (uppercase eyebrow + 3 links each).
-- **Wordmark** (middle, the load-bearing visual): the project name in lowercase, sized `clamp(96px, 18vw, 240px)`, color = primary, line-height tight (~0.85), letter-spacing tight (-0.04em). It must span enough of the container width to BE the footer's identity, not garnish it.
-- **Mono micro-row** (bottom, mandatory): the audit signature described above.
+- **Meta row** (top): the brand description on the left (1–2 sentences) + 2–3 columns of nav links on the right (a sentence-case column heading + 3 links each).
+- **Wordmark** (middle, the load-bearing visual): the project name in lowercase on the scale's largest slots (`text-7xl sm:text-8xl lg:text-9xl`), color = primary, `leading-none`, `tracking-tighter`, `aria-hidden` (the name is already in the nav). It must span enough of the container width to BE the footer's identity, not garnish it.
+- **Legal row** (bottom): step 4 above.
+- Every string is a message (`getTranslations("SiteFooter")`); start from `references/wordmark-footer.template.tsx`.
 
 Visual reference: see Aetherfield's giant "aetherfield" lime wordmark and Notarius's purple "notarius" wordmark on lavender — both sized to fill the container, both unmistakably the project's signature.
 
@@ -1082,7 +1094,8 @@ Same wrapper, but `py-20` and the h1 is bigger (`72px / 80px / -0.02em / 600`). 
 - ❌ Producing `/showcase` WITHOUT a site-shell (no `SiteTopNav`, no `SiteFooter` of any kind). The page must be branded top-and-bottom. A naked `<main>` is a contract violation.
 - ❌ Using a 1-line minimal text footer when DESIGN.md describes either a wordmark OR a structured 4-column footer. Match what's specified.
 - ❌ Writing the giant lowercase wordmark on a project where DESIGN.md describes an institutional 4-column link grid (Mastercard-style). The wordmark is for editorial brands; for institutional brands it reads as off-brand.
-- ❌ Skipping the mono micro-row at the bottom of the footer ("© YEAR · Generated by design-md-to-app"). It's the audit signature regardless of which footer pattern is used.
+- ❌ Signing the client's footer with the generator ("Generated by design-md-to-app", a monospace version stamp). Provenance lives in `_design-md-mapping.json`; `check.py` counts it as `generator-watermark`.
+- ❌ Hard-coding a label in the site shell, in any language. Nav, footer and error copy are messages (golden rule 2).
 - ❌ Sections without `border-b` full-width wrapper. The whole page is a vertical stack of bordered bands.
 - ❌ Sections without an Eyebrow above the h2.
 - ❌ h2 at 28px or smaller. The h2 is **48px display**, always.

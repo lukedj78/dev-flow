@@ -30,7 +30,7 @@ Follows the dev-flow contract — see `references/contracts.md`. Key facts:
 ## Companion skills — what this owns vs reuses
 
 - **`module-add motion`** — installs the **Motion** runtime (`motion/react`, `components/motion/*`, `lib/motion-config.ts`). This skill sits *above* it: it owns the token layer + the curated library + the discipline; it never re-installs the runtime, it routes there when Tier 3 is needed.
-- **`tw-animate-css`** — already shipped by shadcn; it's this skill's **Tier 0** engine (fade/slide/scale/shimmer, zero JS). Reuse it, don't reinvent.
+- **`tw-animate-css`** — already shipped by shadcn; it's this skill's **Tier 0** engine (fade/slide/scale, zero JS; it ships no shimmer — `references/tw-animate-css.md`). Reuse it, don't reinvent.
 - **`design-md-to-app`** — owns DESIGN.md and the visual tokens. This skill reads the **`motion` block** of DESIGN.md for the *values*; if absent, it scaffolds sane defaults and writes them back (DESIGN.md stays the source of truth for values).
 - **anti-slop fallbacks** (`design-md-to-app/references/anti-slop-fallbacks.md`) — the "animate only transform/opacity", hardware-acceleration, content-shaped-skeleton, CSS-stagger rules live there. This skill enforces them; it doesn't duplicate them.
 - **`rn-animations-gestures`** — the **mobile** counterpart (Reanimated + Gesture Handler). This skill is web-only.
@@ -54,7 +54,7 @@ Reach for the **lowest** tier that achieves the effect. Higher tiers cost bundle
 
 | Tier | Engine | Use for | Cost |
 |---|---|---|---|
-| **0** | Tailwind + `tw-animate-css` | enter/exit fade·slide·scale, hover lift, CSS stagger (`animationDelay`), skeleton shimmer | zero JS, RSC-safe |
+| **0** | Tailwind + `tw-animate-css` | enter/exit fade·slide·scale, hover lift, CSS stagger (`animationDelay`), skeleton pulse (Tailwind's `animate-pulse`, opacity only — never a moving gradient sweep) | zero JS, RSC-safe |
 | **1** | Hand-written CSS `transition` / `@keyframes` (tokened) | bespoke feedback (success check draw, error shake, number pop), state-swap crossfades | zero JS, RSC-safe |
 | **2** | **View Transitions API** | route/page transitions (Next 16 App Router), same-document DOM swaps (list reorder, tab underline) | tiny JS, mostly RSC-safe |
 | **3** | **Motion** (`motion/react`) | spring physics, layout / shared-element, drag & gesture, scroll-driven choreography (`useScroll`/`useTransform`) | ~40kb, forces `"use client"` → routes to `module-add motion` |

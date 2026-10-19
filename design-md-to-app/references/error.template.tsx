@@ -1,6 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+// Locale-aware Link (references/i18n-next-intl.md). Without i18n routing, `import Link from "next/link"`.
+import { Link } from "@/i18n/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 /**
@@ -11,6 +13,16 @@ import { Button, buttonVariants } from "@/components/ui/button";
  *  - DO NOT show `error.message` to the user verbatim. It can leak internals.
  *  - DO report the error: `module-add observability` wires it to the tracker.
  *  - DO offer "retry" via the `reset()` callback that Next provides.
+ *
+ * messages/en.json                                  messages/it.json
+ * "Error": {                                        "Error": {
+ *   "title": "We couldn't load this page.",           "title": "Non siamo riusciti a caricare la pagina.",
+ *   "body": "The error has been recorded. You         "body": "L'errore è stato registrato. Puoi
+ *     can try again, or go back to the home.",          riprovare o tornare alla home.",
+ *   "ref": "ref: {digest}",                           "ref": "rif.: {digest}",
+ *   "retry": "Try again",                             "retry": "Riprova",
+ *   "home": "Back to home"                            "home": "Torna alla home"
+ * }                                                 }
  */
 export default function GlobalError({
   error,
@@ -19,6 +31,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("Error");
   // module-add observability (errors level) replaces this with Sentry.captureException(error): the error then
   // reaches the tracker with its release, instead of staying in the user's browser.
   if (typeof window !== "undefined") {
@@ -28,35 +41,19 @@ export default function GlobalError({
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6 py-16">
       <div className="max-w-md text-center space-y-4">
-        <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-on-surface-variant">
-          Something went wrong
-        </p>
-        <h1
-          style={{
-            fontSize: "clamp(28px, 4vw, 48px)",
-            fontWeight: 600,
-            lineHeight: 1.1,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          We couldn&apos;t load this page.
-        </h1>
-        <p className="text-[16px] text-on-surface-variant leading-relaxed">
-          The error has been recorded. You can try again, or go back to the
-          dashboard.
-        </p>
+        {/* Type sizes are the theme's --text-* slots (redefined from DESIGN.md), never text-[Npx] or style={{ fontSize }} */}
+        <h1 className="text-3xl lg:text-5xl font-semibold leading-tight tracking-tight">{t("title")}</h1>
+        <p className="text-base text-on-surface-variant leading-relaxed">{t("body")}</p>
         {error.digest ? (
-          <p className="text-[12px] font-mono text-on-surface-variant pt-2">
-            ref: {error.digest}
-          </p>
+          <p className="text-xs font-mono text-on-surface-variant pt-2">{t("ref", { digest: error.digest })}</p>
         ) : null}
         <div className="pt-4 flex gap-3 justify-center">
           {/* golden rule 3: the primitives as they are — never a <button>/<a> redrawn by hand */}
           <Button size="lg" onClick={reset}>
-            Try again
+            {t("retry")}
           </Button>
           <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
-            Back to home
+            {t("home")}
           </Link>
         </div>
       </div>

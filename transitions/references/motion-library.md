@@ -149,8 +149,8 @@ Tokens: `duration.base`, `ease.standard`. `@keyframes` on `translateX` (±`dista
 ### number pop / count roll
 Tier 1 (scale keyframe on change) or Tier 3 for a rolling odometer. Reduced-motion: set final value instantly.
 
-### skeleton shimmer
-Tier 0 — content-shaped `<Skeleton>` (per anti-slop rule) with Tailwind's core **`animate-pulse`**. ⚠️ `tw-animate-css` ships **no shimmer utility** (its only ready-made animations are accordion/collapsible/caret-blink — see `references/tw-animate-css.md`); for a true sweeping shimmer write a Tier-1 `@keyframes` on `transform: translateX()` over a gradient overlay, not `background-position`. Reduced-motion: static muted block.
+### skeleton pulse
+Tier 0 — content-shaped `<Skeleton>` (per anti-slop rule 9) with Tailwind's core **`animate-pulse`**, opacity only. ⚠️ `tw-animate-css` ships **no shimmer utility** (its only ready-made animations are accordion/collapsible/caret-blink — see `references/tw-animate-css.md`). **No sweeping gradient shimmer by default:** it is a decorative gradient, which anti-slop rule 11 bans; only a DESIGN.md that specifies one gets it, as a Tier-1 `@keyframes` on `transform: translateX()` over the overlay, never `background-position`. Reduced-motion: static muted block.
 
 ## Layout (Tier 2–3)
 
