@@ -1885,6 +1885,22 @@ def inline_flags(name: str) -> tuple[str, ...] | None:
     return None
 
 
+def shell_tokens(text: str) -> tuple[list[str], bool]:
+    """(tokens, whether the quoting parsed). The ONE tokeniser.
+
+    `hook_tokens` was built with `punctuation_chars=True` and a comment saying two tokenisers would
+    be a parser differential between the gate and the scanner — and then the exemption helper was
+    written with a plain `shlex.split`, which returns `a;b` as ONE token. So
+    `python3 registry_intake.py check .;python3 -c "…write the lock…"` looked like a single call of
+    our own script and exempted itself. The warning was right; it just was not followed."""
+    try:
+        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        return (list(lex) if text.strip() else []), True
+    except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
+        return text.split(), False
+
+
 def hook_tokens(root: Path, command: str) -> tuple[str, list[str], bool]:
     """(the command with $CLAUDE_PROJECT_DIR expanded, its tokens, whether the quoting parsed).
 
@@ -1897,15 +1913,11 @@ def hook_tokens(root: Path, command: str) -> tuple[str, list[str], bool]:
     expanded = command
     for form in ('"${CLAUDE_PROJECT_DIR}"', "${CLAUDE_PROJECT_DIR}", '"$CLAUDE_PROJECT_DIR"', "$CLAUDE_PROJECT_DIR"):
         expanded = expanded.replace(form, str(root))
-    try:
-        # `shlex.split` does not know operators: `a;b` is one token, and a token that is half a
-        # path and half the next command is neither — it was dropped in silence. punctuation_chars
-        # splits `;`, `&`, `|`, `<`, `>` and parentheses out, which SEPARATORS below already reads.
-        lex = shlex.shlex(expanded, posix=True, punctuation_chars=True)
-        lex.whitespace_split = True
-        return expanded, (list(lex) if expanded.strip() else []), True
-    except ValueError:            # an unbalanced quote: fall back to whitespace, never to silence
-        return expanded, expanded.split(), False
+    # `shlex.split` does not know operators: `a;b` is one token, and a token that is half a path
+    # and half the next command is neither — it was dropped in silence. punctuation_chars splits
+    # `;`, `&`, `|`, `<`, `>` and parentheses out, which SEPARATORS below already reads.
+    tokens, parsed = shell_tokens(expanded)
+    return expanded, tokens, parsed
 
 
 def is_pathish(root: Path, token: str) -> bool:
@@ -2932,7 +2944,12 @@ def hook_decision(payload: dict) -> str | None:
         which = protected_file(root, written_path(tool_input))
         if which == LOCK:
             return LOCK_DENIAL
-        if BASELINE_PATH.search(written_path(tool_input)):
+        raw = written_path(tool_input)
+        try:
+            both = f"{raw}\x00{Path(raw).resolve(strict=False)}" if raw else ""
+        except OSError:
+            both = raw
+        if raw and BASELINE_PATH.search(both.lower()):
             return ("this writes the file `hook-post` uses as the state from before the command, so "
                     "writing it decides what the next report is allowed to say. Nothing legitimate "
                     "needs it: `registry_intake.py check <root>` recomputes everything from the "
@@ -3084,7 +3101,15 @@ def hook_ask(payload: dict) -> str | None:
     # Reached only when nothing above DENIED: every deny rule runs first now. Putting this check
     # before them turned `shadcn add @evil/x && cat registry-lock.json` from a refusal into a
     # question — a deny downgraded to an ask by the noise fix that was meant to sit beside it.
-    if LOCK.lower() in command.lower().replace("\\", "") and not our_invocation(command):
+    # Normalised as `may_install` does it: quotes and backslashes out, then case. `"registry"-lock
+    # .json` and `registry\-lock.json` are the same file to a shell and were not to this check.
+    flat = re.sub(r"[\"'\\]", "", command).lower()
+    # A glob expands to the name without spelling it: `registry-lo?k.json`, `registry-*.json`,
+    # `registry-lock.js*`. We cannot expand it — only a shell can — so a fragment of the name beside
+    # a glob character is treated as the name, which is the fail-closed direction here.
+    stem = LOCK.lower().removesuffix(".json")
+    globbed = re.search(rf"{re.escape(stem[:8])}[\w.*?\[\]-]*[*?\[]|[*?\[][\w.*?\[\]-]*{re.escape(stem[-4:])}", flat)
+    if (LOCK.lower() in flat or globbed) and not our_invocation(command):
         return (f"this command names {LOCK}, registry intake's record of what a person decided. "
                 "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
                 "know which of the two this is.")
@@ -3138,21 +3163,26 @@ OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "h
              "skill-review", "skill-approve", "mcp-review", "mcp-approve", "hook-review", "hook-approve"}
 
 
+PYTHON_NAME = re.compile(r"(?:python|pypy)[\d.]*")
+
+
 def our_invocation(command: str) -> bool:
     """Is this ONE direct call of this script, and nothing else?
 
-    `"registry_intake" not in command` was a substring exemption, so
-    `echo registry_intake; echo {} > registry-lock.json` exempted itself by mentioning the word —
-    and the whole command went unasked. An exemption has to be earned by the shape of the command,
-    not by a word appearing somewhere in it."""
-    try:
-        tokens = shlex.split(command)
-    except ValueError:
+    Three ways past the first version, all from reading it loosely. `"registry_intake" not in
+    command` was a substring, so a command exempted itself by mentioning the word. Then
+    `endswith("registry_intake.py")` matched `evil_registry_intake.py`. And an `ENV_REF` arm
+    exempted `python3 $S check` whatever `$S` held. argv is read position by position now, and
+    `$S` — which the docs do use — is no longer exempt: we cannot see what it holds, so it asks,
+    and `approve` asks anyway for being a decision."""
+    tokens, parsed = shell_tokens(command)
+    if not parsed or SUBSTITUTION.search(command) or len(tokens) < 3:
         return False
-    if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens) or SUBSTITUTION.search(command):
+    if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens):
         return False
-    named = [t for t in tokens if t.endswith("registry_intake.py") or ENV_REF.fullmatch(t)]
-    return len(named) == 1 and any(t in OUR_VERBS for t in tokens)
+    return (PYTHON_NAME.fullmatch(Path(tokens[0]).name) is not None
+            and Path(tokens[1]).name == "registry_intake.py"
+            and tokens[2] in OUR_VERBS)
 
 
 def may_install(command: str) -> bool:

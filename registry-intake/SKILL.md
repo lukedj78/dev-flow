@@ -470,9 +470,24 @@ confirmed — found three more in that same gate, two of them the same mistake i
   downgraded to an ask by the noise fix meant to sit beside it: the **fourth** time in one day that
   lowering noise switched off a control. Every deny rule runs first now.
 - **The exemption was a substring.** `"registry_intake" not in command` let a command exempt itself
-  by mentioning the word — `echo registry_intake; echo {} > registry-lock.json` wrote the lock with
-  no prompt at all. An exemption is earned by the *shape* of the command now: one direct call of
-  this script, a known subcommand, no operators, no redirect, no substitution.
+  by mentioning the word — an `echo` of it followed by a redirect wrote the lock with no prompt at
+  all. An exemption is earned by the *shape* of the command now.
+
+An eleventh review, confirmed again by the other session's reviewer, found that *shape* read
+loosely — three ways past it, and the first is the one worth remembering:
+
+- **Two tokenisers.** The comment on `hook_tokens` says two would be a parser differential between
+  the gate and the scanner. The exemption helper was then written with a plain `shlex.split`, which
+  returns `a;b` as **one token** — so `… check .;python3 -c "…write the lock…"` read as a single
+  call of our own script and exempted itself. *The warning was right; it just was not followed.*
+  There is one `shell_tokens` now, and both callers use it.
+- `endswith("registry_intake.py")` matched **`evil_registry_intake.py`**, and an `ENV_REF` arm
+  exempted `python3 $S check` whatever `$S` held. argv is read position by position now:
+  interpreter, our script by name, a known verb. `$S` — which the docs do use — is no longer
+  exempt, because we cannot see what it holds, and `approve` asks anyway for being a decision.
+- **A glob spells the name without containing it**: `registry-lo?k.json`, `registry-*.json`. Only a
+  shell can expand one, so a fragment of the name beside a glob character counts as the name — and
+  quotes are stripped first, the way `may_install` has always done it.
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 

@@ -1490,7 +1490,14 @@ class Hooks(unittest.TestCase):
                              "mentioning the word is not an invocation")
         # One direct call of our own script is exempt, and still only one.
         self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
-        self.assertTrue(ri.our_invocation("python3 $S approve . @x/item --by luca"))
+        # `$S` is NOT exempt any more: an eleventh review showed the arm that allowed it exempted
+        # `python3 $S check` whatever the variable held. We cannot see what it holds, so it asks —
+        # and `approve` asks regardless, for being a decision.
+        self.assertFalse(ri.our_invocation("python3 $S approve . @x/item --by luca"))
+        self.assertFalse(ri.our_invocation("python3 evil_registry_intake.py check"))
+        self.assertFalse(ri.our_invocation("python3 -c 'print(1)' registry_intake.py check"))
+        # The weak tokeniser glued `.;python3` into one token and let this exempt itself.
+        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .;python3 -c "x"'))
         for not_ours in ("python3 registry_intake.py check . && rm -rf /tmp/x",
                          "python3 registry_intake.py check . > out.txt",
                          "echo registry_intake.py",
@@ -1500,11 +1507,35 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {
             "command": "python3 .claude/hooks/registry_intake.py check ."}}), "no noise on our own call")
 
+    def test_a_glob_that_expands_to_the_lock_still_asks(self) -> None:
+        """A glob spells the name without containing it. We cannot expand one — only a shell can —
+        so a fragment of the name beside a glob character counts as the name."""
+        for command in ("registry-lo?k.json > x", "registry-*.json > x", "cat registry-lock.js*"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": command}}))
+        # And quotes splitting the name, normalised the way may_install does it.
+        self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {
+            "command": 'registry-"lock".json > x'}}))
+        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": "echo hi"}}))
+
+    def test_one_tokeniser_for_the_gate_and_the_scanner(self) -> None:
+        """The comment on `hook_tokens` said two tokenisers would be a parser differential between
+        the gate and the scanner. Then the exemption helper was written with a plain `shlex.split`,
+        which returns `a;b` as ONE token — so `…check .;python3 -c "…"` read as a single call of our
+        own script. The warning was right; it just was not followed."""
+        tokens, parsed = ri.shell_tokens('python3 ri.py check .;echo x > y')
+        self.assertTrue(parsed)
+        self.assertIn(";", tokens, "operators are tokens, touching a word or not")
+        self.assertIn(">", tokens)
+
     def test_the_before_state_file_cannot_be_written_either(self) -> None:
         """The write gate denied the lock and our script but not the file `hook-post` compares
         against — writing which decides what the next report is allowed to say."""
-        self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "tool_input": {
-            "file_path": "/tmp/registry-intake-0123456789abcdef.json"}}))
+        for path in ("/tmp/registry-intake-0123456789abcdef.json",
+                     "/tmp/Registry-Intake-0123456789ABCDEF.json"):   # the same file here
+            with self.subTest(path=path):
+                self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "tool_input": {
+                    "file_path": path}}))
 
     def test_setup_from_the_vendored_copy_finishes_and_says_what_it_skipped(self) -> None:
         """Reported by the other session with a traceback: `import meta_io` from the vendored hook
