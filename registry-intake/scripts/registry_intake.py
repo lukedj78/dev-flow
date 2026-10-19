@@ -1795,6 +1795,10 @@ DELEGATES = re.compile(r"npm|pnpm|yarn|npx|bunx|uv|uvx|pipx|env")
 # the registry serves then. Unreviewable by anyone, which is H9's own definition.
 FETCHERS = re.compile(r"npx|bunx|uvx|pipx")
 FETCH_SUBCOMMAND = {"dlx", "exec"}
+# A runner's own subcommand is not its operand: in `pipx run ./tool.py` the file that answers
+# "a package, or a file?" is one token further along, and reading `run` as the answer made every
+# `uv run ./script` report a fetch that never happens.
+RUNNER_WORDS = {"run", "exec", "dlx", "x", "task", "script"}
 # `git+https://…`, `github:owner/repo`: a URL wearing a package spec.
 REMOTE_SPEC = re.compile(r"://|^git\+|^(?:github|gitlab|bitbucket):")
 # Spaced operators only: `shlex.split("a;b")` returns one token, so this is a floor, not a fence.
@@ -1862,6 +1866,7 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
     # "a program we recognise ran here", `interp` is "and it runs FILES, so a missing one is a gap".
     named, interp, resolved, inline, code_next, cur_flags, piped = False, False, False, False, None, (), False
     fetcher: str | None = None
+    fetch_operand = False          # the token right after the runner decides package-or-file
 
     def close_segment() -> None:        # noqa: C901 — the four shapes we cannot read
         """What this command segment left unaccounted for.
@@ -1871,14 +1876,15 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
         `sh|bash|zsh`. Suppressing the gap after a pipe — written one commit before this one, to
         keep a test tidy — was the same control regression the H9 comment above warns about, and
         it removed the last finding that caught the shape. So a pipe makes it worse, not quieter."""
-        if fetcher is not None and not resolved:
+        if fetcher is not None:
             # `npx x` fetches a package and runs it, at every call, at whatever version the registry
-            # serves then — unreviewable, which is H9's own definition. But `pipx run ./tool.py`
-            # fetches nothing: a local file was given instead, so the note is dropped. This reads
-            # `resolved` on purpose — it is what "a package, or a file?" means — and not to quieten
-            # a control, which is the mistake the two flags above exist to prevent.
+            # serves then — unreviewable, which is H9's own definition. Whether a package or a file
+            # was handed to the runner is decided where the operand is read, NOT by whether anything
+            # else in the segment resolved: `npx evil-pkg ./local.js` had been silenced by the
+            # second argument while the first was still fetched and run.
             unresolved.append((f"{fetcher} — fetches and runs a package at every call, unpinned", "expansion"))
-            return
+            # And no `return` here. This note is *about* the segment, not its answer, so returning
+            # on it swallowed the stdin block: `npx evil-pkg | python3` came back review-only.
         if not interp or resolved or inline:
             return
         if piped:
@@ -1920,7 +1926,10 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             continue
         if token in SEPARATORS:                      # a new command: its own program, its own gap
             close_segment()
+            # `fetcher` and `named` used to survive the separator, so one `npx` reported itself
+            # twice and the next segment's own gap was lost. A segment's state ends with it.
             interp, resolved, inline, cur_flags = False, False, False, ()
+            named, fetcher, fetch_operand = False, None, False
             piped = token == "|"
             continue
         if token in cur_flags:                       # THIS program's inline flag: code follows
@@ -1932,10 +1941,12 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             name = Path(token).name
             interp = interp or not DELEGATES.fullmatch(name)
             if FETCHERS.fullmatch(name):
-                fetcher = token
+                fetcher, fetch_operand = token, True
             continue
-        if token in FETCH_SUBCOMMAND and named:         # `pnpm dlx x`, `npm exec x`
-            fetcher = token
+        if token in RUNNER_WORDS and named:             # `pnpm dlx x`, `npm exec x`, `uv run x`
+            if token in FETCH_SUBCOMMAND:
+                fetcher = token
+            fetch_operand = fetcher is not None        # still pending: the operand is the next one
             continue
         if token.startswith("-"):
             # An option, or its value, which `is_path` below declines on its own: `-W ignore`,
@@ -1949,9 +1960,17 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
             if named:
                 unresolved.append((f"{token} — code from the network", "computed"))
                 resolved = True
+            fetch_operand = False      # a URL is not the local file that would drop the note
             continue
-        if is_path(token):
-            resolved = add(token) or resolved
+        took = is_path(token) and add(token)
+        if fetch_operand:
+            # ONLY the token straight after the runner answers "a package, or a file?". `pipx run
+            # ./tool.py` fetches nothing; `npx evil-pkg ./local.js` fetches evil-pkg whatever the
+            # second argument is, and reading any resolved path in the segment had silenced it.
+            if took:
+                fetcher = None
+            fetch_operand = False
+        resolved = took or resolved
     close_segment()
     return out, unresolved
 

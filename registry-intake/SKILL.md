@@ -352,6 +352,14 @@ reads**. With that split, `npx x` and `pnpm dlx x` also say what they are: a pac
 at every call, unpinned, which is H9's own definition — unless a local file was handed to the same
 runner, when nothing is fetched and the note is dropped.
 
+A tenth review read that fix and found two more of the same family, which is how the rule above
+earned its second half. The fetch note `return`ed out of the segment check, so
+`npx evil-pkg | python3` came back **review-only**: the stdin block never ran. And `fetcher` was not
+reset at the separator, so one runner reported itself twice while the next segment lost its own gap.
+Both say the same thing — **a note is not the segment's answer, and a segment's state ends with the
+segment.** The suppression also asked the wrong question: `npx evil-pkg ./local.js` was silent
+because the note read *did anything here resolve?* instead of *what was handed to the runner?*
+
 **The convergence test for this function is not "no findings left" — it is that every shape we
 cannot read ends in a finding.** Four of them now do: no file resolved (H11), code on stdin (H9
 block), inline code nested past the limit (H9 block), a token only a shell can finish (H9). What is
