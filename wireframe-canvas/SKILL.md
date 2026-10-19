@@ -1,6 +1,6 @@
 ---
 name: wireframe-canvas
-description: 'The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD''s user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, reviewed area by area. No scaffold until the user approves the canvas — `update_meta.py set-phase` refuses it. After approval, a PNG of every artboard is committed and commented on each tracker issue (Linear, Jira or GitHub) whose story maps to the screen. Writes `meta.json#wireframes`. Use when dev-flow routes here from `design_extracted`, or the user says "wireframe", "tutte le schermate", "disegna le schermate", "artboard", "canvas", "screen inventory", "mockup di ogni pagina". Not for: extracting a DESIGN.md (`figma-to-design-md`, `image-to-design-md`), building pages (`screenshot-to-page`, `rn-add-screen`), agent-only projects (no screens), or a canvas inside the product (`iframe-canvas`).'
+description: 'Between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD''s user stories, for public screens a page argument (an idea of the client''s own, a claim and proof per section), then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, in DESIGN.md with real copy, reviewed area by area. No scaffold until the user approves the canvas — `update_meta.py set-phase` refuses it. After approval, each artboard''s PNG is committed and commented on the tracker issues (Linear, Jira, GitHub) of its story. Writes `meta.json#wireframes`. Use when dev-flow routes here from `design_extracted`, or the user says "wireframe", "tutte le schermate", "disegna le schermate", "artboard", "canvas", "screen inventory", "mockup di ogni pagina". Not for: extracting a DESIGN.md (`figma-to-design-md`, `image-to-design-md`), building pages (`screenshot-to-page`, `rn-add-screen`), agent-only projects, or a canvas inside the product (`iframe-canvas`).'
 ---
 
 # wireframe-canvas — every screen, drawn and approved, before any code
@@ -55,6 +55,19 @@ python3 dev-flow/scripts/update_meta.py <root> record-artifact --path docs/wiref
 
 Show the user the inventory (counts per area, any story you were unsure about) before drawing.
 
+## Step 1.5 — The page argument, when there are public screens
+
+If any row's Roles include `visitor`, write `docs/wireframes/page-argument.md` before drawing that area: the
+inventory of eight to twelve things only this client has, the idea sentence with the competitor test, one claim and
+its proof per section (a section with no claim is cut), the optional live thing. Format, the why and the review
+questions: **`references/page-argument.md`**. Check it:
+
+```bash
+python3 wireframe-canvas/scripts/wireframes.py argument <root>
+```
+
+Show it to the user with the inventory; the public area is drawn from it, section by section.
+
 ## Step 2 — The canvas, area by area
 
 1. `Artifact action:"quickstart" intent:"design"` — it names the **Design** type and the design systems.
@@ -80,7 +93,8 @@ Show the user the inventory (counts per area, any story you were unsure about) b
    rejected the screens (2026-10-12). After approval **the board changes only when the user decides to
    change the design** — never to match what a primitive happens to render (§When the screens change later).
 5. **Work one area at a time.** Finish an area, give the user the canvas link and the page, and stop for
-   their review. Apply the changes; move on only when they say the area is right. Append a `history`
+   their review. Before handing over a **public** area, put its artboards through the eight questions in
+   `references/page-argument.md` §Reviewing a public area and fix what fails — questions, not a score. Apply the changes; move on only when they say the area is right. Append a `history`
    entry per reviewed area (`--skill wireframe-canvas --inputs '{"area": "A", "artboards": 26}'`).
 
 ## Step 3 — Approval
@@ -92,7 +106,9 @@ python3 wireframe-canvas/scripts/wireframes.py approve <root> --canvas-url <url>
 ```
 
 It re-runs the coverage check, counts the screens, and refuses fewer than two artboards per screen
-(`--artboards N` when the states add more). In an autonomous run this is never derived: stop with
+(`--artboards N` when the states add more). With public screens it also refuses an incomplete
+`page-argument.md`; `--no-argument "<reason>"` records an exception in `meta.json#wireframes.argument` (the public
+site is the client's existing one, the only public screen is a sign-in). In an autonomous run this is never derived: stop with
 *"needs a human: approve the wireframe canvas"* and leave the canvas link.
 
 **Opting out** is allowed and visible — a one-screen internal tool, a pure API with a status page:
@@ -141,6 +157,7 @@ next `scaffold`.
 
 ## Bundled
 
-`scripts/wireframes.py` (`coverage`, `approve`, `skip`, `pngs`, `targets`, `comments`, `posted`; stdlib
-only) + `scripts/test_wireframes.py`; `references/contracts.md`. The gate itself is
+`scripts/wireframes.py` (`coverage`, `argument`, `approve`, `skip`, `pngs`, `targets`, `comments`, `posted`;
+stdlib only) + `scripts/test_wireframes.py`; `references/page-argument.md` (the public page's argument and its
+review questions); `references/contracts.md`. The gate itself is
 `dev-flow/scripts/wireframes_gate.py`, so dev-flow enforces it without this skill installed.

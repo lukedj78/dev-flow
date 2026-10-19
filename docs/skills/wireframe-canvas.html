@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>wireframe-canvas — dev-flow</title>
-<meta name="description" content="The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD&#x27;s user stories, then every screen drawn as a desktop (1440) and a phone (390) ar">
+<meta name="description" content="Between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD&#x27;s user stories, for public screens a page argument (an idea of the client&#x27;s own, a claim ">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -114,12 +114,12 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">wireframe-canvas</h1>
-  <ul class="meta"><li class="chip">Core</li><li class="chip">discovery — turns intent into artefacts</li><li class="chip">146 lines</li><li class="chip">1 reference</li><li class="chip">3 scripts</li></ul>
-  <p class="lede">The step between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD&#x27;s user stories, then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, high fidelity in DESIGN.md with real copy, one canvas page per area, reviewed area by area. No scaffold until the user approves the canvas — <code>update_meta.py set-phase</code> refuses it. After approval, a PNG of every artboard is committed and commented on each tracker issue (Linear, Jira or GitHub) whose story maps to the screen. Writes <code>meta.json#wireframes</code>. Use when dev-flow routes here from <code>design_extracted</code>, or the user says &quot;wireframe&quot;, &quot;tutte le schermate&quot;, &quot;disegna le schermate&quot;, &quot;artboard&quot;, &quot;canvas&quot;, &quot;screen inventory&quot;, &quot;mockup di ogni pagina&quot;. Not for: extracting a DESIGN.md (<code>figma-to-design-md</code>, <code>image-to-design-md</code>), building pages (<code>screenshot-to-page</code>, <code>rn-add-screen</code>), agent-only projects (no screens), or a canvas inside the product (<code>iframe-canvas</code>).</p>
+  <ul class="meta"><li class="chip">Core</li><li class="chip">discovery — turns intent into artefacts</li><li class="chip">163 lines</li><li class="chip">2 references</li><li class="chip">3 scripts</li></ul>
+  <p class="lede">Between DESIGN.md and the scaffold, on every project with a UI: a screen inventory mapped to the PRD&#x27;s user stories, for public screens a page argument (an idea of the client&#x27;s own, a claim and proof per section), then every screen drawn as a desktop (1440) and a phone (390) artboard on a claude.ai Design canvas, in DESIGN.md with real copy, reviewed area by area. No scaffold until the user approves the canvas — <code>update_meta.py set-phase</code> refuses it. After approval, each artboard&#x27;s PNG is committed and commented on the tracker issues (Linear, Jira, GitHub) of its story. Writes <code>meta.json#wireframes</code>. Use when dev-flow routes here from <code>design_extracted</code>, or the user says &quot;wireframe&quot;, &quot;tutte le schermate&quot;, &quot;disegna le schermate&quot;, &quot;artboard&quot;, &quot;canvas&quot;, &quot;screen inventory&quot;, &quot;mockup di ogni pagina&quot;. Not for: extracting a DESIGN.md (<code>figma-to-design-md</code>, <code>image-to-design-md</code>), building pages (<code>screenshot-to-page</code>, <code>rn-add-screen</code>), agent-only projects, or a canvas inside the product (<code>iframe-canvas</code>).</p>
 </div>
 <section><div class="wrap prose">
   <h3>References it ships</h3>
-  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/wireframe-canvas/references/contracts.md"><code>contracts.md</code></a></li></ul>
+  <ul><li><a href="https://github.com/lukedj78/dev-flow/blob/main/wireframe-canvas/references/contracts.md"><code>contracts.md</code></a></li><li><a href="https://github.com/lukedj78/dev-flow/blob/main/wireframe-canvas/references/page-argument.md"><code>page-argument.md</code></a></li></ul>
   <h3>Get it</h3>
   <pre><code>/plugin install dev-flow@dev-flow      # the whole suite
 ./install.sh --platform claude        # or drop dist/wireframe-canvas.skill into Claude Code</code></pre>
