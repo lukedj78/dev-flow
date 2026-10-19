@@ -129,7 +129,10 @@ Replace with:
 - `top: 10px` → `transform: translateY(10px)`
 - `width: 0 → 100%` → `transform: scaleX(0) → scaleX(1)` with `transform-origin: left`
 - `background-color: red` on a hero → fade the **opacity** of an overlay in the target colour
-- a growing `box-shadow` on hover → fade the opacity of a pseudo-element that carries the final shadow (or `filter: drop-shadow()`)
+- a growing `box-shadow` on hover → fade the opacity of a pseudo-element that carries the final shadow
+  (`after:shadow-lg after:opacity-0 hover:after:opacity-100`, recipe and trade-offs in
+  `transitions/references/animation-standards.md` §Frame budget). A primitive's own focus-ring transition
+  (`transition-[color,box-shadow]`) stays as shadcn ships it.
 
 *Corrected 2026-10-19:* the background swap used to say "a `transform: translateZ(0)` overlay" — promoting a layer
 changes nothing about the colour change; animating the overlay's opacity is what makes it composite-only. And no

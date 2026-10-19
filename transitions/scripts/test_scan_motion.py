@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scan_motion import classify_line, frame_smells, missing_reduced_motion, scan
+from scan_motion import classify_line, frame_smells, missing_reduced_motion, provenance, scan
 
 
 class TestClassifyLine(unittest.TestCase):
@@ -59,7 +59,7 @@ class TestPaintAndLayers(unittest.TestCase):
 
     def test_will_change_all_or_a_list_is_broad(self):
         self.assertEqual(classify_line("  will-change: all;"), "will-change-broad")
-        self.assertEqual(classify_line("  will-change: transform, opacity, filter;"), "will-change-broad")
+        self.assertEqual(classify_line("  will-change: transform, opacity;"), "will-change-broad")
 
     def test_will_change_on_the_animating_element_is_fine(self):
         self.assertIsNone(classify_line('className="will-change-transform"'))
@@ -113,6 +113,106 @@ class TestFrameSmells(unittest.TestCase):
             hits = [(f["file"], f["line"], f["category"]) for f in scan(Path(d))]
             self.assertIn(("drag.tsx", 3, "state-per-frame"), hits)
             self.assertFalse(any(h[0].startswith(".claude") for h in hits), hits)
+
+
+class TestReviewFindings(unittest.TestCase):
+    """Cases from the final review of the animation-performance merge (2026-10-19), each verified failing first."""
+
+    def cats(self, code):
+        return [c for _, c, _ in frame_smells(code)]
+
+    def test_double_raf_one_shot_is_not_a_loop(self):
+        self.assertEqual(frame_smells("requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))"), [])
+
+    def test_every_setter_in_the_loop_is_reported(self):
+        code = ("function tick(now) {\n  if (done) {\n    setSeries(end);\n  }\n  setDisplay(value);\n"
+                "  if (!done) frame = requestAnimationFrame(tick);\n}")
+        self.assertEqual([(l, c) for l, c, _ in frame_smells(code)], [(3, "state-per-frame"), (5, "state-per-frame")])
+
+    def test_typed_arrow_loop(self):
+        code = "const tick: FrameRequestCallback = (t) => {\n  setV(t);\n  id = requestAnimationFrame(tick);\n};"
+        self.assertEqual(self.cats(code), ["state-per-frame"])
+
+    def test_function_with_destructured_params(self):
+        code = "function tick({ x }: P) {\n  setX(x);\n  requestAnimationFrame(tick);\n}"
+        self.assertEqual(self.cats(code), ["state-per-frame"])
+
+    def test_brackets_in_strings_and_comments_do_not_stretch_the_span(self):
+        code = ('requestAnimationFrame(() => { setLabel(":("); });\n'
+                "// closes the menu (see #12\n"
+                "const a = 1;\nrequestAnimationFrame(() => el.focus());\nsetN(2);")
+        self.assertEqual(frame_smells(code), [])
+
+    def test_use_animation_frame_runs_every_frame(self):
+        self.assertEqual(self.cats("useAnimationFrame((t) => {\n  setR(t / 10);\n});"), ["state-per-frame"])
+
+    def test_class_component_loop(self):
+        code = ("class Spin extends React.Component {\n  tick = () => {\n    this.setState({ a: 1 });\n"
+                "    requestAnimationFrame(this.tick);\n  };\n}")
+        self.assertEqual(self.cats(code), ["state-per-frame"])
+
+    def test_a_local_helper_named_set_is_not_state(self):
+        code = ("function setTransform(el, y) { el.style.transform = `translateY(${y}px)`; }\n"
+                "function tick() {\n  setTransform(el, y);\n  requestAnimationFrame(tick);\n}")
+        self.assertEqual(frame_smells(code), [])
+
+    def test_vaul_style_object_from_a_gesture(self):
+        code = ("const onPointerMove = (e) => setDragged(e.clientY - start);\n"
+                "return <div style={{ \"--swipe-amount\": `${dragged}px` }} onPointerMove={onPointerMove} />;")
+        self.assertEqual(self.cats(code), ["css-var-per-frame"])
+
+    def test_on_scroll_handler_counts_as_a_gesture(self):
+        code = "<div onScroll={() => {\n  el.style.setProperty('--y', `${el.scrollTop}px`);\n}} />"
+        self.assertEqual(self.cats(code), ["css-var-per-frame"])
+
+    def test_a_comment_mentioning_scroll_is_not_a_gesture(self):
+        code = "// keep the header below the scroll area\nuseEffect(() => {\n  root.style.setProperty('--header-h', `${h}px`);\n}, [h]);"
+        self.assertEqual(frame_smells(code), [])
+
+    def test_global_will_change_is_reported_once_and_star_lists_count(self):
+        self.assertEqual(self.cats("body { will-change: all; }"), ["will-change-broad"])
+        self.assertEqual(self.cats("*, *::before {\n  will-change: transform;\n}"), ["will-change-broad"])
+
+
+class TestMonorepoAndScale(unittest.TestCase):
+    def test_shadcn_components_in_a_monorepo_are_vendored(self):
+        for rel in ("apps/web/components/ui/button.tsx", "packages/ui/src/components/slider.tsx",
+                    "packages/ui/src/components/ui/dialog.tsx", "components/ui/checkbox.tsx"):
+            with self.subTest(rel):
+                self.assertEqual(provenance(rel), "vendored")
+        self.assertEqual(provenance("apps/web/components/shared/card.tsx"), "authored")
+
+    def test_a_large_file_stays_fast(self):
+        import time
+        chunk = "function tick%d() {\n  setV(v);\n  requestAnimationFrame(tick%d);\n}\n" + "const filler = 1;\n" * 120
+        text = "".join(chunk % (i, i) for i in range(200))
+        start = time.time()
+        self.assertEqual(len(frame_smells(text)), 200)
+        # guards against the quadratic shapes (10 s and more), not against a slow CI machine
+        self.assertLess(time.time() - start, 3.0)
+
+
+class TestPropertyLists(unittest.TestCase):
+    def test_paint_props_in_lists_and_every_syntax(self):
+        for line in ("transition: opacity 200ms, box-shadow 200ms;", "transition-property: box-shadow;",
+                     'transition: "box-shadow 200ms"', 'className="transition-[box-shadow]"',
+                     'className="transition-[color,box-shadow]"'):
+            with self.subTest(line):
+                self.assertEqual(classify_line(line), "paint-prop-anim")
+
+    def test_layout_props_in_lists(self):
+        self.assertEqual(classify_line("transition: opacity 200ms, height 300ms;"), "layout-prop-anim")
+        self.assertEqual(classify_line('className="transition-[height]"'), "layout-prop-anim")
+
+    def test_will_change_lists_in_every_syntax(self):
+        for line in ("will-change: transform, opacity;", 'className="will-change-[transform,opacity]"',
+                     "willChange: 'transform, opacity'"):
+            with self.subTest(line):
+                self.assertEqual(classify_line(line), "will-change-broad")
+
+    def test_transition_colors_and_transform_are_clean(self):
+        self.assertIsNone(classify_line('className="transition-colors"'))
+        self.assertIsNone(classify_line("transition: transform 200ms, opacity 200ms;"))
 
 
 class TestMissingReducedMotion(unittest.TestCase):

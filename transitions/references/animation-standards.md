@@ -267,14 +267,23 @@ mid-range phone. Say which findings came from code and which need a recording on
 
 | Tier | Properties | Cost |
 |---|---|---|
-| Composite only | `transform`, `opacity` (and, unevenly across browsers, `filter`, `clip-path`, `background-color`) | cheapest — its own layer |
+| Composite only | `transform`, `opacity` everywhere; `filter`, `clip-path`, `background-color` only in current Chrome and Firefox — not reliably in Safari | cheapest — its own layer |
 | Paint + composite | `box-shadow`, `border-radius`, `color` | no re-measuring, a redraw every frame |
 | Layout + paint + composite | `width`, `height`, `padding`, `margin`, `top`, `left`, `border-width` | most expensive — one growing element moves everything around it |
 
 Swap down a tier: size → `scale()`; position → `translate()` (percentages are relative to the element itself, which
 is right for drawers and toasts of unknown size); `display`/`visibility` → `opacity`; **`box-shadow` → the opacity of a
-layer (a pseudo-element) that carries the final shadow, or `filter: drop-shadow()`** — the swap people miss, because a
-shadow looks harmless and repaints the element every frame. A colour change on a large surface → the opacity of an
+layer that carries the final shadow** — the swap people miss, because a shadow looks harmless and repaints the element
+every frame. Here we differ from the source, which offers `filter: drop-shadow()`: `opacity` is the one property every
+engine, Safari included, composites, while `filter` is still "gaining support". The trade-offs, stated: it crossfades
+between two fixed shadows instead of tweening one; it needs a positioned host and a free `::after`; and
+`drop-shadow` would look different anyway (no spread, no inset, it follows alpha). In Tailwind:
+
+```tsx
+<div className="relative rounded-xl after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit]
+                after:shadow-lg after:opacity-0 after:transition-opacity hover:after:opacity-100
+                motion-reduce:after:transition-none">
+``` A colour change on a large surface → the opacity of an
 overlay in the target colour. Animating a sidebar's `margin-left` re-lays out the whole dashboard beside it 60 times a
 second; `translateX` moves only the sidebar.
 
@@ -284,7 +293,8 @@ second; `translateX` moves only the sidebar.
 in CSS, WAAPI or a View Transition. Vercel's dashboard animated its active-tab indicator with a shared `layoutId`
 animation, which stuttered because the next page was loading at that moment; moving it to CSS fixed it. Motion's
 `x`/`y`/`scale` shorthands go through CSS variables and are not accelerated: keep them by default, and use the
-`transform` string when the motion must survive a busy main thread (`motion-library.md` §Motion runtime).
+`transform` string when the motion must survive a busy main thread (the hardware-acceleration callout at the top of
+`motion-library.md`).
 
 **Two traps that use `transform` and still drop frames:**
 - **React state per frame.** A hand-rolled loop that calls `setState` every frame re-renders the component every

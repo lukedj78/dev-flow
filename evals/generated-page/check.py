@@ -281,6 +281,20 @@ def layout_animation(t):
                  "animate transform and opacity only; translateY instead of top, scaleX instead of width")
 
 
+PAINT_PROPS = r"box-shadow|border-radius"
+PAINT_ANIMATION = re.compile(
+    rf"\btransition-shadow\b|\btransition-\[[^\]]*\b(?:{PAINT_PROPS})\b[^\]]*\]"
+    rf"|\b(?:transition|transition-property|animation)\s*:\s*[^;{{}}\n]*\b(?:{PAINT_PROPS})\b"
+    rf"|@keyframes[^{{]*\{{[^}}]*\b(?:{PAINT_PROPS})\s*:", re.IGNORECASE)
+
+
+@check("paint-animation", "low", "animating box-shadow or border-radius — a repaint every frame (rule 7)")
+def paint_animation(t):
+    return _scan(t, PAINT_ANIMATION, "paint-animation", "low",
+                 "fade the opacity of a layer that carries the final shadow (after:shadow-* after:opacity-0 "
+                 "hover:after:opacity-100); a primitive's own focus ring in components/ui is not graded")
+
+
 SPINNER = re.compile(r"<Spinner\b|\bLoader2\b|\banimate-spin\b")
 
 

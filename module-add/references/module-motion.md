@@ -391,7 +391,7 @@ the legacy package is in use. If `runtime` already reads `"tw-animate-css"`
 - **`useReducedMotion`**: respect it. Users with vestibular disorders enable the OS-level setting; ignoring it is hostile. All three wrappers in this module already check it.
 - **No mixing with GSAP**: don't run GSAP and Motion in the same component tree. Motion's `useScroll` covers 90% of GSAP's ScrollTrigger use cases without the ecosystem split. If you need GSAP for a specific full-page sequence, isolate it in its own route and don't mount Motion components inside.
 - **Spring presets are project-wide**: edit `lib/motion-config.ts` to retune. Don't pass arbitrary `{ stiffness, damping }` inline in components — that's how feel drifts across the project.
-- **Layout animations** (`layout`, `layoutId` props) require both source and target components to mount in the same React tree at the same time. They're powerful but the debugging cost is real — use sparingly, only for hero-detail or modal-card transitions where the effect is worth it.
+- **Layout animations** (`layout`, `layoutId` props) require both source and target components to mount in the same React tree at the same time. They're powerful but the debugging cost is real — use sparingly, only for hero-detail or modal-card transitions where the effect is worth it. ⚠️ A hero-detail transition that **crosses a route change** plays while the next page loads, and a JS-driven layout animation on a busy main thread stutters: prefer a View Transition there (`transitions/references/motion-library.md` §Layout, `animation-standards.md` §Frame budget).
 
 ## Anti-slop motion rules (encoded above)
 

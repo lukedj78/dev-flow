@@ -617,6 +617,7 @@
       "description": "Give a Next.js 16 App Router app ONE motion system: a token layer (durations, easings, springs) plus a library of tokenized micro-interactions — entrance/exit, stagger, layout, modal/dropdown/toast/accordion, hover, feedback and route/page transitions. Four modes: Setup (scaffold `lib/motion/` from ...",
       "skill_file": "transitions/SKILL.md",
       "references": [
+        "animation-opportunities.md",
         "animation-standards.md",
         "audit-recipe.md",
         "contracts.md",
@@ -629,7 +630,7 @@
         "scan_motion.py",
         "test_scan_motion.py"
       ],
-      "skill_md_lines": 198,
+      "skill_md_lines": 200,
       "bundle": "dist/transitions.skill"
     },
     {
