@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # init-monorepo.sh — scaffold the turborepo monorepo root
 #
-# Writes: pnpm-workspace.yaml, turbo.json, root package.json, tsconfig.base.json,
+# Writes: pnpm-workspace.yaml, turbo.json, root package.json, packages/typescript-config/,
 # .gitignore, .npmrc, README.md, and empty apps/ + packages/ directories.
+# No tsconfig.base.json at root — see packages/typescript-config/ below (Turborepo's own pattern).
 # Idempotent: re-running detects existing files and skips them.
 #
 # Usage: init-monorepo.sh <project-root> <project-slug>

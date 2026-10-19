@@ -20,7 +20,7 @@ Every monorepo scaffolded by `monorepo-bootstrap` follows this exact layout. Dev
 │   │   ├── lib/
 │   │   ├── public/
 │   │   ├── tailwind.config.js     ← presets: [require("@<slug>/design/tailwind")]
-│   │   ├── tsconfig.json          ← extends ../../tsconfig.base.json
+│   │   ├── tsconfig.json          ← extends "@<slug>/typescript-config/nextjs.json"
 │   │   ├── package.json           ← name: @<slug>/web
 │   │   └── next.config.ts
 │   │
@@ -37,7 +37,7 @@ Every monorepo scaffolded by `monorepo-bootstrap` follows this exact layout. Dev
 │       ├── babel.config.js
 │       ├── metro.config.js        ← see Metro monorepo config below
 │       ├── app.json
-│       ├── tsconfig.json          ← extends ../../tsconfig.base.json
+│       ├── tsconfig.json          ← extends "@<slug>/typescript-config/react-native.json"
 │       └── package.json           ← name: @<slug>/mobile
 │
 ├── packages/
@@ -59,20 +59,27 @@ Every monorepo scaffolded by `monorepo-bootstrap` follows this exact layout. Dev
 │   │   └── package.json           ← name: @<slug>/design
 │   │                                exports: ./tokens, ./tailwind, ./nativewind
 │   │
-│   └── api/                       ← Backend client + queries (filled by module-add)
-│       ├── src/
-│       │   ├── index.ts
-│       │   ├── client.ts          ← Supabase / tRPC instance
-│       │   ├── auth.ts            ← signIn/signOut/useSession
-│       │   └── queries/
-│       │       └── (one file per domain — posts, users, etc.)
-│       ├── tsconfig.json
-│       └── package.json           ← name: @<slug>/api
+│   ├── api/                       ← Backend client + queries (filled by module-add)
+│   │   ├── src/
+│   │   │   ├── index.ts
+│   │   │   ├── client.ts          ← Supabase / tRPC instance
+│   │   │   ├── auth.ts            ← signIn/signOut/useSession
+│   │   │   └── queries/
+│   │   │       └── (one file per domain — posts, users, etc.)
+│   │   ├── tsconfig.json
+│   │   └── package.json           ← name: @<slug>/api
+│   │
+│   ├── typescript-config/         ← shared tsconfig presets — NOT a root tsconfig.base.json
+│   │   ├── base.json              ← strict mode, path aliases, extended by everything below
+│   │   ├── nextjs.json            ← extends ./base.json, Next.js plugin + bundler resolution
+│   │   ├── react-native.json      ← extends ./base.json, RN/Metro-flavored options
+│   │   └── package.json           ← name: @<slug>/typescript-config
+│   │
+│   └── eslint-config/             ← shared ESLint flat config, same extends pattern
 │
 ├── pnpm-workspace.yaml
 ├── turbo.json
 ├── package.json                   ← name: @<slug>/root, scripts proxy turbo
-├── tsconfig.base.json
 ├── .gitignore
 ├── .npmrc                         ← if needed (legacy-peer-deps for SDK 54 era)
 └── README.md
@@ -140,7 +147,24 @@ packages:
 
 `engines.node >= 24` is required because eve (the agent engine wired via the `eve-agent` skill, used in the `"web-agent"` topology and optionally added later to any topology) requires Node ≥ 24. Setting it at the monorepo root keeps the constraint visible even for topologies that don't have an agent yet.
 
-### `tsconfig.base.json` (path aliases)
+### `packages/typescript-config/` (shared presets, NOT a root `tsconfig.base.json`)
+
+**No `tsconfig.base.json` at repo root.** Turborepo's own official pattern (verified against
+`vercel/turborepo`'s `examples/basic`) is a small **package** that ships the shared config and is
+consumed by **package name**, the same way any other workspace dependency is — a root file that
+every app reaches via a relative `../../` path doesn't compose once a package nests deeper, and
+isn't itself a workspace member `pnpm` can version or swap.
+
+`packages/typescript-config/package.json`:
+```json
+{
+  "name": "@<slug>/typescript-config",
+  "version": "0.0.0",
+  "private": true
+}
+```
+
+`packages/typescript-config/base.json` — path aliases live here, extended by everything else:
 ```json
 {
   "compilerOptions": {
@@ -152,7 +176,6 @@ packages:
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@<slug>/shared/*": ["packages/shared/src/*"],
@@ -163,10 +186,15 @@ packages:
 }
 ```
 
-Each `apps/*/tsconfig.json` and `packages/*/tsconfig.json` extends this:
+`packages/typescript-config/nextjs.json` and `react-native.json` each `extend "./base.json"` and
+add the platform-specific bits (`jsx: "preserve"` + the Next.js plugin for the former, Metro/RN
+options for the latter) — that split is why there are two presets instead of one.
+
+Every `apps/*/tsconfig.json` and `packages/*/tsconfig.json` extends the **package**, not a relative
+path to the root:
 ```json
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "@<slug>/typescript-config/nextjs.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"
@@ -174,6 +202,9 @@ Each `apps/*/tsconfig.json` and `packages/*/tsconfig.json` extends this:
   "include": ["src/**/*"]
 }
 ```
+(`packages/shared`, `packages/design`, `packages/api` extend `base.json` directly — no JSX/bundler
+concerns there — while `apps/web` extends `nextjs.json` and `apps/mobile` extends
+`react-native.json`.)
 
 ## Metro config for the mobile workspace (`apps/mobile/metro.config.js`)
 

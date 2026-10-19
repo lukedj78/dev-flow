@@ -61,7 +61,9 @@ def read_meta(root: Path) -> dict:
 
 def find_importers(comp_name: str, scan_root: Path) -> list:
     importers = []
-    pattern = re.compile(r'from\s+["\'][^"\']*' + re.escape(comp_name) + r'["\']')
+    # Anchored on the name being the whole specifier or right after a "/" — see
+    # the matching note in rewrite_imports() below for why this matters here.
+    pattern = re.compile(r'from\s+["\'](?:[^"\']*/)?' + re.escape(comp_name) + r'["\']')
     candidates = list(scan_root.glob("app/**/*.tsx")) + \
                  list(scan_root.glob("app/**/*.ts")) + \
                  list(scan_root.glob("components/**/*.tsx")) + \
@@ -85,9 +87,13 @@ def rewrite_imports(importers: list, old_paths: list, new_path: Path, scan_root:
         except Exception:
             continue
         original = text
-        # Replace any import from a path ending in /<comp_name>" or /<comp_name>'
+        # Replace any import from a path ending in /<comp_name>" or /<comp_name>' —
+        # anchored so the name is the whole specifier or right after a "/". Without
+        # the "/", searching for e.g. "Card" also rewrites an import of "PostCard"
+        # (any component whose name is a suffix of another's), silently corrupting
+        # an unrelated file's import statement.
         text = re.sub(
-            r'from\s+(["\'])([^"\']*' + re.escape(comp_name) + r')(["\'])',
+            r'from\s+(["\'])((?:[^"\']*/)?' + re.escape(comp_name) + r')(["\'])',
             r'from \1' + new_rel + r'\3',
             text,
         )

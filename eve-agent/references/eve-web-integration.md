@@ -32,8 +32,12 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
   // separate agent dir: withEve(nextConfig, { eveRoot: "../agent" })
   ```
 
-  Options: `eveRoot` (default = Next app root), `eveBuildCommand` (default `"eve build"`),
-  `servicePrefix` (default `"/_eve_internal/eve"`), `devServerTimeoutMs` (default `180000`).
+  Options (`WithEveOptions`, checked in eve 0.80.1's `.d.ts`, 2026-10-19): `eveRoot` (default = Next app root;
+  may hold one `agent/` or an `agents/` workspace), `eveBuildCommand` (default: **generated** — runs the installed
+  eve binary from the agent root, not the literal string `"eve build"`), `servicePrefix` (default
+  `"/_eve_internal/eve"`), `devServerTimeoutMs` (default `180000`). **Multi-agent:** `agents?: Record<string,
+  string | { root, buildCommand?, servicePrefix? }>` mounts named agents under **`/eve/<name>/v1/*`**, addressed from
+  the client with `useEveAgent({ agent: "<name>" })`; use `eveRoot` **or** `agents`, never both.
   `eve add channel/web` (or `eve init --channel-web-nextjs`) generates a `next.config.ts`
   already wrapped with `withEve`.
 
@@ -54,19 +58,32 @@ eve ships a first-class Next.js integration so you do **not** write fetch/stream
 
 ### `useEveAgent()` return shape (what the UI binds to)
 
+Checked in eve 0.80.1's emitted types (`eve/react` → `UseEveAgentHelpers`, 2026-10-19):
+
 | Field | Meaning |
 |---|---|
-| `data` | projected UI state from the reducer; defaults to `{ messages }` |
-| `status` | `"ready" \| "submitted" \| "streaming" \| "error"` — drives the composer |
+| `data` | the view selected by the reducer; defaults to the conversation's messages |
+| `conversation` | the canonical `ConversationState` (also `conversation.agents` when following subagents) |
+| `status` | `"ready" \| "resuming" \| "submitted" \| "streaming" \| "error"` (see Message discipline) |
 | `error` | last `Error`, if any |
-| `events` | raw eve stream events |
-| `session` | `SessionState` cursor: `sessionId`, `streamIndex` (⚠️ **`continuationToken` removed in 0.31.0** — the `sessionId` addresses every operation) |
-| `send(input)` | send text or a full turn payload |
-| `stop()` | abort the active request |
-| `reset()` | clear events/data/errors + the local session cursor |
+| `events` | the authoritative eve stream events (optimistic events never appear here) |
+| `session` | **`ClientSessionState`** cursor (`sessionId`, `streamIndex`) — the `sessionId` addresses every operation |
+| `send(message, options?)` | send text or `UserContent`; while a turn is active, `{ turnPolicy: "steer" }` replaces it |
+| `respond(inputResponses, options?)` | answer pending HITL input requests — rejects if a turn is already in flight |
+| `cancel()` | durable cancellation of the active turn, still receiving its events — **the Stop button** |
+| `resume()` | replay the attached durable session and follow its in-flight turn |
+| `prewarm()` | create the session without starting a turn |
+| `reset()` | detach the local stream, clear events and projected data |
 
-Useful options: `reducer`, `initialSession`, `initialEvents`, `host`, `auth`, `prepareSend`,
-`onEvent`/`onError`/`onFinish`, `optimistic` (default `true`), `maxReconnectAttempts` (default `3`).
+There is **no `stop()`** any more (use `cancel()`), and **no `maxReconnectAttempts`** option — it appears nowhere
+in the package; do not cite either.
+
+Options (`UseEveAgentOptions`): `agent` (a named agent from `withEve({ agents })`; not with `host`), `host`
+(default `""`, same-origin `/eve/v1/...`; an absolute origin to talk to eve directly), `auth`, `headers` (both may be
+functions, resolved before each request), `reducer`, `initialEvents`, `initialSession`, `session`, `resume`
+(default `false`), `prewarm` (default `false`), `optimistic` (default `true`), `followSubagents` (default
+`false`), `followIdle` (default `true`: the stream stays open between turns to show schedule, channel and other
+clients' events), and the callbacks `onEvent`, `onError`, `onFinish`, `onSessionChange`, `prepareSend`.
 
 ### Env vars (production)
 
@@ -84,9 +101,9 @@ of what eve does.** Its own generated Web Chat keeps the composer **enabled** du
 steers the follow-up, and the frontend guide writes it as
 `agent.send(message, isBusy ? { turnPolicy: "steer" } : undefined)`. Disabling the composer only
 denies the user the thing eve's turn policy exists to allow: correcting a bad answer while it is
-still being written. Give the composer one **Send / Stop** action instead of a dead input.
+still being written. Give the composer one **Send / Stop** action instead of a dead input — Stop is `cancel()` (`stop()` no longer exists).
 
-`status` has **five** values, unchanged at 0.47.6 — `"ready"`, `"resuming"`, `"submitted"`, `"streaming"`,
+`status` has **five** values, unchanged at 0.80.1 — `"ready"`, `"resuming"`, `"submitted"`, `"streaming"`,
 `"error"`. `"resuming"` is new (0.45.0): a hydrated conversation catching up on a durable session,
 which is *not* an active turn — show the transcript, not the active-turn controls.
 
@@ -253,7 +270,7 @@ useEffect(() => {
 Gotchas worldcup-eve hit (encode these):
 
 * **Pin `streamIndex` to the log length, not the live cursor.** eve's `session` cursor lags
-  mid-turn and **resets when a stream aborts** (reload, `stop()`); saving the bare cursor over a
+  mid-turn and **resets when a stream aborts** (reload, `cancel()`); saving the bare cursor over a
   good one loses resumability. Persist `streamIndex: events.length`.
 * **Before the first turn boundary there is no `sessionId`** — you can only restart from the
   pending first message, not resume. After eve mints the cursor, mount as-is and the next `send`

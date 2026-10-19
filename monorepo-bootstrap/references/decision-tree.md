@@ -68,10 +68,13 @@ Mandatory (created by monorepo-bootstrap):
 - packages/design/ — design tokens + Tailwind/NativeWind presets
 - packages/api/   — backend client + queries (filled later by module-add)
 
+Also always created in Step 2, not optional (init-monorepo.sh writes both):
+- packages/typescript-config/ — base.json + nextjs.json + react-native.json, extended by name
+  (`@<slug>/typescript-config/...`), not a root tsconfig.base.json.
+- packages/eslint-config/ — base.js + nextjs.js + react-native.js, same extends-by-name pattern.
+
 Optional, add later via monorepo-add-shared-package:
 - packages/ui/ — see the UI-package rule below
-- packages/config-eslint/ — IF you want shared lint configs
-- packages/config-tsconfig/ — IF tsconfig.base.json isn't enough
 
 Don't create packages "just in case". Make one when there's a real need.
 ```

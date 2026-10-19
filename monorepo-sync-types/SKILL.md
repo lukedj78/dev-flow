@@ -44,13 +44,19 @@ Read `meta.json#stack_config.supabase_project_ref` (or equivalent) for the gen c
 
 #### Supabase
 
-Run the canonical gen command:
+Run the canonical gen command. **Checked 2026-08-12 against `supabase@2.113.0`'s own README** — it now
+documents the command without an explicit `typescript` argument:
 
 ```bash
-npx supabase gen types typescript --project-id <ref> > packages/shared/src/types/database.ts
+npx supabase gen types --linked > packages/shared/src/types/database.ts   # after `supabase login` + `supabase link`
+npx supabase gen types --local  > packages/shared/src/types/database.ts   # against a running local `supabase start`
 ```
 
-(or `--linked` if `supabase login` + `supabase link` already done.)
+`--project-id <ref>` (the older explicit form this file previously showed as the default) is still
+referenced elsewhere in Supabase's docs and likely still works, but `--linked`/`--local` are what the
+shipped CLI's own README leads with now — prefer them. `[VERIFY]` against `supabase gen types --help`
+for the installed CLI version; `docs.supabase.com` is blocked from this sandbox so the full flag
+reference couldn't be cross-checked.
 
 Add to `packages/shared/src/index.ts`:
 ```ts

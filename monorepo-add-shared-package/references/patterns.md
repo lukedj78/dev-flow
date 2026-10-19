@@ -70,7 +70,7 @@ For packages with sub-paths (e.g. `@<slug>/design/tailwind`, `@<slug>/design/nat
 
 ```json
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "@<slug>/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"
@@ -80,11 +80,15 @@ For packages with sub-paths (e.g. `@<slug>/design/tailwind`, `@<slug>/design/nat
 }
 ```
 
-Same in all packages. The base does the heavy lifting (paths, strict, target).
+Same in all packages — extended **by package name**, not a relative path to a root
+`tsconfig.base.json` (`monorepo-bootstrap` never creates one; Turborepo's own pattern is a
+`packages/typescript-config` workspace package — see `monorepo-bootstrap/references/structure.md`).
+The base does the heavy lifting (paths, strict, target); the new package also needs
+`@<slug>/typescript-config` as a `devDependency` (`workspace:*`) or the `extends` can't resolve.
 
 ## Path alias convention
 
-In `tsconfig.base.json`:
+In `packages/typescript-config/base.json`:
 
 ```json
 {

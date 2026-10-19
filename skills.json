@@ -1027,7 +1027,7 @@
         "patterns.md"
       ],
       "scripts": [],
-      "skill_md_lines": 130,
+      "skill_md_lines": 132,
       "bundle": "dist/monorepo-add-shared-package.skill"
     },
     {
@@ -1047,6 +1047,7 @@
         "init-monorepo.sh",
         "scaffold-mobile.sh",
         "scaffold-web.sh",
+        "test_scaffold_contract.py",
         "verify.ts"
       ],
       "skill_md_lines": 228,
@@ -1065,7 +1066,7 @@
       "scripts": [
         "sync-supabase.sh"
       ],
-      "skill_md_lines": 181,
+      "skill_md_lines": 187,
       "bundle": "dist/monorepo-sync-types.skill"
     },
     {

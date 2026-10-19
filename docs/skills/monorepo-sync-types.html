@@ -114,7 +114,7 @@ var n=c==='dark'?'light':'dark';d.setAttribute('data-theme',n);set(n)}})();
 <div class="wrap hero">
   <p class="eyebrow"><a class="back" href="../index.html">← all skills</a></p>
   <h1 style="font-family:var(--fM);font-size:clamp(26px,4vw,36px)">monorepo-sync-types</h1>
-  <ul class="meta"><li class="chip">Monorepo</li><li class="chip">operative — changes the codebase</li><li class="chip">181 lines</li><li class="chip">2 references</li><li class="chip">1 script</li></ul>
+  <ul class="meta"><li class="chip">Monorepo</li><li class="chip">operative — changes the codebase</li><li class="chip">187 lines</li><li class="chip">2 references</li><li class="chip">1 script</li></ul>
   <p class="lede">Regenerate backend types and re-export them via packages/shared/types/ in a turborepo monorepo so both apps/web/ and apps/mobile/ consume a single typed surface. Supports Supabase (via supabase gen types typescript), neon-drizzle (via drizzle-kit introspect/pull + InferSelectModel/InferInsertModel re-exports — the default DB stack), tRPC (via inference from the server router import), and custom REST (via a manual or zod-derived schema). Reads .workflow/meta.json with stack.framework=&quot;monorepo&quot; and stack.{auth,db} populated. Use when &quot;rigenera i tipi da Supabase&quot;, &quot;sync DB schema to packages/shared/types&quot;, &quot;il backend è cambiato, aggiorna i tipi&quot;, &quot;sync types from tRPC&quot;, &quot;sync Drizzle types after a schema change&quot;. Not for: creating shared packages from scratch (use monorepo-add-shared-package), wiring the backend client itself (use module-add or rn-module-add).</p>
 </div>
 <section><div class="wrap prose">
