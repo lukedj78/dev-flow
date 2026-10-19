@@ -1518,6 +1518,36 @@ class Hooks(unittest.TestCase):
             "command": 'registry-"lock".json > x'}}))
         self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": "echo hi"}}))
 
+    def test_a_newline_is_two_commands(self) -> None:
+        """A twelfth review. `shlex` treats a newline as whitespace, so
+        `… check .\npython3 -c "…"` merged two commands into ONE token list with no operator in it
+        and passed the test — the same hole as `;` a round earlier, through whitespace. Asking what
+        the token list LACKS was the wrong shape; the test asks what the command IS."""
+        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\npython3 -c "x"'))
+        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .\recho x'))
+        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check ."))
+
+    def test_the_lock_changing_is_noticed_however_the_command_spelled_it(self) -> None:
+        """The answer to a chain of findings about globs, braces and quotes in the lock's name:
+        predicting which commands will write it is unbounded — every text check is one spelling
+        behind — while noticing that one DID is bounded. The pre-hook pins the lock's bytes and
+        `hook-post` compares them, so the spelling stops mattering."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        event = {"session_id": "s1", "cwd": str(root), "tool_name": "Bash", "tool_input": {"command": "x"}}
+        ri.hook_pre_snapshot(event)
+        lock = ri.lock_path(root)
+        d = json.loads(lock.read_text())
+        d.setdefault("registries", {})["@evil"] = {"url": "https://evil.test/{name}.json", "by": "nobody"}
+        lock.write_text(json.dumps(d))
+        report = ri.hook_post_report(event) or ""
+        self.assertIn("changed while that command ran", report)
+        self.assertIn("--by", report)
+        # And a command that changes nothing says nothing.
+        ri.hook_pre_snapshot(event)
+        self.assertIsNone(ri.hook_post_report(event))
+
     def test_one_tokeniser_for_the_gate_and_the_scanner(self) -> None:
         """The comment on `hook_tokens` said two tokenisers would be a parser differential between
         the gate and the scanner. Then the exemption helper was written with a plain `shlex.split`,

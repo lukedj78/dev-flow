@@ -1027,7 +1027,11 @@ def hook_pre_snapshot(payload: dict) -> None:
     root = find_root(Path(payload.get("cwd") or ".").resolve())
     lock = load_lock(root) if root else None
     if lock is not None:
-        _effect_snapshot(root, payload).write_text(json.dumps(registry_problems(root, lock)))
+        # The lock's own bytes, because detecting *that it changed* is bounded while predicting
+        # which commands will write it is not — a glob, a brace, a variable or a heredoc spells the
+        # path without containing it, and the text checks will always be one spelling behind.
+        _effect_snapshot(root, payload).write_text(json.dumps(
+            {"problems": registry_problems(root, lock), "lock": sha256(lock_path(root))}))
 
 
 def hook_post_report(payload: dict) -> str | None:
@@ -1036,18 +1040,30 @@ def hook_post_report(payload: dict) -> str | None:
     if lock is None:
         return None
     path = _effect_snapshot(root, payload)
+    before_lock = None
     try:
         raw = json.loads(path.read_text())
-        # `set(json.loads(...))` accepted anything iterable: a forged `{"...": 1}` became a set of its
-        # keys, and a forged string became a set of its characters — both read as a baseline.
-        if not (isinstance(raw, list) and all(isinstance(x, str) for x in raw)):
-            raise ValueError("the baseline is not the list of strings this writes")
-        before: set[str] | None = set(raw)
+        # Anything but exactly the shape this writes is not a baseline: a forged `{"...": 1}` once
+        # became a set of its keys, and a forged string a set of its characters.
+        if not (isinstance(raw, dict) and isinstance(raw.get("problems"), list)
+                and all(isinstance(x, str) for x in raw["problems"])
+                and isinstance(raw.get("lock"), str)):
+            raise ValueError("the baseline is not the shape this writes")
+        before: set[str] | None = set(raw["problems"])
+        before_lock = raw["lock"]
         path.unlink(missing_ok=True)
     except (OSError, json.JSONDecodeError, ValueError):
         before = None  # a missing or rewritten baseline is not a clean one: it must not hide what the command did
     now = registry_problems(root, lock)
     new = now if before is None else [p for p in now if p not in before]
+    # Did the record of what a PERSON decided change during this command? The text gates ask about
+    # commands that look like they will write it; this notices that one did, whatever it looked like.
+    if before_lock is not None and sha256(lock_path(root)) != before_lock:
+        return (f"{LOCK} changed while that command ran. It records what a person decided — every "
+                "registry, item, skill, MCP server and hook approval in it carries a `--by`. If you "
+                "did not run `allow`, `approve`, `skill-approve`, `mcp-approve` or `hook-approve`, "
+                "put it back with `git checkout -- " + LOCK + "` and tell the user what wrote it."
+                + ("\nThe registry problems it reports now:\n" + "".join(f"  - {p}\n" for p in new) if new else ""))
     if not new:
         return None
     if before is None:
@@ -3109,7 +3125,8 @@ def hook_ask(payload: dict) -> str | None:
     # a glob character is treated as the name, which is the fail-closed direction here.
     stem = LOCK.lower().removesuffix(".json")
     globbed = re.search(rf"{re.escape(stem[:8])}[\w.*?\[\]-]*[*?\[]|[*?\[][\w.*?\[\]-]*{re.escape(stem[-4:])}", flat)
-    if (LOCK.lower() in flat or globbed) and not our_invocation(command):
+    if (LOCK.lower() in flat or globbed) and not our_invocation(
+            command, find_root(Path(payload.get("cwd") or ".").resolve())):
         return (f"this command names {LOCK}, registry intake's record of what a person decided. "
                 "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
                 "know which of the two this is.")
@@ -3166,7 +3183,7 @@ OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "h
 PYTHON_NAME = re.compile(r"(?:python|pypy)[\d.]*")
 
 
-def our_invocation(command: str) -> bool:
+def our_invocation(command: str, root: Path | None = None) -> bool:
     """Is this ONE direct call of this script, and nothing else?
 
     Three ways past the first version, all from reading it loosely. `"registry_intake" not in
@@ -3175,14 +3192,33 @@ def our_invocation(command: str) -> bool:
     exempted `python3 $S check` whatever `$S` held. argv is read position by position now, and
     `$S` — which the docs do use — is no longer exempt: we cannot see what it holds, so it asks,
     and `approve` asks anyway for being a decision."""
+    # A NEWLINE is whitespace to shlex, so `… check .\npython3 -c "…"` merged two commands into one
+    # token list with no operator in it and passed — the same hole as `;` one round earlier, through
+    # whitespace. Asking what the token list LACKS was the wrong shape; this asks what the command
+    # IS: one line, and argv in order.
+    if "\n" in command or "\r" in command:
+        return False
     tokens, parsed = shell_tokens(command)
     if not parsed or SUBSTITUTION.search(command) or len(tokens) < 3:
         return False
     if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens):
         return False
-    return (PYTHON_NAME.fullmatch(Path(tokens[0]).name) is not None
-            and Path(tokens[1]).name == "registry_intake.py"
-            and tokens[2] in OUR_VERBS)
+    if PYTHON_NAME.fullmatch(Path(tokens[0]).name) is None or tokens[2] not in OUR_VERBS:
+        return False
+    if Path(tokens[1]).name != "registry_intake.py":
+        return False
+    if root is not None:
+        # By identity when we can: a basename is a spelling, and this file has paid for that
+        # confusion once already (`evil_registry_intake.py` ended with the right one).
+        named = Path(tokens[1]) if Path(tokens[1]).is_absolute() else root / tokens[1]
+        for real in (root / HOOK_COPY, Path(__file__).resolve()):
+            try:
+                if named.exists() and real.exists() and named.samefile(real):
+                    return True
+            except OSError:
+                pass
+        return False
+    return True
 
 
 def may_install(command: str) -> bool:

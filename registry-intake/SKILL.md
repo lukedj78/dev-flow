@@ -488,6 +488,19 @@ loosely — three ways past it, and the first is the one worth remembering:
 - **A glob spells the name without containing it**: `registry-lo?k.json`, `registry-*.json`. Only a
   shell can expand one, so a fragment of the name beside a glob character counts as the name — and
   quotes are stripped first, the way `may_install` has always done it.
+
+A twelfth review ended that chain, by changing the question rather than the regex. Its first finding
+was the `;` hole again through **whitespace**: `shlex` treats a newline as a space, so
+`… check .\npython3 -c "…"` merged two commands into one token list with no operator in it and
+passed. Asking what the token list *lacks* was the wrong shape; the test asks what the command **is**
+— one line, argv in order, and the script identified by `samefile` rather than by basename.
+
+Its second finding was the useful one. Predicting *which commands will write the lock* is unbounded
+— a glob, a brace, a variable, a heredoc each spell the path without containing it, so every text
+check is one spelling behind — while noticing that one **did** write it is bounded. The PreToolUse
+hook pins the lock's own sha256 and `hook-post` compares it, so a change to the record of what a
+person decided is reported however the command spelled the path. The text gates stay as the early
+warning; this is the one that does not depend on spelling.
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 
