@@ -415,6 +415,32 @@ What this buys is not fewer bugs in the heuristic. It is that a bug there **stop
 the heuristic now decides which file to read inside a shape already known to be readable, so getting
 it wrong misreads a file instead of switching off a control.
 
+### What the door cost, and the hole under all of it
+
+Two reviews read the door itself, and the second found something larger than the door.
+
+- **The prompt did not name what it was approving.** `hook-approve` with no `--only` covers every
+  unreadable shape in the project, and the prompt said "a hook command" — singular, unnamed.
+  Consent to something unnamed is not consent, and the other three verbs all name their target. It
+  lists them now, with the count.
+- **An approval that pinned nothing went quiet.** `bash "$HOME/bin/tool.sh"` names a file we cannot
+  identify, so the digest map was empty — and rewriting that script left the approval standing. The
+  door was weakest exactly where it gets used. Now a file we can read is pinned whether or not it
+  lives in the project, the pin carries **where the path resolves to** as well as the bytes there
+  (a retargeted symlink is the same path with the same old bytes behind it), and the *set* of
+  resolved files is pinned too, since `is_pathish` consults the filesystem. An approval that could
+  pin nothing clears the block and stops there: it stays on the report at **review**, for good.
+- **And the lock was editable by hand.** Our PreToolUse matcher was `Bash`, so an `Edit` on
+  `registry-lock.json` passed no gate at all — the record of what a *person* decided, every
+  registry, item, skill, MCP server and hook approval in it, rewritable by the agent. That made
+  every `--by` in this skill forgeable, not just the hook ones, and it had been true since the lock
+  existed. The gate is wired `Bash|Edit|Write|MultiEdit|NotebookEdit` now, a write to the lock is
+  denied with the commands to use instead, and `check` verifies the **matcher** and not only the
+  command — wired narrowly, a gate never sees the edit it exists to stop.
+
+A project wired before this needs `setup` (or `hook-approve`'s own `check`) run once: the matcher
+changed, so `check` reports the old wiring until it is widened.
+
 ## Where it runs
 
 - **Automatically at scaffold.** `design-md-to-app` (Step 4.10), `monorepo-bootstrap` (Step 8) and

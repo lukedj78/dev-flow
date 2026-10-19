@@ -953,7 +953,12 @@ def hook_installed(root: Path) -> bool:
         pre = (json.loads(p.read_text()).get("hooks") or {}).get("PreToolUse") or []
     except json.JSONDecodeError:
         return False
-    return (root / HOOK_COPY).exists() and any(h.get("command") == HOOK_COMMAND for m in pre for h in m.get("hooks") or [])
+    if not (root / HOOK_COPY).exists():
+        return False
+    # The matcher matters as much as the command: wired to `Bash` alone, the gate never sees the
+    # Edit that rewrites the lock. An old project keeps its narrow wiring silently otherwise.
+    return any(h.get("command") == HOOK_COMMAND and m.get("matcher") == HOOK_MATCHER
+               for m in pre for h in m.get("hooks") or [])
 
 
 def registry_problems(root: Path, lock: dict) -> list[str]:
@@ -1651,20 +1656,17 @@ def cmd_hook_approve(args) -> int:
         return 1
     approved = (lock.setdefault("hooks", {})).setdefault("approved", {})
     for rel, event, command, why in targets:
-        scripts, _ = hook_scripts(root, command)
-        here = root.resolve()
-        digests = {}
-        for q in scripts:
-            try:
-                if q.is_file() and q.resolve().is_relative_to(here):
-                    digests[q.resolve().relative_to(here).as_posix()] = sha256(q)
-            except OSError:
-                pass
+        # Inside the project OR outside it: a file we can read is a file we can pin, and pinning
+        # only the in-project ones left the commonest approved shape — a script somewhere under
+        # $HOME — verified by nothing at all.
+        digests = pinned_scripts(root, command)
         print(f"\n{rel} · {event}\n  {command}\n  a machine cannot read it: {why}")
-        print("  pinned: " + (", ".join(f"{k} {v[:12]}…" for k, v in digests.items())
-                              if digests else "the command text only — it names no file of ours, so "
-                                              "what you read is the text"))
-        approved[hashlib.sha256(command.encode()).hexdigest()[:16]] = {
+        print("  pinned: " + (", ".join(f"{k} → {v['target']} {v['sha256'][:12]}…"
+                                        for k, v in digests.items()) if digests else
+                              "NOTHING — it names no file we can identify, so this records your word "
+                              "about the text and nothing can be re-checked. It clears the block and "
+                              "stays on the report at review."))
+        approved[approval_key(rel, event, command)] = {
             "command": command, "event": event, "file": rel, "why": why,
             "by": args.by, "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
             "scripts": digests}
@@ -2112,15 +2114,49 @@ def reviewable_shape(root: Path, command: str) -> str | None:
     return None
 
 
-def approved_shape(lock: dict | None, root: Path, command: str) -> dict | None:
-    """The recorded approval for this exact command, if its scripts are still the approved bytes."""
-    entry = ((lock or {}).get("hooks") or {}).get("approved", {}).get(hashlib.sha256(command.encode()).hexdigest()[:16])
+def approval_key(rel: str, event: str, command: str) -> str:
+    """One approval per (settings file, event, command). The same text under `Stop` and under
+    `PreToolUse` is not the same hook: only one of them can allow or deny every call."""
+    return hashlib.sha256("\x00".join((rel, event, command)).encode()).hexdigest()[:16]
+
+
+def pinned_scripts(root: Path, command: str) -> dict[str, dict[str, str]]:
+    """{the path as the command names it: {where it resolves to, the digest there}}.
+
+    Both halves, because one is not enough. The digest alone misses a **symlink retargeted** after
+    approval — same named path, same recorded bytes at the old target, different code running. The
+    named path alone misses an edit. And the SET of them is pinned too, since `is_pathish` consults
+    the filesystem, so the same text can resolve to a different set of files later."""
+    out: dict[str, dict[str, str]] = {}
+    here = root.resolve()
+    for q in hook_scripts(root, command)[0]:
+        try:
+            if not q.is_file():
+                continue
+            target = q.resolve()
+            name = q.as_posix()
+            if q.is_relative_to(root):
+                name = q.relative_to(root).as_posix()
+            out[name] = {"target": target.as_posix(), "sha256": sha256(q)}
+        except OSError:
+            continue
+    return out
+
+
+def approved_shape(lock: dict | None, root: Path, rel: str, event: str, command: str) -> dict | None:
+    """The recorded approval, if what this command runs NOW is what the person read."""
+    entry = ((lock or {}).get("hooks") or {}).get("approved", {}).get(approval_key(rel, event, command))
     if not entry or entry.get("command") != command:
         return None
-    for rel, digest in (entry.get("scripts") or {}).items():
-        f = root / rel
-        if not f.is_file() or sha256(f) != digest:
-            return None          # the script changed after the person read it: the approval dies
+    was = entry.get("scripts") or {}
+    if not all(isinstance(v, dict) for v in was.values()):
+        return None              # the pre-target shape: too weak to honour, so it asks again
+    now = pinned_scripts(root, command)
+    if set(was) != set(now):
+        return None              # a different set of files resolves here than when it was read
+    for name, pin in was.items():
+        if now[name]["target"] != pin.get("target") or now[name]["sha256"] != pin.get("sha256"):
+            return None          # retargeted, or rewritten, after the person read it
     return entry
 
 
@@ -2133,9 +2169,19 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
         where = f"{rel} · {event}"
         seen: set[str] = set()
         if (why := reviewable_shape(root, command)) is not None:
-            ok = approved_shape(lock, root, command)
-            found.append(Finding("H12", "info" if ok else "block", event,
-                                 HOOK_CODES["H12"] + (f" — read by {ok['by']} on {ok['at'][:10]}" if ok else ""),
+            ok = approved_shape(lock, root, rel, event, command)
+            # An approval that could pin NO file is a person's word about a text, with nothing to
+            # re-check: `bash "$HOME/bin/tool.sh"` named a file we cannot identify, the digest map
+            # was empty, and rewriting that script left the approval standing at `info`. It was
+            # weakest exactly where it gets used, so a text-only approval clears the BLOCK and
+            # stops there — it stays on the report, at review, for as long as it exists.
+            pinned = bool((ok or {}).get("scripts"))
+            level = "block" if not ok else ("info" if pinned else "review")
+            note = ("" if not ok else
+                    f" — read by {ok['by']} on {ok['at'][:10]}"
+                    + ("" if pinned else "; the text only, since it names no file we can identify, "
+                                         "so nothing here can be re-checked"))
+            found.append(Finding("H12", level, event, HOOK_CODES["H12"] + note,
                                  f"{where}: {why} · {command[:110]}"))
         for code, level, pat in HOOK_RULES:
             if pat.search(command) and code not in seen:
@@ -2239,6 +2285,12 @@ def check_hooks(root: Path, lock: dict) -> list[str]:
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"
 HOOK_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook'
+# `Bash` alone left the lock — the trust anchor for registries, items, skills, MCP servers and hook
+# approvals, every entry of which is supposed to arrive through a `--by` command behind the `ask`
+# prompt — editable with the Edit tool, past no gate at all. Every `--by` in it was forgeable by an
+# agent willing to write JSON. The gate covers the tools that write files now.
+HOOK_MATCHER = "Bash|Edit|Write|MultiEdit|NotebookEdit"
+WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 HOOK_POST_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook-post'
 
 
@@ -2260,10 +2312,13 @@ def wire_hook(root: Path) -> bool:
     for event, command in (("PreToolUse", HOOK_COMMAND), ("PostToolUse", HOOK_POST_COMMAND)):
         entries = data.setdefault("hooks", {}).setdefault(event, [])
         ours = [m for m in entries for h in m.get("hooks") or [] if "registry_intake.py" in (h.get("command") or "")]
-        if len(ours) == 1 and [h.get("command") for h in ours[0]["hooks"]] == [command]:
+        want = HOOK_MATCHER if event == "PreToolUse" else "Bash"
+        if (len(ours) == 1 and [h.get("command") for h in ours[0]["hooks"]] == [command]
+                and ours[0].get("matcher") == want):
             continue
+        matcher = HOOK_MATCHER if event == "PreToolUse" else "Bash"
         data["hooks"][event] = [m for m in entries if m not in ours] + [
-            {"matcher": "Bash", "hooks": [{"type": "command", "command": command}]}]
+            {"matcher": matcher, "hooks": [{"type": "command", "command": command}]}]
         wrote = True
     if not wrote:
         return changed
@@ -2802,6 +2857,15 @@ def mcp_installs(command: str) -> list[str]:
 
 def hook_decision(payload: dict) -> str | None:
     """None to allow, or the reason to deny."""
+    if payload.get("tool_name") in WRITE_TOOLS:
+        target = Path(((payload.get("tool_input") or {}).get("file_path") or "")).name
+        if target == LOCK:
+            return (f"{LOCK} is registry intake's record of what a PERSON decided: every registry, "
+                    "item, skill, MCP server and hook approval in it carries a `--by` and was "
+                    "confirmed through this hook's prompt. Editing it directly writes that someone "
+                    "said yes when nobody was asked. Use the commands — `allow`, `approve`, "
+                    "`skill-approve`, `mcp-approve`, `hook-approve` — each with `--by <the person>`.")
+        return None
     if payload.get("tool_name") != "Bash":
         return None
     command = (payload.get("tool_input") or {}).get("command") or ""
@@ -2899,14 +2963,36 @@ def hook_ask(payload: dict) -> str | None:
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
     # the script's name. A python interpreter plus one of the three verbs is that form.
-    if "registry_intake" not in command and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|hook-approve|allow|approve)\b", command):
+    # `hook-approve` is distinctive enough to stand alone: gating the whole prompt on seeing
+    # `registry_intake` or a python interpreter meant a wrapper script, an alias or `uv run` ran the
+    # decision with no prompt at all.
+    if ("registry_intake" not in command
+            and not re.search(r"\bhook-approve\b", command)
+            and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", command)):
         return None
     asks = []
     if re.search(r"\bhook-approve\b", command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
-        asks.append("record that " + (by.group(1).strip("\"'") if by else "nobody named")
-                    + " READ a hook command a machine cannot — the one thing that runs without the "
-                      "agent choosing to")
+        who = by.group(1).strip("\"'") if by else "nobody named"
+        # NAME them. The first version asked about "a hook command" — singular, unnamed — while the
+        # command with no `--only` approves every unreadable shape in the project at once. Consent
+        # to something unnamed is not consent, and the other three verbs all name their target.
+        only = re.search(r"--only[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
+        targets: list[str] = []
+        try:
+            root = find_root(Path(payload.get("cwd") or ".").resolve())
+            if root is not None:
+                entries, _unreadable = hook_entries(root)
+                targets = [f"{event}: {cmd}" for _rel, event, cmd in entries
+                           if reviewable_shape(root, cmd) is not None
+                           and (not only or only.group(1).strip("\"'") in cmd)]
+        except Exception:  # noqa: BLE001 — an unnamed ask is better than no ask
+            targets = []
+        shown = "; ".join(targets[:3]) + (f"; and {len(targets) - 3} more" if len(targets) > 3 else "")
+        asks.append(f"record that {who} READ "
+                    + (f"{len(targets)} hook command(s) a machine cannot — {shown}"
+                       if targets else "a hook command a machine cannot")
+                    + " — hooks being the one thing that runs without the agent choosing to")
     for verb, target in DECISION_CALL.findall(command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
         who = by.group(1).strip("\"'") if by else "nobody named"
