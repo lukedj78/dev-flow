@@ -1438,6 +1438,58 @@ class Hooks(unittest.TestCase):
         write(root, ".claude/settings.json", settings)
         self.assertFalse(ri.hook_installed(root), "narrowed back, and check says so")
 
+    def test_a_governed_file_is_found_by_identity_not_by_spelling(self) -> None:
+        """`Path(file_path).name == LOCK` caught one spelling of one file. A ninth review found six
+        ways past it: a symlink named `notes.md` pointing at the lock, `Registry-Lock.json` (the
+        same file on this filesystem), the vendored hook script, NotebookEdit's `notebook_path`,
+        the settings file where the hooks themselves are wired — an Edit there can delete this very
+        gate — and a plain shell redirect, which the Bash branch never looked at."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        lock = root / ri.LOCK
+        (root / "notes.md").symlink_to(lock)
+
+        def decide(tool, **inp):
+            return ri.hook_decision({"tool_name": tool, "cwd": str(root), "tool_input": inp})
+
+        def asked(tool, **inp):
+            return ri.hook_ask({"tool_name": tool, "cwd": str(root), "tool_input": inp})
+
+        for tool, inp in (("Edit", {"file_path": str(root / "notes.md")}),
+                          ("Edit", {"file_path": str(root / "Registry-Lock.json")}),
+                          ("Write", {"file_path": str(lock)}),
+                          ("NotebookEdit", {"notebook_path": str(lock)})):
+            with self.subTest(inp=inp):
+                self.assertIsNotNone(decide(tool, **inp), inp)
+        self.assertIsNotNone(decide("Edit", file_path=str(root / ri.HOOK_COPY)), "our own script")
+        # The wiring and a shell that names the lock are the user's call, not a refusal.
+        self.assertIsNotNone(asked("Edit", file_path=str(root / ".claude/settings.json")))
+        self.assertIsNotNone(asked("Bash", command=f"echo '{{}}' > {lock}"))
+        # And nothing else is this hook's business.
+        self.assertIsNone(decide("Edit", file_path=str(root / "app/page.tsx")))
+        self.assertIsNone(asked("Edit", file_path=str(root / "app/page.tsx")))
+        self.assertIsNone(asked("Bash", command=f"python3 .claude/hooks/registry_intake.py check {root}"),
+                          "our own read-only call is not a question")
+
+    def test_the_prompt_names_the_project_the_command_names(self) -> None:
+        """Re-reading argv with regexes took `root` from the payload's cwd while the command named
+        another project: the prompt listed one project's hooks and the approval wrote the other's.
+        A prompt that names the wrong thing is worse than one that names nothing."""
+        here = self.project(("Stop", 'bash "$HOME/bin/innocuo.sh"'))
+        there = self.project(("Stop", 'bash "$HOME/bin/secret.sh"'))
+        quiet(ri.main, ["setup", str(here)])
+        quiet(ri.main, ["setup", str(there)])
+        ask = ri.hook_ask({"tool_name": "Bash", "cwd": str(here), "tool_input": {
+            "command": f"python3 registry_intake.py hook-approve {there} --by luca"}})
+        self.assertIn("secret.sh", ask, "the project the command names")
+        self.assertNotIn("innocuo.sh", ask, "not the one it runs in")
+        self.assertIn("NOT the directory this command runs in", ask)
+        # `--only` is read from the parsed arguments, not matched out of the text.
+        targets, where, _caveat = ri.approve_targets(
+            f"python3 ri.py hook-approve {there} --by luca --only nothing-matches", Path(there))
+        self.assertEqual(targets, [])
+        self.assertEqual(where, there.resolve())
+
     def test_the_ask_gate_fires_on_the_verb_whatever_runs_it(self) -> None:
         """Gating the prompt on `registry_intake` or a python interpreter meant a wrapper, an alias
         or `uv run` made the decision with no prompt at all."""

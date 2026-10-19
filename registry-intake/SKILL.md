@@ -441,6 +441,25 @@ Two reviews read the door itself, and the second found something larger than the
 A project wired before this needs `setup` (or `hook-approve`'s own `check`) run once: the matcher
 changed, so `check` reports the old wiring until it is widened.
 
+A ninth review read that gate and found **six ways past it**, because it compared
+`Path(file_path).name` with the lock's name — one spelling of one file. Through it went: a symlink
+named `notes.md` pointing at the lock; `Registry-Lock.json`, the same file on a case-insensitive
+filesystem; `NotebookEdit`, which carries `notebook_path` and not `file_path`; the vendored hook
+script, whose edit makes the project's own gate unverifiable; **`.claude/settings.json`, where the
+hooks are wired — an edit there deletes this gate**; and a plain `echo … > registry-lock.json`,
+which the Bash branch never looked at. A governed file is identified by **identity** now —
+`samefile`, then resolved paths, then a case-folded name as the last resort — and the split is: the
+lock and our own script are **denied**, the wiring and a shell command that merely *names* the lock
+are **asked**, because reading it is harmless and what a shell does with it is the unbounded
+question again.
+
+The same review caught the consent prompt lying. It re-read argv with regexes and took the project
+from the payload's cwd, so `hook-approve <other-project>` listed *this* project's hooks while the
+approval wrote the other's — **a prompt that names the wrong thing is worse than one that names
+nothing.** The arguments are parsed with `shlex` and the CLI's own flags now, the targets come from
+the root the command names, and when that is not the directory the command runs in, the prompt says
+so.
+
 ## Where it runs
 
 - **Automatically at scaffold.** `design-md-to-app` (Step 4.10), `monorepo-bootstrap` (Step 8) and

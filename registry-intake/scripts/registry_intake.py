@@ -2855,22 +2855,82 @@ def mcp_installs(command: str) -> list[str]:
     return out
 
 
+def written_path(tool_input: dict) -> str:
+    """NotebookEdit carries `notebook_path`, not `file_path`, and reading only one let the notebook
+    tool write anything this gate was built to protect."""
+    for key in ("file_path", "notebook_path", "path"):
+        if isinstance(tool_input.get(key), str) and tool_input[key]:
+            return tool_input[key]
+    return ""
+
+
+def protected_file(root: Path | None, target: str) -> str | None:
+    """Which governed file this path IS, by identity and not by spelling.
+
+    Comparing `Path(target).name == LOCK` caught exactly one spelling of one file. A symlink named
+    `notes.md` pointing at the lock went through; so did `Registry-Lock.json`, which on a
+    case-insensitive filesystem is the same file; so did `.claude/settings.json`, where the hooks
+    themselves are wired — an Edit there can delete this very gate."""
+    if not target:
+        return None
+    t = Path(target)
+    governed = {LOCK: "the lock", HOOK_COPY: "this hook's own script",
+                ".claude/settings.json": "the hook wiring", ".claude/settings.local.json": "the hook wiring"}
+    roots = [root] if root else []
+    for rel, what in governed.items():
+        for r in roots:
+            cand = r / rel
+            try:
+                if t.exists() and cand.exists() and t.samefile(cand):
+                    return rel          # follows symlinks and settles case on its own
+            except OSError:
+                pass
+            try:
+                if t.resolve(strict=False) == cand.resolve(strict=False):
+                    return rel          # a file Write is about to create does not exist yet
+            except OSError:
+                pass
+            # Last resort, for a case-insensitive filesystem with no file to stat.
+            if t.as_posix().lower().endswith("/" + rel.lower()) or t.name.lower() == Path(rel).name.lower():
+                return rel
+        if not roots and t.name.lower() == Path(rel).name.lower():
+            return rel                   # no project found: judge by name rather than allow
+    return None
+
+
+LOCK_DENIAL = (f"{LOCK} is registry intake's record of what a PERSON decided: every registry, item, "
+               "skill, MCP server and hook approval in it carries a `--by` and was confirmed through "
+               "this hook's prompt. Writing it directly records that somebody said yes when nobody "
+               "was asked. Use the commands — `allow`, `approve`, `skill-approve`, `mcp-approve`, "
+               "`hook-approve` — each with `--by <the person>`.")
+
+
 def hook_decision(payload: dict) -> str | None:
     """None to allow, or the reason to deny."""
-    if payload.get("tool_name") in WRITE_TOOLS:
-        target = Path(((payload.get("tool_input") or {}).get("file_path") or "")).name
-        if target == LOCK:
-            return (f"{LOCK} is registry intake's record of what a PERSON decided: every registry, "
-                    "item, skill, MCP server and hook approval in it carries a `--by` and was "
-                    "confirmed through this hook's prompt. Editing it directly writes that someone "
-                    "said yes when nobody was asked. Use the commands — `allow`, `approve`, "
-                    "`skill-approve`, `mcp-approve`, `hook-approve` — each with `--by <the person>`.")
-        return None
-    if payload.get("tool_name") != "Bash":
+    tool = payload.get("tool_name")
+    tool_input = payload.get("tool_input") or {}
+    if tool in WRITE_TOOLS:
+        root = find_root(Path(payload.get("cwd") or ".").resolve())
+        which = protected_file(root, written_path(tool_input))
+        if which == LOCK:
+            return LOCK_DENIAL
+        if which == HOOK_COPY:
+            return (f"{HOOK_COPY} is this skill's own script, vendored. `check` trusts it only while "
+                    "it is byte-identical to the installed skill, so an edit here does not customise "
+                    "it — it makes the project's gate unverifiable. Change the skill and re-run "
+                    "`registry_intake.py setup <root>`.")
+        return None                      # the settings file is an `ask`, in hook_ask below
+    if tool != "Bash":
         return None
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not isinstance(command, str):
         raise TypeError("tool_input.command is not a string")
+    # A shell redirect writes the lock as surely as the Edit tool does, and this branch saw none of
+    # it: the gate above closed one door while `echo … > registry-lock.json` stayed open. Naming it
+    # is not parsing it — what the command DOES with the lock is the unbounded question, so a
+    # command that merely names it goes to the user, and an invocation of this script does not.
+    if LOCK in command and "registry_intake" not in command:
+        return None                      # handed to hook_ask, which asks rather than refuses
     if BASELINE_PATH.search(command):
         return ("this command names registry intake's own before-state file. That file is how "
                 "`hook-post` tells a problem the command introduced from one that was already there, "
@@ -2953,12 +3013,61 @@ def hook_decision(payload: dict) -> str | None:
 DECISION_CALL = re.compile(r"""(?:\S*registry_intake\.py["']?|["']?\$\{?\w+\}?["']?)\s+(skill-approve|mcp-approve|allow|approve)\s+(?:\S+\s+)?(\S+)""")
 
 
+def approve_targets(command: str, cwd: Path | None) -> tuple[list[str], Path | None, str]:
+    """(the commands this `hook-approve` would cover, the project it would write, a caveat).
+
+    Parsed, not matched. Re-reading argv with regexes took `root` from the payload's cwd while the
+    command named a different project, so the prompt listed one project's hooks and the approval
+    wrote another's — a prompt that names the wrong thing is worse than one that names nothing."""
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return [], None, "its quoting does not parse, so what it approves could not be read"
+    if "hook-approve" not in tokens:
+        return [], None, ""
+    rest = tokens[tokens.index("hook-approve") + 1:]
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("root", nargs="?", type=Path)
+    ap.add_argument("--by")
+    ap.add_argument("--only")
+    try:
+        args, _unknown = ap.parse_known_args(rest)
+    except SystemExit:
+        return [], None, "its arguments could not be parsed"
+    root = (args.root or cwd or Path(".")).resolve()
+    found = find_root(root)
+    if found is None:
+        return [], root, f"no registry intake project at {root}"
+    caveat = "" if cwd is None or found == find_root(cwd) else f"in {found}, which is NOT the directory this command runs in"
+    try:
+        entries, _unreadable = hook_entries(found)
+        targets = [f"{event}: {cmd}" for _rel, event, cmd in entries
+                   if reviewable_shape(found, cmd) is not None
+                   and (not args.only or args.only in cmd)]
+    except Exception:  # noqa: BLE001 — an unnamed ask beats no ask
+        return [], found, "the hook list could not be read"
+    return targets, found, caveat
+
+
 def hook_ask(payload: dict) -> str | None:
     """None, or what the user is asked to confirm: allowlisting a registry and approving an item are
     their decisions, and an agent that skipped the question still meets the prompt."""
-    if payload.get("tool_name") != "Bash":
+    tool = payload.get("tool_name")
+    tool_input = payload.get("tool_input") or {}
+    if tool in WRITE_TOOLS:
+        root = find_root(Path(payload.get("cwd") or ".").resolve())
+        if protected_file(root, written_path(tool_input)) in (".claude/settings.json", ".claude/settings.local.json"):
+            return ("this writes the project's hook wiring — the one surface that runs without the "
+                    "agent choosing to, on every tool call. Confirm only if you asked for a hook to "
+                    "be added or changed; `registry_intake.py check <root>` then reports what landed.")
         return None
-    command = (payload.get("tool_input") or {}).get("command") or ""
+    if tool != "Bash":
+        return None
+    command = tool_input.get("command") or ""
+    if LOCK in command and "registry_intake" not in command:
+        return (f"this command names {LOCK}, registry intake's record of what a person decided. "
+                "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
+                "know which of the two this is.")
     # The guard is cheap and keeps DECISION_CALL off unrelated commands (`pnpm approve builds` would
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
@@ -2974,24 +3083,17 @@ def hook_ask(payload: dict) -> str | None:
     if re.search(r"\bhook-approve\b", command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
         who = by.group(1).strip("\"'") if by else "nobody named"
-        # NAME them. The first version asked about "a hook command" — singular, unnamed — while the
-        # command with no `--only` approves every unreadable shape in the project at once. Consent
-        # to something unnamed is not consent, and the other three verbs all name their target.
-        only = re.search(r"--only[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
-        targets: list[str] = []
-        try:
-            root = find_root(Path(payload.get("cwd") or ".").resolve())
-            if root is not None:
-                entries, _unreadable = hook_entries(root)
-                targets = [f"{event}: {cmd}" for _rel, event, cmd in entries
-                           if reviewable_shape(root, cmd) is not None
-                           and (not only or only.group(1).strip("\"'") in cmd)]
-        except Exception:  # noqa: BLE001 — an unnamed ask is better than no ask
-            targets = []
+        # NAME them, and name them from the command's OWN root. The first version asked about "a
+        # hook command" — singular, unnamed — while `hook-approve` with no `--only` covers every
+        # unreadable shape in the project at once.
+        cwd = Path(payload["cwd"]).resolve() if payload.get("cwd") else None
+        targets, where, caveat = approve_targets(command, cwd)
         shown = "; ".join(targets[:3]) + (f"; and {len(targets) - 3} more" if len(targets) > 3 else "")
         asks.append(f"record that {who} READ "
-                    + (f"{len(targets)} hook command(s) a machine cannot — {shown}"
-                       if targets else "a hook command a machine cannot")
+                    + (f"{len(targets)} hook command(s) a machine cannot" + (f" {caveat}" if caveat else "")
+                       + f" — {shown}" if targets else
+                       f"a hook command a machine cannot ({caveat})" if caveat else
+                       "a hook command a machine cannot")
                     + " — hooks being the one thing that runs without the agent choosing to")
     for verb, target in DECISION_CALL.findall(command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
