@@ -1,6 +1,6 @@
 ---
 name: monorepo-add-shared-package
-description: 'Extract logic from apps/web/ or apps/mobile/ into a new or existing shared package under packages/ in a turborepo monorepo, OR create a fresh empty shared package skeleton. Reads .workflow/meta.json with stack.framework="monorepo". Adds the package to pnpm-workspace.yaml (already covered by the wildcard), updates tsconfig.base.json path aliases, registers as workspace:* in both apps. Use to "estrai questa logica in shared", "spostala in packages/shared", "create a shared @<slug>/foo package", "factor X out of the apps". Not for: scaffolding the whole monorepo (use monorepo-bootstrap), backend modules (use module-add or rn-module-add — they install into packages/api/ automatically), generating types from a backend schema (use monorepo-sync-types).'
+description: 'Extract logic from apps/web/ or apps/mobile/ into a new or existing shared package under packages/ in a turborepo monorepo, OR create a fresh empty shared package skeleton. Reads .workflow/meta.json with stack.framework="monorepo". Adds the package to pnpm-workspace.yaml (already covered by the wildcard), updates packages/typescript-config/base.json path aliases, registers as workspace:* in both apps. Use to "estrai questa logica in shared", "spostala in packages/shared", "create a shared @<slug>/foo package", "factor X out of the apps". Not for: scaffolding the whole monorepo (use monorepo-bootstrap), backend modules (use module-add or rn-module-add — they install into packages/api/ automatically), generating types from a backend schema (use monorepo-sync-types).'
 ---
 
 # monorepo-add-shared-package — factor shared logic into packages/
@@ -11,7 +11,9 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - Reads `<project-root>/.workflow/meta.json#stack.framework` — must be `"monorepo"`.
 - Requires `meta.json#phase ≥ "scaffolded"`.
 - Adds entries to:
-  - `tsconfig.base.json#paths` (new alias `@<slug>/<pkg-name>/*`)
+  - `packages/typescript-config/base.json#paths` (new alias `@<slug>/<pkg-name>/*`) — **not** a root
+    `tsconfig.base.json`, which `monorepo-bootstrap` never creates (Turborepo's official pattern
+    is a workspace package extended by name; see `monorepo-bootstrap/references/structure.md`)
   - `apps/web/package.json#dependencies` AND `apps/mobile/package.json#dependencies` (as `workspace:*`)
   - `meta.json#stack_config.shared_packages` array
 - Does NOT modify `phase`.
@@ -56,7 +58,7 @@ Two flows:
 **(a) Create-empty mode** — user wants a fresh skeleton.
 - Create `packages/<name>/src/index.ts` (empty barrel export).
 - Create `packages/<name>/package.json` with name `@<slug>/<name>`, main `./src/index.ts`.
-- Create `packages/<name>/tsconfig.json` extending `../../tsconfig.base.json`.
+- Create `packages/<name>/tsconfig.json` extending `@<slug>/typescript-config/base.json`.
 
 **(b) Extract-from-app mode** — user wants to move existing files out of an app.
 - Ask user: "Which file(s) or folder(s) to extract? E.g. `apps/web/lib/format.ts` or `apps/mobile/types/Post.ts`."
@@ -69,7 +71,7 @@ Two flows:
 
 ### Step 4 — Update root configs
 
-Patch `tsconfig.base.json`:
+Patch `packages/typescript-config/base.json`:
 - Add path alias `@<slug>/<name>/*: ["packages/<name>/src/*"]`.
 
 Patch both `apps/web/package.json` and `apps/mobile/package.json`:
@@ -108,7 +110,7 @@ If git repo: commit with `feat(packages/<name>): create shared package` or `refa
 ## Common anti-patterns (NEVER do)
 
 - ❌ Create a package without adding it to BOTH apps' package.json as `workspace:*` — imports will silently fail at runtime.
-- ❌ Skip the `tsconfig.base.json#paths` update — TS won't resolve the alias.
+- ❌ Skip the `packages/typescript-config/base.json#paths` update — TS won't resolve the alias.
 - ❌ Move files without grep-ing the entire codebase for imports — broken references everywhere.
 - ❌ Use the package name `web`, `mobile`, or `root` — collision with app/root names.
 - ❌ Create circular dependencies (`packages/foo` importing from `packages/bar` while `bar` imports from `foo`) — turborepo will complain but it's avoidable upfront.

@@ -51,7 +51,7 @@ const checks: Check[] = [
   { name: "root: pnpm-workspace.yaml exists", run: () => fileExists("pnpm-workspace.yaml") },
   { name: "root: turbo.json exists", run: () => fileExists("turbo.json") },
   { name: "root: package.json exists", run: () => fileExists("package.json") },
-  { name: "root: tsconfig.base.json exists", run: () => fileExists("tsconfig.base.json") },
+  { name: "packages/typescript-config: base.json exists", run: () => fileExists("packages/typescript-config/base.json") },
   { name: "root: .gitignore exists", run: () => fileExists(".gitignore") },
 
   // apps/web
