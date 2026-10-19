@@ -501,6 +501,20 @@ check is one spelling behind — while noticing that one **did** write it is bou
 hook pins the lock's own sha256 and `hook-post` compares it, so a change to the record of what a
 person decided is reported however the command spelled the path. The text gates stay as the early
 warning; this is the one that does not depend on spelling.
+
+A thirteenth review found two fail-opens in that day-old code, and one of them is where I stopped
+following the reviews. The one I took: `our_invocation` fell back to trusting the **basename** when
+no project root was known — an exemption granted on a spelling, in the one function whose whole
+point is that a spelling is not an identity. No root, no exemption.
+
+The one I declined, with the measurement: it asked for `hook-post` to report whenever the baseline
+is missing, since the lock's prior state is then unknowable. It is unknowable — but a project whose
+pre-hook did not run would get *"I cannot tell"* on **every command**, which is the wall of findings
+this same document says makes people switch a gate off. The hole it worries about is shut one layer
+up, and that is checkable: a command deleting or writing the baseline is **denied** at PreToolUse
+through all three doors — `rm` with a glob, a redirect, and the write tools. So the unknown is said
+out loud beside something else worth reading, and never on its own. **A layer that is already
+covered does not need a second alarm; it needs the first one to hold.**
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 
