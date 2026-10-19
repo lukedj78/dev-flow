@@ -137,6 +137,9 @@ Generate the files at the canonical framework path (see Contract). Constraints:
 - **Extracted components first**, then the page that imports them. This keeps `page.tsx` readable.
 - **Imagery placeholders**: the screenshot likely has photography you don't have. Use a `<div>` with `bg-muted` and the dimensions of the original, plus an HTML comment `{/* TODO: replace with hero image */}`. Don't link to external image services.
 - **Copy**: use the actual text visible in the screenshot. If text is illegible, write a one-line placeholder and flag it in the report.
+- **Async data**: a route or a section that waits for data gets a skeleton sized to the page you just built — the
+  same containers, measured blocks, shadcn `<Skeleton>` on the scale — and proof the page does not jump when it
+  lands (CLS ≤ 0.05): `design-md-to-app/references/skeleton-audit.md`.
 - **Responsive**: read the DESIGN.md `## Layout` section for breakpoint rules. If the system documents 3 breakpoints (Desktop/Tablet/Mobile), generate the page with appropriate Tailwind breakpoint classes (`md:`, `lg:`) or MUI breakpoint props.
 
 #### Accessibility checklist (always apply)

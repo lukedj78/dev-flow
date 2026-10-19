@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>probe: late shift</title>
+<style>body { margin: 0; font: 16px/1.5 system-ui, sans-serif; padding: 16px; }</style></head>
+<body>
+  <h1>Orders</h1>
+  <!-- Data fetched in a client component, 1.5 s after the script runs: long after load and the settle time. -->
+  <div id="rows"><div data-slot="skeleton" style="height: 40px; background: #eee"></div></div>
+  <section style="height: 700px; background: #f4f4f4">Below the rows.</section>
+  <script>
+    setTimeout(() => { document.getElementById("rows").innerHTML = '<div style="height: 400px">Rows</div>'; }, 1500);
+  </script>
+</body></html>

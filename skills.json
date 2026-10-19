@@ -111,7 +111,7 @@
         "test_verify_map.py",
         "verify_map.py"
       ],
-      "skill_md_lines": 195,
+      "skill_md_lines": 198,
       "bundle": "dist/app-verification.skill"
     },
     {
@@ -397,7 +397,7 @@
         "nuqs.md"
       ],
       "scripts": [],
-      "skill_md_lines": 440,
+      "skill_md_lines": 444,
       "bundle": "dist/data-fetching.skill"
     },
     {
@@ -580,7 +580,7 @@
       "scripts": [
         "visual_diff.py"
       ],
-      "skill_md_lines": 302,
+      "skill_md_lines": 305,
       "bundle": "dist/screenshot-to-page.skill"
     },
     {

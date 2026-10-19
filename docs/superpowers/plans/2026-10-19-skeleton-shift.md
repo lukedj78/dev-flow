@@ -22,7 +22,7 @@ which states, a verifiable criterion (CLS), re-measure after, where skeletons li
 **Files:** `app-verification/scripts/render_probe.mjs`, `test_render_probe.py`, fixtures `skeleton-shift.html`
 (skeleton replaced by taller content) and a matching skeleton added to `clean.html`.
 **Produces:** finding id `layout-shift` (WARN > 0.05, FAIL > 0.1) with the moved elements; report field
-`cls` per width; `--throttle slow|fast-3g|<kbps>` option (Network.emulateNetworkConditions, normal pass only).
+`cls` per width; `--throttle` option — replaced after the final review by `--delay <url>=<ms>` (Fetch interception): throttling delays the first byte and hid the skeleton it was meant to show.
 - [ ] Tests: broken skeleton → `layout-shift` with an element named; clean (with matching skeleton) → nothing;
   `--throttle fast-3g` accepted, `--throttle bogus` exit 2.
 - [ ] Run → FAIL. Implement (PerformanceObserver `layout-shift`, buffered, sum of values without recent input,

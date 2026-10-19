@@ -2,7 +2,10 @@
 // render_probe.mjs — measure a running page in headless Chrome, the things no source scan can see.
 //
 //   node render_probe.mjs <url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS]
-//                             [--throttle slow|fast-3g|<kbps>]   slower network, so a skeleton stays up long enough
+//                             [--delay <url-substring>=<ms> ...]   hold matching requests (a client fetch, an RSC
+//                             request), so the skeleton waiting for them stays on screen long enough to be measured.
+//                             It delays the data, not the network: network throttling delays the first byte, and
+//                             data that arrives within that window comes with the page — the skeleton never paints.
 //   node render_probe.mjs --find-browser
 //
 // shadscan, check.py and the design lint read source. This opens the page and measures it at each width:
@@ -12,8 +15,11 @@
 //   font-fallback   a declared @font-face used on the page failed to load                              WARN
 //   broken-image    an <img> finished loading with no picture                                          FAIL
 //   sidebar-phone   on a phone (≤ 480px) a sidebar covers more than 30% of the width                   FAIL
-//   layout-shift    the page jumps while it loads — a skeleton or a late block that is not the size of what
-//                   replaces it: cumulative layout shift > 0.05 WARN, > 0.1 FAIL, with the elements that moved
+//   layout-shift    the page jumps while it loads — a block (often a skeleton) that is not the size of what
+//                   replaces it: CLS (worst session window, as web-vitals) > 0.05 WARN, > 0.1 FAIL, with the
+//                   elements that moved and the block that pushed them
+// The report also lists every shadcn <Skeleton> (data-slot="skeleton") that was painted, with its first box: proof
+// that a skeleton was on screen at all — a CLS of 0 with no skeleton seen says nothing about its size.
 //
 // Adapted from the idea of taste-skill v2's inspector (Leonxlnx/taste-skill, MIT) — not its code and not its rules —
 // with one deliberate difference: it serves no files. Give it the dev server's URL (or a file:// path); a probe that
@@ -29,14 +35,9 @@ import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS] [--throttle slow|fast-3g|<kbps>]";
+const USAGE = "usage: node render_probe.mjs <http(s):// or file:// url> [--widths 1440,768,390] [--json] [--strict] [--out DIR] [--timeout SECONDS] [--delay <url-substring>=<ms>]";
 // web-vitals: CLS <= 0.1 is "good". dev-flow's target for a measured skeleton is 0.05.
 const CLS_WARN = 0.05, CLS_FAIL = 0.1;
-// Chrome DevTools' presets, in bytes per second and ms of latency.
-const THROTTLE = {
-  "slow": { latency: 400, downloadThroughput: (400 * 1024) / 8, uploadThroughput: (400 * 1024) / 8 },
-  "fast-3g": { latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 },
-};
 const SETTLE_MS = 500;
 // A cold `next dev` compile of a first route can take well over 30 s; the default leaves room for it.
 const DEFAULT_TIMEOUT_S = 60;
@@ -50,7 +51,7 @@ function fail(code, message) {
 
 function parseArgs(argv) {
   const opts = { widths: [1440, 768, 390], json: false, strict: false, out: null, url: null, findBrowser: false,
-    timeoutMs: DEFAULT_TIMEOUT_S * 1000, throttle: null };
+    timeoutMs: DEFAULT_TIMEOUT_S * 1000, delays: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") opts.json = true;
@@ -58,12 +59,10 @@ function parseArgs(argv) {
     else if (a === "--find-browser") opts.findBrowser = true;
     else if (a === "--widths") opts.widths = String(argv[++i] || "").split(",").map(Number).filter((n) => n > 0);
     else if (a === "--out") opts.out = argv[++i];
-    else if (a === "--throttle") {
-      const v = String(argv[++i] || "");
-      const kbps = Number(v);
-      if (THROTTLE[v]) opts.throttle = THROTTLE[v];
-      else if (kbps > 0) opts.throttle = { latency: 150, downloadThroughput: (kbps * 1024) / 8, uploadThroughput: (kbps * 1024) / 8 };
-      else fail(2, "--throttle takes slow, fast-3g or a number of kbit/s");
+    else if (a === "--delay") {
+      const m = String(argv[++i] || "").match(/^(.+)=(\d+)$/);
+      if (!m) fail(2, "--delay takes <url-substring>=<ms>, e.g. --delay /api/orders=800");
+      opts.delays.push({ pattern: m[1], ms: Number(m[2]) });
     }
     else if (a === "--timeout") {
       const s = Number(argv[++i]);
@@ -172,8 +171,30 @@ function connect(url) {
     };
     listeners.push(l);
   });
-  return { ready, send, once, close: () => sock.close() };
+  const on = (method, fn) => listeners.push((msg) => { if (msg.method === method) fn(msg); });
+  return { ready, send, once, on, close: () => sock.close() };
 }
+
+// Installed before any page script (Page.addScriptToEvaluateOnNewDocument): every frame for 15 s, record each shadcn
+// <Skeleton> (data-slot="skeleton") the first time it is painted, with its box. By measure time the skeletons are gone.
+const SKELETON_TRACKER = `(() => {
+  const seen = new Map();
+  window.__probeSkeletons = seen;
+  const path = (el) => { const p = []; for (let e = el; e && e.nodeType === 1 && e !== document.documentElement; e = e.parentElement) {
+    if (e.id) { p.unshift(e.tagName.toLowerCase() + "#" + e.id); break; }
+    const i = e.parentElement ? [...e.parentElement.children].indexOf(e) + 1 : 1;
+    p.unshift(e.tagName.toLowerCase() + ":nth-child(" + i + ")"); } return p.join(" > "); };
+  const start = performance.now();
+  const tick = () => {
+    for (const el of document.querySelectorAll('[data-slot="skeleton"]')) {
+      const r = el.getBoundingClientRect();
+      const k = path(el);
+      if (r.width > 0 && r.height > 0 && !seen.has(k)) seen.set(k, { el: k, width: Math.round(r.width), height: Math.round(r.height) });
+    }
+    if (performance.now() - start < 15000) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();`;
 
 // ─── what runs in the page ──────────────────────────────────────────────────────────────────────────────────────
 // Kept as one function so it is evaluated, not injected as a script tag: the page's CSP does not apply to it.
@@ -303,20 +324,36 @@ async function measureInPage() {
       setTimeout(() => { po.disconnect(); resolve(out); }, 100);
     } catch { resolve(out); }
   });
-  let cls = 0;
-  const moved = new Map();
+  // web-vitals' CLS: shifts grouped in session windows (a new window after a 1 s gap or 5 s from its first shift),
+  // and the worst window is the score — a plain sum would add unrelated small shifts into a false WARN.
+  const windows = [];
+  let cur = null;
   for (const s of shifts) {
     if (s.hadRecentInput) continue;
-    cls += s.value;
+    if (!cur || s.startTime - cur.last > 1000 || s.startTime - cur.first > 5000) {
+      cur = { first: s.startTime, last: s.startTime, value: 0, entries: [] };
+      windows.push(cur);
+    }
+    cur.value += s.value; cur.last = s.startTime; cur.entries.push(s);
+  }
+  const worst = windows.reduce((a, w) => (!a || w.value > a.value ? w : a), null);
+  const cls = worst ? worst.value : 0;
+  // The moved node is the victim; the block above it (what replaced the skeleton) is the one to size.
+  const moved = new Map();
+  for (const s of worst ? worst.entries : []) {
     for (const src of s.sources || []) {
       const el = src.node && (src.node.nodeType === 1 ? src.node : src.node.parentElement);
-      if (el && el.isConnected) moved.set(path(el), (moved.get(path(el)) || 0) + s.value);
+      if (!el || !el.isConnected) continue;
+      const pusher = el.previousElementSibling || el.parentElement;
+      const label = pusher && pusher !== document.body ? `${path(el)} (pushed by ${path(pusher)})` : path(el);
+      moved.set(label, (moved.get(label) || 0) + s.value);
     }
   }
   const movedTop = [...moved.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([p]) => p);
+  const skeletons = window.__probeSkeletons ? [...window.__probeSkeletons.values()] : [];
 
   return {
-    pageWidth, vw, href: location.href, cls: Math.round(cls * 1000) / 1000, moved: movedTop,
+    pageWidth, vw, href: location.href, cls: Math.round(cls * 1000) / 1000, moved: movedTop, skeletons,
     culprits: culprits.slice(0, 5).map((el) => `${path(el)} (${Math.round(el.getBoundingClientRect().right)}px)`),
     headings, text, failedFonts: [...new Set(failedFonts)], brokenImages, sidebars,
   };
@@ -344,6 +381,20 @@ async function scrollThrough() {
   return true;
 }
 
+// Wait until the page stops shifting: no new layout-shift entry for 1 s, capped at 5 s. A client fetch that lands
+// after load and the settle time is still a jump the reader sees.
+async function waitForQuiet() {
+  let last = performance.now();
+  const po = new PerformanceObserver((list) => { if (list.getEntries().length) last = performance.now(); });
+  try { po.observe({ type: "layout-shift", buffered: false }); } catch { return { capped: false }; }
+  const start = performance.now();
+  while (performance.now() - last < 1000 && performance.now() - start < 5000) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  po.disconnect();
+  return { capped: performance.now() - start >= 5000 };
+}
+
 // ─── the run ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 async function navigate(cdp, sessionId, url, timeoutMs) {
@@ -359,17 +410,18 @@ async function evaluate(cdp, sessionId, expression) {
   return res.result.value;
 }
 
-async function probePage(cdp, sessionId, url, width, reduced, timeoutMs, throttle) {
+async function probePage(cdp, sessionId, url, width, reduced, timeoutMs, delays) {
   const phone = width <= 480;
-  // Throttled only in the normal pass, which is the one that measures layout shift; the reduced-motion pass compares
-  // visibility after load and gains nothing from waiting longer.
-  await cdp.send("Network.emulateNetworkConditions", throttle && !reduced
-    ? { offline: false, ...throttle }
-    : { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, sessionId);
   await cdp.send("Emulation.setDeviceMetricsOverride",
     { width, height: phone ? 844 : 900, deviceScaleFactor: 1, mobile: false }, sessionId);
   await cdp.send("Emulation.setEmulatedMedia",
     { features: [{ name: "prefers-reduced-motion", value: reduced ? "reduce" : "no-preference" }] }, sessionId);
+  // Held requests only in the normal pass, which measures layout shift; the reduced-motion pass compares visibility.
+  if (delays.length && !reduced) {
+    await cdp.send("Fetch.enable", { patterns: delays.map((d) => ({ urlPattern: `*${d.pattern}*`, requestStage: "Request" })) }, sessionId);
+  } else {
+    await cdp.send("Fetch.disable", {}, sessionId);
+  }
   // Through about:blank every time: navigating to the same URL with a #fragment is same-document — no load event,
   // and the second pass would wait for one that never comes.
   await navigate(cdp, sessionId, "about:blank", timeoutMs);
@@ -379,7 +431,9 @@ async function probePage(cdp, sessionId, url, width, reduced, timeoutMs, throttl
     try {
       await evaluate(cdp, sessionId, `(${scrollThrough})()`);
       await new Promise((r) => setTimeout(r, SETTLE_MS));
-      return await evaluate(cdp, sessionId, `(${measureInPage})()`);
+      const quiet = await evaluate(cdp, sessionId, `(${waitForQuiet})()`);
+      const m = await evaluate(cdp, sessionId, `(${measureInPage})()`);
+      return { ...m, quietCapped: quiet.capped };
     } catch (err) {
       if (attempt >= 2 || !/navigated|context|destroyed|not found/i.test(err.message)) throw err;
       await cdp.once("Page.loadEventFired", sessionId, timeoutMs).catch(() => {});
@@ -414,7 +468,7 @@ function findingsFor(width, normal, reduced) {
   }
   if (normal.cls > CLS_WARN) {
     add(normal.cls > CLS_FAIL ? "FAIL" : "WARN", "layout-shift",
-      `the page shifts while it loads (CLS ${normal.cls}; target ≤ ${CLS_WARN}) — size the skeleton or the late block to what replaces it`,
+      `the page shifts while it loads (CLS ${normal.cls}; target ≤ ${CLS_WARN}) — a block was not the size of what replaced it: size the one that pushed`,
       normal.moved);
   }
   return out;
@@ -453,21 +507,31 @@ async function main() {
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
     await cdp.send("Page.enable", {}, sessionId);
     await cdp.send("Runtime.enable", {}, sessionId);
-    await cdp.send("Network.enable", {}, sessionId);
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: SKELETON_TRACKER }, sessionId);
+    cdp.on("Fetch.requestPaused", (msg) => {
+      if (msg.sessionId !== sessionId) return;
+      const { requestId, request } = msg.params;
+      const d = opts.delays.find((x) => request.url.includes(x.pattern));
+      setTimeout(() => cdp.send("Fetch.continueRequest", { requestId }, sessionId).catch(() => {}), d ? d.ms : 0);
+    });
 
     const findings = [];
     const finalUrls = new Set();
     const cls = {};
+    const skeletons = {};
+    const capped = new Set();
     if (opts.out) mkdirSync(opts.out, { recursive: true });
     for (const width of opts.widths) {
-      const normal = await probePage(cdp, sessionId, opts.url, width, false, opts.timeoutMs, opts.throttle);
+      const normal = await probePage(cdp, sessionId, opts.url, width, false, opts.timeoutMs, opts.delays);
       finalUrls.add(normal.href);
       cls[width] = normal.cls;
+      skeletons[width] = normal.skeletons;
+      if (normal.quietCapped) capped.add(width);
       if (opts.out) {
         const shot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId);
         writeFileSync(join(opts.out, `probe-${width}.png`), Buffer.from(shot.data, "base64"));
       }
-      const reduced = await probePage(cdp, sessionId, opts.url, width, true, opts.timeoutMs, null);
+      const reduced = await probePage(cdp, sessionId, opts.url, width, true, opts.timeoutMs, opts.delays);
       findings.push(...findingsFor(width, normal, reduced));
     }
 
@@ -475,8 +539,9 @@ async function main() {
     const strip = (u) => u.split("#")[0];
     const notes = strip(finalUrl) !== strip(opts.url)
       ? [`redirected: ${opts.url} → ${finalUrl} — the findings are about the page that was measured`] : [];
+    if (capped.size) notes.push(`still shifting after 5 s at ${[...capped].join(", ")}px — measured anyway; a loop or a slow stream keeps moving the page`);
     const report = {
-      url: opts.url, final_url: finalUrl, notes, widths: opts.widths, measured_at: new Date().toISOString(), cls, findings,
+      url: opts.url, final_url: finalUrl, notes, widths: opts.widths, measured_at: new Date().toISOString(), cls, skeletons, findings,
       summary: { fail: findings.filter((f) => f.level === "FAIL").length, warn: findings.filter((f) => f.level === "WARN").length },
     };
     if (opts.out) writeFileSync(join(opts.out, "probe.json"), JSON.stringify(report, null, 2) + "\n");

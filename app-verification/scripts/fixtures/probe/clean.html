@@ -40,7 +40,7 @@
          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20'/%3E%3C/svg%3E">
     <div class="scroller"><table><tr><td>Wide data</td></tr></table></div>
     <!-- A measured skeleton: the same box as the loaded block, so replacing it moves nothing. -->
-    <div id="orders"><div style="height: 120px; background: #eee"></div></div>
+    <div id="orders"><div data-slot="skeleton" style="height: 120px; background: #eee"></div></div>
     <p>Below the orders.</p>
     <script>
       setTimeout(() => { document.getElementById("orders").innerHTML = '<div style="height: 120px">Twelve orders</div>'; }, 300);

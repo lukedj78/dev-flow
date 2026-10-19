@@ -126,7 +126,10 @@ The full pass, with its three invariants: `references/maintain.md`.
 can see: the page wider than the viewport (and the elements causing it), a heading on more than two lines, text that
 stays invisible with reduced motion on, a declared font that never loaded, an image that loaded with no picture, a
 sidebar covering a phone, and the page jumping while it loads (cumulative layout shift, with the elements that
-moved — a skeleton that is not the size of what replaces it; `--throttle fast-3g` keeps it up long enough to see).
+moved and the block that pushed them — a skeleton that is not the size of what replaces it). It lists every shadcn
+`<Skeleton>` painted during the load with its box, proof that one was on screen; `--delay <url-substring>=<ms>`
+holds a client fetch so its skeleton is seen (it delays the data, not the network: throttling would let the data
+arrive with the page and hide the skeleton).
 
 ```bash
 node <skills>/app-verification/scripts/render_probe.mjs http://localhost:<port>/<route> [--widths 1440,768,390] \

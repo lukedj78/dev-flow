@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>probe: two small shifts</title>
+<style>body { margin: 0; font: 16px/1.5 system-ui, sans-serif; padding: 16px; } .gap { height: 0; }</style></head>
+<body>
+  <h1>Two small shifts, 1.4 s apart</h1>
+  <div id="a" class="gap"></div>
+  <section style="height: 300px; background: #f4f4f4">Content</section>
+  <div id="b" class="gap"></div>
+  <section style="height: 300px; background: #eee">More content</section>
+  <!-- Each alone is under 0.05; summed they pass it. web-vitals counts the worst session window (≤ 1 s gap), not the sum. -->
+  <script>
+    setTimeout(() => { document.getElementById("a").style.height = "60px"; }, 200);
+    setTimeout(() => { document.getElementById("b").style.height = "60px"; }, 1600);
+  </script>
+</body></html>
