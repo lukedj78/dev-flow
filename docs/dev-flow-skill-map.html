@@ -229,7 +229,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">system map · v1.0.0 · september 2026</div>
+    <div class="eyebrow">system map · v1.0.0 · october 2026</div>
     <h1><span class="g">55 skills</span> that take an idea all the way to production.</h1>
     <p class="lede">Every project lives in <code>.workflow/</code>. The <code>dev-flow</code> orchestrator reads <code>meta.json#phase</code> and hands off to the right skill — web and mobile, with an agent engine and sprint execution under the same contract. Installable as a Claude Code plugin.</p>
 
@@ -276,7 +276,7 @@
             <div class="nd"><div class="dot">08</div><div class="p">page_generated</div><div class="s">modules · data</div></div>
             <div class="nd"><div class="dot">09</div><div class="p">module_added</div><div class="s"><b>write-tests</b></div></div>
             <div class="nd"><div class="dot">10</div><div class="p">feature_complete</div><div class="s">deploy · <b>product-to-agent-skill</b></div></div>
-            <div class="nd last"><div class="dot">11</div><div class="p">deployed</div><div class="s">maintenance</div></div>
+            <div class="nd last"><div class="dot">11</div><div class="p">deployed</div><div class="s">debt audit · maintenance</div></div>
           </div>
         </div>
       </div>
@@ -365,7 +365,7 @@
       <div class="tb">
         <div class="step"><div class="cmd"><span class="pr">›</span>"new project: gym app"</div><div class="res"><span class="ar">→</span><span class="sk">prd-from-idea</span> · PROJECT.md + PRD.md</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"split it into tasks"</div><div class="res"><span class="ar">→</span><span class="sk">prd-to-tasks</span> · tasks.md</div></div>
-        <div class="step"><div class="cmd"><span class="pr">›</span>"push it to Linear"</div><div class="res"><span class="ar">→</span><span class="sk new">linear-scrum</span> · issues + sprint 1</div></div>
+        <div class="step"><div class="cmd"><span class="pr">›</span>"plan sprint 1"</div><div class="res"><span class="ar">→</span><span class="sk new">scrum</span> · issues + sprint 1 on Linear, Jira or GitHub</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"DESIGN.md from this screenshot"</div><div class="res"><span class="ar">→</span><span class="sk">image-to-design-md</span> · DESIGN.md</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"scaffold the app with Coss/UI"</div><div class="res"><span class="ar">→</span><span class="sk">design-md-to-app</span> + <span class="sk new">coss-ui</span> · Next 16</div></div>
         <div class="step"><div class="cmd"><span class="pr">›</span>"add auth and database"</div><div class="res"><span class="ar">→</span><span class="sk">module-add</span> · better-auth + Drizzle</div></div>
@@ -431,13 +431,13 @@
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-pm)"></i> Project management</div>
-        <p>Every project in Linear with agile scrum: cycles, estimates, sprints, velocity.</p>
+        <p>Agile scrum on the tracker chosen at design time — Linear, Jira or GitHub: estimates, sprints, velocity, and a bug triage with severities S1–S4.</p>
         <div class="ss"><span class="s">scrum</span></div>
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-mono)"></i> Monorepo</div>
-        <p>Web + mobile in one turborepo, shared packages, types re-exported to both apps.</p>
-        <div class="ss"><span class="s">bootstrap</span><span class="s">add-shared-package</span><span class="s">sync-types</span></div>
+        <p>Web + mobile in one turborepo, shared packages, types re-exported to both apps, a Python service beside them.</p>
+        <div class="ss"><span class="s">bootstrap</span><span class="s">add-shared-package</span><span class="s">sync-types</span><span class="s">add-python-service</span></div>
       </div>
       <div class="card lyr">
         <div class="h"><i style="background:var(--c-core)"></i> Component hygiene</div>
@@ -640,7 +640,7 @@
   <div class="wrap">
     <span class="mono">dev-flow · <code>github.com/lukedj78/dev-flow</code></span>
       <span class="mono"><a href="https://lukedj78.github.io/dev-flow/">lukedj78.github.io/dev-flow</a></span>
-    <span class="mono">web next 16 + mobile expo · engine eve · pm linear · <code>.workflow/meta.json</code></span>
+    <span class="mono">web next 16 + mobile expo · engine eve · pm linear · jira · github · <code>.workflow/meta.json</code></span>
   </div>
 </footer>
 

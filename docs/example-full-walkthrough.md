@@ -1,6 +1,6 @@
-# Full walkthrough — a product that exercises every skill
+# Full walkthrough — a product that exercises most of the suite
 
-A worked end-to-end example that touches **all 41 skills** in the family. To use them all,
+A worked end-to-end example that touches most of the skills in the family. To reach that many,
 the product must span **web + mobile + agent**, so this imagines a full monorepo. A real
 project usually needs only a subset (e.g. web + eve, no mobile).
 
@@ -18,8 +18,9 @@ move, and delegates to the specialist skills below. `phase` transitions are note
 | Skill | Produces |
 |---|---|
 | `dev-flow` | creates `.workflow/meta.json`, routes everything that follows |
-| `prd-from-idea` | `PROJECT.md` + `PRD.md`; sets `route_groups`, `forms=tanstack-form`, asks **"web + mobile?" → `framework=monorepo`** and **"need an agent? yes → `stack.agent=eve`"** |
+| `prd-from-idea` | `PROJECT.md` + `PRD.md`; sets `route_groups`, `forms=tanstack-form`, asks **"web + mobile?" → `framework=monorepo`**, **"need an agent? yes → `stack.agent=eve`"**, the PRD's **Scope rules** and the **tracker** (here Linear, for the loop below) |
 | `prd-to-tasks` | `tasks.md` — the issues that feed the loop |
+| `scrum` | the issues on the tracker, estimated and prioritised, and sprint 1; later, bugs through its Triage (S1–S4) |
 
 `phase: empty → prd_drafted`
 
@@ -90,7 +91,9 @@ Stripe/Linear, an **eval** for each, an audit **hook**, a daily-digest **schedul
 
 ## Phase 8 — pre-deploy gates (compliance + cost)
 
-At `feature_complete`, before shipping, dev-flow proposes **two gates** side by side.
+At `feature_complete`, before shipping, dev-flow proposes the gates side by side — the two below,
+plus `shadscan` (UI and accessibility), `launch-audit` (findable, trustworthy, buyable) and
+`app-security`.
 
 **`compliance-audit`** (legal risk). Helmsman has user accounts (DSAR + Apple/Play deletion), an
 **eve agent** (AI-transparency Art. 50, memory residency), and US-default infra — so it flags
@@ -111,6 +114,9 @@ Neither blocks the deploy — they surface findings; the user decides.
 ## Phase 9 — deploy
 
 `apps/web` → Vercel · `apps/agent` → `eve deploy` · `apps/mobile` → EAS.
+
+Once deployed, dev-flow runs the **debt audit** first: every audit the project has, plus the tests,
+in one ordered list (`docs/debt/debt-audit.md`) — then the maintenance loop.
 
 ---
 
