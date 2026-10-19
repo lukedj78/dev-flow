@@ -150,6 +150,10 @@ export default function CasesTable({
 }
 ```
 
+`CasesTableSkeleton` is not a guess: it is sized to the loaded table — same container, measured rows, shadcn
+`<Skeleton>` on the scale — and the page must not jump when it is replaced (CLS ≤ 0.05). The procedure, with the
+Playwright measurement and the render probe's `layout-shift`: `design-md-to-app/references/skeleton-audit.md`.
+
 The Server Component starts the fetch, streams HTML as soon as it can, the Client Component hydrates with the resolved value. No client-side waterfall.
 
 ### 3. Server Action — only for mutations, invoked via `<form>` or event handler after user intent

@@ -724,7 +724,7 @@ Write each file from its template under `references/`:
 |---|---|---|
 | `app/global-error.tsx` | `references/global-error.template.tsx` | The boundary for an error thrown by the root layout itself, which `error.tsx` cannot catch: it renders its own `<html>`/`<body>`, plain and self-contained. `module-add observability` adds the report to the tracker. |
 | `app/error.tsx` (`app/[locale]/error.tsx` with i18n routing, inside the intl provider) | `references/error.template.tsx` | Root error boundary. Without it, a single uncaught render error blanks the whole app to a Next default page that leaks `error.message` to the user. The template scrubs the message, shows a clean fallback with `reset()`, and surfaces `digest` for log lookup. |
-| `app/loading.tsx` | `references/loading.template.tsx` | Streaming-RSC suspense fallback. Without it, navigating to a route that does any async work hangs on a blank page until the server finishes. The template uses shadcn `<Skeleton>` to render a content-shaped placeholder. |
+| `app/loading.tsx` | `references/loading.template.tsx` | Streaming-RSC suspense fallback. Without it, navigating to a route that does any async work hangs on a blank page until the server finishes. The template uses shadcn `<Skeleton>` to render a content-shaped placeholder — a **placeholder shape** until the route has real data: then size it to the loaded UI with `references/skeleton-audit.md` (measure, rebuild, re-measure; CLS ≤ 0.05). |
 | `lib/env.ts` | `references/env.template.ts` | Zod-validated environment at boot. Without it, a missing `DATABASE_URL` only blows up the first time a request hits the DB layer — often in production, never in dev. The template fails fast with a clear message at module-eval time. **Import `env` from this file** instead of reading `process.env` ad hoc. |
 | `lib/queries/<domain>.ts` | `references/queries.template.ts` | Counterpart to `lib/server/<domain>.ts`. **Reads** live here (called from RSC), **mutations** live in `lib/server/`. Keeps the boundary clean — read-from-anywhere, mutate-only-from-actions. |
 | `next.config.ts` | `references/next-config.template.ts` | Security headers (CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal, HSTS). Default Next config has none of these. The template ships sane defaults; the user tightens CSP later if they introduce inline scripts. |
@@ -813,7 +813,10 @@ Before declaring the scaffold done, **verify at 375px viewport** (iPhone SE / 12
    node <skills>/app-verification/scripts/render_probe.mjs http://localhost:3000/it --widths 1440,390
    ```
 
-   Fix every FAIL, then spot-check what it cannot judge:
+   Fix every FAIL, then spot-check what it cannot judge. A `layout-shift` finding means a skeleton or a late block
+   is not the size of what replaces it: `references/skeleton-audit.md`.
+
+   Then spot-check:
    - No horizontal scroll
    - All primary nav reachable (hamburger visible)
    - Hero headline fits two lines at 375 in the longer locale (the probe's `headline-lines`)

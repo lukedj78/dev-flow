@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>probe: client fetch</title>
+<style>body { margin: 0; font: 16px/1.5 system-ui, sans-serif; padding: 16px; }</style></head>
+<body>
+  <h1>Orders</h1>
+  <!-- A client component's fetch: on a fast local server the data beats the first paint and the guessed skeleton
+       is never seen. Delaying the data request (--delay orders.json=800) keeps it on screen long enough to measure. -->
+  <div id="list"><div data-slot="skeleton" style="height: 40px; background: #eee"></div></div>
+  <section style="height: 600px; background: #f4f4f4">Below the list.</section>
+  <script>
+    fetch("orders.json").then((r) => r.json()).then((d) => {
+      document.getElementById("list").innerHTML = `<div style="height: 320px">${d.count} orders</div>`;
+    });
+  </script>
+</body></html>

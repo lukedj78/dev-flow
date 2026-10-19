@@ -8,8 +8,12 @@ the probe needs both, and says so with exit code 3 (a page or runtime error is 4
 
 from __future__ import annotations
 
+import contextlib
+import functools
+import http.server
 import json
 import os
+import threading
 import shutil
 import subprocess
 import unittest
@@ -18,7 +22,22 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PROBE = HERE / "render_probe.mjs"
 FIXTURES = HERE / "fixtures" / "probe"
-IDS = {"overflow-x", "headline-lines", "reduced-hidden", "font-fallback", "broken-image", "sidebar-phone"}
+IDS = {"overflow-x", "headline-lines", "reduced-hidden", "font-fallback", "broken-image", "sidebar-phone"}  # + layout-shift, own fixture
+
+
+@contextlib.contextmanager
+def serve(directory: Path):
+    """A throwaway HTTP server on 127.0.0.1 for pages that fetch (fetch() does not work from file://)."""
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(directory))
+    handler.log_message = lambda *a, **k: None
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{httpd.server_address[1]}"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
 
 
 def node_major() -> int:
@@ -107,6 +126,44 @@ class Measure(unittest.TestCase):
                 r = probe((FIXTURES / "clean.html").as_uri(), "--widths", "390", env={"TMPDIR": tmp})
                 self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual([p.name for p in Path(tmp).iterdir() if p.name.startswith("render-probe-")], [])
+
+    def test_a_guessed_skeleton_is_a_layout_shift_naming_the_block_to_size(self) -> None:
+        report = self.run_json("skeleton-shift.html", "--widths", "1440")
+        shifts = [f for f in report["findings"] if f["id"] == "layout-shift"]
+        self.assertEqual(len(shifts), 1, report["findings"])
+        self.assertEqual(shifts[0]["level"], "FAIL")
+        # the victim moved, and the block above it is the one to size
+        self.assertTrue(any("below" in el and "pushed by" in el and "list" in el for el in shifts[0]["elements"]),
+                        shifts)
+        self.assertGreater(report["cls"]["1440"], 0.1)
+
+    def test_skeletons_seen_are_reported_with_their_boxes(self) -> None:
+        report = self.run_json("skeleton-shift.html", "--widths", "1440")
+        seen = report["skeletons"]["1440"]
+        self.assertEqual(len(seen), 1, seen)
+        self.assertEqual(seen[0]["height"], 40)
+
+    def test_a_shift_after_the_settle_time_is_still_measured(self) -> None:
+        report = self.run_json("late-shift.html", "--widths", "1440")
+        self.assertIn("layout-shift", {f["id"] for f in report["findings"]}, report)
+
+    def test_cls_is_the_worst_session_window_not_the_sum(self) -> None:
+        report = self.run_json("two-windows.html", "--widths", "1440")
+        self.assertNotIn("layout-shift", {f["id"] for f in report["findings"]}, report)
+        self.assertLess(report["cls"]["1440"], 0.05, report)
+
+    def test_delay_keeps_a_client_fetch_skeleton_on_screen(self) -> None:
+        with serve(FIXTURES) as base:
+            url = f"{base}/fetch-skeleton.html"
+            r = probe(url, "--json", "--widths", "1440", "--delay", "orders.json=800")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            report = json.loads(r.stdout)
+            self.assertIn("layout-shift", {f["id"] for f in report["findings"]}, report)
+            self.assertEqual(len(report["skeletons"]["1440"]), 1)
+
+    def test_delay_is_validated(self) -> None:
+        self.assertEqual(probe((FIXTURES / "clean.html").as_uri(), "--delay", "no-equals").returncode, 2)
+        self.assertEqual(probe((FIXTURES / "clean.html").as_uri(), "--delay", "x=abc").returncode, 2)
 
     def test_strict_turns_a_fail_into_exit_1(self) -> None:
         r = probe((FIXTURES / "broken.html").as_uri(), "--strict", "--widths", "390")

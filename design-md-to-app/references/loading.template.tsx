@@ -6,12 +6,23 @@
  * `loading.tsx` at the route level (e.g., `app/dashboard/loading.tsx`).
  *
  * Uses shadcn's `<Skeleton>` primitive (installed by `add --all`).
+ *
+ * This is a PLACEHOLDER SHAPE: a heading and six cards, guessed before the route has data. Once it does, size the
+ * skeleton to the loaded UI — same containers, measured blocks, sizes on the scale — and prove the page no longer
+ * jumps (CLS <= 0.05): the skeleton audit in the design-md-to-app skill (its references/skeleton-audit.md).
+ *
+ * messages/en.json  "Common": { "loading": "Loading…" }     messages/it.json  "Common": { "loading": "Caricamento…" }
+ * Reduced motion is handled once for every skeleton in globals.css:
+ *   @media (prefers-reduced-motion: reduce) { [data-slot="skeleton"] { animation: none; } }
  */
+import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function Loading() {
+export default async function Loading() {
+  const t = await getTranslations("Common");
   return (
-    <div className="px-6 lg:px-12 py-10 space-y-6">
+    <div role="status" aria-busy="true" className="px-6 lg:px-12 py-10 space-y-6">
+      <span className="sr-only">{t("loading")}</span>
       <div className="space-y-3">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-10 w-3/4 max-w-2xl" />

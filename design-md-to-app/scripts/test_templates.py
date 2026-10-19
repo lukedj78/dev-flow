@@ -60,6 +60,22 @@ class Templates(unittest.TestCase):
                 self.assertRegex(code, r"getTranslations\(")
 
 
+class LoadingTemplate(unittest.TestCase):
+    """The skeleton the scaffold ships: on the scale, announced, translated (references/skeleton-audit.md)."""
+
+    def setUp(self) -> None:
+        self.text = (REFS / "loading.template.tsx").read_text()
+
+    def test_sizes_are_on_the_scale(self) -> None:
+        self.assertIsNone(re.search(r"\b(?:h|w|size|min-h|max-w)-\[\d", self.text), "never h-[37px] in a skeleton")
+
+    def test_it_is_announced_with_a_translated_label(self) -> None:
+        self.assertIn('role="status"', self.text)
+        self.assertIn('aria-busy="true"', self.text)
+        self.assertRegex(self.text, r'className="sr-only">\{t\("loading"\)\}')
+        self.assertIn("skeleton-audit.md", self.text)
+
+
 class Helper(unittest.TestCase):
     """visible_literals finds what a person would read or hear that is not a message."""
 
