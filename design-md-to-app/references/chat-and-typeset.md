@@ -369,8 +369,47 @@ rather than read off the changelog:
 - ⚠️ **They do not exist on the legacy styles.** 200 under every `base-*`, `radix-*` and `aria-*`
   namespace; **404** under `new-york` and `new-york-v4`. A project on the old style cannot add them
   by any command — `references/shadcn-styles.md`.
-- Dependencies are small and ours already: `trace` needs `collapsible`; `code-block` needs `button`
-  and `use-highlighted-code` (which is also unindexed, and comes along as a registry dependency).
+- `trace` needs only `collapsible`. **`code-block` is not dependency-free**: it pulls
+  `use-highlighted-code` (also unindexed, arrives as a registry dependency), and that one adds
+  **`shiki`** to `package.json` — the core build with the JavaScript regex engine (no wasm), thirteen
+  languages loaded lazily, an unlisted language falling back to plain text. Verified in the registry
+  JSON, 2026-10-19.
+- **Syntax colours do not come from the DESIGN.md.** The highlighter (`lib/highlighter.tsx`, which
+  the item writes into the project) hard-codes `github-light` / `github-dark` and switches on the
+  `dark:` variant. If the DESIGN.md names code colours, that file is where they go; otherwise the
+  GitHub palette is what ships.
+- The running shimmer and the edge fades are utilities (`shimmer`, `scroll-fade-*`) from
+  `shadcn/tailwind.css`, not from the items — present since at least shadcn 4.21.4. Our
+  `globals.css` imports it (`shadcn-mapping.md`); a project that dropped the import gets a running
+  line that does not shimmer, with no error.
+
+**How to compose them.** Checked against `trace.tsx` and `code-block.tsx` in the `base-nova`
+registry, 2026-10-19 (shadcn's own rules for this landed in their skill on 2026-10-14, PR #12307):
+
+- **A line is a `TraceLine`; what it does is whatever wraps it.** The line itself renders a `<span>`
+  — icon, title, an optional `TraceDescription` for a count, duration or diff stat, and `status` on
+  the line. To make it expand, wrap it in `TraceCollapsibleTrigger` (which draws its own chevron) and
+  give it a `TraceCollapsibleContent`; to make it link or open a sheet, put it *inside* an `<a>` or a
+  `SheetTrigger`. Never the other way round — `asChild`/`render` onto the line turns the trigger into
+  a span, and the keyboard loses it. `Trace` puts the focus ring on whatever wraps a line.
+- **A tool row is a plain line until its output exists**, then a collapsible. A trigger with no
+  content is a chevron that opens nothing.
+- **One `Trace` per run of activity.** A text part ends the run; so does a pending approval, which is
+  a prompt (an `Item` with Approve / Deny), not a row. A summary — "used 4 sources", a whole turn —
+  is a collapsible whose content is another `Trace`; its own status and title are yours to derive
+  from its children.
+- **Status is the component's, not a class.** `running`, `error`, `pending` (a plan step not yet
+  started), or nothing. `pending` already dims the line (`opacity-60` in the source), so an extra
+  `opacity-*` dims it twice. Map the AI SDK's part states to these three yourself.
+- **`Marker` is for notes and dividers between turns**, never for activity.
+- **Output inside a row is `<CodeBlock size="sm">`** with `<CodeBlockContent wrap className="max-h-64">`,
+  so a long log scrolls inside the row. Errors are `variant="destructive"` on the block, not a
+  recoloured one. Diff lines are `CodeBlockLine` with `added` / `removed` / `highlighted`.
+  `CodeBlockCopyButton` takes the text as `value`. Tool output is passed as a string, never
+  highlighted; source code goes through `useHighlightedCode(code, lang)`, or `await
+  highlightCode(code, lang)` in a Server Component.
+- **Any hand-rolled `<pre>` for output, or a `Collapsible` labelled "Thinking…", is one of these two
+  components written by hand** — the same rule as every other primitive (`references/contracts.md`).
 
 **Where the compositions live.** The 21 **AI Elements** patterns — Chat, Prompt Input, Reasoning,
 Tool, Plan, Subagent, Terminal, Test Results, Confirmation and the rest — are shadcn's own as of

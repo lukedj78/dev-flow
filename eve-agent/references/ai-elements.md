@@ -35,7 +35,9 @@ each a line with an icon, a title, a status (`running` / `error` / `pending`, wi
 step runs), expandable and nestable. One file, one registry dependency (`collapsible`).
 
 **`code-block`** renders code, terminal output, logs and diffs, with a small size meant for tool
-output **inside** a Trace. Registry dependencies: `button` and `use-highlighted-code`.
+output **inside** a Trace. Registry dependencies: `button` and `use-highlighted-code`, which adds
+`shiki`. How the two compose — what wraps a line, when a tool row becomes collapsible, what status
+means — is in `design-md-to-app/references/chat-and-typeset.md` §1-bis, the one place it is written.
 
 ⚠️ **We hand-rolled this once already.** fit-room's assistant draws tool parts through its own
 `ToolPartView` in `components/assistant/assistant-chat.tsx`, written before these existed. That is the
