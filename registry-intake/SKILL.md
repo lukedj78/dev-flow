@@ -533,6 +533,27 @@ thing the hook says.
 And `our_invocation` resolved a relative argv against the lock root while the shell resolves it
 against the command's cwd — our resolution and the shell's disagreeing, which is this file's oldest
 defect in its smallest form.
+
+A fifteenth review found a regression from the fourteenth, and the shape is by now familiar: taking
+the root out of the snapshot key left `sha1("")` whenever the payload carries no session — **one
+global slot, shared by every project.** Measured: two projects got the same path, and the second
+one's lock change was compared against the first one's baseline and reported nothing. No session,
+no slot now, and one slot per call within a session.
+
+Its other finding, and the other session's reviewer raised the same one: the baseline **names** the
+project to check, and that file is writable by the command. But the fix before it had chosen the
+post-command cwd's project, which was the `cd`-away bypass. **The choosing was the mistake** — both
+roots are checked now, and a forged baseline can at most add a project to the list. The ceiling is
+written in the code: a forger who knows the format can still substitute another project's pinned
+digest, no key prevents it (same user, readable file), and what stands against it is a layer each —
+writing that file is denied through all three doors, the slot is per session and per call, and
+`check` at the phase gate recomputes everything from the project.
+
+One more, from the same round, found by a test rather than a reviewer: the validation I had just
+written asked `find_root(stored cwd) == stored root`, and `find_root` finds a project **by its
+lock** — so once the lock was deleted the validation failed, the baseline was discarded, and the
+deletion went quiet again. **A check that needs the file present goes blind exactly when the file is
+removed.**
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 

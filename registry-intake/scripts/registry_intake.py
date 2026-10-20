@@ -1015,13 +1015,21 @@ def post_hook_installed(root: Path) -> bool:
 #   - and `check` at the phase gate recomputes all of it from the project, where no temporary file
 #     can suppress anything. That gate, not this cache, is the control. This only moves the report
 #     earlier, so its failure mode must be noise, never silence.
-def _effect_snapshot(payload: dict) -> Path:
-    # Keyed on the SESSION alone. Keying it on the project root was the fix for a `cd sub` inside
-    # the command — and it carried the same bug one level up, because the root itself is recomputed
-    # from the cwd *after* the command: a command that wrote the lock and then left the project
-    # produced a different key, no snapshot, and silence. The root is stored INSIDE the file now,
-    # so the post hook reads which project to check instead of guessing from where it ended up.
-    key = hashlib.sha1((payload.get("session_id") or "").encode()).hexdigest()[:16]
+def _effect_snapshot(payload: dict) -> Path | None:
+    # Keyed on the SESSION, and on the call within it when the harness names one. Keying it on the
+    # project root was the fix for a `cd sub` inside the command — and it carried the same bug one
+    # level up, because the root is recomputed from the cwd *after* the command: a command that
+    # wrote the lock and then left the project produced a different key, no snapshot, and silence.
+    # So the root moved INSIDE the file. But dropping it from the key left `sha1("")` whenever the
+    # payload carries no session — ONE global slot, shared by every project: measured, two projects
+    # got the same path, and the second one's lock change was checked against the first one's
+    # baseline and reported nothing. With no session there is no slot at all now; the post hook
+    # then finds nothing, which reports rather than reassures.
+    session = payload.get("session_id") or ""
+    if not session:
+        return None
+    call = payload.get("tool_use_id") or payload.get("toolUseId") or ""
+    key = hashlib.sha1(f"{session}|{call}".encode()).hexdigest()[:16]
     # TMPDIR, not tempfile: this runs before and after every shell command, and importing tempfile cost ~40 ms.
     return Path(os.environ.get("TMPDIR") or "/tmp") / f"registry-intake-{key}.json"
 
@@ -1033,79 +1041,107 @@ def hook_pre_snapshot(payload: dict) -> None:
         # The lock's own bytes, because detecting *that it changed* is bounded while predicting
         # which commands will write it is not — a glob, a brace, a variable or a heredoc spells the
         # path without containing it, and the text checks will always be one spelling behind.
-        _effect_snapshot(payload).write_text(json.dumps(
-            {"root": str(root), "problems": registry_problems(root, lock),
-             "lock": sha256(lock_path(root))}))
+        path = _effect_snapshot(payload)
+        if path is not None:
+            path.write_text(json.dumps(
+                {"root": str(root), "cwd": str(Path(payload.get("cwd") or ".").resolve()),
+                 "problems": registry_problems(root, lock), "lock": sha256(lock_path(root))}))
 
 
-def hook_post_report(payload: dict) -> str | None:
-    path = _effect_snapshot(payload)
-    before_lock, before_root = None, None
-    try:
-        raw = json.loads(path.read_text())
-        # Anything but exactly the shape this writes is not a baseline: a forged `{"...": 1}` once
-        # became a set of its keys, and a forged string a set of its characters.
-        if not (isinstance(raw, dict) and isinstance(raw.get("problems"), list)
-                and all(isinstance(x, str) for x in raw["problems"])
-                and isinstance(raw.get("lock"), str) and isinstance(raw.get("root"), str)):
-            raise ValueError("the baseline is not the shape this writes")
-        before: set[str] | None = set(raw["problems"])
-        before_lock, before_root = raw["lock"], Path(raw["root"])
-        path.unlink(missing_ok=True)
-    except (OSError, json.JSONDecodeError, ValueError):
-        before = None  # a missing or rewritten baseline is not a clean one: it must not hide what the command did
-    # The project the command STARTED in, not the one it ended in. Recomputing this from the cwd
-    # afterwards meant a command could write the lock and then `cd` out, and nothing was reported.
-    root = before_root or find_root(Path(payload.get("cwd") or ".").resolve())
-    if root is None:
-        return None
-    # A deleted lock is the loudest change there is, and it used to return here in silence because
-    # `load_lock` answers None for a file that is gone.
+def _one_project_report(root: Path, before: set[str] | None, before_lock: str | None) -> str | None:
+    """What one project's state says after the command. `before_lock` is None when nothing was
+    pinned for this root, which is the honest difference between "unchanged" and "unknown"."""
     if before_lock is not None and not lock_path(root).exists():
-        return (f"{LOCK} is GONE after that command. It is the record of what a person decided about "
-                "every registry, item, skill, MCP server and hook in this project. Restore it with "
-                f"`git checkout -- {LOCK}` and tell the user what removed it.")
+        return (f"{LOCK} is GONE after that command, in {root}. It is the record of what a person "
+                "decided about every registry, item, skill, MCP server and hook in this project. "
+                f"Restore it with `git checkout -- {LOCK}` and tell the user what removed it.")
     lock = load_lock(root)
     if lock is None:
         return None
     now = registry_problems(root, lock)
     new = now if before is None else [p for p in now if p not in before]
-    # Did the record of what a PERSON decided change during this command? The text gates ask about
-    # commands that look like they will write it; this notices that one did, whatever it looked like.
-    #
-    # And with NO baseline it says so rather than nothing. The comment four lines up already said a
-    # missing baseline is not a clean one — then this field was added one round later and gated on
-    # that same field being present, so deleting the file hid the lock change completely. The same
-    # lesson, one field over, in the same function.
+    if before_lock is not None and sha256(lock_path(root)) != before_lock:
+        return (f"{LOCK} changed while that command ran, in {root}. It records what a person "
+                "decided — every registry, item, skill, MCP server and hook approval in it carries "
+                "a `--by`. If you did not run `allow`, `approve`, `skill-approve`, `mcp-approve` or "
+                f"`hook-approve`, put it back with `git checkout -- {LOCK}` and tell the user what "
+                "wrote it."
+                + ("\nThe registry problems it reports now:\n" + "".join(f"  - {p}\n" for p in new)
+                   if new else ""))
+    if not new:
+        return None
     if before_lock is None:
-        # A thirteenth review asked for this to report on its own, and that is where I stopped
-        # following the reviews. Without a baseline the lock's prior state is UNKNOWABLE, and a
-        # project whose pre-hook did not run would then get "I cannot tell" on every single command
-        # — the wall of findings this file already warns makes people switch a gate off. The hole it
-        # worries about is shut one layer up instead, and measurably: a command that deletes or
-        # writes the baseline is DENIED at PreToolUse through all three doors (`rm` with a glob, a
-        # redirect, and the write tools). So the unknown is said out loud only beside something else
-        # worth reading, and never on its own.
-        if not new:
-            return None
+        # A thirteenth review asked for the unknown to be reported on its own, and that is where I
+        # stopped following the reviews. Without a baseline the lock's prior state is UNKNOWABLE,
+        # and a project whose pre-hook did not run would then get "I cannot tell" on every single
+        # command — the wall of findings this file warns makes people switch a gate off. That hole
+        # is shut one layer up, measurably: a command deleting or writing the baseline is DENIED at
+        # PreToolUse through all three doors. So the unknown is said beside something else worth
+        # reading, never on its own.
         return ("Registry intake has no before-state for this command, so these are all the current "
-                "registry problems, not only the ones it introduced — and it cannot say whether "
-                f"{LOCK} changed while the command ran:\n"
+                f"registry problems in {root}, not only the ones it introduced — and it cannot say "
+                f"whether {LOCK} changed while the command ran:\n"
                 + "".join(f"  - {p}\n" for p in new)
                 + f"Check the record with `git diff -- {LOCK}`, then go through registry intake "
                   "(see AGENTS.md).")
-    if sha256(lock_path(root)) != before_lock:
-        return (f"{LOCK} changed while that command ran. It records what a person decided — every "
-                "registry, item, skill, MCP server and hook approval in it carries a `--by`. If you "
-                "did not run `allow`, `approve`, `skill-approve`, `mcp-approve` or `hook-approve`, "
-                "put it back with `git checkout -- " + LOCK + "` and tell the user what wrote it."
-                + ("\nThe registry problems it reports now:\n" + "".join(f"  - {p}\n" for p in new) if new else ""))
-    if not new:
-        return None
     return ("The shell command just run changed governed registry state:\n"
             + "".join(f"  - {p}\n" for p in new)
             + "Put it back, or go through registry intake: `registry_intake.py review|approve|install <root> <item>` "
               "(see AGENTS.md). A new registry needs the user's yes before `allow`.")
+
+
+def hook_post_report(payload: dict) -> str | None:
+    """Every project this command could have touched, not the one it picked.
+
+    The baseline lives in a file a command can write, so letting it NAME the project to check meant
+    a forged root pointed this at a lock that was never going to change. Choosing the post-command
+    cwd's project instead was the bug before that: a command could write the lock and then leave.
+    Neither choice is safe because the choosing was the mistake — both roots are checked now, and a
+    forged baseline can at most add a project to the list.
+
+    The ceiling, said plainly: a forger who knows this format can still replace the pinned digest
+    with another project's, and the displaced project's lock change then goes unreported here. No
+    key fixes that — the hook runs as the same user, from a file the command can read. What stands
+    against it is a layer each: writing this file is DENIED through all three doors, the slot is per
+    session and per call, and `check` at the phase gate recomputes everything from the project,
+    where no temporary file can suppress anything. This is the early warning; the gate is the gate.
+    """
+    path = _effect_snapshot(payload)
+    before: set[str] | None = None
+    before_lock, before_root = None, None
+    try:
+        if path is None:
+            raise ValueError("no session, so no before-state was kept")
+        raw = json.loads(path.read_text())
+        # Anything but exactly the shape this writes is not a baseline: a forged `{"...": 1}` once
+        # became a set of its keys, and a forged string a set of its characters.
+        if not (isinstance(raw, dict) and isinstance(raw.get("problems"), list)
+                and all(isinstance(x, str) for x in raw["problems"])
+                and isinstance(raw.get("lock"), str) and isinstance(raw.get("root"), str)
+                and isinstance(raw.get("cwd"), str)):
+            raise ValueError("the baseline is not the shape this writes")
+        # Self-consistent, and WITHOUT asking whether the lock still exists — the deletion of that
+        # file is the thing this function exists to notice, so a check that needs it present would
+        # go blind exactly then. It happened: the first version of this validation did ask, and the
+        # deleted-lock test went silent.
+        stated = Path(raw["root"])
+        if not stated.is_dir() or not Path(raw["cwd"]).is_relative_to(stated):
+            raise ValueError("the baseline names a root that does not contain its own cwd")
+        before, before_lock, before_root = set(raw["problems"]), raw["lock"], stated
+        path.unlink(missing_ok=True)
+    except (OSError, json.JSONDecodeError, ValueError):
+        before = None  # a missing or rewritten baseline is not a clean one: it must not hide what the command did
+    reports, seen = [], set()
+    for root, pinned in ((before_root, before_lock),
+                         (find_root(Path(payload.get("cwd") or ".").resolve()), None)):
+        if root is None or root in seen:
+            continue
+        seen.add(root)
+        # The pinned digest belongs to the baseline's root only; another project has nothing pinned,
+        # which is "unknown", not "unchanged".
+        if (r := _one_project_report(root, before if pinned is not None else None, pinned)) is not None:
+            reports.append(r)
+    return "\n".join(reports) or None
 
 
 def check(root: Path) -> tuple[bool, list[str]]:

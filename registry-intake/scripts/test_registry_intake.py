@@ -1589,6 +1589,48 @@ class Hooks(unittest.TestCase):
         self.assertIn("GONE", report)
         self.assertIn("git checkout", report)
 
+    def test_two_projects_do_not_share_one_before_state(self) -> None:
+        """A fifteenth review, and a regression from the fourteenth: dropping the root from the key
+        left `sha1("")` whenever the payload carries no session — ONE global slot. Measured, two
+        projects got the same path, and the second's lock change was compared against the first's
+        baseline and reported nothing. No session, no slot."""
+        self.assertIsNone(ri._effect_snapshot({"cwd": "/tmp"}), "no session, no shared mailbox")
+        a = ri._effect_snapshot({"session_id": "s", "tool_use_id": "t1"})
+        b = ri._effect_snapshot({"session_id": "s", "tool_use_id": "t2"})
+        self.assertNotEqual(a, b, "and one slot per call within a session")
+
+    def test_both_projects_are_checked_not_the_one_the_baseline_picks(self) -> None:
+        """The baseline lives in a file a command can write, so letting it NAME the project pointed
+        the check at a lock that was never going to change; choosing the post-command cwd's project
+        instead was the bug before that. The choosing was the mistake."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        event = {"session_id": "s7", "tool_use_id": "t7", "cwd": str(root),
+                 "tool_name": "Bash", "tool_input": {"command": "x"}}
+        ri.hook_pre_snapshot(event)
+        lock = ri.lock_path(root)
+        d = json.loads(lock.read_text())
+        d["touched"] = 1
+        lock.write_text(json.dumps(d))
+        # The command ends somewhere else entirely: the baseline's root is still checked.
+        gone = {**event, "cwd": str(Path(tempfile.mkdtemp()))}
+        self.assertIn("changed while that command ran", ri.hook_post_report(gone) or "")
+
+    def test_the_deleted_lock_check_does_not_need_the_lock(self) -> None:
+        """The first version of the baseline validation asked `find_root(stored cwd) == stored root`
+        — and `find_root` finds a project BY its lock, so once the lock was deleted the validation
+        failed, the baseline was discarded and the deletion went quiet again. A check that needs the
+        file present goes blind exactly when the file is removed."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        event = {"session_id": "s6", "tool_use_id": "t6", "cwd": str(root),
+                 "tool_name": "Bash", "tool_input": {"command": "x"}}
+        ri.hook_pre_snapshot(event)
+        ri.lock_path(root).unlink()
+        self.assertIn("GONE", ri.hook_post_report(event) or "")
+
     def test_a_relative_argv_resolves_where_the_shell_will(self) -> None:
         """`root / tokens[1]` resolved a relative argv against the LOCK root while the shell would
         resolve it against the command's cwd — our resolution and the shell's disagreeing, which is
