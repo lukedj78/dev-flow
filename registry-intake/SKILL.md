@@ -554,6 +554,17 @@ written asked `find_root(stored cwd) == stored root`, and `find_root` finds a pr
 lock** — so once the lock was deleted the validation failed, the baseline was discarded, and the
 deletion went quiet again. **A check that needs the file present goes blind exactly when the file is
 removed.**
+
+And the sixteenth review found the **second instance of that sentence, six lines above the first,
+left in place while the sentence itself was being written down.** `stated.is_dir()` asks the disk
+about a directory the command has just run against — so `rm -rf` on the whole project made the
+baseline look forged, it was discarded, and the loudest destructive command in the set reported
+nothing. The containment check is pure string work now (`is_relative_to` needs nothing to exist),
+and a vanished project is its own alarm rather than a reason to distrust the record of it.
+
+Twice in one hour, in the same six lines, is worth more than the two fixes: **a validation that
+guards a destructive event must not ask the filesystem about the thing being destroyed.** That is
+now the first thing to check in any new guard in this file.
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 

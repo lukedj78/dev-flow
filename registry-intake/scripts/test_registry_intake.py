@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import datetime as dt
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1630,6 +1631,27 @@ class Hooks(unittest.TestCase):
         ri.hook_pre_snapshot(event)
         ri.lock_path(root).unlink()
         self.assertIn("GONE", ri.hook_post_report(event) or "")
+
+    def test_the_validation_asks_the_filesystem_nothing(self) -> None:
+        """The same lesson, twice in one hour, in the same six lines — and the second instance was
+        left in place while the sentence about the first was being written into the skill.
+
+        `find_root(stored cwd) == stated` finds a project BY its lock, so deleting the lock
+        discarded the baseline. Then `stated.is_dir()` asked the disk about a directory the command
+        had just removed, so `rm -rf` on the whole project discarded it too, and the loudest
+        destructive command in the set reported nothing. The containment check is pure string work
+        now, and a vanished project is its own alarm."""
+        root = Path(tempfile.mkdtemp()) / "proj"
+        root.mkdir()
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        event = {"session_id": "s5", "tool_use_id": "t5", "cwd": str(root),
+                 "tool_name": "Bash", "tool_input": {"command": "x"}}
+        ri.hook_pre_snapshot(event)
+        shutil.rmtree(root)
+        report = ri.hook_post_report(event) or ""
+        self.assertIn("GONE", report)
+        self.assertIn("recover from git", report)
 
     def test_a_relative_argv_resolves_where_the_shell_will(self) -> None:
         """`root / tokens[1]` resolved a relative argv against the LOCK root while the shell would

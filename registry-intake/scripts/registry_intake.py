@@ -1051,6 +1051,10 @@ def hook_pre_snapshot(payload: dict) -> None:
 def _one_project_report(root: Path, before: set[str] | None, before_lock: str | None) -> str | None:
     """What one project's state says after the command. `before_lock` is None when nothing was
     pinned for this root, which is the honest difference between "unchanged" and "unknown"."""
+    if before_lock is not None and not root.is_dir():
+        return (f"The project at {root} is GONE after that command — the directory itself, with "
+                f"{LOCK} and everything registry intake recorded about it. If that was not what you "
+                "meant, nothing here can undo it; tell the user at once, and recover from git.")
     if before_lock is not None and not lock_path(root).exists():
         return (f"{LOCK} is GONE after that command, in {root}. It is the record of what a person "
                 "decided about every registry, item, skill, MCP server and hook in this project. "
@@ -1120,12 +1124,15 @@ def hook_post_report(payload: dict) -> str | None:
                 and isinstance(raw.get("lock"), str) and isinstance(raw.get("root"), str)
                 and isinstance(raw.get("cwd"), str)):
             raise ValueError("the baseline is not the shape this writes")
-        # Self-consistent, and WITHOUT asking whether the lock still exists — the deletion of that
-        # file is the thing this function exists to notice, so a check that needs it present would
-        # go blind exactly then. It happened: the first version of this validation did ask, and the
-        # deleted-lock test went silent.
+        # Self-consistent, and asking the FILESYSTEM nothing. The deletion of the lock — and of the
+        # project around it — is what this function exists to notice, so any question put to the
+        # disk here goes blind exactly when the answer matters. That happened twice in one hour:
+        # first `find_root(stored cwd) == stated`, which finds a project BY its lock, so deleting
+        # the lock discarded the baseline; then `stated.is_dir()`, so `rm -rf` on the whole project
+        # discarded it too and the loudest destructive command in the set reported nothing.
+        # `is_relative_to` is pure string work and needs nothing to exist.
         stated = Path(raw["root"])
-        if not stated.is_dir() or not Path(raw["cwd"]).is_relative_to(stated):
+        if not Path(raw["cwd"]).is_relative_to(stated):
             raise ValueError("the baseline names a root that does not contain its own cwd")
         before, before_lock, before_root = set(raw["problems"]), raw["lock"], stated
         path.unlink(missing_ok=True)
