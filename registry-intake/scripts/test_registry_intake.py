@@ -1284,102 +1284,6 @@ class Hooks(unittest.TestCase):
         self.assertEqual(out.returncode, 2, "a governed project missing its gate still refuses")
         self.assertIn("MISSING", out.stderr)
 
-    def test_the_shell_cannot_quietly_remove_the_gate(self) -> None:
-        """The write tools refuse an edit to the hook script and ask about the wiring; a shell
-        command could `rm`, `mv` or `git checkout` the same files and nothing looked at it."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-        for command in (f"rm {ri.HOOK_COPY}",
-                        "mv .claude/settings.json .claude/settings.json.off",
-                        "git checkout -- .claude/settings.json"):
-            with self.subTest(command=command):
-                self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                                  "tool_input": {"command": command}}), command)
-
-    def test_reaching_into_claude_asks_however_it_is_spelled(self) -> None:
-        """`cat .claude/settings.json` asked and `rm -rf .claude/` said nothing: the exact spelling
-        was matched, the destructive wildcard was not. The question is not how the command spells
-        the path — it is whether it can remove or replace the gate."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-
-        def ask(command):
-            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                "tool_input": {"command": command}})
-
-        for command in ("rm -rf .claude/", "rm .claude/hooks/*", "git checkout -- .claude",
-                        "mv .claude .claude.off", "echo x > .claude/settings.json"):
-            with self.subTest(command=command):
-                self.assertIsNotNone(ask(command), command)
-        # Reading is not relocating, and our own call is never a question.
-        self.assertIsNone(ask("ls .claude/skills"))
-        self.assertIsNone(ask("pnpm build"))
-        self.assertIsNone(ask("python3 .claude/hooks/registry_intake.py check ."))
-        # And the generic warning never shadows a decision the user must actually answer.
-        decision = ask("python3 .claude/hooks/registry_intake.py allow . @x "
-                       "https://x.test/{name}.json --reason r --by luca")
-        self.assertIn("allowlist the registry @x", decision or "")
-
-    def test_a_glob_that_expands_to_claude_asks(self) -> None:
-        """Three tries, each a list one spelling short: the exact filenames (so `rm -rf .claude/`
-        said nothing), then a table of destructive verbs (so `.cl*` said nothing). The default is
-        inverted now — reaching `.claude/` asks unless the command is one plain read — and globs are
-        EXPANDED against the filesystem rather than guessed at in the text."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-
-        def ask(command):
-            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                "tool_input": {"command": command}})
-
-        for command in ("rm -rf .claude/", "rm -rf .cl*", "rm -rf .c*", "rm -rf .claud?",
-                        "git checkout -- .claude", "truncate -s0 .claude/settings.json"):
-            with self.subTest(command=command):
-                self.assertIsNotNone(ask(command), command)
-        # Not every destructive command is about us, and one plain read is the whole exception.
-        for command in ("rm -rf node_modules", "rm -rf src/*", "pnpm build",
-                        "cat .claude/settings.json", "ls .claude", "grep -r x .claude"):
-            with self.subTest(command=command):
-                self.assertIsNone(ask(command), command)
-        # A read that is not plain — it chains — is not the exception.
-        self.assertIsNotNone(ask("cat .claude/settings.json && rm -rf .claude"))
-
-    def test_both_messages_when_both_apply(self) -> None:
-        """Returning only the decision hid the tamper warning for a command doing both at once."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-        both = ri.hook_ask({"tool_name": "Bash", "cwd": str(root), "tool_input": {"command":
-            "python3 .claude/hooks/registry_intake.py allow . @x https://x.test/{name}.json "
-            "--reason r --by luca && rm -rf .claude"}})
-        self.assertIn("allowlist the registry @x", both or "")
-        self.assertIn("reaches into `.claude/`", both or "")
-
-    def test_the_read_only_exception_cannot_execute_or_write(self) -> None:
-        """The exception needed the same inversion as the rule. `find` was on the read-only list,
-        and `find .claude -delete` deletes; `tree -o` writes; `rg --pre` runs a program. Listing
-        each one's dangerous flags would be a fourth list one spelling short, so the three commands
-        that can execute or write are gone and a plain read may carry only SHORT single-dash flags —
-        an unknown or long flag is not a plain read, which means it asks."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-
-        def ask(command):
-            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                "tool_input": {"command": command}})
-
-        for command in ("find .claude -delete", "find .claude -exec rm {} +",
-                        "tree -o /tmp/x .claude", "grep --include=*.json -r x .claude",
-                        "cd .claude", "rm -rf .clau{de}", "rm -rf {.claude,src}",
-                        "rm -rf .cl{a,b}ude"):
-            with self.subTest(command=command):
-                self.assertIsNotNone(ask(command), command)
-        # And the idioms that are not about us keep working, including the brace that expands to
-        # nothing — `or "*"` once turned that nothing into everything, which matched .claude.
-        for command in ("cat .claude/settings.json", "ls -la .claude", "grep -rn x .claude",
-                        "find . -exec rm {} +", "mv x{,.bak}", "pnpm build"):
-            with self.subTest(command=command):
-                self.assertIsNone(ask(command), command)
-
     def test_a_crash_while_composing_the_question_still_asks(self) -> None:
         """`hook_decision` already failed closed; `hook_ask` fell through to allow, so a crash while
         composing the question answered it with silence."""
@@ -1395,78 +1299,6 @@ class Hooks(unittest.TestCase):
             sys.stdin = stdin
         self.assertIn("could not work out what to ask", out.getvalue())
 
-    def test_the_gate_asks_about_claude_and_not_about_everything(self) -> None:
-        """Measured on 12 870 real Bash commands from this project's transcripts: the previous
-        version of this gate asked on **72%** of them, because it answered True for any command
-        containing `cd` — a rule added to be safe that turned the gate into the wall this skill's
-        own text says gets switched off. Three reviews in a row then asked for MORE fail-closed
-        rules on top of it; "any `$` asks" alone measures 42%. This shape asks on 9%, of which 8
-        points name `.claude` outright, and still catches every bypass found so far.
-
-        Both halves are the test. A gate nobody can live with is not a gate."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-
-        def ask(command):
-            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                "tool_input": {"command": command}})
-
-        for command in ("rm -rf .claude/", "rm -rf .cl*", "rm -rf .clau{de}",
-                        "rm -rf {.claude,src}", "find .claude -delete",
-                        "find .claude -exec rm {} +", "tree -o /tmp/x .claude",
-                        "git checkout -- .claude", "mv .claude .claude.off",
-                        "cd .claude && rm -rf *", "rm -rf $HOME/p/.claude",
-                        f"rm -rf ~/{Path(root).name}/.claude",
-                        # The fifth review's four, each a way the resolution could be wrong rather
-                        # than incomplete: the glob resolves where the command ENDS UP; a variable
-                        # can hold the name assigned a token earlier; and `.cl[` is a pattern
-                        # pathlib matches to nothing instead of refusing.
-                        f"cd {root} && rm -rf *", "D=.claude; rm -rf $D", "rm -rf .cl[",
-                        "cd $S && rm -rf .claude",
-                        # The seventh review's: a recursive pattern reaches everything under its
-                        # base, and skipping the token to avoid a traversal made that silent.
-                        "rm -rf **/*", "rm -rf **", f"cd {root} && rm -rf **/*",
-                        # And a token we cannot resolve gets the broad test, since `$DIR` may hold
-                        # anything — the narrow one is only for literal, resolvable paths.
-                        "rm -rf $HOME/claude-stuff/.claude"):
-            with self.subTest(attack=command):
-                self.assertIsNotNone(ask(command), command)
-        # And the ordinary work of a day, which must not be interrupted.
-        for command in ("cd ~/my-skills && git status", "pnpm build", "rm -rf node_modules",
-                        "grep -rn x *.py", "cd $S && ls", "rm -rf /tmp/x",
-                        "find . -exec rm {} +", "mv x{,.bak}", "cat .claude/settings.json",
-                        "python3 scripts/x.py && echo $?", "git log --oneline -3",
-                        "pnpm --filter $PKG build"):
-            with self.subTest(ordinary=command):
-                self.assertIsNone(ask(command), command)
-
-    def test_the_gate_runs_in_milliseconds_and_never_walks_the_disk(self) -> None:
-        """A sixth review found what no bypass test would: the commit that resolved `cd` targets
-        accepted ANY existing directory, so `cd /usr && rm -rf **/*` sent this function walking
-        /usr — measured at over two minutes before it was killed, on a hook that runs before every
-        Bash command. A session freeze, in the fix for a bypass."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-        for command in ("cd /usr && rm -rf **/*", "cd ~ && rm -rf **/*.tmp", "rm -rf **/*"):
-            with self.subTest(command=command):
-                start = time.monotonic()
-                ri.reaches_claude(command, root)
-                self.assertLess(time.monotonic() - start, 1.0, "a per-command hook gets a budget")
-
-    def test_the_glob_resolves_where_the_command_runs(self) -> None:
-        """One base, which the `cd`s move — three bugs in two commits came from treating it as a
-        list of candidates. `.claude` sits beside `src`, not in it, so a command that cds into `src`
-        cannot reach it with a relative glob; one that cds out of the project cannot either."""
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-        (root / "src").mkdir(exist_ok=True)
-        self.assertTrue(ri.reaches_claude(f"cd {root} && rm -rf *", root), "it runs in the root")
-        self.assertFalse(ri.reaches_claude(f"cd {root}/src && rm -rf *", root), "it runs in src")
-        self.assertFalse(ri.reaches_claude("cd /usr/local && rm -rf *", root), "it runs elsewhere")
-        # Unknowable position: the name in the command decides, not the filesystem.
-        self.assertTrue(ri.reaches_claude("cd $S && rm -rf .claude", root))
-        self.assertFalse(ri.reaches_claude("cd $S && ls", root))
-
     def test_removing_the_whole_directory_is_caught_by_the_phase_gate(self) -> None:
         """Why the ask gate is the early warning and not the control. If `.claude/` goes, nothing
         at run time can notice: the hook itself went with the settings file, and `hook-post` is
@@ -1480,6 +1312,41 @@ class Hooks(unittest.TestCase):
         ok, problems = ri.check(root)
         self.assertFalse(ok)
         self.assertTrue(any("PreToolUse hook" in p for p in problems), problems)
+
+    def test_the_claude_ask_gate_is_gone_and_the_denies_remain(self) -> None:
+        """The eighth measurement killed that gate, and this is what is left in its place.
+
+        On archistudio's own 3 444 commands it asked on **one in five** — 697, almost all a `cd`
+        into `.claude/worktrees/`, which is where Claude Code does its work. Measured again after
+        deleting it: **3**, and those three are real `allow`/`approve` decisions. An interruption on
+        a fifth of the work is not a warning, it is the thing people switch off — and switching off
+        a hook takes the denies below with it, which are the controls."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                "tool_input": {"command": command}})
+
+        # Gone: ordinary work is never interrupted, including the worktrees that caused this.
+        for command in ("cd .claude/worktrees/agent-a01/app && pnpm build", "rm -rf .claude/",
+                        "git checkout -- .claude", "rm -rf .cl*", "find .claude -delete"):
+            with self.subTest(no_longer_asks=command):
+                self.assertIsNone(ask(command), command)
+        # Kept: the decisions a person must make still ask, by name.
+        self.assertIn("allowlist the registry @x", ask(
+            "python3 .claude/hooks/registry_intake.py allow . @x https://x.test/{name}.json "
+            "--reason r --by luca") or "")
+        # Kept: the three layers that never read a shell command.
+        self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "cwd": str(root),
+                             "tool_input": {"file_path": str(root / ri.LOCK)}}), "the lock")
+        self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "cwd": str(root),
+                             "tool_input": {"file_path": str(root / ri.HOOK_COPY)}}), "our script")
+        self.assertIsNotNone(ri.hook_decision({"tool_name": "Bash", "cwd": str(root),
+                             "tool_input": {"command": "shadcn add @evil/x"}}), "a governed add")
+        # And the durable one: removing the directory is caught by `check`, which gates every phase.
+        shutil.rmtree(root / ".claude")
+        self.assertFalse(ri.check(root)[0])
 
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
@@ -1722,39 +1589,6 @@ class Hooks(unittest.TestCase):
             "command": "shadcn add @evil/x && cat registry-lock.json"}})
         self.assertIsNotNone(why, "the install is still refused")
 
-    def test_an_exemption_is_earned_by_shape_not_by_a_word(self) -> None:
-        """`"registry_intake" not in command` was a substring exemption, so a command could exempt
-        itself by mentioning the word — and then wrote the lock with no prompt at all."""
-        silent = "echo registry_intake; echo {} > registry-lock.json"
-        self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": silent}}),
-                             "mentioning the word is not an invocation")
-        # One direct call of our own script is exempt, and still only one — identified against the
-        # project's own copy, never by basename.
-        root = self.project(("Stop", "echo hi"))
-        quiet(ri.main, ["setup", str(root)])
-        self.assertTrue(ri.our_invocation("python3 .claude/hooks/registry_intake.py check .", root))
-        # `$S` is NOT exempt any more: an eleventh review showed the arm that allowed it exempted
-        # `python3 $S check` whatever the variable held. We cannot see what it holds, so it asks —
-        # and `approve` asks regardless, for being a decision.
-        self.assertFalse(ri.our_invocation("python3 $S approve . @x/item --by luca"))
-        self.assertFalse(ri.our_invocation("python3 evil_registry_intake.py check"))
-        self.assertFalse(ri.our_invocation("python3 -c 'print(1)' registry_intake.py check"))
-        # The weak tokeniser glued `.;python3` into one token and let this exempt itself.
-        self.assertFalse(ri.our_invocation('python3 registry_intake.py check .;python3 -c "x"'))
-        for not_ours in ("python3 registry_intake.py check . && rm -rf /tmp/x",
-                         "python3 registry_intake.py check . > out.txt",
-                         "echo registry_intake.py",
-                         "python3 registry_intake.py"):
-            with self.subTest(command=not_ours):
-                self.assertFalse(ri.our_invocation(not_ours, root), not_ours)
-        # With a cwd — which every real payload carries — our own read-only call is not a question.
-        ours = "python3 .claude/hooks/registry_intake.py check ."
-        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
-                                       "tool_input": {"command": ours}}), "no noise on our own call")
-        # Without one there is no root to identify the script against, so it asks. That is the
-        # fail-closed answer decided earlier, not an oversight: an exemption needs an identity.
-        self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": ours}}))
-
     def test_a_glob_that_expands_to_the_lock_still_asks(self) -> None:
         """A glob spells the name without containing it. We cannot expand one — only a shell can —
         so a fragment of the name beside a glob character counts as the name."""
@@ -1909,16 +1743,6 @@ class Hooks(unittest.TestCase):
         self.assertTrue(ri.our_invocation(command, root, root), "from the root it is ours")
         self.assertFalse(ri.our_invocation(command, root, sub),
                          "from a subdirectory that path names a file that is not there")
-
-    def test_one_tokeniser_for_the_gate_and_the_scanner(self) -> None:
-        """The comment on `hook_tokens` said two tokenisers would be a parser differential between
-        the gate and the scanner. Then the exemption helper was written with a plain `shlex.split`,
-        which returns `a;b` as ONE token — so `…check .;python3 -c "…"` read as a single call of our
-        own script. The warning was right; it just was not followed."""
-        tokens, parsed = ri.shell_tokens('python3 ri.py check .;echo x > y')
-        self.assertTrue(parsed)
-        self.assertIn(";", tokens, "operators are tokens, touching a word or not")
-        self.assertIn(">", tokens)
 
     def test_the_before_state_file_cannot_be_written_either(self) -> None:
         """The write gate denied the lock and our script but not the file `hook-post` compares

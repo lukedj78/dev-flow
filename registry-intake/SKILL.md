@@ -574,7 +574,32 @@ Our directory always starts with a dot.
 ordinary commands untouched — and the test holds all three.** The numbers belong in the test, not
 in a commit message, because a gate's cost regresses as quietly as its coverage.
 
-### Why this layer is now closed
+### The layer is not closed, it is DELETED — measured on a real project
+
+Everything below was written over seven rounds of review, and the eighth measurement ended it. The
+`.claude/` ask gate was run against **archistudio's own 3 444 commands**: it asked on **697 of
+them, one in five** — almost all a `cd` into `.claude/worktrees/`, which is where Claude Code does
+its work. The user's words were «mi blocca da morire».
+
+After deleting it: **3** asks, and those three are real `allow`/`approve` decisions.
+
+| | |
+|---|---|
+| what it was | an early warning that reads a shell command |
+| what sits under it | the write-tool identity deny, the lock digest in `hook-post`, `check` at the phase gate — none of which read a command |
+| what it cost | one command in five, on the project the user works in most |
+
+An interruption on a fifth of the work is not a warning: it is the thing people switch off, and
+switching off a hook takes the **deny** layers with it. So ~150 lines of gate and ~210 lines of its
+tests are gone, and the sections below are kept only as the record of how a layer gets built past
+the point of being worth having.
+
+**The lesson is the measurement, not the gate.** Seven rounds of review found every bypass in it and
+none of them asked what it cost; the cost was found by running it over a project's own commands,
+which takes one script and five minutes. A tightening without that number in the same commit is
+unfalsifiable — and here it was net-harmful for a whole day before anyone looked.
+
+### How the layer was closed (kept for the record)
 
 A seventh review brought four more, three of them real and cheap — a recursive pattern reaches
 everything under its base, so skipping `**` made `rm -rf **/*` silent; an exhausted budget returned

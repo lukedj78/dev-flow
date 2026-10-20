@@ -3248,13 +3248,17 @@ def hook_ask(payload: dict) -> str | None:
     # below, so a legitimate `allow` was answered with a generic warning about `.claude/` instead of
     # "allowlist the registry @x" — the same ordering mistake as the lock question jumping ahead of
     # the deny rules. The specific message wins; this one speaks when there is nothing specific.
+    # NO generic ask here any more. It was an early warning on top of three layers that do not
+    # depend on reading a shell command — the write-tool identity deny, the lock digest in
+    # `hook-post`, and `check` at the phase gate — and measured on real work it cost the user
+    # **one command in five** in archistudio (697 of 3 444), almost all of them a `cd` into
+    # `.claude/worktrees/`, which is where Claude Code does its work. Seven rounds of review
+    # sharpened this warning and none of them measured it against a project's own commands.
+    #
+    # A warning that interrupts a fifth of the work is not a warning, it is the thing people switch
+    # off — and switching off a hook takes the DENY layers with it. So the cheap layer goes and the
+    # durable ones stay, and the machinery of the cheap one is deleted rather than left dormant.
     generic = None
-    if (reaches_claude(command, here) and not plain_read(command)
-            and not our_invocation(command, find_root(here), here)):
-        generic = ("this command reaches into `.claude/` — the gate itself, or the wiring that runs "
-                   "it on every tool call. Removing, moving or replacing either switches registry "
-                   "intake off for this project, and `rm -rf .claude/` takes the whole surface with "
-                   "it. Confirm only if that is what you meant.")
     # The guard is cheap and keeps DECISION_CALL off unrelated commands (`pnpm approve builds` would
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
@@ -3304,179 +3308,18 @@ def hook_ask(payload: dict) -> str | None:
 BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
 
 
-# Three tries at this, each a list that was one spelling short: the exact filenames (so `rm -rf
-# .claude/` said nothing), then a list of destructive verbs (so `.cl*` and anything unlisted said
-# nothing). A list of what to catch is a list of what to miss — the third time today that the
-# answer was to INVERT the default rather than lengthen the list.
+# The `.claude/` ask gate lived here and is GONE, deliberately. Seven rounds of review sharpened
+# it and the eighth measurement killed it: on archistudio's own 3 444 commands it asked on **one in
+# five** (697), almost all a `cd` into `.claude/worktrees/`, which is where Claude Code does its
+# work. It was an early warning sitting on top of three layers that do not read a shell command at
+# all — the write-tool identity deny above, the lock digest in `hook-post`, and `check` at the
+# phase gate — and an interruption on a fifth of the work is not a warning, it is the thing people
+# switch off, which takes the DENY layers with it.
 #
-# So: any command that reaches `.claude/` asks, UNLESS it is one plain read-only command or our own
-# invocation. The exception is short, closed, and checkable; the rule needs no verb table.
-CLAUDE_DIR = re.compile(r"\.claude\b")
-GLOB_CHARS = re.compile(r"[*?\[]")
-# The exception needed the same inversion as the rule. `find` was in here, and `find .claude
-# -delete` deletes; `tree -o` writes; `rg --pre` runs a program. Listing the dangerous flags of each
-# would be a fourth list one spelling short, so the three commands that can execute or write are
-# gone, and a plain read may carry only SHORT single-dash flags — an unknown or long flag is not a
-# plain read, which means it asks.
-READ_ONLY = {"ls", "cat", "head", "tail", "grep", "wc", "stat", "file", "diff",
-             "jq", "less", "more", "du", "realpath", "basename", "dirname", "echo"}
-SAFE_FLAG = re.compile(r"-[A-Za-z]{1,3}$|--color(?:=\w+)?$")
-
-
-def braces(token: str, depth: int = 0) -> list[str]:
-    """`a{b,c}d` → `[abd, acd]`. pathlib globs but does not expand braces, so `.clau{de}` resolved
-    to nothing and passed — a pattern we could not read, read as harmless."""
-    i = token.find("{")
-    j = token.find("}", i + 1)
-    if i < 0 or j < 0 or depth > 3:
-        return [token]
-    out = []
-    for part in token[i + 1:j].split(","):
-        out.extend(braces(token[:i] + part + token[j + 1:], depth + 1))
-    return out[:32]               # a bounded expansion: this is a gate, not a shell
-
-
-# A FRAGMENT of the name beside something we cannot expand. Used only to decide whether an
-# unresolvable token is worth a question — never to decide that a resolvable one is safe.
-# A dot-prefixed fragment ONLY. Matching the bare word "claude" made every path containing it —
-# another project's `.claude`, a temp directory named claude-501 — read as ours, and measured 11
-# points of ask rate on a corpus full of them. Our directory always starts with a dot.
-CLAUDEISH = re.compile(r"\.cl", re.I)
-# For a token we CANNOT resolve, the bare word counts too: `$DIR` may hold anything, so `claude`
-# anywhere in it earns the question. Only literal, resolvable paths get the narrow test above —
-# that distinction is what kept `/private/tmp/claude-501` from reading as ours (11 points of ask
-# rate) without letting `rm -rf "$HOME/claude-stuff/.claude"` through.
-CLAUDE_WORD = re.compile(r"\.cl|claude", re.I)
-
-
-def glob_base(tokens: list[str], cwd: Path, named: bool) -> Path | None:
-    """Where a glob in this command will actually resolve — ONE place, which the `cd`s move.
-
-    Three mistakes in two commits, each from treating this as a list of candidates rather than a
-    position. Globbing only against `cwd` missed `cd <project> && rm -rf *`. Keeping `cwd` *and*
-    the target made `cd /usr/local && rm -rf *` ask about a command that never touches this
-    project, and `cd src && rm -rf *` ask because `.claude` sits beside `src` rather than in it.
-    A command runs in one directory at a time, and the `cd`s say which.
-
-    Returns None when the position is unknowable and the command spells part of the name, or when
-    it ends up outside the project — where a relative glob cannot reach our `.claude` at all."""
-    here = cwd
-    for i, token in enumerate(tokens):
-        if Path(token).name not in ("cd", "pushd"):
-            continue
-        rest = [t for t in tokens[i + 1:] if not t.startswith("-") and t != "--"]
-        target = rest[0] if rest and rest[0] not in SEPARATORS else "~"   # bare `cd` is $HOME
-        if "$" in target or "`" in target:
-            return None       # unknowable position: the caller lets the name in the command decide
-        candidate = Path(os.path.expandvars(os.path.expanduser(target)))
-        here = candidate if candidate.is_absolute() else here / candidate
-    try:
-        if not here.is_dir():
-            return None if named else here
-        return here if here.resolve().is_relative_to(cwd.resolve()) else None
-    except OSError:
-        return None
-
-
-def reaches_claude(command: str, cwd: Path) -> bool:
-    """Could this command touch anything under `.claude/`? Globs are EXPANDED, not guessed.
-
-    A pattern is resolved against the filesystem the way the shell will resolve it — this runs
-    before the command, so what it asks about is still there.
-
-    **Both halves of this function are measured**, on 12 874 real Bash commands from this project's
-    transcripts, because four rounds of review tightened it without ever asking what it cost:
-
-        any command containing `cd` asks          72.3%   (what shipped, and was unusable)
-        any token containing `$` asks             42.4%   (asked for by three reviews)
-        fail closed on anything unresolvable      60.6%   (asked for by the fourth)
-        this shape                                14.5%
-
-    The rule: resolve what can be resolved, exactly. For what cannot — a `$`, a substitution, a
-    `cd` to an unknown place, a pattern that will not parse — ask **when the command spells part of
-    the name anywhere in it**. `D=.claude; rm -rf $D` asks; `cd $S && ls` does not. That condition
-    is what keeps a fail-closed default from becoming a wall, and the wall is the failure mode this
-    document warns about two sections above."""
-    deadline = time.monotonic() + 0.75      # a hook before every command gets a budget, not a walk
-    tokens, _parsed = shell_tokens(command)
-    # The literal name first, before any filesystem work at all: it is the commonest case, the
-    # cheapest test, and it must not depend on a glob budget that could run out.
-    if any(CLAUDE_DIR.search(t) for t in tokens):
-        return True
-    named = bool(CLAUDEISH.search(command))
-    base = glob_base(tokens, cwd, named)
-    if base is None:
-        # Either unknowable with the name in the command, or a directory outside this project —
-        # where a relative glob cannot reach our `.claude`. The first asks, the second does not.
-        return named
-    if SUBSTITUTION.search(command):
-        # `$(…)` can hold anything, and "anything" is most commands — measured, a loose test here
-        # cost 7 points of ask rate on its own. Only a token that NAMES the directory earns it.
-        return any(CLAUDE_DIR.search(t) for t in tokens)
-    for token in tokens:
-        plain = os.path.expanduser(token) if token.startswith("~") else token   # `~` expands exactly
-        for candidate in braces(plain):
-            if CLAUDE_DIR.search(candidate):
-                return True
-            if "$" in candidate or "`" in candidate:
-                if named or CLAUDE_WORD.search(candidate):
-                    return True
-                continue
-            if not GLOB_CHARS.search(candidate):
-                continue
-            if "**" in candidate:
-                # `rm -rf **/*` in a project root deletes `.claude`, and skipping the token made
-                # that silent — my own decision last commit, taken to avoid the traversal that had
-                # frozen the hook. Both are avoidable: a recursive pattern reaches everything under
-                # its base, so the question is only whether `.claude` is under there at all. One
-                # `is_dir()`, no walk.
-                try:
-                    if (base / ".claude").is_dir():
-                        return True
-                except OSError:
-                    return True
-                if named:
-                    return True
-                continue
-            pattern = candidate[2:] if candidate.startswith("./") else candidate
-            if not pattern:
-                continue          # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
-                                  # once turned that nothing into everything, which matched .claude
-            if candidate.count("[") != candidate.count("]"):
-                # `.cl[` is not a pattern pathlib refuses — it quietly matches nothing, so the
-                # unresolvable case never reached the `except` below.
-                if CLAUDEISH.search(candidate):
-                    return True
-                continue
-            try:
-                for seen, hit in enumerate(base.glob(pattern)):
-                    if seen > 5_000 or time.monotonic() > deadline:
-                        # An exhausted budget is not an answer. It used to return `named`, so a
-                        # slow pattern bought silence — the permissive end of a resource limit,
-                        # which is the oldest fail-open shape in this file.
-                        return True
-                    rel = (hit.relative_to(base).as_posix() if hit.is_relative_to(base)
-                           else hit.as_posix())
-                    if ".claude" in rel:
-                        return True
-            except Exception:  # noqa: BLE001 — a pattern we could not resolve
-                if CLAUDEISH.search(candidate):
-                    return True
-    return False
-
-
-def plain_read(command: str) -> bool:
-    """One command, no operators, and a program that only reads. The whole exception."""
-    if SUBSTITUTION.search(command):
-        return False
-    tokens, parsed = shell_tokens(command)
-    if not parsed or not tokens:
-        return False
-    if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens):
-        return False
-    if Path(tokens[0]).name not in READ_ONLY:
-        return False
-    return all(SAFE_FLAG.fullmatch(t) for t in tokens[1:] if t.startswith("-"))
+# ~150 lines went with it (`reaches_claude`, `glob_base`, `plain_read`, `braces` and their
+# constants). The measurements are in git and in SKILL.md; the code would only invite someone to
+# switch the gate back on. **A layer whose cost nobody measured for seven rounds was the layer to
+# delete, not to perfect.**
 
 
 OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "hook", "hook-post",
