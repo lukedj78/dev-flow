@@ -1095,3 +1095,31 @@ Keep it visual, no business logic. This is the verification surface.
 - A spot check of 3 colors and 2 typography levels matches the DESIGN.md visually (use a color picker on the screenshot if uncertain).
 - Buttons defined in the spec have the right hover state.
 - `STYLE_NOTES.md` is present and references `DESIGN.md`.
+
+## Found on streaming-hub (2026-10-20, base-luma, Next 16.4.2) — check each on the next scaffold
+
+- **Hooks and `$CLAUDE_PROJECT_DIR`.** In a Claude desktop session whose primary folder is a scratch
+  workspace (the project only an *added* directory), `$CLAUDE_PROJECT_DIR` and the hook's cwd are the scratch
+  folder. Then `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/registry_intake.py"` exits **2** (file not found)
+  and blocks every Bash/Write/Edit — the agent cannot repair the file itself; the user has to move
+  `.claude/settings.json` aside. The node guard exits **1** in the same spot: no error, no protection.
+  Keep the standard form (it is what `registry-intake check` can review) and tell the user to open sessions
+  on the project folder; probe the guard once (`Write` a file with a raw `<button>`, expect a refusal).
+- **Overwriting `next.config.ts` drops create-next-app 16.4's Tailwind loader**
+  (`turbopack.rules["*.css"] = { loaders: ["@tailwindcss/turbopack"], as: "*.css" }`, no postcss config).
+  Symptom: `Can't resolve 'tw-animate-css'` from globals.css. Merge into the generated config, never replace it.
+- **`loading.tsx` at `app/[locale]/` turns every 404 into HTTP 200**: the Suspense boundary streams the
+  status before the catch-all calls `notFound()`. Put it in the route group that needs it.
+- **Primitives ship English strings** (`sr-only` "Close", "Previous slide", `aria-label="Loading"`, toast,
+  pagination, breadcrumb, sidebar): golden rule 2 — route them through a `Primitives` next-intl namespace.
+- **If the DESIGN.md's canonical background is dark and `destructive` is a fill colour**, `text-destructive`
+  used as text (field errors, alert, menus) can fail contrast: measure it, and when it fails add a `*-text`
+  token and use it for every text use in `ui/`.
+- **If the DESIGN.md bans blur**, remove the `backdrop-blur` the overlays ship with (dialog, alert-dialog,
+  sheet, drawer); otherwise leave it.
+- **Links styled as buttons:** `<Button nativeButton={false} render={<Link/>}>` gives the anchor
+  `role="button"`. Navigation stays a link: `<Link className={buttonVariants({ variant })}>`.
+- **Biome** must exclude `src/components/ui`, the shadcn-added lib/hooks files, `scripts/guard`,
+  `eslint.design-system.mjs`, `.claude`, `.workflow` and `registry-lock.json`: `biome check --write` on the
+  guard copies breaks `setup_design_lint.py --check` (it compares them byte for byte). The `lint` script runs
+  `biome check --error-on-warnings && eslint src --max-warnings 0` — Biome has no `--max-warnings`.

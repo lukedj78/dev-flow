@@ -4,9 +4,8 @@ How each `scrum` operation maps to Jira when `meta.json#tracker.provider` is `ji
 **Atlassian Rovo MCP** (`https://mcp.atlassian.com`, OAuth — the user connects it; tools as listed on Atlassian's
 «supported tools» page, read 2026-10-18), plus one script for story points.
 
-**Not yet run on a real site.** The tool names below come from Atlassian's page; their parameters are not
-documented there. On the first real Setup, check each row you use and correct this page — the way `linear.md` was
-confirmed by running it.
+**First real run: 2026-10-20** (streaming-hub, a new team-managed Scrum project on Jira Cloud). What the run proved
+is in §Verified on a real site below; where it contradicts the table, the verified section wins.
 
 ## Connecting
 
@@ -53,3 +52,35 @@ There is no velocity endpoint. Sum the estimates of the issues Done in the last 
 
 Never create an issue whose `task_key` is in `meta.json#tracker.issue_map`; record each new one with
 `meta_tracker.py record-issues` right after it is created.
+
+
+## Verified on a real site (2026-10-20, team-managed project)
+
+- **How the tools are exposed.** Only a few are direct tools (`createJiraIssue`, `editJiraIssue`,
+  `transitionJiraIssue`, `getJiraIssue`, `searchJiraIssuesUsingJql`, `addOrEditJiraIssueComment`,
+  `getAccessibleAtlassianResources`). Everything else is found with `discover` and run through `executeRead` /
+  `executeWrite` by name, always with `cloudId` (from `getAccessibleAtlassianResources`, once per session).
+- **`listJiraBoards` is not exposed.** Find the board with `getJiraBoardSprintData` (`projectKeyOrId`, `boardType:
+  "all"`, a dummy `sprintName`): with no active sprint it errors, with an unknown sprint name it returns the board
+  id **and** the list of sprints. A team-managed project has one "simple" board; `createJiraBoard` rejects it.
+- **`manageJiraSprint` is not exposed.** No sprint can be created, renamed or started from the MCP. A new Scrum
+  project ships with `<KEY> Sprint 1` (future): fill it with `createJiraIssue(assignToSprint: <id>)` or
+  `transitionJiraIssue(sprintId)`; the owner creates later sprints in Jira, and Setup writes the plan to
+  `.workflow/sprints.md` meanwhile.
+- **Story points work through the MCP** on team-managed projects: the field is `Story point estimate`. Its
+  `customfield_*` ID differs per site — read it on the site with `getJiraIssueTypeMetaWithFields`
+  (`requiredFieldsOnly: false`), never reuse one from another project. Set it with
+  `createJiraIssue(additional_fields: {"<that id>": 3})` and read it back with `getJiraIssue(fields: [...])`. `scripts/jira_estimate.py` stays the fallback for company-managed screens; no token
+  was needed here.
+- **Priority:** the field is not on a team-managed Story's create screen, yet every issue reads `Medium`. The
+  owner chose labels `P1`/`P2`; whether `createJiraIssue(priority: …)` is accepted there is **untested**.
+- **Epics:** `issueType: "Epic"`, then Stories with `parent: <EPIC-KEY>` — verified.
+- **Task lists:** markdown `- [ ]` is stored escaped (`\[ \]`), shown as literal brackets — readable, not interactive.
+- **The project is created by the user** (Jira UI): the MCP has no Jira project creation (`createProject` is an
+  Atlassian *Projects* item, not a Jira project).
+- **Versions (milestones):** `manageJiraProjectVersion` (via `executeDestructive`) creates them, but on a team-managed
+  project `fixVersions` is not on the Story screen until the owner turns on **Releases** (Project settings ›
+  Features): `editJiraIssue` fails with `INVALID_FIELD_VALUE … "fixVersions" was not found`. Ask the owner first.
+- **Subtasks:** `createJiraIssue(issueType: "Subtask", parent: <STORY>)` works (89 created, 2026-10-20); plan kept in
+  `.workflow/subtasks.md`.
+
