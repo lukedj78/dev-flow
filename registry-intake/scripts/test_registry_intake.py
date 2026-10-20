@@ -1348,6 +1348,33 @@ class Hooks(unittest.TestCase):
         shutil.rmtree(root / ".claude")
         self.assertFalse(ri.check(root)[0])
 
+    def test_the_bash_tamper_bypass_is_accepted_and_this_says_why(self) -> None:
+        """A shell `rm` of the hook script is NOT caught before it runs. That is accepted, and the
+        reasons are recorded here so a future review does not reopen it as a finding:
+
+        1. The alternatives were measured. Matching `.claude` by fragment or by verb is the ask-gate
+           shape that cost 20% of commands in archistudio and 42–72% on the wider corpus; it was
+           deleted for that. A narrow variant — the three governed filenames plus `.claude` as a
+           whole-directory target, only with a writing verb — measures **0.96%** and is offered to
+           the user as a choice, not taken unilaterally.
+        2. A digest check at hook time proves nothing: the script verifying its own integrity is the
+           script an attacker replaced. (Raised by the other session, 2026-10-20.)
+        3. The control is `check` against the lock, which reads the wiring by identity and gates
+           every phase transition — so the tamper is caught durably, just not instantly.
+
+        What this test pins is that the trade is deliberate: the denies below must keep working
+        while the Bash path stays open."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        rm = "rm .claude/hooks/registry_intake.py"
+        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                       "tool_input": {"command": rm}}), "accepted, by measurement")
+        # The layers that do hold, and must not be traded away with it:
+        self.assertIsNotNone(ri.hook_decision({"tool_name": "Edit", "cwd": str(root),
+                             "tool_input": {"file_path": str(root / ri.HOOK_COPY)}}))
+        (root / ri.HOOK_COPY).unlink()
+        self.assertFalse(ri.check(root)[0], "`check` is the control")
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""
