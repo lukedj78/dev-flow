@@ -539,6 +539,21 @@ a corpus. So a gate's cost has to be measured on real commands, in the same comm
 it, or the tightening is unfalsifiable — and the failure mode it produces (people switching the
 gate off) is the one this document already warned about, two sections above, in its own words.
 
+A fifth review then asked to restore fail-closed in the three places the measurement had loosened:
+`$` anywhere, any unresolvable token, a `cd`. Measured, that shape asks on **60.6%** — so it was
+declined as written, again with the number. But its three gaps were real, and each was a case where
+the resolution is *wrong* rather than incomplete:
+
+| the gap | the answer |
+|---|---|
+| `cd <project> && rm -rf *` — the glob resolves where the command **ends up** | resolve the `cd` target and glob against it too; a `cd` to an unknown place asks only when the name is in the command |
+| `D=.claude; rm -rf $D` — a variable holding the name | an unresolvable token asks when the command spells part of the name **anywhere** |
+| `rm -rf .cl[` — pathlib matches an unbalanced pattern to nothing instead of refusing | unbalanced brackets are treated as unresolvable |
+
+That shape asks on **14.5%**, catches all sixteen bypasses of five rounds, and leaves ordinary work
+alone. The measured numbers are in the function's own docstring, so the next person to tighten it
+sees what the last four tightenings cost.
+
 A fourteenth review found the same shape one level up, and this one was a silent bypass.
 `hook-post` recomputed the project from the cwd **after** the command, so a command could write the
 lock and then leave the project: a different root meant a different snapshot key, no baseline, and

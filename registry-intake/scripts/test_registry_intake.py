@@ -1415,14 +1415,21 @@ class Hooks(unittest.TestCase):
                         "find .claude -exec rm {} +", "tree -o /tmp/x .claude",
                         "git checkout -- .claude", "mv .claude .claude.off",
                         "cd .claude && rm -rf *", "rm -rf $HOME/p/.claude",
-                        f"rm -rf ~/{Path(root).name}/.claude"):
+                        f"rm -rf ~/{Path(root).name}/.claude",
+                        # The fifth review's four, each a way the resolution could be wrong rather
+                        # than incomplete: the glob resolves where the command ENDS UP; a variable
+                        # can hold the name assigned a token earlier; and `.cl[` is a pattern
+                        # pathlib matches to nothing instead of refusing.
+                        f"cd {root} && rm -rf *", "D=.claude; rm -rf $D", "rm -rf .cl[",
+                        "cd $S && rm -rf .claude"):
             with self.subTest(attack=command):
                 self.assertIsNotNone(ask(command), command)
         # And the ordinary work of a day, which must not be interrupted.
         for command in ("cd ~/my-skills && git status", "pnpm build", "rm -rf node_modules",
                         "grep -rn x *.py", "cd $S && ls", "rm -rf /tmp/x",
                         "find . -exec rm {} +", "mv x{,.bak}", "cat .claude/settings.json",
-                        "python3 scripts/x.py && echo $?"):
+                        "python3 scripts/x.py && echo $?", "git log --oneline -3",
+                        "pnpm --filter $PKG build"):
             with self.subTest(ordinary=command):
                 self.assertIsNone(ask(command), command)
 

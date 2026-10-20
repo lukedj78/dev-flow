@@ -3340,52 +3340,88 @@ def braces(token: str, depth: int = 0) -> list[str]:
 CLAUDEISH = re.compile(r"\.cl|claude", re.I)
 
 
+def glob_bases(tokens: list[str], cwd: Path, named: bool) -> list[Path] | None:
+    """Where a glob in this command will actually resolve: the cwd, plus every `cd` target we can
+    resolve. None when a `cd` goes somewhere we cannot know and the command spells the name anyway.
+
+    Globbing only against `cwd` missed `cd <project> && rm -rf *`: the pattern resolves where the
+    command ends up, not where it started. The previous answer to that — ask on any `cd` — measured
+    a 72% ask rate on real commands, so this resolves the target instead of refusing the verb."""
+    bases = [cwd]
+    for i, token in enumerate(tokens):
+        if Path(token).name not in ("cd", "pushd") or i + 1 >= len(tokens):
+            continue
+        target = tokens[i + 1]
+        if "$" in target or "`" in target:
+            if named:
+                return None       # an unknown directory, and the name is in the command: ask
+            continue
+        base = Path(os.path.expanduser(target))
+        base = base if base.is_absolute() else cwd / base
+        if base.is_dir():
+            bases.append(base)
+    return bases
+
+
 def reaches_claude(command: str, cwd: Path) -> bool:
     """Could this command touch anything under `.claude/`? Globs are EXPANDED, not guessed.
 
     A pattern is resolved against the filesystem the way the shell will resolve it — this runs
-    before the command, so what it asks about is still there. `rm -rf .cl*` in a project root
-    therefore reads as `.claude`, which no amount of regex on the text would have told us.
+    before the command, so what it asks about is still there.
 
-    **Measured before this shape was chosen** (12 867 real Bash commands from this project's own
-    transcripts). The previous version asked on **72%** of them, because it answered True for any
-    command containing `cd` — a rule added one commit earlier to be safe, which turned the gate into
-    the wall this skill's own text says gets switched off. Three reviews in a row asked for more
-    fail-closed rules on top of it (`$` anywhere, `~`, any brace); measured, "any `$`" alone would
-    have asked on **42%**. This shape asks on **8.6%**, of which 8.0 points are commands that name
-    `.claude` outright — the thing the gate is for — while still catching every bypass those reviews
-    and the previous rounds found. An unresolvable token asks only when it also carries a fragment
-    of the name; everything else is resolved exactly or left alone."""
+    **Both halves of this function are measured**, on 12 874 real Bash commands from this project's
+    transcripts, because four rounds of review tightened it without ever asking what it cost:
+
+        any command containing `cd` asks          72.3%   (what shipped, and was unusable)
+        any token containing `$` asks             42.4%   (asked for by three reviews)
+        fail closed on anything unresolvable      60.6%   (asked for by the fourth)
+        this shape                                14.5%
+
+    The rule: resolve what can be resolved, exactly. For what cannot — a `$`, a substitution, a
+    `cd` to an unknown place, a pattern that will not parse — ask **when the command spells part of
+    the name anywhere in it**. `D=.claude; rm -rf $D` asks; `cd $S && ls` does not. That condition
+    is what keeps a fail-closed default from becoming a wall, and the wall is the failure mode this
+    document warns about two sections above."""
     tokens, _parsed = shell_tokens(command)
+    named = bool(CLAUDEISH.search(command))
+    bases = glob_bases(tokens, cwd, named)
+    if bases is None:
+        return True
     if SUBSTITUTION.search(command):
-        # `$(…)` can be anything, and "anything" is most commands. Only a token that NAMES the
-        # directory earns the question here.
+        # `$(…)` can hold anything, and "anything" is most commands — measured, a loose test here
+        # cost 7 points of ask rate on its own. Only a token that NAMES the directory earns it.
         return any(CLAUDE_DIR.search(t) for t in tokens)
     for token in tokens:
         plain = os.path.expanduser(token) if token.startswith("~") else token   # `~` expands exactly
         for candidate in braces(plain):
             if CLAUDE_DIR.search(candidate):
                 return True
-            if "$" in candidate:
-                # Not expandable here. Suspicious only if it is path-shaped AND spells part of the
-                # name: `$HOME/proj/.claude` asks, `$PKG` and `$TMPDIR/x` do not.
-                if "/" in candidate and CLAUDEISH.search(candidate):
+            if "$" in candidate or "`" in candidate:
+                if named:
                     return True
                 continue
             if not GLOB_CHARS.search(candidate):
                 continue
-            try:
-                pattern = candidate[2:] if candidate.startswith("./") else candidate
-                if not pattern:
-                    continue      # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
+            pattern = candidate[2:] if candidate.startswith("./") else candidate
+            if not pattern:
+                continue          # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
                                   # once turned that nothing into everything, which matched .claude
-                for hit in cwd.glob(pattern):
-                    rel = hit.relative_to(cwd).as_posix() if hit.is_relative_to(cwd) else hit.as_posix()
-                    if ".claude" in rel:
-                        return True
-            except Exception:  # noqa: BLE001
+            if candidate.count("[") != candidate.count("]"):
+                # `.cl[` is not a pattern pathlib refuses — it quietly matches nothing, so the
+                # unresolvable case never reached the `except` below.
                 if CLAUDEISH.search(candidate):
-                    return True   # a pattern we could not resolve, spelling part of the name
+                    return True
+                continue
+            for base in bases:
+                try:
+                    for hit in base.glob(pattern):
+                        rel = (hit.relative_to(base).as_posix() if hit.is_relative_to(base)
+                               else hit.as_posix())
+                        if ".claude" in rel:
+                            return True
+                except Exception:  # noqa: BLE001 — a pattern we could not resolve
+                    if CLAUDEISH.search(candidate):
+                        return True
     return False
 
 
