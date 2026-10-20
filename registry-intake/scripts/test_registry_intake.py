@@ -1353,6 +1353,47 @@ class Hooks(unittest.TestCase):
         self.assertIn("allowlist the registry @x", both or "")
         self.assertIn("reaches into `.claude/`", both or "")
 
+    def test_the_read_only_exception_cannot_execute_or_write(self) -> None:
+        """The exception needed the same inversion as the rule. `find` was on the read-only list,
+        and `find .claude -delete` deletes; `tree -o` writes; `rg --pre` runs a program. Listing
+        each one's dangerous flags would be a fourth list one spelling short, so the three commands
+        that can execute or write are gone and a plain read may carry only SHORT single-dash flags —
+        an unknown or long flag is not a plain read, which means it asks."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                "tool_input": {"command": command}})
+
+        for command in ("find .claude -delete", "find .claude -exec rm {} +",
+                        "tree -o /tmp/x .claude", "grep --include=*.json -r x .claude",
+                        "cd .claude", "rm -rf .clau{de}", "rm -rf {.claude,src}",
+                        "rm -rf .cl{a,b}ude"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(ask(command), command)
+        # And the idioms that are not about us keep working, including the brace that expands to
+        # nothing — `or "*"` once turned that nothing into everything, which matched .claude.
+        for command in ("cat .claude/settings.json", "ls -la .claude", "grep -rn x .claude",
+                        "find . -exec rm {} +", "mv x{,.bak}", "pnpm build"):
+            with self.subTest(command=command):
+                self.assertIsNone(ask(command), command)
+
+    def test_a_crash_while_composing_the_question_still_asks(self) -> None:
+        """`hook_decision` already failed closed; `hook_ask` fell through to allow, so a crash while
+        composing the question answered it with silence."""
+        import unittest.mock as mock
+        payload = json.dumps({"tool_name": "Bash", "cwd": "/tmp", "tool_input": {"command": "ls"}})
+        out, stdin = io.StringIO(), sys.stdin
+        try:
+            sys.stdin = io.StringIO(payload)      # cmd_hook reads the payload from stdin
+            with mock.patch.object(ri, "hook_ask", side_effect=RuntimeError("boom")), \
+                 redirect_stdout(out):
+                ri.cmd_hook(type("A", (), {})())
+        finally:
+            sys.stdin = stdin
+        self.assertIn("could not work out what to ask", out.getvalue())
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""

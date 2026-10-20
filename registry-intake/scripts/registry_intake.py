@@ -3311,8 +3311,27 @@ BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
 # So: any command that reaches `.claude/` asks, UNLESS it is one plain read-only command or our own
 # invocation. The exception is short, closed, and checkable; the rule needs no verb table.
 CLAUDE_DIR = re.compile(r"\.claude\b")
-READ_ONLY = {"ls", "cat", "head", "tail", "grep", "rg", "wc", "find", "stat", "file", "diff",
-             "jq", "less", "more", "tree", "du", "realpath", "basename", "dirname", "echo"}
+# The exception needed the same inversion as the rule. `find` was in here, and `find .claude
+# -delete` deletes; `tree -o` writes; `rg --pre` runs a program. Listing the dangerous flags of each
+# would be a fourth list one spelling short, so the three commands that can execute or write are
+# gone, and a plain read may carry only SHORT single-dash flags — an unknown or long flag is not a
+# plain read, which means it asks.
+READ_ONLY = {"ls", "cat", "head", "tail", "grep", "wc", "stat", "file", "diff",
+             "jq", "less", "more", "du", "realpath", "basename", "dirname", "echo"}
+SAFE_FLAG = re.compile(r"-[A-Za-z]{1,3}$|--color(?:=\w+)?$")
+
+
+def braces(token: str, depth: int = 0) -> list[str]:
+    """`a{b,c}d` → `[abd, acd]`. pathlib globs but does not expand braces, so `.clau{de}` resolved
+    to nothing and passed — a pattern we could not read, read as harmless."""
+    i = token.find("{")
+    j = token.find("}", i + 1)
+    if i < 0 or j < 0 or depth > 3:
+        return [token]
+    out = []
+    for part in token[i + 1:j].split(","):
+        out.extend(braces(token[:i] + part + token[j + 1:], depth + 1))
+    return out[:32]               # a bounded expansion: this is a gate, not a shell
 
 
 def reaches_claude(command: str, cwd: Path) -> bool:
@@ -3326,21 +3345,32 @@ def reaches_claude(command: str, cwd: Path) -> bool:
     so `rm -rf *` asks although the shell would spare `.claude`. A false positive in the safe
     direction, on a command that deserves a question anyway."""
     tokens, _parsed = shell_tokens(command)
+    # `{`, `}` and `~` expand as surely as `*` does, and `cd` moves the ground the glob resolves
+    # against — so a command that changes directory is not one this function can answer.
+    expands = re.compile(r"[$`*?\[{}~]")
+    if any(Path(t).name in ("cd", "pushd") for t in tokens):
+        return True
     for token in tokens:
         if CLAUDE_DIR.search(token):
             return True
-        if not SHELL_SYNTAX.search(token):
+        if not expands.search(token):
             continue
         try:                      # a glob: let the filesystem answer
-            # `lstrip("./")` ate the leading dot of `.cl*` and globbed `cl*`, which matches
-            # nothing — the dotfile case, in the check whose whole subject is a dot directory.
-            pattern = token[2:] if token.startswith("./") else token
-            for hit in cwd.glob(pattern or "*"):
-                rel = hit.relative_to(cwd).as_posix() if hit.is_relative_to(cwd) else hit.as_posix()
-                if ".claude" in rel:
+            for candidate in braces(token):
+                if CLAUDE_DIR.search(candidate):
                     return True
-        except (OSError, ValueError, IndexError):
-            return True           # an unresolvable pattern near this directory is not a pass
+                # `lstrip("./")` ate the leading dot of `.cl*` and globbed `cl*`, which matches
+                # nothing — the dotfile case, in the check whose subject is a dot directory.
+                pattern = candidate[2:] if candidate.startswith("./") else candidate
+                if not pattern:
+                    continue      # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
+                                  # turned nothing into everything, which matched .claude
+                for hit in cwd.glob(pattern):
+                    rel = hit.relative_to(cwd).as_posix() if hit.is_relative_to(cwd) else hit.as_posix()
+                    if ".claude" in rel:
+                        return True
+        except Exception:  # noqa: BLE001 — any failure to resolve is not a pass
+            return True
     return False
 
 
@@ -3353,7 +3383,9 @@ def plain_read(command: str) -> bool:
         return False
     if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens):
         return False
-    return Path(tokens[0]).name in READ_ONLY
+    if Path(tokens[0]).name not in READ_ONLY:
+        return False
+    return all(SAFE_FLAG.fullmatch(t) for t in tokens[1:] if t.startswith("-"))
 
 
 OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "hook", "hook-post",
@@ -3439,7 +3471,13 @@ def cmd_hook(_args) -> int:
         except Exception:  # noqa: BLE001
             pass
         reason = hook_decision(payload)
-        ask = None if reason else hook_ask(payload)
+        try:
+            ask = None if reason else hook_ask(payload)
+        except Exception as e:  # noqa: BLE001
+            # The decision above already failed closed; this one used to fall through to allow,
+            # so a crash while composing the question answered it with silence.
+            ask = (f"registry intake could not work out what to ask about this command "
+                   f"({type(e).__name__}). Read it yourself before confirming.")
     except Exception as e:  # noqa: BLE001 — every failure is a decision, never a silent allow
         if command and not may_install(command):
             return 0
