@@ -1394,6 +1394,38 @@ class Hooks(unittest.TestCase):
             sys.stdin = stdin
         self.assertIn("could not work out what to ask", out.getvalue())
 
+    def test_the_gate_asks_about_claude_and_not_about_everything(self) -> None:
+        """Measured on 12 870 real Bash commands from this project's transcripts: the previous
+        version of this gate asked on **72%** of them, because it answered True for any command
+        containing `cd` — a rule added to be safe that turned the gate into the wall this skill's
+        own text says gets switched off. Three reviews in a row then asked for MORE fail-closed
+        rules on top of it; "any `$` asks" alone measures 42%. This shape asks on 9%, of which 8
+        points name `.claude` outright, and still catches every bypass found so far.
+
+        Both halves are the test. A gate nobody can live with is not a gate."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                "tool_input": {"command": command}})
+
+        for command in ("rm -rf .claude/", "rm -rf .cl*", "rm -rf .clau{de}",
+                        "rm -rf {.claude,src}", "find .claude -delete",
+                        "find .claude -exec rm {} +", "tree -o /tmp/x .claude",
+                        "git checkout -- .claude", "mv .claude .claude.off",
+                        "cd .claude && rm -rf *", "rm -rf $HOME/p/.claude",
+                        f"rm -rf ~/{Path(root).name}/.claude"):
+            with self.subTest(attack=command):
+                self.assertIsNotNone(ask(command), command)
+        # And the ordinary work of a day, which must not be interrupted.
+        for command in ("cd ~/my-skills && git status", "pnpm build", "rm -rf node_modules",
+                        "grep -rn x *.py", "cd $S && ls", "rm -rf /tmp/x",
+                        "find . -exec rm {} +", "mv x{,.bak}", "cat .claude/settings.json",
+                        "python3 scripts/x.py && echo $?"):
+            with self.subTest(ordinary=command):
+                self.assertIsNone(ask(command), command)
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""

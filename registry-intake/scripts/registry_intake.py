@@ -3311,6 +3311,7 @@ BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
 # So: any command that reaches `.claude/` asks, UNLESS it is one plain read-only command or our own
 # invocation. The exception is short, closed, and checkable; the rule needs no verb table.
 CLAUDE_DIR = re.compile(r"\.claude\b")
+GLOB_CHARS = re.compile(r"[*?\[]")
 # The exception needed the same inversion as the rule. `find` was in here, and `find .claude
 # -delete` deletes; `tree -o` writes; `rg --pre` runs a program. Listing the dangerous flags of each
 # would be a fourth list one spelling short, so the three commands that can execute or write are
@@ -3334,6 +3335,11 @@ def braces(token: str, depth: int = 0) -> list[str]:
     return out[:32]               # a bounded expansion: this is a gate, not a shell
 
 
+# A FRAGMENT of the name beside something we cannot expand. Used only to decide whether an
+# unresolvable token is worth a question — never to decide that a resolvable one is safe.
+CLAUDEISH = re.compile(r"\.cl|claude", re.I)
+
+
 def reaches_claude(command: str, cwd: Path) -> bool:
     """Could this command touch anything under `.claude/`? Globs are EXPANDED, not guessed.
 
@@ -3341,36 +3347,45 @@ def reaches_claude(command: str, cwd: Path) -> bool:
     before the command, so what it asks about is still there. `rm -rf .cl*` in a project root
     therefore reads as `.claude`, which no amount of regex on the text would have told us.
 
-    One divergence, deliberate: `pathlib` matches hidden entries with `*` and the shell does not,
-    so `rm -rf *` asks although the shell would spare `.claude`. A false positive in the safe
-    direction, on a command that deserves a question anyway."""
+    **Measured before this shape was chosen** (12 867 real Bash commands from this project's own
+    transcripts). The previous version asked on **72%** of them, because it answered True for any
+    command containing `cd` — a rule added one commit earlier to be safe, which turned the gate into
+    the wall this skill's own text says gets switched off. Three reviews in a row asked for more
+    fail-closed rules on top of it (`$` anywhere, `~`, any brace); measured, "any `$`" alone would
+    have asked on **42%**. This shape asks on **8.6%**, of which 8.0 points are commands that name
+    `.claude` outright — the thing the gate is for — while still catching every bypass those reviews
+    and the previous rounds found. An unresolvable token asks only when it also carries a fragment
+    of the name; everything else is resolved exactly or left alone."""
     tokens, _parsed = shell_tokens(command)
-    # `{`, `}` and `~` expand as surely as `*` does, and `cd` moves the ground the glob resolves
-    # against — so a command that changes directory is not one this function can answer.
-    expands = re.compile(r"[$`*?\[{}~]")
-    if any(Path(t).name in ("cd", "pushd") for t in tokens):
-        return True
+    if SUBSTITUTION.search(command):
+        # `$(…)` can be anything, and "anything" is most commands. Only a token that NAMES the
+        # directory earns the question here.
+        return any(CLAUDE_DIR.search(t) for t in tokens)
     for token in tokens:
-        if CLAUDE_DIR.search(token):
-            return True
-        if not expands.search(token):
-            continue
-        try:                      # a glob: let the filesystem answer
-            for candidate in braces(token):
-                if CLAUDE_DIR.search(candidate):
+        plain = os.path.expanduser(token) if token.startswith("~") else token   # `~` expands exactly
+        for candidate in braces(plain):
+            if CLAUDE_DIR.search(candidate):
+                return True
+            if "$" in candidate:
+                # Not expandable here. Suspicious only if it is path-shaped AND spells part of the
+                # name: `$HOME/proj/.claude` asks, `$PKG` and `$TMPDIR/x` do not.
+                if "/" in candidate and CLAUDEISH.search(candidate):
                     return True
-                # `lstrip("./")` ate the leading dot of `.cl*` and globbed `cl*`, which matches
-                # nothing — the dotfile case, in the check whose subject is a dot directory.
+                continue
+            if not GLOB_CHARS.search(candidate):
+                continue
+            try:
                 pattern = candidate[2:] if candidate.startswith("./") else candidate
                 if not pattern:
                     continue      # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
-                                  # turned nothing into everything, which matched .claude
+                                  # once turned that nothing into everything, which matched .claude
                 for hit in cwd.glob(pattern):
                     rel = hit.relative_to(cwd).as_posix() if hit.is_relative_to(cwd) else hit.as_posix()
                     if ".claude" in rel:
                         return True
-        except Exception:  # noqa: BLE001 — any failure to resolve is not a pass
-            return True
+            except Exception:  # noqa: BLE001
+                if CLAUDEISH.search(candidate):
+                    return True   # a pattern we could not resolve, spelling part of the name
     return False
 
 

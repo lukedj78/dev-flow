@@ -516,6 +516,29 @@ through all three doors — `rm` with a glob, a redirect, and the write tools. S
 out loud beside something else worth reading, and never on its own. **A layer that is already
 covered does not need a second alarm; it needs the first one to hold.**
 
+### The one a review could not find: the gate asked on 72% of commands
+
+Three reviews in a row sent bypasses of the `.claude/` ask gate, each real, each answered by
+closing another spelling. None of them measured what the gate did to ordinary work, and neither did
+I until the fourth: **it asked on 72% of 12 870 real Bash commands** from this project's own
+transcripts. The cause was a rule I had added one commit earlier *to be safe* — any command
+containing `cd` returns true — and `cd` is in most commands.
+
+The same reviews then asked for more fail-closed rules on top of it: `$` anywhere, `~`, any brace.
+Measured, "any `$` asks" alone is **42%**. Following them would have left the wall standing and
+called it hardening.
+
+The shape that shipped asks on **9%**, of which 8 points are commands that name `.claude` outright
+— the thing the gate exists for — while catching every bypass the four reviews found. `~` expands
+exactly, braces expand (bounded), a glob is resolved against the filesystem, and a token we cannot
+expand asks only when it also spells part of the name.
+
+**The lesson is not about globs.** Eleven of this file's findings came from an automated reviewer
+that reads for bypasses, and a bypass is always visible in the diff while noise is only visible in
+a corpus. So a gate's cost has to be measured on real commands, in the same commit that tightens
+it, or the tightening is unfalsifiable — and the failure mode it produces (people switching the
+gate off) is the one this document already warned about, two sections above, in its own words.
+
 A fourteenth review found the same shape one level up, and this one was a silent bypass.
 `hook-post` recomputed the project from the cwd **after** the command, so a command could write the
 lock and then leave the project: a different root meant a different snapshot key, no baseline, and
@@ -632,3 +655,14 @@ so.
 - `references/contracts.md` — the vendored `.workflow/` contract (`stack.registry_intake`).
 - `registry-lock.json`, `vendor/registry/`, `.claude/settings.json` and `.claude/hooks/registry_intake.py`
   in the project — commit all four.
+
+
+## Known failure: a session whose project dir is not the repo (streaming-hub, 2026-10-20)
+
+In the Claude desktop app a session can start in a scratch workspace with the repo only as an added
+directory. `$CLAUDE_PROJECT_DIR` is then the scratch folder, `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/registry_intake.py" hook`
+cannot open the file, Python exits **2**, and Claude Code treats that as *block*: every Bash, Write and
+Edit is refused, including the edit that would fix it. Recovery is the user's: `mv .claude/settings.json
+.claude/settings.json.off`. A command that resolves the root at run time works there but is, correctly,
+refused by `check` (H9/H12). Keep the standard form; open sessions on the project folder. Open: make the
+hook exit 1 with a message when its own script is missing, without computing the path.
