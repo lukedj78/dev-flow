@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import datetime as dt
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -378,7 +379,7 @@ class Flow(Base):
         self.cli("setup", str(self.root))
         pre = json.loads(settings_path.read_text())["hooks"]["PreToolUse"]
         self.assertEqual([h["command"] for m in pre for h in m["hooks"]],
-                         ["./format.sh", 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/registry_intake.py" hook'])
+                         ["./format.sh", ri.HOOK_COMMAND])
         self.assertEqual((self.root / ri.HOOK_COPY).read_bytes(), Path(ri.__file__).read_bytes())
         (self.root / ri.HOOK_COPY).write_text("# stale\n")
         self.assertIn("differs from the installed skill", "\n".join(ri.check(self.root)[1]))
@@ -1241,6 +1242,26 @@ class Hooks(unittest.TestCase):
         self.assertIn(("H1", "review"), codes)
         self.assertNotIn(("H1", "block"), codes)
 
+
+    def test_a_missing_hook_script_errors_instead_of_locking_the_session(self) -> None:
+        """`python3 <missing file>` exits **2**, and Claude Code reads 2 as *block* — so a session
+        whose $CLAUDE_PROJECT_DIR is not the repo refused every Bash, Write and Edit, including the
+        edit that would fix it (streaming-hub, 2026-10-20). The guard cannot live in this script:
+        python never runs it. So the COMMAND tests for its own file and exits 1, a non-blocking
+        error that says the gate is not running."""
+        for command in (ri.HOOK_COMMAND, ri.HOOK_POST_COMMAND):
+            with self.subTest(command=command.split()[-1]):
+                out = subprocess.run(["sh", "-c", command], capture_output=True, text=True,
+                                     env={**os.environ, "CLAUDE_PROJECT_DIR": "/tmp/no-such-project-xyz"})
+                self.assertEqual(out.returncode, 1, "1 is an error; 2 would be a locked session")
+                self.assertIn("NOT running", out.stderr)
+        # And the two commands we generate are exempt from the SHAPE check only — never from the
+        # body scan, which is what the test below guards.
+        root = self.project(("PreToolUse", ri.HOOK_COMMAND))
+        quiet(ri.main, ["setup", str(root)])
+        codes = [f.code for f in ri.review_hooks(root, ri.load_lock(root))]
+        self.assertNotIn("H12", codes, "our own command is not an unreadable shape")
+        self.assertNotIn("H9", codes, "nor an unresolved expansion")
 
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the

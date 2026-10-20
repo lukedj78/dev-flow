@@ -1731,7 +1731,8 @@ def cmd_hook_approve(args) -> int:
             print(f"refused: {rel} does not parse ({why}) — nothing in it was reviewed", file=sys.stderr)
         return 1
     targets = [(rel, event, command, why) for rel, event, command in entries
-               if (why := reviewable_shape(root, command)) is not None
+               if command not in (HOOK_COMMAND, HOOK_POST_COMMAND)
+               and (why := reviewable_shape(root, command)) is not None
                and (not args.only or args.only in command)]
     if not targets:
         print("nothing to approve: every hook command is in the shape a machine can read"
@@ -2271,7 +2272,17 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
     for rel, event, command in entries:
         where = f"{rel} · {event}"
         seen: set[str] = set()
-        if (why := reviewable_shape(root, command)) is not None:
+        # The two commands we generate carry a shell guard (see HOOK_GUARD) and would fail the
+        # shape check — our own gate refusing our own gate. Exempt by EXACT equality with our
+        # constants, never by pattern.
+        #
+        # And exempt the SHAPE only. The first version of this `continue`d past the whole loop,
+        # which skipped reading the vendored script's body — recreating, one day later and through
+        # the command instead of the path, the exemption that made our own file the best place to
+        # hide something. The body is still read; we simply know which file it runs, because the
+        # command is a constant of ours.
+        mine = command in (HOOK_COMMAND, HOOK_POST_COMMAND)
+        if not mine and (why := reviewable_shape(root, command)) is not None:
             ok = approved_shape(lock, root, rel, event, command)
             # An approval that could pin NO file is a person's word about a text, with nothing to
             # re-check: `bash "$HOME/bin/tool.sh"` named a file we cannot identify, the digest map
@@ -2290,7 +2301,7 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
             if pat.search(command) and code not in seen:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
-        scripts, unresolved = hook_scripts(root, command)
+        scripts, unresolved = ((([root / HOOK_COPY]), []) if mine else hook_scripts(root, command))
         for token, kind in unresolved:
             # Making H9 uniformly `review` was a control regression: before it, an unresolvable
             # command produced an invented path and an H8 *block* — for the wrong reason, but it
@@ -2387,14 +2398,26 @@ def check_hooks(root: Path, lock: dict) -> list[str]:
 
 
 HOOK_COPY = ".claude/hooks/registry_intake.py"
-HOOK_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook'
+# `python3 <missing file>` exits **2**, and Claude Code reads 2 as *block*. So a session whose
+# $CLAUDE_PROJECT_DIR is not the repo — the desktop app opens one in a scratch workspace with the
+# repo merely added — refused every Bash, Write and Edit, including the edit that would fix it. A
+# locked session, recoverable only by moving settings.json aside by hand (streaming-hub, 2026-10-20).
+# H8 in this file has warned about exit 2 since the beginning; it arrived by another road.
+#
+# The guard cannot live in the script: python never runs it. So the COMMAND checks for its own file
+# first and exits **1** with a message — a non-blocking error. The gate does not run, says so, and
+# the session keeps working. Absent and loud beats absent and silent, and both beat locked.
+HOOK_GUARD = (f'f="$CLAUDE_PROJECT_DIR/{HOOK_COPY}"; [ -f "$f" ] || '
+              f'{{ echo "registry intake: {HOOK_COPY} not found under $CLAUDE_PROJECT_DIR — the gate '
+              f'is NOT running. Open the session on the project folder." >&2; exit 1; }}; python3 "$f"')
+HOOK_COMMAND = f'{HOOK_GUARD} hook'
 # `Bash` alone left the lock — the trust anchor for registries, items, skills, MCP servers and hook
 # approvals, every entry of which is supposed to arrive through a `--by` command behind the `ask`
 # prompt — editable with the Edit tool, past no gate at all. Every `--by` in it was forgeable by an
 # agent willing to write JSON. The gate covers the tools that write files now.
 HOOK_MATCHER = "Bash|Edit|Write|MultiEdit|NotebookEdit"
 WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
-HOOK_POST_COMMAND = f'python3 "$CLAUDE_PROJECT_DIR/{HOOK_COPY}" hook-post'
+HOOK_POST_COMMAND = f'{HOOK_GUARD} hook-post'
 
 
 def wire_hook(root: Path) -> bool:
@@ -3166,7 +3189,8 @@ def approve_targets(command: str, cwd: Path | None) -> tuple[list[str], Path | N
     try:
         entries, _unreadable = hook_entries(found)
         targets = [f"{event}: {cmd}" for _rel, event, cmd in entries
-                   if reviewable_shape(found, cmd) is not None
+                   if cmd not in (HOOK_COMMAND, HOOK_POST_COMMAND)
+                   and reviewable_shape(found, cmd) is not None
                    and (not args.only or args.only in cmd)]
     except Exception:  # noqa: BLE001 — an unnamed ask beats no ask
         return [], found, "the hook list could not be read"
