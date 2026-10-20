@@ -730,5 +730,6 @@ fix is in `HOOK_GUARD` above). The guard cannot live in the script, because pyth
 so the *command* tests for its own file first. It tells two cases apart, because the first attempt
 answered the same way to both and was a fail-open: `registry-lock.json` present and the script gone
 means something removed the gate, and exits **2**; no lock either means this is not an intake
-project, and exits **1** — an error that leaves the session working. A project vendored before that
-needs `setup` run once, since the command string changed.
+project, and exits **1** — an error that leaves the session working. The fix landed in `021e82c`:
+a project vendored before it needs the new script and `setup` run once, since the command string
+changed.
