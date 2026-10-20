@@ -2405,11 +2405,23 @@ HOOK_COPY = ".claude/hooks/registry_intake.py"
 # H8 in this file has warned about exit 2 since the beginning; it arrived by another road.
 #
 # The guard cannot live in the script: python never runs it. So the COMMAND checks for its own file
-# first and exits **1** with a message — a non-blocking error. The gate does not run, says so, and
-# the session keeps working. Absent and loud beats absent and silent, and both beat locked.
+# first — and then has to tell two situations apart, because the first version of this guard did not
+# and was a fail-open: it answered 1 for both, so deleting the vendored script from a GOVERNED
+# project switched the gate off with a polite message. That is the regression this file spent two
+# days removing, reintroduced by the fix for the lockout.
+#
+#   the lock is there and the script is not  → something removed the gate → exit 2, which blocks
+#   no lock either                           → not an intake project at all → exit 1, an error
+#
+# So the wrong project folder (the lockout case) errors and lets the session work, while a governed
+# project missing its gate still refuses. One existence test tells them apart.
 HOOK_GUARD = (f'f="$CLAUDE_PROJECT_DIR/{HOOK_COPY}"; [ -f "$f" ] || '
-              f'{{ echo "registry intake: {HOOK_COPY} not found under $CLAUDE_PROJECT_DIR — the gate '
-              f'is NOT running. Open the session on the project folder." >&2; exit 1; }}; python3 "$f"')
+              f'{{ [ -f "$CLAUDE_PROJECT_DIR/{LOCK}" ] && '
+              f'{{ echo "registry intake: {HOOK_COPY} is MISSING from a project that has {LOCK}. '
+              f'Something removed the gate. Restore it with git, or run setup." >&2; exit 2; }}; '
+              f'echo "registry intake: {HOOK_COPY} not found under $CLAUDE_PROJECT_DIR, which is not '
+              f'an intake project — the gate is NOT running. Open the session on the project '
+              f'folder." >&2; exit 1; }}; python3 "$f"')
 HOOK_COMMAND = f'{HOOK_GUARD} hook'
 # `Bash` alone left the lock — the trust anchor for registries, items, skills, MCP servers and hook
 # approvals, every entry of which is supposed to arrive through a `--by` command behind the `ask`
@@ -3228,6 +3240,14 @@ def hook_ask(payload: dict) -> str | None:
         return (f"this command names {LOCK}, registry intake's record of what a person decided. "
                 "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
                 "know which of the two this is.")
+    # The write tools refuse an edit to the hook script and ask about the wiring; a shell command
+    # could `rm`, `mv` or `git checkout` the same two files and nothing looked. Reading them is
+    # ordinary, so this asks rather than refuses — and our own `setup` is exempt by shape.
+    for name in (HOOK_COPY, ".claude/settings.json", ".claude/settings.local.json"):
+        if name.lower() in flat and not our_invocation(command, find_root(here), here):
+            return (f"this command names {name} — the gate itself, or the wiring that runs it. "
+                    "Removing or replacing either switches registry intake off for this project. "
+                    "Confirm only if that is what you meant.")
     # The guard is cheap and keeps DECISION_CALL off unrelated commands (`pnpm approve builds` would
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains

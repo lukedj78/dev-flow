@@ -1263,6 +1263,38 @@ class Hooks(unittest.TestCase):
         self.assertNotIn("H12", codes, "our own command is not an unreadable shape")
         self.assertNotIn("H9", codes, "nor an unresolved expansion")
 
+    def test_a_wrong_project_folder_errors_but_a_removed_gate_blocks(self) -> None:
+        """The fix for the lockout was itself a fail-open, and an automated review caught it within
+        the hour: the guard answered 1 for both situations, so deleting the vendored script from a
+        GOVERNED project switched the gate off with a polite message. One existence test tells them
+        apart — the lock is the difference between "wrong folder" and "somebody removed the gate"."""
+        # No lock: not an intake project at all. An error, and the session keeps working.
+        out = subprocess.run(["sh", "-c", ri.HOOK_COMMAND], capture_output=True, text=True,
+                             env={**os.environ, "CLAUDE_PROJECT_DIR": "/tmp/no-such-project-xyz"})
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("not an intake project", out.stderr)
+        # Lock present, script gone: the gate was removed from a project that has one. 2 = block.
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        (root / ri.HOOK_COPY).unlink()
+        out = subprocess.run(["sh", "-c", ri.HOOK_COMMAND], capture_output=True, text=True,
+                             env={**os.environ, "CLAUDE_PROJECT_DIR": str(root)})
+        self.assertEqual(out.returncode, 2, "a governed project missing its gate still refuses")
+        self.assertIn("MISSING", out.stderr)
+
+    def test_the_shell_cannot_quietly_remove_the_gate(self) -> None:
+        """The write tools refuse an edit to the hook script and ask about the wiring; a shell
+        command could `rm`, `mv` or `git checkout` the same files and nothing looked at it."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        for command in (f"rm {ri.HOOK_COPY}",
+                        "mv .claude/settings.json .claude/settings.json.off",
+                        "git checkout -- .claude/settings.json"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                                  "tool_input": {"command": command}}), command)
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""
@@ -1529,8 +1561,13 @@ class Hooks(unittest.TestCase):
                          "python3 registry_intake.py"):
             with self.subTest(command=not_ours):
                 self.assertFalse(ri.our_invocation(not_ours, root), not_ours)
-        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {
-            "command": "python3 .claude/hooks/registry_intake.py check ."}}), "no noise on our own call")
+        # With a cwd — which every real payload carries — our own read-only call is not a question.
+        ours = "python3 .claude/hooks/registry_intake.py check ."
+        self.assertIsNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                       "tool_input": {"command": ours}}), "no noise on our own call")
+        # Without one there is no root to identify the script against, so it asks. That is the
+        # fail-closed answer decided earlier, not an oversight: an exemption needs an identity.
+        self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": ours}}))
 
     def test_a_glob_that_expands_to_the_lock_still_asks(self) -> None:
         """A glob spells the name without containing it. We cannot expand one — only a shell can —
