@@ -1556,6 +1556,52 @@ class Hooks(unittest.TestCase):
         ri.hook_pre_snapshot(event)
         self.assertIsNone(ri.hook_post_report(event))
 
+    def test_the_project_the_command_started_in(self) -> None:
+        """A fourteenth review. `hook-post` recomputed the project from the cwd AFTER the command,
+        so a command could write the lock and then leave the project: different root, different
+        snapshot key, nothing reported. The comment on `_effect_snapshot` had already described this
+        shape one level down — it was keyed on the root to survive a `cd sub`, and the root itself
+        was then derived from the post-command cwd. Keyed on the session alone now, with the root
+        stored inside it."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        elsewhere = Path(tempfile.mkdtemp())
+        pre = {"session_id": "s9", "cwd": str(root), "tool_name": "Bash", "tool_input": {"command": "x"}}
+        post = {**pre, "cwd": str(elsewhere)}
+        ri.hook_pre_snapshot(pre)
+        lock = ri.lock_path(root)
+        d = json.loads(lock.read_text())
+        d.setdefault("registries", {})["@evil"] = {"url": "https://evil.test/{name}.json", "by": "x"}
+        lock.write_text(json.dumps(d))
+        self.assertIn("changed while that command ran", ri.hook_post_report(post) or "")
+
+    def test_a_deleted_lock_is_the_loudest_change(self) -> None:
+        """Destroying the record reported NOTHING: `load_lock` answers None for a file that is gone,
+        and the function returned on that before it ever compared anything."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        event = {"session_id": "s8", "cwd": str(root), "tool_name": "Bash", "tool_input": {"command": "x"}}
+        ri.hook_pre_snapshot(event)
+        ri.lock_path(root).unlink()
+        report = ri.hook_post_report(event) or ""
+        self.assertIn("GONE", report)
+        self.assertIn("git checkout", report)
+
+    def test_a_relative_argv_resolves_where_the_shell_will(self) -> None:
+        """`root / tokens[1]` resolved a relative argv against the LOCK root while the shell would
+        resolve it against the command's cwd — our resolution and the shell's disagreeing, which is
+        this file's oldest defect in its smallest form."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        sub = root / "packages" / "ui"
+        sub.mkdir(parents=True)
+        command = "python3 .claude/hooks/registry_intake.py check ."
+        self.assertTrue(ri.our_invocation(command, root, root), "from the root it is ours")
+        self.assertFalse(ri.our_invocation(command, root, sub),
+                         "from a subdirectory that path names a file that is not there")
+
     def test_one_tokeniser_for_the_gate_and_the_scanner(self) -> None:
         """The comment on `hook_tokens` said two tokenisers would be a parser differential between
         the gate and the scanner. Then the exemption helper was written with a plain `shlex.split`,
@@ -1710,9 +1756,8 @@ class AfterTheCommand(Base):
         the exact list this writes is trusted; anything else reports everything, which is noise —
         the failure mode a cache in front of a real gate is allowed to have."""
         ri.hook_pre_snapshot(self.event())
-        # The hook resolves the cwd before keying the path (/var vs /private/var on a Mac), so the
-        # test has to ask for the same path the hook will read, not the one it would guess.
-        path = ri._effect_snapshot(ri.find_root(self.root.resolve()), self.event())
+        # Keyed on the session alone now, so the path no longer depends on resolving the root.
+        path = ri._effect_snapshot(self.event())
         cfg = json.loads((self.root / "components.json").read_text())
         cfg["registries"]["@evil"] = "https://evil.example/r/{name}.json"
         write(self.root, "components.json", cfg)

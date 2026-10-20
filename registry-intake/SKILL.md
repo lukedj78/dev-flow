@@ -515,6 +515,24 @@ up, and that is checkable: a command deleting or writing the baseline is **denie
 through all three doors — `rm` with a glob, a redirect, and the write tools. So the unknown is said
 out loud beside something else worth reading, and never on its own. **A layer that is already
 covered does not need a second alarm; it needs the first one to hold.**
+
+A fourteenth review found the same shape one level up, and this one was a silent bypass.
+`hook-post` recomputed the project from the cwd **after** the command, so a command could write the
+lock and then leave the project: a different root meant a different snapshot key, no baseline, and
+nothing reported. The comment on `_effect_snapshot` had already described that shape one level
+down — it was keyed on the root precisely to survive a `cd sub` inside the command, and the root
+was then derived from the post-command cwd. It is keyed on the **session** alone now, with the root
+stored inside the file, so the post hook reads which project to check instead of guessing from
+where the command ended up.
+
+Worse, and not in the report: **a deleted lock reported nothing.** `load_lock` answers `None` for a
+file that is gone, and the function returned on that before comparing anything — so destroying the
+record of what a person decided was the one change that passed in silence. It is now the loudest
+thing the hook says.
+
+And `our_invocation` resolved a relative argv against the lock root while the shell resolves it
+against the command's cwd — our resolution and the shell's disagreeing, which is this file's oldest
+defect in its smallest form.
 - The write gate denied the lock and our script but not **`hook-post`'s before-state file**, writing
   which decides what the next report is allowed to say.
 

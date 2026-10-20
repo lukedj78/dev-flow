@@ -1015,10 +1015,13 @@ def post_hook_installed(root: Path) -> bool:
 #   - and `check` at the phase gate recomputes all of it from the project, where no temporary file
 #     can suppress anything. That gate, not this cache, is the control. This only moves the report
 #     earlier, so its failure mode must be noise, never silence.
-def _effect_snapshot(root: Path, payload: dict) -> Path:
-    # Keyed on the project root, not the raw cwd: PostToolUse carries the cwd *after* the command, so a
-    # `cd sub` inside it looked for another snapshot, found none, and the check said nothing.
-    key = hashlib.sha1(f"{root}|{payload.get('session_id') or ''}".encode()).hexdigest()[:16]
+def _effect_snapshot(payload: dict) -> Path:
+    # Keyed on the SESSION alone. Keying it on the project root was the fix for a `cd sub` inside
+    # the command — and it carried the same bug one level up, because the root itself is recomputed
+    # from the cwd *after* the command: a command that wrote the lock and then left the project
+    # produced a different key, no snapshot, and silence. The root is stored INSIDE the file now,
+    # so the post hook reads which project to check instead of guessing from where it ended up.
+    key = hashlib.sha1((payload.get("session_id") or "").encode()).hexdigest()[:16]
     # TMPDIR, not tempfile: this runs before and after every shell command, and importing tempfile cost ~40 ms.
     return Path(os.environ.get("TMPDIR") or "/tmp") / f"registry-intake-{key}.json"
 
@@ -1030,30 +1033,41 @@ def hook_pre_snapshot(payload: dict) -> None:
         # The lock's own bytes, because detecting *that it changed* is bounded while predicting
         # which commands will write it is not — a glob, a brace, a variable or a heredoc spells the
         # path without containing it, and the text checks will always be one spelling behind.
-        _effect_snapshot(root, payload).write_text(json.dumps(
-            {"problems": registry_problems(root, lock), "lock": sha256(lock_path(root))}))
+        _effect_snapshot(payload).write_text(json.dumps(
+            {"root": str(root), "problems": registry_problems(root, lock),
+             "lock": sha256(lock_path(root))}))
 
 
 def hook_post_report(payload: dict) -> str | None:
-    root = find_root(Path(payload.get("cwd") or ".").resolve())
-    lock = load_lock(root) if root else None
-    if lock is None:
-        return None
-    path = _effect_snapshot(root, payload)
-    before_lock = None
+    path = _effect_snapshot(payload)
+    before_lock, before_root = None, None
     try:
         raw = json.loads(path.read_text())
         # Anything but exactly the shape this writes is not a baseline: a forged `{"...": 1}` once
         # became a set of its keys, and a forged string a set of its characters.
         if not (isinstance(raw, dict) and isinstance(raw.get("problems"), list)
                 and all(isinstance(x, str) for x in raw["problems"])
-                and isinstance(raw.get("lock"), str)):
+                and isinstance(raw.get("lock"), str) and isinstance(raw.get("root"), str)):
             raise ValueError("the baseline is not the shape this writes")
         before: set[str] | None = set(raw["problems"])
-        before_lock = raw["lock"]
+        before_lock, before_root = raw["lock"], Path(raw["root"])
         path.unlink(missing_ok=True)
     except (OSError, json.JSONDecodeError, ValueError):
         before = None  # a missing or rewritten baseline is not a clean one: it must not hide what the command did
+    # The project the command STARTED in, not the one it ended in. Recomputing this from the cwd
+    # afterwards meant a command could write the lock and then `cd` out, and nothing was reported.
+    root = before_root or find_root(Path(payload.get("cwd") or ".").resolve())
+    if root is None:
+        return None
+    # A deleted lock is the loudest change there is, and it used to return here in silence because
+    # `load_lock` answers None for a file that is gone.
+    if before_lock is not None and not lock_path(root).exists():
+        return (f"{LOCK} is GONE after that command. It is the record of what a person decided about "
+                "every registry, item, skill, MCP server and hook in this project. Restore it with "
+                f"`git checkout -- {LOCK}` and tell the user what removed it.")
+    lock = load_lock(root)
+    if lock is None:
+        return None
     now = registry_problems(root, lock)
     new = now if before is None else [p for p in now if p not in before]
     # Did the record of what a PERSON decided change during this command? The text gates ask about
@@ -3142,8 +3156,8 @@ def hook_ask(payload: dict) -> str | None:
     # a glob character is treated as the name, which is the fail-closed direction here.
     stem = LOCK.lower().removesuffix(".json")
     globbed = re.search(rf"{re.escape(stem[:8])}[\w.*?\[\]-]*[*?\[]|[*?\[][\w.*?\[\]-]*{re.escape(stem[-4:])}", flat)
-    if (LOCK.lower() in flat or globbed) and not our_invocation(
-            command, find_root(Path(payload.get("cwd") or ".").resolve())):
+    here = Path(payload.get("cwd") or ".").resolve()
+    if (LOCK.lower() in flat or globbed) and not our_invocation(command, find_root(here), here):
         return (f"this command names {LOCK}, registry intake's record of what a person decided. "
                 "Reading it is harmless; writing it records a yes nobody said. Confirm only if you "
                 "know which of the two this is.")
@@ -3200,7 +3214,7 @@ OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "h
 PYTHON_NAME = re.compile(r"(?:python|pypy)[\d.]*")
 
 
-def our_invocation(command: str, root: Path | None = None) -> bool:
+def our_invocation(command: str, root: Path | None = None, cwd: Path | None = None) -> bool:
     """Is this ONE direct call of this script, and nothing else?
 
     Three ways past the first version, all from reading it loosely. `"registry_intake" not in
@@ -3230,7 +3244,11 @@ def our_invocation(command: str, root: Path | None = None) -> bool:
     # trusted the basename there was an exemption granted on a spelling alone.
     if root is None:
         return False
-    named = Path(tokens[1]) if Path(tokens[1]).is_absolute() else root / tokens[1]
+    # Against the command's OWN cwd, which is what the shell will use. Resolving a relative argv
+    # against the lock root instead meant the same text could name a different file than the one
+    # that runs — our resolution and the shell's, disagreeing, which is this file's oldest defect.
+    base = cwd or root
+    named = Path(tokens[1]) if Path(tokens[1]).is_absolute() else base / tokens[1]
     for real in (root / HOOK_COPY, Path(__file__).resolve()):
         try:
             if named.exists() and real.exists() and named.samefile(real):
