@@ -554,6 +554,26 @@ That shape asks on **14.5%**, catches all sixteen bypasses of five rounds, and l
 alone. The measured numbers are in the function's own docstring, so the next person to tighten it
 sees what the last four tightenings cost.
 
+A sixth review found the thing no bypass test could: the commit that resolved `cd` targets accepted
+**any** existing directory, so `cd /usr && rm -rf **/*` sent this function walking `/usr` — over two
+minutes before it was killed, **on a hook that runs before every Bash command.** A session freeze,
+written into the fix for a bypass. It is now bounded on four sides: the literal name is checked
+before any filesystem work, recursive patterns are never resolved, only a base *inside the project*
+is globbed, and there is a hit cap and a 0.75 s budget. Measured at **0.5 ms** per command.
+
+The same round fixed three resolution bugs, all from treating the glob base as a *list of
+candidates* rather than a *position*: the command runs in one directory, and the `cd`s say which.
+`cd src && rm -rf *` cannot reach a `.claude` that sits beside `src`; `cd /usr/local && rm -rf *`
+cannot reach this project at all.
+
+And it cut the ask rate from 14.5% to **9.3%**, because `CLAUDEISH` had been matching the bare word
+*claude* — so another project's `.claude`, or a temp directory named `claude-501`, read as ours.
+Our directory always starts with a dot.
+
+**Final shape: 9.3% ask rate, 0.5 ms per command, sixteen bypasses from six rounds caught, twelve
+ordinary commands untouched — and the test holds all three.** The numbers belong in the test, not
+in a commit message, because a gate's cost regresses as quietly as its coverage.
+
 A fourteenth review found the same shape one level up, and this one was a silent bypass.
 `hook-post` recomputed the project from the cwd **after** the command, so a command could write the
 lock and then leave the project: a different root meant a different snapshot key, no baseline, and

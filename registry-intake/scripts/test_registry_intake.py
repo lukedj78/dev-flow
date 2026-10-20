@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -1432,6 +1433,33 @@ class Hooks(unittest.TestCase):
                         "pnpm --filter $PKG build"):
             with self.subTest(ordinary=command):
                 self.assertIsNone(ask(command), command)
+
+    def test_the_gate_runs_in_milliseconds_and_never_walks_the_disk(self) -> None:
+        """A sixth review found what no bypass test would: the commit that resolved `cd` targets
+        accepted ANY existing directory, so `cd /usr && rm -rf **/*` sent this function walking
+        /usr — measured at over two minutes before it was killed, on a hook that runs before every
+        Bash command. A session freeze, in the fix for a bypass."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        for command in ("cd /usr && rm -rf **/*", "cd ~ && rm -rf **/*.tmp", "rm -rf **/*"):
+            with self.subTest(command=command):
+                start = time.monotonic()
+                ri.reaches_claude(command, root)
+                self.assertLess(time.monotonic() - start, 1.0, "a per-command hook gets a budget")
+
+    def test_the_glob_resolves_where_the_command_runs(self) -> None:
+        """One base, which the `cd`s move — three bugs in two commits came from treating it as a
+        list of candidates. `.claude` sits beside `src`, not in it, so a command that cds into `src`
+        cannot reach it with a relative glob; one that cds out of the project cannot either."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        (root / "src").mkdir(exist_ok=True)
+        self.assertTrue(ri.reaches_claude(f"cd {root} && rm -rf *", root), "it runs in the root")
+        self.assertFalse(ri.reaches_claude(f"cd {root}/src && rm -rf *", root), "it runs in src")
+        self.assertFalse(ri.reaches_claude("cd /usr/local && rm -rf *", root), "it runs elsewhere")
+        # Unknowable position: the name in the command decides, not the filesystem.
+        self.assertTrue(ri.reaches_claude("cd $S && rm -rf .claude", root))
+        self.assertFalse(ri.reaches_claude("cd $S && ls", root))
 
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the

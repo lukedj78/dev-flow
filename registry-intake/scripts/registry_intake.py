@@ -46,6 +46,7 @@ import shlex
 import subprocess
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 from dataclasses import asdict, dataclass, field
@@ -3337,30 +3338,39 @@ def braces(token: str, depth: int = 0) -> list[str]:
 
 # A FRAGMENT of the name beside something we cannot expand. Used only to decide whether an
 # unresolvable token is worth a question — never to decide that a resolvable one is safe.
-CLAUDEISH = re.compile(r"\.cl|claude", re.I)
+# A dot-prefixed fragment ONLY. Matching the bare word "claude" made every path containing it —
+# another project's `.claude`, a temp directory named claude-501 — read as ours, and measured 11
+# points of ask rate on a corpus full of them. Our directory always starts with a dot.
+CLAUDEISH = re.compile(r"\.cl", re.I)
 
 
-def glob_bases(tokens: list[str], cwd: Path, named: bool) -> list[Path] | None:
-    """Where a glob in this command will actually resolve: the cwd, plus every `cd` target we can
-    resolve. None when a `cd` goes somewhere we cannot know and the command spells the name anyway.
+def glob_base(tokens: list[str], cwd: Path, named: bool) -> Path | None:
+    """Where a glob in this command will actually resolve — ONE place, which the `cd`s move.
 
-    Globbing only against `cwd` missed `cd <project> && rm -rf *`: the pattern resolves where the
-    command ends up, not where it started. The previous answer to that — ask on any `cd` — measured
-    a 72% ask rate on real commands, so this resolves the target instead of refusing the verb."""
-    bases = [cwd]
+    Three mistakes in two commits, each from treating this as a list of candidates rather than a
+    position. Globbing only against `cwd` missed `cd <project> && rm -rf *`. Keeping `cwd` *and*
+    the target made `cd /usr/local && rm -rf *` ask about a command that never touches this
+    project, and `cd src && rm -rf *` ask because `.claude` sits beside `src` rather than in it.
+    A command runs in one directory at a time, and the `cd`s say which.
+
+    Returns None when the position is unknowable and the command spells part of the name, or when
+    it ends up outside the project — where a relative glob cannot reach our `.claude` at all."""
+    here = cwd
     for i, token in enumerate(tokens):
-        if Path(token).name not in ("cd", "pushd") or i + 1 >= len(tokens):
+        if Path(token).name not in ("cd", "pushd"):
             continue
-        target = tokens[i + 1]
+        rest = [t for t in tokens[i + 1:] if not t.startswith("-") and t != "--"]
+        target = rest[0] if rest and rest[0] not in SEPARATORS else "~"   # bare `cd` is $HOME
         if "$" in target or "`" in target:
-            if named:
-                return None       # an unknown directory, and the name is in the command: ask
-            continue
-        base = Path(os.path.expanduser(target))
-        base = base if base.is_absolute() else cwd / base
-        if base.is_dir():
-            bases.append(base)
-    return bases
+            return None       # unknowable position: the caller lets the name in the command decide
+        candidate = Path(os.path.expandvars(os.path.expanduser(target)))
+        here = candidate if candidate.is_absolute() else here / candidate
+    try:
+        if not here.is_dir():
+            return None if named else here
+        return here if here.resolve().is_relative_to(cwd.resolve()) else None
+    except OSError:
+        return None
 
 
 def reaches_claude(command: str, cwd: Path) -> bool:
@@ -3382,11 +3392,18 @@ def reaches_claude(command: str, cwd: Path) -> bool:
     the name anywhere in it**. `D=.claude; rm -rf $D` asks; `cd $S && ls` does not. That condition
     is what keeps a fail-closed default from becoming a wall, and the wall is the failure mode this
     document warns about two sections above."""
+    deadline = time.monotonic() + 0.75      # a hook before every command gets a budget, not a walk
     tokens, _parsed = shell_tokens(command)
-    named = bool(CLAUDEISH.search(command))
-    bases = glob_bases(tokens, cwd, named)
-    if bases is None:
+    # The literal name first, before any filesystem work at all: it is the commonest case, the
+    # cheapest test, and it must not depend on a glob budget that could run out.
+    if any(CLAUDE_DIR.search(t) for t in tokens):
         return True
+    named = bool(CLAUDEISH.search(command))
+    base = glob_base(tokens, cwd, named)
+    if base is None:
+        # Either unknowable with the name in the command, or a directory outside this project —
+        # where a relative glob cannot reach our `.claude`. The first asks, the second does not.
+        return named
     if SUBSTITUTION.search(command):
         # `$(…)` can hold anything, and "anything" is most commands — measured, a loose test here
         # cost 7 points of ask rate on its own. Only a token that NAMES the directory earns it.
@@ -3402,6 +3419,12 @@ def reaches_claude(command: str, cwd: Path) -> bool:
                 continue
             if not GLOB_CHARS.search(candidate):
                 continue
+            if "**" in candidate:
+                # A recursive pattern is not something to resolve on a per-command hook. Unknown,
+                # so: the name in the command earns the question, nothing else does.
+                if named:
+                    return True
+                continue
             pattern = candidate[2:] if candidate.startswith("./") else candidate
             if not pattern:
                 continue          # `{}` in `find … -exec rm {} +` expands to nothing, and `or "*"`
@@ -3412,16 +3435,17 @@ def reaches_claude(command: str, cwd: Path) -> bool:
                 if CLAUDEISH.search(candidate):
                     return True
                 continue
-            for base in bases:
-                try:
-                    for hit in base.glob(pattern):
-                        rel = (hit.relative_to(base).as_posix() if hit.is_relative_to(base)
-                               else hit.as_posix())
-                        if ".claude" in rel:
-                            return True
-                except Exception:  # noqa: BLE001 — a pattern we could not resolve
-                    if CLAUDEISH.search(candidate):
+            try:
+                for seen, hit in enumerate(base.glob(pattern)):
+                    if seen > 5_000 or time.monotonic() > deadline:
+                        return bool(named)   # out of budget: the name decides, not silence
+                    rel = (hit.relative_to(base).as_posix() if hit.is_relative_to(base)
+                           else hit.as_posix())
+                    if ".claude" in rel:
                         return True
+            except Exception:  # noqa: BLE001 — a pattern we could not resolve
+                if CLAUDEISH.search(candidate):
+                    return True
     return False
 
 
