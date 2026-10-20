@@ -723,5 +723,12 @@ directory. `$CLAUDE_PROJECT_DIR` is then the scratch folder, `python3 "$CLAUDE_P
 cannot open the file, Python exits **2**, and Claude Code treats that as *block*: every Bash, Write and
 Edit is refused, including the edit that would fix it. Recovery is the user's: `mv .claude/settings.json
 .claude/settings.json.off`. A command that resolves the root at run time works there but is, correctly,
-refused by `check` (H9/H12). Keep the standard form; open sessions on the project folder. Open: make the
-hook exit 1 with a message when its own script is missing, without computing the path.
+refused by `check` (H9/H12). Keep the standard form; open sessions on the project folder.
+
+**Closed on 2026-10-20** (this note, and the diagnosis in it, came from the session that hit it; the
+fix is in `HOOK_GUARD` above). The guard cannot live in the script, because python never runs it —
+so the *command* tests for its own file first. It tells two cases apart, because the first attempt
+answered the same way to both and was a fail-open: `registry-lock.json` present and the script gone
+means something removed the gate, and exits **2**; no lock either means this is not an intake
+project, and exits **1** — an error that leaves the session working. A project vendored before that
+needs `setup` run once, since the command string changed.
