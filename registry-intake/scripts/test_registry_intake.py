@@ -1356,7 +1356,8 @@ class Hooks(unittest.TestCase):
            shape that cost 20% of commands in archistudio and 42–72% on the wider corpus; it was
            deleted for that. A narrow variant — the three governed filenames plus `.claude` as a
            whole-directory target, only with a writing verb — measures **0.96%** and is offered to
-           the user as a choice, not taken unilaterally.
+           the user, who **declined it on 2026-10-20**: no gate on this path at all. That is a
+           closed decision, not an omission — reopening it needs the user, not a review.
         2. A digest check at hook time proves nothing: the script verifying its own integrity is the
            script an attacker replaced. (Raised by the other session, 2026-10-20.)
         3. The control is `check` against the lock, which reads the wiring by identity and gates

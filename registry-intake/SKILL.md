@@ -594,6 +594,16 @@ switching off a hook takes the **deny** layers with it. So ~150 lines of gate an
 tests are gone, and the sections below are kept only as the record of how a layer gets built past
 the point of being worth having.
 
+**Decided on 2026-10-20: there is no gate on the Bash path, and this is closed.** After the
+deletion, a review proposed a narrow version — the three governed filenames plus `.claude` as a
+whole-directory target, only with a writing verb. Measured on the same corpus it costs **0.96%**
+(33 of 3 444) with the worktree case silent, and it was put to the user as a choice. They declined
+it. So a shell `rm` of the hook script is not caught before it runs, deliberately: the control is
+`check` against the lock, which reads the wiring by identity and gates every phase transition, and
+a digest check at hook time would prove nothing — the script verifying its own integrity is the
+script an attacker replaced. Reopening this needs the user, not a review; the reasons are pinned in
+`test_the_bash_tamper_bypass_is_accepted_and_this_says_why`.
+
 **The lesson is the measurement, not the gate.** Seven rounds of review found every bypass in it and
 none of them asked what it cost; the cost was found by running it over a project's own commands,
 which takes one script and five minutes. A tightening without that number in the same commit is
