@@ -1319,6 +1319,40 @@ class Hooks(unittest.TestCase):
                        "https://x.test/{name}.json --reason r --by luca")
         self.assertIn("allowlist the registry @x", decision or "")
 
+    def test_a_glob_that_expands_to_claude_asks(self) -> None:
+        """Three tries, each a list one spelling short: the exact filenames (so `rm -rf .claude/`
+        said nothing), then a table of destructive verbs (so `.cl*` said nothing). The default is
+        inverted now — reaching `.claude/` asks unless the command is one plain read — and globs are
+        EXPANDED against the filesystem rather than guessed at in the text."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                "tool_input": {"command": command}})
+
+        for command in ("rm -rf .claude/", "rm -rf .cl*", "rm -rf .c*", "rm -rf .claud?",
+                        "git checkout -- .claude", "truncate -s0 .claude/settings.json"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(ask(command), command)
+        # Not every destructive command is about us, and one plain read is the whole exception.
+        for command in ("rm -rf node_modules", "rm -rf src/*", "pnpm build",
+                        "cat .claude/settings.json", "ls .claude", "grep -r x .claude"):
+            with self.subTest(command=command):
+                self.assertIsNone(ask(command), command)
+        # A read that is not plain — it chains — is not the exception.
+        self.assertIsNotNone(ask("cat .claude/settings.json && rm -rf .claude"))
+
+    def test_both_messages_when_both_apply(self) -> None:
+        """Returning only the decision hid the tamper warning for a command doing both at once."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+        both = ri.hook_ask({"tool_name": "Bash", "cwd": str(root), "tool_input": {"command":
+            "python3 .claude/hooks/registry_intake.py allow . @x https://x.test/{name}.json "
+            "--reason r --by luca && rm -rf .claude"}})
+        self.assertIn("allowlist the registry @x", both or "")
+        self.assertIn("reaches into `.claude/`", both or "")
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""

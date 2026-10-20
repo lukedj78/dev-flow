@@ -3247,11 +3247,9 @@ def hook_ask(payload: dict) -> str | None:
     # below, so a legitimate `allow` was answered with a generic warning about `.claude/` instead of
     # "allowlist the registry @x" — the same ordering mistake as the lock question jumping ahead of
     # the deny rules. The specific message wins; this one speaks when there is nothing specific.
-    names = (HOOK_COPY, ".claude/settings.json", ".claude/settings.local.json")
-    touches_claude = CLAUDE_DIR.search(flat) and (RELOCATES.search(flat) or SHELL_SYNTAX.search(flat))
     generic = None
-    if (any(n.lower() in flat for n in names) or touches_claude) and not our_invocation(
-            command, find_root(here), here):
+    if (reaches_claude(command, here) and not plain_read(command)
+            and not our_invocation(command, find_root(here), here)):
         generic = ("this command reaches into `.claude/` — the gate itself, or the wiring that runs "
                    "it on every tool call. Removing, moving or replacing either switches registry "
                    "intake off for this project, and `rm -rf .claude/` takes the whole surface with "
@@ -3293,8 +3291,11 @@ def hook_ask(payload: dict) -> str | None:
         asks.append(f"{what}, recorded as decided by {who}")
     if not asks:
         return generic
+    # Both, when both apply. Returning only the decision hid the tamper warning for a command that
+    # was doing both at once — a prompt that tells the user less than the code knows.
     return ("registry intake: the agent wants to " + "; and to ".join(asks) +
-            ". Confirm only if you said yes to this — the lock will say you did.")
+            ". Confirm only if you said yes to this — the lock will say you did."
+            + (f"\n\nAlso: {generic}" if generic else ""))
 
 
 # `registry-intake-<16 hex>.json` under TMPDIR. Narrow on purpose: `registry-intake/` (the skill
@@ -3302,14 +3303,57 @@ def hook_ask(payload: dict) -> str | None:
 BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
 
 
-# `rm -rf .claude/` said nothing while `cat .claude/settings.json` asked: the exact spelling was
-# matched and the destructive wildcard was not. Matching spellings is the mistake this file keeps
-# making, so the question is not how a command spells the path — it is whether it can REMOVE or
-# REPLACE the gate. The directory, plus an intent.
+# Three tries at this, each a list that was one spelling short: the exact filenames (so `rm -rf
+# .claude/` said nothing), then a list of destructive verbs (so `.cl*` and anything unlisted said
+# nothing). A list of what to catch is a list of what to miss — the third time today that the
+# answer was to INVERT the default rather than lengthen the list.
+#
+# So: any command that reaches `.claude/` asks, UNLESS it is one plain read-only command or our own
+# invocation. The exception is short, closed, and checkable; the rule needs no verb table.
 CLAUDE_DIR = re.compile(r"\.claude\b")
-RELOCATES = re.compile(r"\b(?:rm|mv|cp|rsync|shred|truncate|ln|install|unlink)\b"
-                       r"|\bgit\s+(?:checkout|restore|stash|clean|reset|rm)\b"
-                       r"|>")
+READ_ONLY = {"ls", "cat", "head", "tail", "grep", "rg", "wc", "find", "stat", "file", "diff",
+             "jq", "less", "more", "tree", "du", "realpath", "basename", "dirname", "echo"}
+
+
+def reaches_claude(command: str, cwd: Path) -> bool:
+    """Could this command touch anything under `.claude/`? Globs are EXPANDED, not guessed.
+
+    A pattern is resolved against the filesystem the way the shell will resolve it — this runs
+    before the command, so what it asks about is still there. `rm -rf .cl*` in a project root
+    therefore reads as `.claude`, which no amount of regex on the text would have told us.
+
+    One divergence, deliberate: `pathlib` matches hidden entries with `*` and the shell does not,
+    so `rm -rf *` asks although the shell would spare `.claude`. A false positive in the safe
+    direction, on a command that deserves a question anyway."""
+    tokens, _parsed = shell_tokens(command)
+    for token in tokens:
+        if CLAUDE_DIR.search(token):
+            return True
+        if not SHELL_SYNTAX.search(token):
+            continue
+        try:                      # a glob: let the filesystem answer
+            # `lstrip("./")` ate the leading dot of `.cl*` and globbed `cl*`, which matches
+            # nothing — the dotfile case, in the check whose whole subject is a dot directory.
+            pattern = token[2:] if token.startswith("./") else token
+            for hit in cwd.glob(pattern or "*"):
+                rel = hit.relative_to(cwd).as_posix() if hit.is_relative_to(cwd) else hit.as_posix()
+                if ".claude" in rel:
+                    return True
+        except (OSError, ValueError, IndexError):
+            return True           # an unresolvable pattern near this directory is not a pass
+    return False
+
+
+def plain_read(command: str) -> bool:
+    """One command, no operators, and a program that only reads. The whole exception."""
+    if SUBSTITUTION.search(command):
+        return False
+    tokens, parsed = shell_tokens(command)
+    if not parsed or not tokens:
+        return False
+    if any(t in SEPARATORS or REDIRECT.search(t) for t in tokens):
+        return False
+    return Path(tokens[0]).name in READ_ONLY
 
 
 OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "hook", "hook-post",
