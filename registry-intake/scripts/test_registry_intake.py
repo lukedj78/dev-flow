@@ -1422,7 +1422,13 @@ class Hooks(unittest.TestCase):
                         # can hold the name assigned a token earlier; and `.cl[` is a pattern
                         # pathlib matches to nothing instead of refusing.
                         f"cd {root} && rm -rf *", "D=.claude; rm -rf $D", "rm -rf .cl[",
-                        "cd $S && rm -rf .claude"):
+                        "cd $S && rm -rf .claude",
+                        # The seventh review's: a recursive pattern reaches everything under its
+                        # base, and skipping the token to avoid a traversal made that silent.
+                        "rm -rf **/*", "rm -rf **", f"cd {root} && rm -rf **/*",
+                        # And a token we cannot resolve gets the broad test, since `$DIR` may hold
+                        # anything — the narrow one is only for literal, resolvable paths.
+                        "rm -rf $HOME/claude-stuff/.claude"):
             with self.subTest(attack=command):
                 self.assertIsNotNone(ask(command), command)
         # And the ordinary work of a day, which must not be interrupted.
@@ -1460,6 +1466,20 @@ class Hooks(unittest.TestCase):
         # Unknowable position: the name in the command decides, not the filesystem.
         self.assertTrue(ri.reaches_claude("cd $S && rm -rf .claude", root))
         self.assertFalse(ri.reaches_claude("cd $S && ls", root))
+
+    def test_removing_the_whole_directory_is_caught_by_the_phase_gate(self) -> None:
+        """Why the ask gate is the early warning and not the control. If `.claude/` goes, nothing
+        at run time can notice: the hook itself went with the settings file, and `hook-post` is
+        silent because the lock lives at the project root and did not change. `check` notices, and
+        `check` gates every phase transition — so the removal is caught durably, just not
+        instantly. That is the layer that does not depend on reading a shell command."""
+        root = Path(tempfile.mkdtemp())
+        project(root)
+        quiet(ri.main, ["setup", str(root)])
+        shutil.rmtree(root / ".claude")
+        ok, problems = ri.check(root)
+        self.assertFalse(ok)
+        self.assertTrue(any("PreToolUse hook" in p for p in problems), problems)
 
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the

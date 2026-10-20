@@ -574,6 +574,30 @@ Our directory always starts with a dot.
 ordinary commands untouched — and the test holds all three.** The numbers belong in the test, not
 in a commit message, because a gate's cost regresses as quietly as its coverage.
 
+### Why this layer is now closed
+
+A seventh review brought four more, three of them real and cheap — a recursive pattern reaches
+everything under its base, so skipping `**` made `rm -rf **/*` silent; an exhausted budget returned
+the permissive answer; and a token carrying `$` deserves the broad name test, since `$DIR` may hold
+anything. All three are in. The fourth, treating a nonexistent or outside base as unsafe, is
+declined: it is the 60% shape measured two rounds ago.
+
+**And that is the last tightening this layer gets.** Not because the findings run out — they will
+not, since this is a text check over a grammar a shell can always write another way, which this
+document says three times — but because of what the layering actually is:
+
+| if `.claude/` is removed | what notices |
+|---|---|
+| immediately | this ask — best effort, 9.5% of commands, 0.5 ms each |
+| at run time afterwards | **nothing**: the hook went with the settings file, and `hook-post` is silent because the lock lives at the project root and did not change |
+| durably | **`check`**, which gates every phase transition and verifies the wiring by identity |
+
+So the ask is an early warning and `check` is the control. Seven rounds of sharpening the warning
+produced two defects worse than any gap it closed — a 72% ask rate and a hook that walked `/usr` on
+every command — and neither was found by a review reading for bypasses. Further findings on this
+function are notes; a finding on `check`, on the write-tool identity test, or on the lock digest is
+a round.
+
 A fourteenth review found the same shape one level up, and this one was a silent bypass.
 `hook-post` recomputed the project from the cwd **after** the command, so a command could write the
 lock and then leave the project: a different root meant a different snapshot key, no baseline, and

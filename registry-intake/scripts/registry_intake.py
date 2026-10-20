@@ -3342,6 +3342,11 @@ def braces(token: str, depth: int = 0) -> list[str]:
 # another project's `.claude`, a temp directory named claude-501 — read as ours, and measured 11
 # points of ask rate on a corpus full of them. Our directory always starts with a dot.
 CLAUDEISH = re.compile(r"\.cl", re.I)
+# For a token we CANNOT resolve, the bare word counts too: `$DIR` may hold anything, so `claude`
+# anywhere in it earns the question. Only literal, resolvable paths get the narrow test above —
+# that distinction is what kept `/private/tmp/claude-501` from reading as ours (11 points of ask
+# rate) without letting `rm -rf "$HOME/claude-stuff/.claude"` through.
+CLAUDE_WORD = re.compile(r"\.cl|claude", re.I)
 
 
 def glob_base(tokens: list[str], cwd: Path, named: bool) -> Path | None:
@@ -3414,14 +3419,22 @@ def reaches_claude(command: str, cwd: Path) -> bool:
             if CLAUDE_DIR.search(candidate):
                 return True
             if "$" in candidate or "`" in candidate:
-                if named:
+                if named or CLAUDE_WORD.search(candidate):
                     return True
                 continue
             if not GLOB_CHARS.search(candidate):
                 continue
             if "**" in candidate:
-                # A recursive pattern is not something to resolve on a per-command hook. Unknown,
-                # so: the name in the command earns the question, nothing else does.
+                # `rm -rf **/*` in a project root deletes `.claude`, and skipping the token made
+                # that silent — my own decision last commit, taken to avoid the traversal that had
+                # frozen the hook. Both are avoidable: a recursive pattern reaches everything under
+                # its base, so the question is only whether `.claude` is under there at all. One
+                # `is_dir()`, no walk.
+                try:
+                    if (base / ".claude").is_dir():
+                        return True
+                except OSError:
+                    return True
                 if named:
                     return True
                 continue
@@ -3438,7 +3451,10 @@ def reaches_claude(command: str, cwd: Path) -> bool:
             try:
                 for seen, hit in enumerate(base.glob(pattern)):
                     if seen > 5_000 or time.monotonic() > deadline:
-                        return bool(named)   # out of budget: the name decides, not silence
+                        # An exhausted budget is not an answer. It used to return `named`, so a
+                        # slow pattern bought silence — the permissive end of a resource limit,
+                        # which is the oldest fail-open shape in this file.
+                        return True
                     rel = (hit.relative_to(base).as_posix() if hit.is_relative_to(base)
                            else hit.as_posix())
                     if ".claude" in rel:
