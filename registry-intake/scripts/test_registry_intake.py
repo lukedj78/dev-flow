@@ -1295,6 +1295,30 @@ class Hooks(unittest.TestCase):
                 self.assertIsNotNone(ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
                                                   "tool_input": {"command": command}}), command)
 
+    def test_reaching_into_claude_asks_however_it_is_spelled(self) -> None:
+        """`cat .claude/settings.json` asked and `rm -rf .claude/` said nothing: the exact spelling
+        was matched, the destructive wildcard was not. The question is not how the command spells
+        the path — it is whether it can remove or replace the gate."""
+        root = self.project(("Stop", "echo hi"))
+        quiet(ri.main, ["setup", str(root)])
+
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "cwd": str(root),
+                                "tool_input": {"command": command}})
+
+        for command in ("rm -rf .claude/", "rm .claude/hooks/*", "git checkout -- .claude",
+                        "mv .claude .claude.off", "echo x > .claude/settings.json"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(ask(command), command)
+        # Reading is not relocating, and our own call is never a question.
+        self.assertIsNone(ask("ls .claude/skills"))
+        self.assertIsNone(ask("pnpm build"))
+        self.assertIsNone(ask("python3 .claude/hooks/registry_intake.py check ."))
+        # And the generic warning never shadows a decision the user must actually answer.
+        decision = ask("python3 .claude/hooks/registry_intake.py allow . @x "
+                       "https://x.test/{name}.json --reason r --by luca")
+        self.assertIn("allowlist the registry @x", decision or "")
+
     def test_a_tampered_vendored_hook_is_scanned_not_skipped(self) -> None:
         """The first version exempted `.claude/hooks/registry_intake.py` by PATH, which made the
         one file the scanner refuses to read the best place to put something."""

@@ -3243,11 +3243,19 @@ def hook_ask(payload: dict) -> str | None:
     # The write tools refuse an edit to the hook script and ask about the wiring; a shell command
     # could `rm`, `mv` or `git checkout` the same two files and nothing looked. Reading them is
     # ordinary, so this asks rather than refuses — and our own `setup` is exempt by shape.
-    for name in (HOOK_COPY, ".claude/settings.json", ".claude/settings.local.json"):
-        if name.lower() in flat and not our_invocation(command, find_root(here), here):
-            return (f"this command names {name} — the gate itself, or the wiring that runs it. "
-                    "Removing or replacing either switches registry intake off for this project. "
-                    "Confirm only if that is what you meant.")
+    # A CANDIDATE, not a return. The first version returned here and shadowed the decision ask
+    # below, so a legitimate `allow` was answered with a generic warning about `.claude/` instead of
+    # "allowlist the registry @x" — the same ordering mistake as the lock question jumping ahead of
+    # the deny rules. The specific message wins; this one speaks when there is nothing specific.
+    names = (HOOK_COPY, ".claude/settings.json", ".claude/settings.local.json")
+    touches_claude = CLAUDE_DIR.search(flat) and (RELOCATES.search(flat) or SHELL_SYNTAX.search(flat))
+    generic = None
+    if (any(n.lower() in flat for n in names) or touches_claude) and not our_invocation(
+            command, find_root(here), here):
+        generic = ("this command reaches into `.claude/` — the gate itself, or the wiring that runs "
+                   "it on every tool call. Removing, moving or replacing either switches registry "
+                   "intake off for this project, and `rm -rf .claude/` takes the whole surface with "
+                   "it. Confirm only if that is what you meant.")
     # The guard is cheap and keeps DECISION_CALL off unrelated commands (`pnpm approve builds` would
     # otherwise match its variable-prefix arm). It has to cover the form this skill's own docs use —
     # `S=…/registry_intake.py` then `python3 $S approve …` — where the command string never contains
@@ -3258,7 +3266,7 @@ def hook_ask(payload: dict) -> str | None:
     if ("registry_intake" not in command
             and not re.search(r"\bhook-approve\b", command)
             and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", command)):
-        return None
+        return generic
     asks = []
     if re.search(r"\bhook-approve\b", command):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
@@ -3284,7 +3292,7 @@ def hook_ask(payload: dict) -> str | None:
                 f"approve {target} into a snapshot")
         asks.append(f"{what}, recorded as decided by {who}")
     if not asks:
-        return None
+        return generic
     return ("registry intake: the agent wants to " + "; and to ".join(asks) +
             ". Confirm only if you said yes to this — the lock will say you did.")
 
@@ -3292,6 +3300,16 @@ def hook_ask(payload: dict) -> str | None:
 # `registry-intake-<16 hex>.json` under TMPDIR. Narrow on purpose: `registry-intake/` (the skill
 # directory) and `chore/registry-intake-hook` (a branch) are ordinary and must not be denied.
 BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
+
+
+# `rm -rf .claude/` said nothing while `cat .claude/settings.json` asked: the exact spelling was
+# matched and the destructive wildcard was not. Matching spellings is the mistake this file keeps
+# making, so the question is not how a command spells the path — it is whether it can REMOVE or
+# REPLACE the gate. The directory, plus an intent.
+CLAUDE_DIR = re.compile(r"\.claude\b")
+RELOCATES = re.compile(r"\b(?:rm|mv|cp|rsync|shred|truncate|ln|install|unlink)\b"
+                       r"|\bgit\s+(?:checkout|restore|stash|clean|reset|rm)\b"
+                       r"|>")
 
 
 OUR_VERBS = {"setup", "allow", "deny", "approve", "install", "caps", "check", "hook", "hook-post",
