@@ -529,7 +529,12 @@ CHECK_COUNT_PATTERNS = [
 #
 # The rule: a bare `references/x` or `scripts/x` resolves against the skill it is
 # written in. Pointing at another skill's file means writing that skill's name.
-SKILL_REL_RE = re.compile(r"`((?:references|scripts)/[A-Za-z0-9._-]+)`")
+# The name must carry an EXTENSION. Without that, this matched `scripts/guard` — a directory in the
+# projects these skills generate, not a file in the skill — and reported a correct sentence as a
+# broken reference, which blocked five commits behind `--no-verify`. Measured before narrowing it:
+# every real file under any skill's `references/` or `scripts/` has an extension, and exactly one
+# extensionless backticked path exists in the whole suite (that sentence). So this loses nothing.
+SKILL_REL_RE = re.compile(r"`((?:references|scripts)/[A-Za-z0-9._-]*\.[A-Za-z0-9]+)`")
 
 
 def check_local_paths_resolve(root: Path, all_skills: set[str]) -> None:
