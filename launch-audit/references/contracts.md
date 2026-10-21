@@ -360,6 +360,30 @@ The `phase` field tracks the project's progress through the pipeline. Every skil
 - **The phase must not fall behind the code.** Routes in `app/` or components in `components/` while `phase` is still before `scaffolded` / `page_generated` means every check keyed on the phase (spec-review, shadscan, the set-phase gates) is silently off — smart-travel built for three days at `design_extracted`. `show_state.py` reports it as **PHASE BEHIND THE CODE** and routes to realignment (retrofit golden rule 3, `set-phase page_generated`, then spec-review + shadscan on what was built). Independently of the phase, `spec-review` runs whenever a piece of work lands.
 - The `deployed` phase is terminal in the sense that future runs stay there; subsequent EAS Update or new-feature work appends to `history` without phase regression.
 
+## Intervention levels — who can check, not how clean it looks
+
+When a piece of work is finished and the user is asked whether to merge it, the review
+(`spec-review`, three axes) closes with **one level**. The level says who decides, and it is derived
+from **who is able to check a finding** — never from the agent's impression of the diff.
+
+| Level | What it means | When it applies |
+|---|---|---|
+| **1** | the agent merges on its own | **every** acceptance criterion in `tasks.md` was verified by running a command whose output is shown to the user; CI green; the gate scripts green; **zero** findings on Spec, Standards and Risk. If any criterion needed a human eye, the work is not level 1 — by definition, not by judgement |
+| **2** | the agent says what it found and merges unless the user objects | findings only of the mechanical kind, and already fixed on the branch (a primitive used instead of a raw element, a string routed through i18n) |
+| **3** | the agent asks specific questions and waits | any finding the agent cannot settle: a one-way door, a missing before/after, a scope question, an accepted trade that needs to be written down |
+| **4** | the agent stops | the diff does something the spec does not say, or a risk it cannot size |
+
+**Why level 1 is defined by commands and not by cleanliness.** A level the agent grants itself on its
+own verdict authorises exactly the cases it cannot see. Measured, 2026-10-20: every commit of that
+day's ask-gate work would have scored ✅ on all five Risk categories — small diff, tests added, suite
+green, one-line revert — and two of them were the worst defects of the day (a gate asking on a fifth
+of all commands; a hook walking `/usr` before every command). Both were invisible to the diff and
+visible in one measurement. So level 1 requires **shown output**, which the user can re-run, and any
+judgement finding at all drops the work to 3.
+
+Recorded as `meta.json#spec_review.level`. The level **never** bumps `phase` and never blocks a
+gate: it decides who presses merge.
+
 ### `stack` field
 
 Captures user choices that downstream skills need. Keys:
