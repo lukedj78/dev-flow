@@ -381,6 +381,34 @@ of all commands; a hook walking `/usr` before every command). Both were invisibl
 visible in one measurement. So level 1 requires **shown output**, which the user can re-run, and any
 judgement finding at all drops the work to 3.
 
+**What drops a work item out of level 1**, each of these on its own: an acceptance criterion phrased
+as an opinion rather than a command (*"i valori sembrano corretti"*); a line touched in code that
+decides something (a norm verdict, a permission, a price); any migration, however small; the sixth
+Risk question left unanswered — an empty answer there is a finding of its own kind, not a pass.
+
+**Level 2 means the contract already decided, not that the agent felt sure.** "Mechanical" is a
+property of the finding, not of the confidence: `<Button>` instead of `<button>`, a string through
+`next-intl`, a token instead of a hex value — each has exactly one correct fix, written down
+somewhere. **If fixing a finding requires *choosing* anything** — which variant to add, whether to
+change an API, whether a trade is worth it — it is not level 2, by definition. Every time an agent
+has "chosen" alone in the name of tidiness in this repo, it opened something: 2026-10-20 has seven
+instances in one file.
+
+**At level 3 every answer goes to one of exactly two places**: a fix in the code, or a line written
+into the PR. There is no third place. An acceptance given out loud is, a month later,
+indistinguishable from something nobody noticed — so the written line names what was accepted, who
+accepted it, and the command that could re-check it if there is one.
+
+**The verdicts recorded in `meta.json` are the final ones, not the opening ones.** All ✅ with
+`"level": 3` is not a contradiction: it says *this diff is sound, and it got there because the user
+settled four things*. The level is the memory of **who decided**, never a score on the code.
+
+**Level 4 is not "level 3 with more findings."** The test is where the answers live: at level 3 the
+questions can be settled inside the project; at level 4 at least one needs something that is not in
+the repository — a supplier's region, a contract, a commercial decision — or a risk the agent cannot
+size. Then the work does not wait on a list: it goes back to the spec through
+`prd-from-idea/references/scope-check.md`, because the specification was incomplete.
+
 Recorded as `meta.json#spec_review.level`. The level **never** bumps `phase` and never blocks a
 gate: it decides who presses merge.
 
