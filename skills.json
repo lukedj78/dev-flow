@@ -143,6 +143,7 @@
         "debt-audit.md",
         "eu-data-sovereignty.md",
         "external-skills.md",
+        "finishing-a-feature.md",
         "merge-conflicts.md",
         "policies.md",
         "resources.md",
@@ -327,10 +328,11 @@
       "description": "Review a diff on the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack`). Two parallel sub-agents, reported side by side and never merged, with...",
       "skill_file": "spec-review/SKILL.md",
       "references": [
-        "contracts.md"
+        "contracts.md",
+        "risk.md"
       ],
       "scripts": [],
-      "skill_md_lines": 250,
+      "skill_md_lines": 271,
       "bundle": "dist/spec-review.skill"
     },
     {

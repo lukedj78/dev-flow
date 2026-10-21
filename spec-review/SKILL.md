@@ -5,7 +5,7 @@ description: 'Review a diff on the two axes a dev-flow project can check that a 
 
 # spec-review — did we build what the PRD asked, the way the contract says?
 
-Two-axis review of the diff between `HEAD` and a fixed point:
+Three-axis review of the diff between `HEAD` and a fixed point:
 
 - **Spec** — does the change faithfully implement what `.workflow/PRD.md` / `tasks.md` asked for?
 - **Standards** — does it obey the contract this project was built under?
@@ -175,7 +175,7 @@ violation, and **any documented standard above overrides it**.
 - **Middle Man** — a unit that mostly delegates onward. → cut it.
 - **Refused Bequest** — a subclass ignoring most of what it inherits. → composition instead.
 
-### 4. Spawn both sub-agents, in parallel, and forbid further delegation
+### 4. Spawn the sub-agents, in parallel, and forbid further delegation
 
 Each gets the diff command, the commit list, its own sources **pasted in full** (a sub-agent has no
 access to what you read), and an explicit **"do not spawn further agents"** — Pocock's write-up records
@@ -190,14 +190,27 @@ cite it (which rule, which file); (b) any baseline smell — name it and quote t
 breaches can be hard findings; baseline smells are always judgement calls; a documented standard
 overrides the baseline. Skip anything lint/tsc/the gates enforce. Under 400 words."*
 
+**Risk brief** — paste `spec-review/references/risk.md` in full, then: *"Give each of the five
+categories a verdict (⚠️/👀/✅) and, for anything but ✅, one line saying what would move it up. Then
+answer the sixth question. No score, no arithmetic. Name the one-way doors explicitly. Under 400
+words."* The risk axis runs on **every** diff, including one with no PRD — it needs the change, not
+the spec.
+
 ### 5. Report side by side — and do not merge
 
-Present under `## Spec` and `## Standards`, verbatim or lightly cleaned. **Never merge or re-rank across
-axes.** Close with the count per axis and the worst issue *within each*.
+Present under `## Spec`, `## Standards` and `## Risk`, verbatim or lightly cleaned. **Never merge or
+re-rank across axes.** Close with the count per axis and the worst issue *within each*, then the
+**intervention level** (`contracts.md`, "Intervention levels") — which is derived from who can check a
+finding, never from how clean the diff looks.
 
 That separation is the whole point: a change can follow every convention and implement the wrong
 feature (**Standards pass, Spec fail**), or do exactly what the PRD asked while ignoring the stack the
 project declared (**Spec pass, Standards fail**). One combined verdict lets either hide behind the other.
+
+The third axis is there because the first two can both pass on a change that should not be merged.
+Every commit of the 2026-10-20 ask-gate work passed Spec and Standards — it answered a real finding,
+with tests, green — while asking on a fifth of all commands. Nothing in the first two axes asks what a
+change costs when it is wrong.
 
 **Findings are hypotheses.** Verify before acting. This repo's own `[VERIFY]` discipline exists for the
 same reason, and the 2026-08-26 sweep proved the point: of ~55 markers closed across the skill set, a
@@ -216,6 +229,14 @@ report that is right.
   "spec_sources": ["tasks.md#T12-T15", "PRD.md#3.2"],
   "spec_findings": { "missing": 1, "scope_creep": 2, "wrong": 0 },
   "standards_findings": { "hard": 1, "judgement": 4 },
+  "risk": {                           // the third axis; `verdicts` are ⚠️/👀/✅, never a score
+    "verdicts": { "alignment": "✅", "impact": "👀", "verification": "⚠️",
+                  "rollback": "⚠️", "error_detection": "✅" },
+    "one_way_doors": ["migration drops client_choice", "vendored into 7 projects"],
+    "sixth_question": "<the answer, or the sentence saying it is empty>",
+    "accepted": { "verification": "12 orphan rows a year, accepted by luca on the PR" }
+  },
+  "level": 3,                         // contracts.md, "Intervention levels" — who can check, not how clean
   "axes_not_run": []                  // e.g. ["spec"] when there is no PRD — say so, never infer it
 }
 ```
