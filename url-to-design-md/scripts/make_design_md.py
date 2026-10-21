@@ -63,19 +63,22 @@ def px(value) -> str:
 def yaml_scalar(value) -> str:
     """A scalar for the DESIGN.md front matter, which is agent input downstream.
 
-    Hand-rolled quoting is the wrong tool here. A font family read off a hostile page can carry a
-    newline, and a newline in a hand-quoted YAML scalar ends the value and starts a new KEY —
-    inside a file `design-md-to-app` reads as instructions. JSON is a subset of YAML 1.2, and
-    `json.dumps` already escapes quotes, backslashes and every control character, so the quoted
-    form is both correct and not ours to get wrong.
+    Always quoted, via `json.dumps`. The first version hand-rolled the quoting and a newline could
+    end the value and start a KEY. The second tried to keep plain scalars where they looked safe,
+    and that was still wrong in two ways a review caught: `#` mid-string opens a YAML comment, so
+    `Inter #x` parses as `Inter` — a silent truncation; and U+0085, U+2028 and U+2029 are line
+    breaks to a YAML parser while passing straight through a control-character filter that only
+    looks below 0x20.
+
+    Both were me defending something weak — `fontFamily: Inter` reads nicer than
+    `fontFamily: "Inter"` — against a parser differential in a file another agent reads as
+    instructions. JSON is a subset of YAML 1.2, `json.dumps` escapes everything that matters, and
+    one rule with no exceptions is the only kind I can be sure of here.
     """
     s = str(value)
-    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in s):
-        s = "".join(c for c in s if ord(c) >= 0x20 and ord(c) != 0x7F)
-    plain_ok = (s and s.strip() == s
-                and not s.startswith(("#", "-", "?", ":", "&", "*", "!", "|", ">", "%", "@", "`"))
-                and not any(c in s for c in ":{}[],\n\"'\\"))
-    return s if plain_ok else json.dumps(s)
+    s = "".join(c for c in s
+                if ord(c) >= 0x20 and ord(c) not in (0x7F, 0x85, 0x2028, 0x2029))
+    return json.dumps(s)
 
 
 def typography_names(slots):

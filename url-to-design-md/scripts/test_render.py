@@ -115,10 +115,28 @@ class DownstreamInput(unittest.TestCase):
         self.assertNotIn("\x00", make_design_md.yaml_scalar("a\x00b"))
         self.assertNotIn("\x1b", make_design_md.yaml_scalar("a\x1b[31mb"))
 
-    def test_a_plain_value_stays_unquoted(self):
+    def test_every_value_is_quoted(self):
+        """Keeping plain scalars where they looked safe was the second wrong answer here. One rule
+        with no exceptions is the only kind that holds against a parser differential."""
         import make_design_md
-        self.assertEqual(make_design_md.yaml_scalar("Inter"), "Inter")
-        self.assertEqual(make_design_md.yaml_scalar("#0b5fff"), '"#0b5fff"')
+        for value in ("Inter", "#0b5fff", "400", "1.25"):
+            self.assertTrue(make_design_md.yaml_scalar(value).startswith('"'), value)
+
+    def test_a_hash_mid_string_cannot_open_a_yaml_comment(self):
+        """`Inter #x` unquoted parses as `Inter` — a silent truncation, which is worse than an
+        error because the file still looks fine."""
+        import make_design_md
+        out = make_design_md.yaml_scalar("Inter #malicious: injected")
+        self.assertTrue(out.startswith('"') and out.endswith('"'))
+        self.assertIn("#malicious", out)
+
+    def test_unicode_line_separators_are_stripped(self):
+        """U+0085, U+2028 and U+2029 are line breaks to a YAML parser and pass straight through a
+        control-character filter that only looks below 0x20."""
+        import make_design_md
+        for sep in ("\u0085", "\u2028", "\u2029"):
+            out = make_design_md.yaml_scalar(f"Inter{sep}malicious: injected")
+            self.assertNotIn(sep, out)
 
 
 class DecisionPaths(unittest.TestCase):
