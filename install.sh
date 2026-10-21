@@ -165,6 +165,7 @@ SKILLS=(
   # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md
   image-to-design-md
+  url-to-design-md
   design-md-to-app
   coss-ui
   screenshot-to-page

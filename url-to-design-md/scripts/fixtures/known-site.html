@@ -1,0 +1,121 @@
+<!doctype html>
+<!--
+  A page whose true values are written down, so the extractor can be checked against facts instead
+  of against a screenshot. Every number in `test_extract_contract.py` comes from this file.
+
+  Deliberately included: a consent banner that must be excluded, a button whose paint sits on a
+  child of the <a>, an oklch() colour that only a canvas can resolve, a pill radius, a cross-origin
+  stylesheet reference that must be reported as opaque rather than silently dropped.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Known Site</title>
+<style>
+  :root {
+    --brand-action: #0b5fff;
+    --brand-ink: #111827;
+    --space-base: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111827;
+    font-family: Inter, system-ui, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; height: 72px;
+    display: flex; align-items: center; gap: 24px;
+    padding: 0 32px; background: #ffffff; border-bottom: 1px solid #e5e7eb;
+  }
+  header .logo { width: 120px; height: 28px; color: #111827; }
+  nav a { color: #374151; font-size: 14px; line-height: 20px; font-weight: 500; text-decoration: none; }
+  nav a:hover { color: #0b5fff; }
+  h1 { font-size: 64px; line-height: 70.4px; letter-spacing: -1.28px; font-weight: 600; margin: 0 0 16px; }
+  h2 { font-size: 32px; line-height: 40px; letter-spacing: -0.32px; font-weight: 600; margin: 48px 0 16px; }
+  h3 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 24px 0 8px; }
+  p  { font-size: 16px; line-height: 26px; margin: 0 0 16px; color: #374151; }
+  main { max-width: 1280px; margin: 0 auto; padding: 64px 32px; }
+  .hero { background: linear-gradient(135deg, #0b5fff 0%, #7c3aed 100%); color: #ffffff; padding: 96px 48px; }
+  .hero h1, .hero p { color: #ffffff; }
+
+  /* the paint is on the span, not on the <a>: an extractor reading the anchor finds nothing */
+  a.cta { text-decoration: none; display: inline-block; }
+  a.cta > span.paint {
+    display: inline-block; padding: 12px 24px; border-radius: 9999px;
+    background: oklch(0.55 0.21 258); color: #ffffff;
+    font-size: 16px; line-height: 24px; font-weight: 600;
+    transition: background-color 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  button.secondary {
+    padding: 12px 20px; border-radius: 12px; border: 1px solid #d1d5db;
+    background: #ffffff; color: #111827; font-size: 16px; line-height: 24px; font-weight: 500;
+  }
+  button.secondary:disabled { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  article.card {
+    background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;
+    box-shadow: rgba(17, 24, 39, 0.06) 0px 1px 2px 0px;
+  }
+  input[type="email"] {
+    height: 44px; padding: 10px 14px; border-radius: 8px; border: 1px solid #d1d5db;
+    font-size: 16px; line-height: 24px; width: 100%;
+  }
+  input:focus-visible { outline: 2px solid #0b5fff; outline-offset: 2px; }
+  label { display: block; font-size: 14px; line-height: 20px; font-weight: 500; margin-bottom: 6px; }
+  footer { background: #111827; color: #9ca3af; padding: 64px 32px; }
+
+  /* must be excluded from every measurement */
+  #cookie-consent {
+    position: fixed; inset: auto 0 0 0; background: #1f2937; color: #f9fafb;
+    padding: 20px; border-radius: 4px; font-size: 13px; line-height: 18px;
+  }
+  #cookie-consent button { background: #22c55e; color: #052e16; border-radius: 4px; padding: 8px 16px; border: 0; }
+
+  @media (min-width: 768px)  { main { padding: 80px 48px; } }
+  @media (min-width: 1024px) { h1 { font-size: 72px; line-height: 78px; } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+</head>
+<body>
+
+<header>
+  <svg class="logo" viewBox="0 0 120 28" aria-label="Known"><rect width="120" height="28" fill="currentColor"/></svg>
+  <nav>
+    <a href="/product">Product</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Ship the thing you measured</h1>
+  <p>Every value on this page is written down, so a test can check the reader instead of trusting it.</p>
+  <a class="cta" href="/start"><span class="paint">Start building</span></a>
+</section>
+
+<main>
+  <h2>Three cards, one grid</h2>
+  <div class="grid">
+    <article class="card"><h3>Measured</h3><p>Computed styles, not the stylesheet.</p></article>
+    <article class="card"><h3>Weighted</h3><p>Text by characters, background by painted area.</p></article>
+    <article class="card"><h3>Honest</h3><p>Nothing observed is nothing written.</p></article>
+  </div>
+
+  <h2>A form, because an app has one</h2>
+  <label for="email">Work email</label>
+  <input id="email" type="email" placeholder="you@company.com">
+  <p><button class="secondary">Save changes</button> <button class="secondary" disabled>Unavailable</button></p>
+</main>
+
+<footer><p>Not affiliated with anyone. This page exists to be measured.</p></footer>
+
+<div id="cookie-consent" role="dialog">
+  We use cookies to make this banner appear in your palette.
+  <button>Accept all</button>
+</div>
+
+</body>
+</html>

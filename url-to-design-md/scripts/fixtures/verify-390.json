@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "kind": "verify",
+  "url": "http://localhost:8781/fixtures/_preview.html",
+  "checkedAt": "2026-10-21T19:02:53.306Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "rebuild": [
+    {
+      "control": "button",
+      "property": "background-color",
+      "token": "oklch(0.5501 0.2090 258.58)",
+      "computed": "oklch(0.5501 0.209 258.58)",
+      "ok": true
+    },
+    {
+      "control": "button",
+      "property": "color",
+      "token": "oklch(1.0000 0.0000 89.88)",
+      "computed": "oklch(1 0 89.88)",
+      "ok": true
+    },
+    {
+      "control": "button",
+      "property": "border-top-left-radius",
+      "token": "9999px",
+      "computed": "9999px",
+      "ok": true
+    },
+    {
+      "control": "button-secondary",
+      "property": "border-top-color",
+      "token": "oklch(0.9276 0.0058 264.53)",
+      "computed": "oklch(0.9276 0.0058 264.53)",
+      "ok": true
+    },
+    {
+      "control": "button-secondary",
+      "property": "border-top-left-radius",
+      "token": "12.0px",
+      "computed": "12px",
+      "ok": true
+    },
+    {
+      "control": "card",
+      "property": "background-color",
+      "token": "oklch(0.9846 0.0017 247.84)",
+      "computed": "oklch(0.9846 0.0017 247.84)",
+      "ok": true
+    },
+    {
+      "control": "card",
+      "property": "border-top-color",
+      "token": "oklch(0.9276 0.0058 264.53)",
+      "computed": "oklch(0.9276 0.0058 264.53)",
+      "ok": true
+    },
+    {
+      "control": "card",
+      "property": "border-top-left-radius",
+      "token": "12.0px",
+      "computed": "12px",
+      "ok": true
+    },
+    {
+      "control": "input",
+      "property": "border-top-color",
+      "token": "oklch(0.9276 0.0058 264.53)",
+      "computed": "oklch(0.9276 0.0058 264.53)",
+      "ok": true
+    },
+    {
+      "control": "input",
+      "property": "border-top-left-radius",
+      "token": "12.0px",
+      "computed": "12px",
+      "ok": true
+    }
+  ],
+  "scrollWidth": 390,
+  "clientWidth": 390,
+  "noHorizontalScroll": true,
+  "networkRequests": 0
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 55,
+  "skill_count": 56,
   "families": {
     "core": [
       "app-security",
@@ -33,6 +33,7 @@
       "shadscan",
       "state-discipline",
       "transitions",
+      "url-to-design-md",
       "vercel-deploy",
       "vercel-doctor",
       "vgpu-shaders",
@@ -634,6 +635,35 @@
       ],
       "skill_md_lines": 200,
       "bundle": "dist/transitions.skill"
+    },
+    {
+      "name": "url-to-design-md",
+      "family": "web",
+      "role": "discovery",
+      "description": "Measure a live website or a signed-in web app and turn it into a DESIGN.md (Google design.md spec) plus shadcn theme, a visual review page and social slides. Reads COMPUTED styles from the rendered DOM — colour roles with usage share, the type scale at two viewports, spacing grid, radii, shadows, mo...",
+      "skill_file": "url-to-design-md/SKILL.md",
+      "references": [
+        "artifacts.md",
+        "contracts.md",
+        "measure.md",
+        "review.md"
+      ],
+      "scripts": [
+        "analyze.py",
+        "collect.py",
+        "extract.js",
+        "make_design_md.py",
+        "make_video.py",
+        "render_decision.py",
+        "render_guide.py",
+        "render_media.py",
+        "test_analyze.py",
+        "test_render.py",
+        "verify.py",
+        "verify_page.js"
+      ],
+      "skill_md_lines": 193,
+      "bundle": "dist/url-to-design-md.skill"
     },
     {
       "name": "vercel-deploy",

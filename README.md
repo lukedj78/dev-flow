@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **55 skills (13 core + 18 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **56 skills (13 core + 19 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -28,7 +28,7 @@
               │                                   │
               ▼ stack.framework="next"            ▼ stack.framework="expo-rn"
               │                                   │
-              │   WEB FAMILY (18 skills)           MOBILE FAMILY (16 skills)
+              │   WEB FAMILY (19 skills)           MOBILE FAMILY (16 skills)
               │                                   │
    ┌──────────┼──────────┐               ┌────────┼─────────┐
    │          │          │               │        │         │
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 55. Restart Claude Code if you don't see them in /skills.
+# Should print 56. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -171,6 +171,7 @@ The **core happy-path** skills (the web flow most projects start with):
 | `spec-review` | Review a diff on two axes — does it match `PRD.md`/`tasks.md`, and does it obey the contract it was built under? Parallel sub-agents, reported side by side, never merged |
 | `figma-to-design-md` | Figma URL → `DESIGN.md` (Google design.md spec) + screenshots |
 | `image-to-design-md` | 1+ raster images → `DESIGN.md` + screenshots |
+| `url-to-design-md` | A live site or a signed-in app → `DESIGN.md` + shadcn theme. Reads **computed** styles from the rendered DOM (colour roles with usage share, the type scale at two viewports, spacing grid, radii, motion, components and states), then a visual review page carrying the decisions the measurement could not settle |
 | `design-md-to-app` | `DESIGN.md` → scaffolded Next.js + shadcn app with theme + showcase + folder convention |
 | `coss-ui` | Coss/UI (Cal.com design system on Base UI) via the shadcn `@coss/*` registry — Init/Add modes, DESIGN.md token reconciliation; requires Tailwind v4, mixed MIT/AGPLv3 license |
 | `screenshot-to-page` | One screenshot → one route, with pixel-perfect verification loop |
@@ -229,6 +230,7 @@ The orchestrator routes through phases:
    scrum               → issues + sprint 1 on the tracker chosen in the PRD
 4. image-to-design-md  → DESIGN.md  (asks for reference screenshots)
    OR figma-to-design-md if you have a Figma URL
+   OR url-to-design-md    if you are starting from an existing site or app
 5. wireframe-canvas    → screen inventory + every screen on a Design canvas (desktop 1440 + phone 390), approved
    design-md-to-app    → full scaffold + /showcase  (phase=scaffolded; refused before the approval)
 6. screenshot-to-page  → /clients, /appointments, …  (phase=page_generated)
@@ -254,6 +256,7 @@ Stack:    framework=next, ui=shadcn
 Skill runs: 4
   - prd-from-idea         → phase=prd_drafted
   - image-to-design-md    → phase=design_extracted
+  - url-to-design-md      → phase=design_extracted
   - design-md-to-app      → phase=scaffolded
 Next step proposal: screenshot-to-page  OR  module-add
 ```
@@ -1009,6 +1012,21 @@ The skill validates the output against the Google spec before writing (frontmatt
 - **Layout / shapes / elevation**: inferred from corners + spacing + shadow patterns visible in the images.
 
 The skill is explicit about confidence: every guess is flagged in the prose. A 1-image input where text isn't visible produces a stub `typography:` block + a prominent note ("typography pending — supply a second image with visible text").
+
+### `url-to-design-md` — a live site or app → DESIGN.md
+
+**Input**: a URL. A public site (`site` mode) or an app behind a login (`app` mode — the user signs in, the skill never handles credentials).
+**Output**: `.workflow/DESIGN.md` + `.workflow/design-source/` (snapshots, `tokens.json`, `shadcn.css`, the review page, the slides) + `design-source.md`, the record of what was changed and why.
+
+**How it works**:
+- **Measured, not inferred**: `scripts/extract.js` walks the rendered DOM and reads **computed** styles. A stylesheet declares what is possible; the DOM says what is painted — which is why this works on Tailwind and CSS-in-JS, where reading the source reports the framework's palette as the brand's.
+- **Colour**: every value painted on a 1×1 canvas and read back, so `oklch()` and `lab()` resolve to hex; text weighted by characters and grounds by painted area; consent banners excluded; roles carry the evidence that chose them.
+- **Type**: sizes clustered within 12%, measured at **1440 and 390** so the `clamp()` is derived rather than guessed, then mapped onto Tailwind's own slots (`text-sm` … `text-9xl`) — never a parallel set of semantic names.
+- **States**: focus read with the document actually focused (a background tab reports `outline: none`, which reads like a site with no focus ring); a ring is only accepted when the page declares a `:focus` rule, because otherwise it is the browser's own.
+- **The review step**: `brand-guide.html` opens offline and carries the decisions the measurement could not settle, each with the evidence, a recommendation and *what happens if nobody answers*. `render_decision.py` draws each one side by side. Nothing is written until the user approves.
+- **The gate**: `verify.py` reads the rebuilt controls' computed styles back and fails when one does not equal its token — a guide with one literal where a `var()` belongs looks perfect and has stopped representing the system.
+
+Nothing observed is nothing written: an unmeasured shadcn slot keeps its framework default and is named in the theme's header. Logos, font files and photographs are never copied.
 
 ### `design-md-to-app` — DESIGN.md → working app
 

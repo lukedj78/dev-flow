@@ -66,6 +66,7 @@ TAXONOMY: dict[str, tuple[str, str]] = {
     # --- web (18): Next.js 16 App Router ------------------------------------
     "figma-to-design-md":           ("web", "discovery"),
     "image-to-design-md":           ("web", "discovery"),
+    "url-to-design-md":             ("web", "discovery"),
     "design-md-to-app":             ("web", "operative"),
     "coss-ui":                      ("web", "operative"),
     "screenshot-to-page":           ("web", "operative"),
