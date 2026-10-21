@@ -226,7 +226,18 @@ def merge_snapshots(snaps, mode):
         "fill": fold(lambda s: s["colors"]["fill"], "area"),
     }
     merged["gradients"] = fold(lambda s: s["gradients"], "area")
-    merged["shadows"] = fold(lambda s: s["shadows"], "area")
+
+    # A box-shadow with no blur and no spread is a LINE, not an elevation. Measured on adidas.it,
+    # where the commonest box-shadow was `rgb(227,43,43) 0 1px 0 0` — their red underline — and it
+    # became `--shadow`, i.e. every card in the guide got a red rule under it. Elevation and hairline
+    # are different tokens and the site draws them with the same property.
+    def is_hairline(value):
+        nums = re.findall(r"(-?[\d.]+)px", value or "")
+        return len(nums) >= 3 and float(nums[2]) == 0 and (len(nums) < 4 or float(nums[3]) == 0)
+
+    all_shadows = fold(lambda s: s["shadows"], "area")
+    merged["shadows"] = [s for s in all_shadows if not is_hairline(s["value"])]
+    merged["hairlines"] = [s for s in all_shadows if is_hairline(s["value"])]
     merged["fontFamilies"] = fold(lambda s: s["fontFamilies"], "chars")
 
     # Type is kept per viewport: the pair (390, 1440) is what a clamp() is derived from, and
@@ -305,17 +316,42 @@ def colour_roles(merged, missing):
     else:
         missing.append("background")
 
-    if texts:
+    # The ink cannot be the ground. Measured on adidas.it from a single page: 2608 white characters
+    # against 2456 black — a 6% margin decided by one dark hero band — and `foreground` came out
+    # #ffffff on a #ffffff page. Every other check passed; only drawing it showed white on white.
+    # So the winner has to be legible against the ground it was chosen for, and if it is not, the
+    # next candidate that is takes the role and the near-miss is recorded.
+    if texts and page_bg:
+        legible = [r for r in texts if (contrast(r["value"], page_bg) or 0) >= 3.0]
+        if legible and legible[0] is not texts[0]:
+            roles["foreground"] = ev(legible[0],
+                                     f"most characters that are legible on the ground "
+                                     f"({texts[0]['value']} had more but only "
+                                     f"{contrast(texts[0]['value'], page_bg)}:1)")
+        elif legible:
+            roles["foreground"] = ev(legible[0], "most characters on the page")
+        else:
+            missing.append(f"foreground (no measured text colour reaches 3:1 on {page_bg})")
+    elif texts:
         roles["foreground"] = ev(texts[0], "most characters on the page")
-        # text-muted is the next text colour with clearly lower contrast against the ground
-        if page_bg:
-            base_c = contrast(texts[0]["value"], page_bg)
-            for r in texts[1:]:
-                c = contrast(r["value"], page_bg)
-                if c and base_c and c < base_c * 0.75 and c >= 1.6:
-                    roles["muted-foreground"] = ev(r, "second text colour, lower contrast on the ground")
-                    break
-    else:
+
+    # text-muted is the next text colour with clearly lower contrast against the ground. Derived
+    # from the foreground that was CHOSEN, not from the heaviest candidate: when the guard above
+    # swaps the winner, measuring against the rejected one makes the threshold unreachable.
+    # (It also has to sit OUTSIDE the branches — nested under one of them it ran only in the case
+    # that never happens, and the role vanished silently. Caught by a test, not by reading.)
+    if page_bg and "foreground" in roles:
+        chosen = roles["foreground"]["value"]
+        base_c = contrast(chosen, page_bg)
+        for r in texts:
+            if r["value"] == chosen:
+                continue
+            c = contrast(r["value"], page_bg)
+            if c and base_c and c < base_c * 0.75 and c >= 1.6:
+                roles["muted-foreground"] = ev(r, "second text colour, lower contrast on the ground")
+                break
+
+    if not texts:
         missing.append("foreground")
 
     # A surface is a background that is not the page ground and not inverted: cards, panels, wells.
@@ -440,10 +476,20 @@ def cluster_sizes(rows, tolerance=0.12):
     """
     sized = sorted((r for r in rows if r.get("size")), key=lambda r: -r["size"])
     clusters = []
+    def same_role(a, b):
+        """Size alone is not a role. Measured on adidas.it: a wide-tracked uppercase label sat
+        within 12% of a heading, won the cluster on character count, and handed the heading its
+        0.098em tracking — so every h2 in the guide came out spaced like a label."""
+        ta = (a.get("letterSpacing") or 0) / max(1, a["size"])
+        tb = (b.get("letterSpacing") or 0) / max(1, b["size"])
+        if abs(ta - tb) > 0.03:
+            return False
+        return (a.get("textTransform") or None) == (b.get("textTransform") or None)
+
     for row in sized:
         placed = False
         for c in clusters:
-            if abs(row["size"] - c["size"]) <= c["size"] * tolerance:
+            if abs(row["size"] - c["size"]) <= c["size"] * tolerance and same_role(row, c):
                 c["members"].append(row)
                 total = c["chars"] + row["chars"]
                 if total:
@@ -741,6 +787,58 @@ def voice(merged, missing):
 # --------------------------------------------------------------------------- tokens out
 
 
+
+# The look that AI-generated design keeps landing on. Not a style judgement: these are the specific
+# defaults that appear when nobody chose anything, and the divergence step is exactly where a
+# measured system drifts into them — you move away from the source and arrive at the average.
+SLOP = {
+    "faces": {"inter", "space grotesk", "poppins", "montserrat", "dm sans"},
+    "grounds": {"#f4f1ea", "#faf9f6", "#fdfcfa", "#fffbf5"},      # the warm cream
+    "accents": {"#c45d3a", "#e07a5f", "#d97757", "#b85c38",       # terracotta
+                "#a3e635", "#84cc16", "#bef264"},                 # the lone acid green
+    "radii": {8.0, 12.0},                                          # rounded-lg on everything
+}
+
+
+def slop_drift(final, measured):
+    """What moved AWAY from the measurement and TOWARDS the generic look.
+
+    Only drift counts. A site that genuinely uses Inter on cream is not sloppy — it is that site,
+    and reporting it would punish an accurate measurement. What is worth a question is a value that
+    was something else when measured and is now one of these.
+    """
+    if not measured:
+        return []
+    hits = []
+
+    def role(tokens, name):
+        return (tokens.get("color", {}).get("roles", {}).get(name) or {}).get("value")
+
+    fam_now = (final["typography"]["families"] or [""])[0].strip().lower()
+    fam_was = (measured["typography"]["families"] or [""])[0].strip().lower()
+    if fam_now in SLOP["faces"] and fam_now != fam_was:
+        hits.append(("typeface", f"{fam_was or '—'} → {fam_now}",
+                     "the safe face everything defaults to"))
+
+    for name, key in (("background", "grounds"), ("primary", "accents"), ("accent", "accents")):
+        now, was = role(final, name), role(measured, name)
+        if now and now.lower() in SLOP[key] and now != was:
+            hits.append((name, f"{was or '—'} → {now}", "a stock palette value"))
+
+    r_now, r_was = final["radius"].get("default"), measured["radius"].get("default")
+    if r_now in SLOP["radii"] and r_was is not None and float(r_was) != float(r_now):
+        def _px(v):
+            return f"{int(v)}px" if float(v) == int(float(v)) else f"{v}px"
+        hits.append(("radius", f"{_px(r_was)} → {_px(r_now)}", "rounded-lg on everything"))
+
+    grad_now = (final["color"]["gradients"] or [""])[0].lower()
+    if grad_now and grad_now not in [g.lower() for g in measured["color"]["gradients"]]:
+        if ("purple" in grad_now or "violet" in grad_now or "#7c3aed" in grad_now
+                or "#8b5cf6" in grad_now) and ("blue" in grad_now or "#3b82f6" in grad_now):
+            hits.append(("gradient", "added", "the purple-to-blue hero"))
+    return hits
+
+
 def open_questions(tokens, merged):
     """The decisions a person has to make, each with its evidence and a default.
 
@@ -986,6 +1084,15 @@ def build_tokens(merged):
     radius = merged["radius"]
     radius_px = sorted(((float(k), n) for k, n in radius.items() if k != "pill"),
                        key=lambda kv: -kv[1])
+
+    # The default shape is decided on the CONTROLS, by majority, not by whether a pill exists
+    # anywhere. Measured on adidas.it: 13 of 14 buttons had radius 0 and one 24px dot was round,
+    # and "any pill makes it a pill system" turned a famously square brand into a rounded one.
+    button_radii = [b["example"] for d in [comps.get("button") or {}] for b in d.get("variants", [])]
+    pills = sum(1 for b in button_radii if b.get("radiusIsPill"))
+    squares = sum(1 for b in button_radii
+                  if not b.get("radiusIsPill") and (b.get("radius") or 0) == 0)
+    pill_is_default = bool(button_radii) and pills > len(button_radii) / 2
     containers = sorted(((float(k), n) for k, n in merged["containers"].items()),
                         key=lambda kv: -kv[1])
 
@@ -1015,7 +1122,9 @@ def build_tokens(merged):
         "spacing": space,
         "radius": {
             "values": [{"px": v, "count": n} for v, n in radius_px[:8]],
-            "pill": radius.get("pill", 0) > 0,
+            "pill": pill_is_default,
+            "pillSeen": radius.get("pill", 0) > 0,
+            "buttonShape": {"pill": pills, "square": squares, "of": len(button_radii)},
             "default": radius_px[0][0] if radius_px else None,
         },
         "layout": {

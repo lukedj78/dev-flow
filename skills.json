@@ -649,11 +649,14 @@
         "review.md"
       ],
       "scripts": [
+        "_adidas-guide.html",
         "analyze.py",
         "collect.py",
         "extract.js",
+        "images.py",
         "make_design_md.py",
         "make_video.py",
+        "pixel_check.py",
         "render_decision.py",
         "render_guide.py",
         "render_media.py",
@@ -662,7 +665,7 @@
         "verify.py",
         "verify_page.js"
       ],
-      "skill_md_lines": 195,
+      "skill_md_lines": 218,
       "bundle": "dist/url-to-design-md.skill"
     },
     {

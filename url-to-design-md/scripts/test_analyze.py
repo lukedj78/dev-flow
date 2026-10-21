@@ -208,9 +208,16 @@ class Components(unittest.TestCase):
         background and no radius, which is the commonest way to miss a site's primary action."""
         self.assertTrue(self.tokens["components"]["button"]["paintedOnChild"])
 
-    def test_the_pill_radius_is_distinguished_from_the_px_radius(self):
-        self.assertTrue(self.tokens["radius"]["pill"])
+    def test_the_default_shape_is_decided_by_majority_not_by_existence(self):
+        """Changed deliberately. The test page has one pill — the primary CTA — and square-ish 12px
+        buttons everywhere else, so the system's default shape is 12px and the pill is a variant.
+        The old rule ("any pill anywhere makes it a pill system") turned adidas.it, 13 of whose 14
+        buttons have radius 0, into a rounded brand."""
+        self.assertFalse(self.tokens["radius"]["pill"], "one CTA does not make a pill system")
+        self.assertTrue(self.tokens["radius"]["pillSeen"], "but the pill must not be lost either")
         self.assertEqual(self.tokens["radius"]["default"], 12.0)
+        shape = self.tokens["radius"]["buttonShape"]
+        self.assertLessEqual(shape["pill"], shape["of"] / 2)
 
     def test_motion_is_read_from_the_controls(self):
         motion = self.tokens["motion"]

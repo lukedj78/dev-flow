@@ -328,6 +328,26 @@ def divergence(measured, final, name):
     add("spacing.base", px(measured["spacing"]["base"]), px(final["spacing"]["base"]))
     add("radius.default", px(measured["radius"]["default"]), px(final["radius"]["default"]))
 
+    import analyze
+    drift = analyze.slop_drift(final, measured)
+    drift_block = ""
+    if drift:
+        lines = "\n".join(f"| `{k}` | {move} | {why} |" for k, move, why in drift)
+        drift_block = f"""
+
+## Drift towards the generic — {len(drift)} value(s)
+
+These moved **away from the source and towards the look that AI-generated design keeps landing on**
+(`design-md-to-app/references/anti-slop-fallbacks.md` owns the subject). Only drift is listed: a
+site that genuinely uses one of these is that site, and saying otherwise would punish an accurate
+measurement. Each of these was something else when measured and is now a stock value — which may be
+exactly what was wanted, and then this table is the record of choosing it.
+
+| Key | Moved | What it is |
+|---|---|---|
+{lines}
+"""
+
     return f"""# Where this design came from, and how far we moved
 
 Measured from `{measured['source']['origin']}` on {measured['source']['pageCount']} page(s),
@@ -344,6 +364,7 @@ somebody looked at it and left it, which is not the same as nobody looking.
 |---|---|---|---|---|
 {chr(10).join(rows)}
 
+{drift_block}
 ## The part a table cannot hold
 
 Write here, in prose, what you were trying to get away from and what you were trying to keep. The

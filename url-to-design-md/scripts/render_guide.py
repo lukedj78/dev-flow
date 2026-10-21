@@ -31,6 +31,7 @@ import argparse
 import base64
 import html
 import json
+import re
 import mimetypes
 from pathlib import Path
 
@@ -83,7 +84,9 @@ def token_rows(tokens):
         for v in tokens["spacing"]["onGrid"][:10]:
             rows.append((f"--space-{int(v)}", f"{int(v)}px", ""))
     if tokens["radius"]["default"] is not None:
-        rows.append(("--radius", f"{tokens['radius']['default']}px", "the commonest radius"))
+        _r = tokens["radius"]["default"]
+        rows.append(("--radius", f"{int(_r) if float(_r) == int(_r) else _r}px",
+                     "the commonest radius" + (" — this site has square corners" if not _r else "")))
     rows.append(("--radius-pill", "9999px" if tokens["radius"]["pill"] else "var(--radius)",
                  "the site uses a pill shape" if tokens["radius"]["pill"] else "no pill observed"))
     if tokens["layout"]["container"]:
@@ -123,6 +126,43 @@ def css_safe(value):
     if "\\" in v or "@import" in v.lower() or "expression(" in v.lower():
         return None
     return v.replace("<", "\\3c ").replace(">", "\\3e ")
+
+
+def font_faces(tokens, link: bool):
+    """The measured @font-face rules, re-declared so the guide renders in the real typeface.
+
+    The family carries more of a brand's identity than any colour, and a guide that names
+    `AdihausDIN` while rendering system-ui is showing the right sizes in the wrong voice — measured
+    on adidas.it, where the page declared six faces whose URLs we had read and never used.
+
+    It is a LINK, never a copy: the browser fetches the file from the owner's own server, exactly as
+    their site does, and nothing is stored here. It costs the offline guarantee, which is why it is
+    off by default and announced in the page when it is on.
+    """
+    if not link:
+        return "", ""
+    faces, hosts = [], set()
+    for f in tokens["typography"].get("fontFaces", [])[:12]:
+        src = (f.get("src") or "").strip()
+        family = (f.get("family") or "").strip()
+        if not src or not family or "url(" not in src:
+            continue
+        if css_safe(src) is None or css_safe(family) is None:
+            continue
+        for m in re.findall(r"url\(\s*[\"']?(https?://[^)\"']+)", src):
+            hosts.add(m.split("/")[2])
+        faces.append("  @font-face { font-family: " + css_safe(f'"{family}"')
+                     + "; src: " + css_safe(src) + ";"
+                     + (" font-weight: " + css_safe(f["weight"]) + ";" if f.get("weight") else "")
+                     + (" font-style: " + css_safe(f["style"]) + ";" if f.get("style") else "")
+                     + " font-display: swap; }")
+    if not faces:
+        return "", ""
+    note = ("<p class=\"note missing\">Rendered in the source's own typefaces, linked from "
+            + esc(", ".join(sorted(hosts)[:3]))
+            + ". The files are not copied and not redistributed — this page fetches them exactly as "
+            + "that site does, which means it is <strong>not offline</strong> in this edition.</p>")
+    return "\n".join(faces), note
 
 
 def root_block(rows):
@@ -239,6 +279,9 @@ def stylesheet(tokens):
      brand are what the bar is for; the links are a convenience and the page has headings. */
   @media (max-width: 559px) {{ .bar a {{ display: none; }} }}
 
+  /* The one shape here that is deliberately NOT the measured system: the Unofficial badge has to
+     read as foreign to the brand, or it starts looking like part of it. On a square-cornered site
+     that difference is the point, not an oversight. */
   .pill {{
     display: inline-flex; align-items: center; gap: 6px;
     border: 1px solid {fallback("--border", "currentColor")};
@@ -255,10 +298,15 @@ def stylesheet(tokens):
   section[id] {{ scroll-margin-top: 72px; }}
   section + section {{ border-top: 1px solid {fallback("--border", "rgba(0,0,0,.08)")}; }}
 
+  /* The cover sits on the page's OWN ground, with the page's own ink. The first version fell back
+     to `--primary` when no gradient was measured, so a black-and-white site produced a black cover
+     and the guide stopped looking like the site it measured — which is the one thing it has to do.
+     A gradient is used when the site actually has one; `--primary` stays what it is, the accent. */
   .cover {{
-    background: {fallback("--gradient", "linear-gradient(135deg, " + fallback("--primary", "#333") + ", " + ground + ")") if has_gradient else fallback("--primary", "#222")};
-    color: {fallback("--primary-foreground", "#ffffff")};
+    background: {fallback("--gradient", ground) if has_gradient else ground};
+    color: {"inherit" if not has_gradient else fallback("--primary-foreground", "#ffffff")};
     padding-block: clamp(72px, 14vw, 160px);
+    border-bottom: 1px solid {fallback("--border", "rgba(0,0,0,.08)")};
   }}
   .cover h1 {{
     font-size: {fallback("--size-7xl", "clamp(40px, 9vw, 72px)")};
@@ -501,7 +549,7 @@ def typography(tokens):
 </div></section>"""
 
 
-def fonts(tokens):
+def fonts(tokens, faces_note=""):
     families = tokens["typography"]["families"]
     faces = tokens["typography"]["fontFaces"]
     cards = ""
@@ -522,6 +570,9 @@ def fonts(tokens):
     return f"""
 <section id="fonts"><div class="wrap">
   <h2>Fonts</h2>
+  {faces_note or '<p class="note">Rendered in a substitute: the real families are named below but '
+                 'their files are not loaded, so the sizes here are right and the voice is not. '
+                 'Re-render with --link-fonts to see them as the source does.</p>'}
   <div class="grid grid--3" style="margin-top:24px">{cards}</div>
   <h3 style="margin-top:32px">Declared faces</h3>
   {table}
@@ -775,8 +826,9 @@ SCRIPT = """
 """
 
 
-def render(tokens, brand, image_cards="", embedded_css=""):
+def render(tokens, brand, image_cards="", embedded_css="", link_fonts=False):
     rows = token_rows(tokens)
+    faces, faces_note = font_faces(tokens, link_fonts)
     origin = tokens["source"]["origin"] or "the source"
     return f"""<!doctype html>
 <html lang="en">
@@ -786,6 +838,7 @@ def render(tokens, brand, image_cards="", embedded_css=""):
 <title>{esc(brand)} — measured design system</title>
 <meta name="description" content="An unofficial, measured record of the design system rendered at {esc(origin)}.">
 <style>
+{faces}
   {root_block(rows)}
   {embedded_css}
   {stylesheet(tokens)}
@@ -809,7 +862,7 @@ def render(tokens, brand, image_cards="", embedded_css=""):
 {overview(tokens)}
 {rebuild(tokens)}
 {typography(tokens)}
-{fonts(tokens)}
+{fonts(tokens, faces_note)}
 {colour(tokens)}
 {layout(tokens)}
 {components(tokens)}
@@ -857,6 +910,10 @@ def main(argv=None):
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--images", type=Path, default=None)
     ap.add_argument("--brand", default=None)
+    ap.add_argument("--link-fonts", action="store_true",
+                    help="declare the measured @font-face rules so the guide renders in the "
+                         "source's own typefaces. Links, never copies — and the page stops "
+                         "being offline, which verify.py will then report")
     args = ap.parse_args(argv)
 
     tokens = json.loads(args.tokens.read_text(encoding="utf-8"))
@@ -864,7 +921,7 @@ def main(argv=None):
     args.out.mkdir(parents=True, exist_ok=True)
 
     light = args.out / "brand-guide.html"
-    light.write_text(render(tokens, brand), encoding="utf-8")
+    light.write_text(render(tokens, brand, link_fonts=args.link_fonts), encoding="utf-8")
     size = light.stat().st_size
     print(f"brand-guide.html      {size / 1024:.1f} KB"
           f"{'  ⚠ over the 150 KB budget' if size > MAX_LIGHT_BYTES else ''}")
@@ -872,7 +929,8 @@ def main(argv=None):
     cards, css = image_section(args.images)
     if cards:
         hero = args.out / "brand-guide-hero.html"
-        hero.write_text(render(tokens, brand, cards, css), encoding="utf-8")
+        hero.write_text(render(tokens, brand, cards, css, link_fonts=args.link_fonts),
+                        encoding="utf-8")
         print(f"brand-guide-hero.html {hero.stat().st_size / 1024:.1f} KB")
     else:
         print("brand-guide-hero.html  skipped (no images: the gradient fallbacks are the design)")

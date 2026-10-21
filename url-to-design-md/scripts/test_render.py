@@ -163,6 +163,19 @@ class Guide(unittest.TestCase):
                               rules)
         self.assertEqual(literals, [], "a hard-coded colour breaks the regenerate loop")
 
+    def test_a_square_system_renders_square(self):
+        """Measured on adidas.it: with no `--radius` emitted, the stylesheet's own 12px fallback
+        took over and every card in the guide came out rounded on a brand whose corners are sharp.
+        A radius of zero has to reach the page as a value, not as an absence."""
+        self.t["radius"] = {"values": [], "pill": False, "pillSeen": True, "default": 0.0,
+                            "buttonShape": {"pill": 1, "square": 4, "of": 5}}
+        html = render_guide.render(self.t, "Square Brand")
+        self.assertIn("--radius: 0px", html)
+        self.assertNotIn("--radius: 0.0px", html, "a spec file people read says 0px, not 0.0px")
+        style = re.search(r"<style>(.*?)</style>", html, re.S).group(1)
+        card = re.search(r"\.card \{(.*?)\}", style, re.S).group(1)
+        self.assertIn("var(--radius", card, "the card must read the token, not a literal")
+
     def test_the_rebuild_controls_are_present_for_the_gate(self):
         for control in ("button", "button-secondary", "card", "input"):
             self.assertIn(f'data-rebuild="{control}"', self.html)

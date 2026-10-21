@@ -72,7 +72,18 @@ chroma, so the result is the same colour with less light. Darkening in sRGB turn
 different colour, and the user did not ask for a different colour. Measured on the test page:
 `#9ca3af` (2.54, fail) → `#707782` (4.52, AA), hue 261.3 → 259.4, chroma 0.0192 → 0.0189.
 
-**5. Close.** When the user stops moving things, write the DESIGN.md and the record.
+**5. Check the drift before closing.** `analyze.slop_drift(final, measured)` compares what is about
+to be written with what was measured, and names anything that moved **away from the source and
+towards the look AI-generated design keeps landing on** — the cream ground, the terracotta accent,
+Inter as the safe face, `rounded-lg` on everything, the purple-to-blue hero.
+(`design-md-to-app/references/anti-slop-fallbacks.md` owns that subject; this only watches the
+drift.) Raise each one as a question like any other: it may be exactly what the user wanted, and
+then the answer is recorded rather than the move being undone.
+
+**Only drift counts.** A site that genuinely uses Inter on cream *is* that site. Flagging a value
+that was measured and kept would punish an accurate measurement, which is the opposite of the job.
+
+**6. Close.** When the user stops moving things, write the DESIGN.md and the record.
 
 ## What this step must not become
 

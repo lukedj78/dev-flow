@@ -170,6 +170,13 @@ window.__SNAPSHOT__ = (function extract(options) {
     var r = el.getBoundingClientRect();
     return {
       width: Math.round(r.width), height: Math.round(r.height),
+      // WHERE it is, in page coordinates, so the component can be cropped out of a screenshot and
+      // compared pixel for pixel against the same component rebuilt from the tokens. Without this
+      // the only available check is "does the computed style equal the token", which passes happily
+      // while the token itself is wrong — measured on adidas.it, where a pill-shaped system was
+      // derived from one 24px dot and nothing in the pipeline objected.
+      rect: { x: Math.round(r.left + window.scrollX), y: Math.round(r.top + window.scrollY),
+              w: Math.round(r.width), h: Math.round(r.height) },
       font: cs.fontFamily, fontSize: px(cs.fontSize), fontWeight: cs.fontWeight,
       lineHeight: px(cs.lineHeight), letterSpacing: px(cs.letterSpacing),
       textTransform: cs.textTransform !== "none" ? cs.textTransform : null,
@@ -184,7 +191,13 @@ window.__SNAPSHOT__ = (function extract(options) {
       shadow: cs.boxShadow !== "none" ? cs.boxShadow : null,
       transition: cs.transitionDuration !== "0s"
         ? { duration: cs.transitionDuration, easing: cs.transitionTimingFunction, property: cs.transitionProperty }
-        : null
+        : null,
+      // The label, so a rebuilt control can be compared against the original INCLUDING its type —
+      // which is where a brand is most itself. Capped and site-mode only: in `app` mode a control's
+      // text is somebody's data, and the rule there is shape without strings.
+      label: (MODE === "site"
+              ? (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40)
+              : null) || null
     };
   }
 
@@ -269,7 +282,10 @@ window.__SNAPSHOT__ = (function extract(options) {
     if (cs.rowGap && cs.rowGap !== "normal") { var g = px(cs.rowGap); if (g > 0) gapT.add(g); }
     if (cs.columnGap && cs.columnGap !== "normal") { var g2 = px(cs.columnGap); if (g2 > 0) gapT.add(g2); }
     var rad = px(cs.borderTopLeftRadius);
-    if (rad > 0) radT.add(rad >= rect.height / 2 && rect.height > 0 ? "pill" : rad);
+    // A radius of ZERO is a decision, not missing data. Dropping it reported adidas.it — whose
+    // corners are deliberately sharp — as having no radius at all, so the only value left was a
+    // single 24px dot and the whole system came out pill-shaped.
+    radT.add(rad > 0 && rad >= rect.height / 2 && rect.height > 0 ? "pill" : rad);
     if (cs.boxShadow && cs.boxShadow !== "none") shadowBag.add(cs.boxShadow, area);
     if (cs.display === "grid" && cs.gridTemplateColumns && cs.gridTemplateColumns !== "none") {
       gridBag.add(cs.gridTemplateColumns, area);

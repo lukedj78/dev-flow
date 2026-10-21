@@ -157,6 +157,29 @@ tool that helps you diverge also makes the clone prettier, which is why the reco
 - **Never fill a slot that was not observed.** A value nobody measured, sitting in a measured file,
   is indistinguishable from one that was.
 
+## AI slop, and the one form of it this skill can produce
+
+The repo already owns this: **`design-md-to-app/references/anti-slop-fallbacks.md`** — thirteen
+rules, ported from taste-skill. Read it there; it is not repeated here.
+
+**Most of it does not fire during a measurement, and that is by design.** Those rules apply when a
+value is *missing* and something has to be invented. Here nothing is missing: every value was read
+off a real page. Its own policy says so — a token the DESIGN.md defines explicitly wins over the
+fallback. So adidas.it's pure `#000000` ink stays pure black, measured, against the "no pure black"
+rule, because it is a fact about that site and not a default somebody reached for.
+
+**The slop risk here is the opposite one, and it belongs to step 4.** When the user moves away from
+the measurement, the generic look is where "be a bit more creative" lands: the cream ground with a
+terracotta accent, Inter or Space Grotesk as the safe face, `rounded-lg` on everything, the
+purple-to-blue gradient hero. The measurement protects against this while it is untouched; the
+divergence is where the protection ends.
+
+So `analyze.py#slop_drift` compares the final tokens with the frozen measured ones and reports what
+moved **away from the source and towards the average**. Only drift counts: a site that genuinely
+uses Inter on cream is that site, and flagging it would punish an accurate measurement. A value that
+was something else and is now one of those is a question, and the answer goes in `design-source.md`
+with everything else.
+
 ## What this produces
 
 In `.workflow/design-source/`: `snapshot-*.json` (the raw evidence), `tokens.json` (the single
