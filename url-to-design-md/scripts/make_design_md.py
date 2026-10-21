@@ -61,10 +61,21 @@ def px(value) -> str:
 
 
 def yaml_scalar(value) -> str:
+    """A scalar for the DESIGN.md front matter, which is agent input downstream.
+
+    Hand-rolled quoting is the wrong tool here. A font family read off a hostile page can carry a
+    newline, and a newline in a hand-quoted YAML scalar ends the value and starts a new KEY —
+    inside a file `design-md-to-app` reads as instructions. JSON is a subset of YAML 1.2, and
+    `json.dumps` already escapes quotes, backslashes and every control character, so the quoted
+    form is both correct and not ours to get wrong.
+    """
     s = str(value)
-    if s.startswith("#") or any(c in s for c in ":{}[],&*#?|-<>=!%@`") or s.strip() != s:
-        return '"' + s.replace('"', '\\"') + '"'
-    return s
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in s):
+        s = "".join(c for c in s if ord(c) >= 0x20 and ord(c) != 0x7F)
+    plain_ok = (s and s.strip() == s
+                and not s.startswith(("#", "-", "?", ":", "&", "*", "!", "|", ">", "%", "@", "`"))
+                and not any(c in s for c in ":{}[],\n\"'\\"))
+    return s if plain_ok else json.dumps(s)
 
 
 def typography_names(slots):

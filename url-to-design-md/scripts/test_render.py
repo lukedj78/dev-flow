@@ -77,6 +77,19 @@ class HostileInput(unittest.TestCase):
         self.assertIn("&lt;img", html)
         self.assertNotIn('"><img', html)
 
+    def test_the_header_logo_cannot_inject_a_tag(self):
+        """The third instance of the same class, and the one that proved the sweep was needed: the
+        logo line built its HTML by concatenating str() calls, so a measured colour or size went in
+        raw. Found by the review after two sibling fixes had already landed."""
+        comps = self.t["components"]
+        comps["header"] = {"height": 72, "sticky": True,
+                           "logo": {"tag": "img", "width": '"><img src=x onerror=alert(1)>',
+                                    "height": 28, "color": "</span><script>alert(2)</script>"}}
+        html = self.render()
+        self.assertNotIn("<img src=x", html)
+        self.assertNotIn("<script>alert(2)", html)
+        self.assertIn("&lt;img", html)
+
     def test_the_decision_page_is_escaped_too(self):
         """render_decision reuses render_guide's :root, so it inherits the fix — this proves it
         rather than assuming it."""
@@ -84,6 +97,38 @@ class HostileInput(unittest.TestCase):
         page = render_decision.render(self.t, "contrast", "muted-foreground",
                                       "#9ca3af", "#707782", "q")
         self.assertEqual(page.count("</style>"), 1)
+
+
+class DownstreamInput(unittest.TestCase):
+    """The DESIGN.md is read by another agent. A value that breaks out of its scalar is not a
+    rendering bug there, it is an instruction."""
+
+    def test_a_font_family_cannot_open_a_yaml_key(self):
+        import make_design_md
+        hostile = 'Inter"\nmalicious: "injected'
+        out = make_design_md.yaml_scalar(hostile)
+        self.assertNotIn("\n", out)
+        self.assertTrue(out.startswith('"') and out.endswith('"'))
+
+    def test_control_characters_are_stripped(self):
+        import make_design_md
+        self.assertNotIn("\x00", make_design_md.yaml_scalar("a\x00b"))
+        self.assertNotIn("\x1b", make_design_md.yaml_scalar("a\x1b[31mb"))
+
+    def test_a_plain_value_stays_unquoted(self):
+        import make_design_md
+        self.assertEqual(make_design_md.yaml_scalar("Inter"), "Inter")
+        self.assertEqual(make_design_md.yaml_scalar("#0b5fff"), '"#0b5fff"')
+
+
+class DecisionPaths(unittest.TestCase):
+    def test_the_token_name_cannot_escape_the_output_directory(self):
+        """`--token ../../x` would write outside --out, in a tool whose job is to be pointed at
+        untrusted material."""
+        import re as _re
+        scrubbed = _re.sub(r"[^A-Za-z0-9._-]+", "-", "../../etc/passwd")[:60].strip("-.")
+        self.assertNotIn("/", scrubbed)
+        self.assertFalse(scrubbed.startswith("."))
 
 
 class Guide(unittest.TestCase):

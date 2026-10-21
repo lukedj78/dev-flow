@@ -67,10 +67,12 @@ POST straight to disk:
 python3 url-to-design-md/scripts/collect.py --out .workflow/design-source --port 8781
 ```
 
-Then in the browser, per page × viewport:
+It prints **the collect URL, which carries a per-run secret** — a loopback socket is not a
+boundary, and without the secret any page the browser has open could write into the project. Copy
+that URL; a wrong one is refused with a clean 404 rather than a dropped connection.
 
 ```js
-window.__EXTRACT_OPTIONS__ = { mode: "site", collect: "http://127.0.0.1:8781/collect" };
+window.__EXTRACT_OPTIONS__ = { mode: "site", collect: "<the URL it printed>" };
 // load scripts/extract.js, then: await window.__SNAPSHOT__
 ```
 

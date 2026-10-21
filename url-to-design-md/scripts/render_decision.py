@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 from pathlib import Path
 
 import analyze
@@ -71,7 +72,7 @@ def specimen_type(tokens, slot_name, current, proposed):
         rows.append(f"""
       <div class="card">
         <div class="note">{esc(label)} — {esc(int(size) if size == int(size) else size)}px</div>
-        <div style="font-size:{esc(size)}px;line-height:{slot['lineHeightRatio'] or 1.15};
+        <div style="font-size:{esc(size)}px;line-height:{esc(slot['lineHeightRatio'] or 1.15)};
                     font-weight:{esc(slot['weight'])};
                     letter-spacing:{esc(slot['tracking'] or 0)}em;margin-top:8px">
           Ship the thing you measured</div>
@@ -278,7 +279,11 @@ def main(argv=None):
 
     cast = float if args.kind in ("type", "spacing") else str
     args.out.mkdir(parents=True, exist_ok=True)
-    target = args.out / f"decision-{args.kind}-{args.token}.html"
+    # The token name comes from the command line and lands in a FILENAME. `--token ../../x` would
+    # write outside --out, which is a path traversal in a tool whose whole job is to be pointed at
+    # untrusted material. Scrubbed to the characters a token name can actually have.
+    safe_token = re.sub(r"[^A-Za-z0-9._-]+", "-", str(args.token))[:60].strip("-.") or "token"
+    target = args.out / f"decision-{args.kind}-{safe_token}.html"
     target.write_text(render(tokens, args.kind, args.token,
                              cast(current) if current is not None else None,
                              cast(proposed) if proposed is not None else None,

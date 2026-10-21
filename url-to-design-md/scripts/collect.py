@@ -30,6 +30,7 @@ import base64
 import binascii
 import json
 import re
+import secrets
 import sys
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -62,40 +63,82 @@ class Collector(SimpleHTTPRequestHandler):
     out_dir: Path
     written: list
 
+    # send_error's second argument is the HTTP STATUS LINE, which must encode as latin-1. An em
+    # dash in it raises inside the handler, the connection dies, and a refusal looks like a crash —
+    # measured here on 2026-10-21. Reason phrases stay short and ASCII; the prose goes in `explain`.
+    def _drain(self):
+        """Read and discard the body before refusing.
+
+        Replying before the client has finished sending resets the connection, and curl reports
+        `000` — which reads as "the server is down", not "the request was refused". A rejection
+        must look like a rejection.
+        """
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return
+        remaining = min(length, MAX_ASSET_BODY)
+        while remaining > 0:
+            chunk = self.rfile.read(min(65536, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+
+    def _authorised(self) -> bool:
+        """Three gates, because a loopback socket is not a boundary.
+
+        Any page the browser has open can POST to 127.0.0.1 — that is what CORS is for, and a
+        wildcard turns it off. So: a per-run secret in the path, which a page that was not handed
+        the URL cannot guess; an Origin that is echoed back only when the secret checked out,
+        never `*`; and a Host that must be loopback, which is what stops a DNS-rebinding page from
+        reaching this socket under its own origin.
+        """
+        host = (self.headers.get("Host") or "").split(":")[0]
+        if host not in ("127.0.0.1", "localhost", "[::1]", "::1"):
+            self._drain()
+            self.send_error(403, "Forbidden", "this collector answers on loopback only")
+            return False
+        want = f"/collect/{self.token}"
+        if not secrets.compare_digest(self.path.rstrip("/"), want):
+            self._drain()
+            self.send_error(404, "Not Found",
+                            "the collect URL carries this run's token")
+            return False
+        return True
+
     def do_POST(self):                                    # noqa: N802 (http.server's spelling)
-        if self.path.rstrip("/") != "/collect":
-            self.send_error(404, "only /collect accepts a POST")
+        if not self._authorised():
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
-            self.send_error(411, "Content-Length required")
+            self.send_error(411, "Length Required", "Content-Length is required")
             return
         if length <= 0 or length > MAX_ASSET_BODY:
-            self.send_error(413, f"body must be 1..{MAX_ASSET_BODY} bytes")
+            self.send_error(413, "Payload Too Large", f"body must be 1..{MAX_ASSET_BODY} bytes")
             return
 
         raw = self.rfile.read(length)
         try:
             snapshot = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
-            self.send_error(400, f"not JSON: {e}")
+            self.send_error(400, "Bad Request", f"not JSON: {e}")
             return
         if not isinstance(snapshot, dict) or snapshot.get("schema") != SCHEMA:
-            self.send_error(422, f"not a snapshot of schema {SCHEMA}")
+            self.send_error(422, "Unprocessable Content", f"not a snapshot of schema {SCHEMA}")
             return
 
         if snapshot.get("kind") == "asset":
             self._write_asset(snapshot, len(raw))
             return
         if length > MAX_BODY:
-            self.send_error(413, f"a JSON snapshot must be 1..{MAX_BODY} bytes")
+            self.send_error(413, "Payload Too Large", f"a JSON snapshot must be 1..{MAX_BODY} bytes")
             return
 
         target = self.out_dir / safe_name(snapshot)
         # resolve() then check containment: belt and braces against a name that escapes --out
         if self.out_dir.resolve() not in target.resolve().parents:
-            self.send_error(400, "refusing to write outside --out")
+            self.send_error(400, "Bad Request", "refusing to write outside --out")
             return
         target.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
         self.written.append(target)
@@ -116,16 +159,16 @@ class Collector(SimpleHTTPRequestHandler):
         and a scrubbed label, never from a client-supplied path or extension."""
         kind = str(payload.get("format") or "").lower()
         if kind not in ASSET_KINDS:
-            self.send_error(422, f"format must be one of {sorted(ASSET_KINDS)}")
+            self.send_error(422, "Unprocessable Content", f"format must be one of {sorted(ASSET_KINDS)}")
             return
         label = SAFE.sub("-", str(payload.get("label") or "asset"))[:48].strip("-") or "asset"
         try:
             blob = base64.b64decode(payload.get("data") or "", validate=True)
         except (binascii.Error, ValueError) as e:
-            self.send_error(400, f"data is not base64: {e}")
+            self.send_error(400, "Bad Request", f"data is not base64: {e}")
             return
         if not blob:
-            self.send_error(422, "empty asset")
+            self.send_error(422, "Unprocessable Content", "empty asset")
             return
 
         target = self.out_dir / f"{label}{ASSET_KINDS[kind]}"
@@ -146,14 +189,20 @@ class Collector(SimpleHTTPRequestHandler):
         print(f"[{stamp}] collected {target.name} ({len(blob) / 1024:.0f} KB)", flush=True)
 
     def do_OPTIONS(self):                                 # noqa: N802
+        if not self._authorised():
+            return
         self.send_response(204)
         self._cors()
         self.end_headers()
 
     def _cors(self):
-        # Any http origin may POST: the point is to collect from a dev server on another port. It
-        # binds to loopback, so "any origin" means any page this machine's browser already has open.
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Echo the caller's origin, never `*`, and only from a request that already proved it knows
+        # this run's token. The page needs a dev server on another port to be able to POST; it does
+        # not need every page on the machine to be able to.
+        origin = self.headers.get("Origin")
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
 
@@ -168,6 +217,8 @@ def main(argv=None):
     ap.add_argument("--serve", type=Path, default=None,
                     help="also serve this directory over http (for local fixtures or a static page)")
     ap.add_argument("--port", type=int, default=8781)
+    ap.add_argument("--token", default=None,
+                    help="reuse a token instead of generating one (for a scripted re-run)")
     args = ap.parse_args(argv)
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -175,12 +226,15 @@ def main(argv=None):
 
     Collector.out_dir = args.out.resolve()
     Collector.written = []
+    Collector.token = args.token or secrets.token_urlsafe(24)
 
     def build(*a, **kw):
         return Collector(*a, directory=str(serve_dir), **kw)
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), build)
-    print(f"collector on http://127.0.0.1:{args.port}/collect -> {args.out}", flush=True)
+    collect_url = f"http://127.0.0.1:{args.port}/collect/{Collector.token}"
+    print(f"collect URL (pass this to extract.js as `collect`):\n  {collect_url}", flush=True)
+    print(f"writing to {args.out}", flush=True)
     print(f"serving {serve_dir}", flush=True)
     try:
         server.serve_forever()

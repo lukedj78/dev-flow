@@ -637,8 +637,8 @@ def components(tokens):
     {box}
     <span class="note">height {esc(header.get('height'))}px ·
     {'sticky' if header.get('sticky') else 'static'}
-    {('· logo ' + str(logo.get('width')) + '×' + str(logo.get('height')) +
-      ' in ' + str(logo.get('color'))) if logo else ''}</span>
+    {('· logo ' + esc(logo.get('width')) + '×' + esc(logo.get('height'))
+      + ' in ' + esc(logo.get('color'))) if logo else ''}</span>
   </div>
   <p class="note">The logo is a dashed box at its measured size. It is never copied: it belongs to
   its owner, and a measurement does not transfer it.</p>"""
