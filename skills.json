@@ -649,7 +649,6 @@
         "review.md"
       ],
       "scripts": [
-        "_adidas-guide.html",
         "analyze.py",
         "collect.py",
         "extract.js",

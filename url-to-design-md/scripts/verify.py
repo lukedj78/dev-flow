@@ -58,6 +58,53 @@ class Result:
         print(f"\n{len(self.checks) - len(self.failed)}/{len(self.checks)} passed")
 
 
+
+# Rule 11 of `design-md-to-app/references/anti-slop-fallbacks.md` — "the tells that are structural,
+# not textual" — applied to our own artefact. It has to live in the gate rather than in anyone's
+# eye: the guide is generated the same way every time, so if its silhouette reads as AI slop it does
+# so on every site, for ever, and the tokens being accurate does not rescue it. Caught on the first
+# real run: the user looked at the adidas guide and saw it before any check did.
+def slop_checks(html, res):
+    import collections
+
+    # "A row of identical metric boxes. Four numbers in four boxes state four facts and no argument."
+    metric_rows = len(re.findall(r'class="grid grid--4"', html))
+    boxes = len(re.findall(r'<div class="card"><div class="note">[^<]+</div>'
+                           r'<div style="font-size:var\(--size-3xl', html))
+    res.add("no row of identical metric boxes", boxes < 3,
+            f"{boxes} metric box(es) in {metric_rows} row(s)" if boxes else "none")
+
+    # "The same section silhouette repeated for sections that answer different questions."
+    silhouettes = collections.Counter()
+    for sec in re.findall(r"<section[^>]*>(.*?)</section>", html, re.S):
+        shape = (("h2" if "<h2" in sec else "")
+                 + ("+lede" if 'class="lede"' in sec else "")
+                 + ("+grid" if 'class="grid' in sec else "")
+                 + ("+table" if "<table" in sec else ""))
+        if shape:
+            silhouettes[shape] += 1
+    worst = silhouettes.most_common(1)[0] if silhouettes else ("", 0)
+    res.add("sections do not all share one silhouette", worst[1] <= 3,
+            f"{worst[1]} sections shaped `{worst[0]}`" if worst[1] else "varied")
+
+    # "Decorative gradients, glows, blobs, mesh backgrounds, glassmorphism."
+    glass = "backdrop-filter" in html
+    res.add("no glassmorphism", not glass,
+            "backdrop-filter present" if glass else "none")
+
+    # "A badge or pill for ordinary metadata. A date is a date."
+    pills = re.findall(r'<span class="pill"[^>]*>([^<]{1,40})</span>', html)
+    status_pills = [p for p in pills if "unofficial" in p.lower() or "decision" in p.lower()
+                    or "before" in p.lower()]
+    res.add("pills are used for status, not for data", len(pills) - len(status_pills) <= 1,
+            f"{len(pills) - len(status_pills)} pill(s) carrying measurements")
+
+    # "Repeated summary / recommendation blocks that restate one another."
+    repeats = html.count("Not observed")
+    res.add("no section restates another", repeats <= 2,
+            f"'Not observed' appears {repeats} times")
+
+
 def static_checks(path: Path, hero: bool, res: Result):
     html = path.read_text(encoding="utf-8", errors="replace")
     size = path.stat().st_size
@@ -66,8 +113,22 @@ def static_checks(path: Path, hero: bool, res: Result):
             f"{size / 1024:.1f} KB of {budget / 1024:.0f} KB")
 
     external = [m.group(0) for m in EXTERNAL.finditer(html)]
-    res.add("opens offline, no external reference", not external,
-            f"{len(external)} external reference(s)" if external else "no http(s) reference")
+    # Linking the source's own @font-face files is a declared trade, not a defect: the guide renders
+    # in the real typeface and stops being offline. The gate has to tell the two apart, or the
+    # honest edition always looks broken and the check stops being read.
+    # Count RULES, not the words. The page also says "No @font-face rule was readable" in
+    # prose, and counting that made an injected external stylesheet look like a linked font.
+    faces = len(re.findall(r"@font-face\s*\{", html))
+    if faces and external:
+        # One face legitimately declares several URLs — woff2 and woff, sometimes ttf — so the
+        # budget is per format, not per rule. More than that and something other than a font is
+        # being fetched, which is the case this check exists for.
+        res.add("external references are only the linked font faces", len(external) <= faces * 3,
+                f"{len(external)} reference(s) from {faces} @font-face rule(s) — "
+                f"this edition is NOT offline, by choice (--link-fonts)")
+    else:
+        res.add("opens offline, no external reference", not external,
+                f"{len(external)} external reference(s)" if external else "no http(s) reference")
 
     present = [s for s in REQUIRED_SECTIONS if f'id="{s}"' in html]
     res.add("every required section is present", len(present) == len(REQUIRED_SECTIONS),
@@ -87,6 +148,7 @@ def static_checks(path: Path, hero: bool, res: Result):
         tokens = json.loads(m.group(1))
         res.add("token JSON is embedded and parses", True,
                 f"{len(tokens.get('color', {}).get('roles', {}))} colour roles")
+        tokens["_linkedFaces"] = faces
     except json.JSONDecodeError as e:
         res.add("token JSON is embedded and parses", False, str(e))
         return None
@@ -106,6 +168,8 @@ def static_checks(path: Path, hero: bool, res: Result):
             res.add("voice quotes are short enough to be fair use",
                     all(len(q.get("text", "").split()) <= 15 for q in voice["quotes"]),
                     f"{len(voice['quotes'])} quote(s)")
+
+    slop_checks(html, res)
 
     # The whole point: a value that appears as a literal where a token should be. The guide's own
     # controls are checked properly in the browser; this catches the gross case cheaply.
@@ -141,8 +205,17 @@ def inpage_checks(path: Path, tokens, res: Result):
             f"scrollWidth {data.get('scrollWidth')} > clientWidth {data.get('clientWidth')}"
             if data.get("noHorizontalScroll") is not True else "390px clean")
     if "networkRequests" in data:
-        res.add("zero network requests when opened", data["networkRequests"] == 0,
-                f"{data['networkRequests']} request(s)")
+        # Same declared trade as the static half: with --link-fonts the page fetches the source's
+        # own font files and nothing else. A check that cannot tell that from a stray tracker is a
+        # check people learn to ignore.
+        faces = (tokens or {}).get("_linkedFaces", 0)
+        if faces:
+            res.add("network requests are only the linked fonts",
+                    data["networkRequests"] <= faces * 3,
+                    f"{data['networkRequests']} request(s) for {faces} face(s) — not offline, by choice")
+        else:
+            res.add("zero network requests when opened", data["networkRequests"] == 0,
+                    f"{data['networkRequests']} request(s)")
 
 
 def main(argv=None):

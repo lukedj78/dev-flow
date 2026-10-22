@@ -269,8 +269,7 @@ def stylesheet(tokens):
     position: sticky; top: 0; z-index: 50;
     display: flex; align-items: center; gap: 12px;
     padding: 12px 16px;
-    background: color-mix(in oklab, {ground} 86%, transparent);
-    backdrop-filter: blur(10px);
+    background: {ground};
     border-bottom: 1px solid {fallback("--border", "rgba(0,0,0,.08)")};
     font-size: {fallback("--size-sm", "14px")};
     flex-wrap: wrap;
@@ -437,8 +436,7 @@ def cover(tokens, brand):
       Nothing here is a design proposal yet — it is the starting point you are about to move away from.
     </p>
     <p><a class="btn" href="#rebuild">See the tokens rebuilt</a></p>
-    <div class="card" style="max-width:360px;background:color-mix(in oklab, var(--card, #fff) 20%, transparent);
-                             backdrop-filter:blur(8px);color:inherit">
+    <div class="card" style="max-width:360px;color:inherit">
       <div class="note" style="color:inherit;opacity:.8">Type scale</div>
       <div style="font-size:var(--size-3xl, 28px);font-weight:600">
         {len(scale['slots'])} steps{'' if scale['uniform'] is False else ' · ' + str(scale['ratio'])}
@@ -452,32 +450,48 @@ def cover(tokens, brand):
 
 
 def overview(tokens):
-    stats = [
-        ("Typefaces", len(tokens["typography"]["families"])),
-        ("Colour roles", len(tokens["color"]["roles"])),
-        ("Spacing base", f"{tokens['spacing']['base']}px" if tokens["spacing"]["base"] else "—"),
-        ("Button variants", len(tokens["components"].get("button", {}).get("variants", []))),
-    ]
-    cells = "".join(
-        f'<div class="card"><div class="note">{esc(label)}</div>'
-        f'<div style="font-size:var(--size-3xl, 30px);font-weight:600">{esc(value)}</div></div>'
-        for label, value in stats)
+    """One composed statement, not a row of boxes.
+
+    Rule 11 of anti-slop-fallbacks: "a row of identical metric boxes — four numbers in four boxes
+    state four facts and no argument". The first version of this section was exactly that, and the
+    user spotted it on the adidas guide before any check did. What a measurement actually has to
+    say is a RATIO with its denominator visible: how much of the system was found, out of how much
+    there is.
+    """
+    roles = tokens["color"]["roles"]
+    scale = tokens["typography"]["scale"]
+    space = tokens["spacing"]
+    src = tokens["source"]
+    slots_total = len(roles) + len(tokens["missing"])
+    pages = src["pageCount"]
+    vps = len(src["viewports"])
+
     missing = ""
     if tokens["missing"]:
-        items = "".join(f"<li>{esc(m)}</li>" for m in tokens["missing"])
-        missing = f"""
-    <div class="card missing" style="margin-top:24px">
-      <h3>Not observed, and therefore not written</h3>
-      <p class="note">These slots had no evidence on the pages read. They keep their framework
-      default on purpose: a value nobody measured, sitting in a measured file, is indistinguishable
-      from one that was.</p>
-      <ul class="note">{items}</ul>
-    </div>"""
+        items = ", ".join(esc(m.split(" ")[0]) for m in tokens["missing"])
+        missing = (f'<p class="note missing" style="margin-top:20px">Not observed, and therefore '
+                   f'not written: {items}. These keep their framework default on purpose — a value '
+                   f'nobody measured, sitting in a measured file, is indistinguishable from one '
+                   f'that was.</p>')
+
+    shape = tokens["radius"].get("buttonShape") or {}
+    shape_line = ""
+    if shape.get("of"):
+        shape_line = (f' The default control shape is '
+                      f'{"a pill" if tokens["radius"]["pill"] else str(tokens["radius"]["default"] or 0) + "px"}'
+                      f', from {shape.get("square" if not tokens["radius"]["pill"] else "pill", 0)}'
+                      f' of {shape["of"]} buttons.')
+
     return f"""
 <section id="overview"><div class="wrap">
-  <h2>Overview</h2>
-  <p class="lede">What the measurement found, before anyone touched it.</p>
-  <div class="grid grid--4" style="margin-top:24px">{cells}</div>
+  <h2>What was found, and what was not</h2>
+  <p style="font-size:var(--size-xl, 20px);max-width:48ch;margin:16px 0 0">
+    <strong>{len(roles)} of {slots_total}</strong> colour roles had evidence;
+    <strong>{len(scale['slots'])}</strong> type steps came out of
+    {esc(pages)} page(s) read at {esc(vps)} width(s); and a
+    <strong>{esc(space['base'] or '—')}px</strong> grid explains
+    <strong>{space['coverage']:.0%}</strong> of every spacing value on them.{shape_line}
+  </p>
   {missing}
 </div></section>"""
 
@@ -704,16 +718,32 @@ def components(tokens):
 
 
 def imagery(tokens, image_cards):
+    """Described in a sentence, because the facts are related and boxes would hide the relation.
+
+    This section used to be four metric boxes too — the same tell as the Overview, wearing a
+    different grid class.
+    """
     media = tokens.get("mediaSummary") or {}
-    facts = "".join(
-        f'<div class="card"><div class="note">{esc(k)}</div>'
-        f'<div style="font-size:var(--size-xl,20px);font-weight:600">{esc(v)}</div></div>'
-        for k, v in media.items()) or '<p class="note">No media statistics were recorded.</p>'
+    ratio = media.get("areaRatio")
+    counts = media.get("counts") or {}
+    total = sum(counts.values()) if counts else 0
+    fits = ", ".join(f"{k} ({n})" for k, n in (media.get("objectFit") or {}).items())
+    bleed = media.get("fullBleed")
+
+    if not media:
+        body = ('<p class="note">No media statistics were recorded for these pages.</p>')
+    else:
+        body = (f'<p style="font-size:var(--size-xl, 20px);max-width:52ch;margin:16px 0 0">'
+                f'{esc(total)} image(s) and video(s) cover '
+                f'<strong>{(ratio or 0):.0%}</strong> of the page area'
+                + (f', {esc(bleed)} of them full-bleed' if bleed else '')
+                + (f'. Crops are {esc(fits)}' if fits else '')
+                + '. The source\'s own photographs stay on the source: what is recorded here is a '
+                  'description of them, never a copy.</p>')
     return f"""
 <section id="imagery"><div class="wrap">
   <h2>Imagery</h2>
-  <p class="lede">Described, never copied. The source site's photographs stay on the source site.</p>
-  <div class="grid grid--4" style="margin-top:24px">{facts}</div>
+  {body}
   {image_cards}
 </div></section>"""
 

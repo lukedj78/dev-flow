@@ -61,3 +61,6 @@ android/.gradle/
 
 # Compliance runs (a run's report worth keeping goes to evals/compliance/baselines/)
 evals/compliance/results/
+
+# scratch artefacts from a real-site run (generated into the served dir)
+url-to-design-md/scripts/_*.html
