@@ -125,6 +125,88 @@ window.__SNAPSHOT__ = (function extract(options) {
 
   var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEMPLATE: 1, HEAD: 1, META: 1, LINK: 1, TITLE: 1, BR: 1, WBR: 1 };
 
+  // Relative luminance, for telling a dark band from a light one. The same formula the contrast
+  // ratio uses, so "dark" here means the same thing it means everywhere else in this system.
+  function relLuminance(hex) {
+    var m = /^#([0-9a-f]{6})$/i.exec(hex || "");
+    if (!m) return null;
+    var v = [0, 2, 4].map(function (i) {
+      var c = parseInt(m[1].substr(i, 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+
+  // THE SECTION RHYTHM. The gist asks for it twice — "the home page's section rhythm (light/dark
+  // bands)" in the analysis, and "its alternating light and dark grounds" as the guide's own art
+  // direction — and measuring it is what tells a one-ground site from a banded one.
+  //
+  // Measured on apple.com: inside `<main>` the most painted ground is #000000 and the most used
+  // ink is #f5f5f7, while the page as a whole reads as light. Neither number is wrong; the site
+  // simply has no single ground, and a system that assumes one describes a different site. That
+  // is the shape of the complaint this was written for.
+  function sectionBands() {
+    // BY GEOMETRY, NOT BY TAG. The first version asked for `main > *` and `section`, and on
+    // apple.com found three elements that paint nothing: its bands are `div.tile-wrapper`, and
+    // the next site will call them something else again. What a band IS, is a full-width box tall
+    // enough to read as one, which paints its own ground. That holds whatever it is called.
+    var W = window.innerWidth, bands = [], seen = 0;
+    var all = document.querySelectorAll("body *");
+    for (var i = 0; i < all.length && bands.length < 60; i += 1) {
+      var n = all[i];
+      var r = n.getBoundingClientRect();
+      if (r.width < W * 0.95 || r.height < 300) continue;
+      var cs; try { cs = getComputedStyle(n); } catch (e) { continue; }
+      var bg = normColor(cs.backgroundColor);
+      var img = cs.backgroundImage && cs.backgroundImage !== "none";
+      if (!bg && !img) continue;
+      seen += 1;
+      if (regionOf(n) !== "content") continue;   // the footer is 8512px tall on apple.com
+      // A fixed or sticky overlay travels with the viewport; it is not a stripe of the document.
+      // apple.com's `globalnav-curtain` is a full-height translucent sheet behind the open menu,
+      // and it came back as the page's first band.
+      if (cs.position === "fixed" || cs.position === "sticky") continue;
+      var lum = bg ? relLuminance(bg) : null;
+      bands.push({
+        top: Math.round(r.top + window.scrollY), height: Math.round(r.height),
+        ground: bg,
+        kind: bg ? (lum !== null && lum < 0.18 ? "dark" : "light") : "image",
+      });
+    }
+    // Nested boxes paint the same stripe twice. Keep the OUTERMOST at each position, which is the
+    // one a reader sees as the band.
+    bands.sort(function (a, b) { return a.top - b.top || b.height - a.height; });
+    var out = [];
+    for (var j = 0; j < bands.length; j += 1) {
+      var b = bands[j], prev = out[out.length - 1];
+      if (prev && b.top < prev.top + prev.height * 0.9 && b.ground === prev.ground) continue;
+      out.push(b);
+    }
+    return { seen: seen, bands: out.slice(0, 40) };
+  }
+
+  // CHROME IS NOT CONTENT. The gist says to dedupe it — "any count that is identical on every page
+  // (header and footer) is counted once" — and with a single page read, that dedupe cannot happen
+  // at all. Measured on apple.com: its legal footer carries 68 024 characters in
+  // `rgba(0, 0, 0, 0.56)` across 112 elements, 607 each, while the content's ink (#1d1d1f) has 317
+  // characters across 17. Weighting text by characters then hands `text` to the footer, on every
+  // site with a long legal footer, which is most of them.
+  //
+  // So each element records WHERE it sits. Both weights are kept: analysis reads the content one
+  // for the roles and can still see the chrome, rather than a filter deciding silently.
+  function regionOf(el) {
+    for (var n = el; n && n !== document.documentElement; n = n.parentElement) {
+      var tag = n.tagName;
+      var role = (n.getAttribute && n.getAttribute("role")) || "";
+      if (tag === "FOOTER" || role === "contentinfo") return "footer";
+      if (tag === "NAV" || role === "navigation") return "nav";
+      if (tag === "HEADER" || role === "banner") return "header";
+      if (tag === "ASIDE" || role === "complementary") return "aside";
+      if (tag === "MAIN" || role === "main") return "content";
+    }
+    return "content";
+  }
+
   /* -------------------------------------------------------------- counters */
 
   function Bag() { this.m = Object.create(null); }
@@ -276,7 +358,8 @@ window.__SNAPSHOT__ = (function extract(options) {
 
   /* ------------------------------------------------------------- the walk */
 
-  var colors = { text: new Bag(), background: new Bag(), border: new Bag(), fill: new Bag() };
+  var colors = { text: new Bag(), background: new Bag(), border: new Bag(), fill: new Bag(),
+                 contentText: new Bag(), contentBackground: new Bag() };
   var gradients = new Bag();
   var typeBag = Object.create(null);
   var padT = new Tally(), marT = new Tally(), gapT = new Tally(), radT = new Tally();
@@ -311,8 +394,14 @@ window.__SNAPSHOT__ = (function extract(options) {
 
     // Text is weighted by characters and backgrounds by painted area: a 1px border on every row and
     // a hero's background are both "one colour, many elements", and only the weight separates them.
-    if (chars > 0) colors.text.add(normColor(cs.color), chars);
+    var region = regionOf(el);
+    var isChrome = region !== "content";
+    if (chars > 0) {
+      colors.text.add(normColor(cs.color), chars);
+      if (!isChrome) colors.contentText.add(normColor(cs.color), chars);
+    }
     colors.background.add(normColor(cs.backgroundColor), area);
+    if (!isChrome) colors.contentBackground.add(normColor(cs.backgroundColor), area);
     // Read the colour of a side only when THAT side has width. `borderTopColor` is defined even
     // when `borderTopWidth` is 0, and it falls back to the element's `color` — so a header with
     // only a bottom border reported its TEXT colour as the border colour, at the full page width,
@@ -751,8 +840,16 @@ window.__SNAPSHOT__ = (function extract(options) {
       text: colors.text.list("chars", 60),
       background: colors.background.list("area", 60),
       border: colors.border.list("length", 40),
-      fill: colors.fill.list("area", 30)
+      fill: colors.fill.list("area", 30),
+      // Content only — chrome excluded. The gist's dedupe, done by position rather than by
+      // comparing pages, so it works on a single capture too. Both lists travel: the roles read
+      // these, and `text`/`background` stay so the difference can be reported rather than hidden.
+      contentText: colors.contentText.list("chars", 40),
+      contentBackground: colors.contentBackground.list("area", 40)
     },
+    // The rhythm travels with the measurement, because the guide's own art direction is supposed
+    // to come from it: "its alternating light and dark grounds" (gist §4).
+    rhythm: sectionBands(),
     gradients: gradients.list("area", 12),
     fontFamilies: fontFamilies.list("chars", 10),
     type: typeRows.slice(0, 60),

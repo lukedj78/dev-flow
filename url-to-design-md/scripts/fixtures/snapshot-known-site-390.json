@@ -5,7 +5,7 @@
   "origin": "file://",
   "path": "/Users/lucadigerlando/my-skills/url-to-design-md/scripts/fixtures/known-site.html",
   "title": "Known Site",
-  "capturedAt": "2026-10-22T10:09:01.642Z",
+  "capturedAt": "2026-10-22T10:31:32.506Z",
   "viewport": {
     "width": 390,
     "height": 844,
@@ -97,6 +97,71 @@
         "value": "#000000",
         "elements": 1,
         "area": 3360
+      }
+    ],
+    "contentText": [
+      {
+        "value": "#374151",
+        "elements": 4,
+        "chars": 179
+      },
+      {
+        "value": "#ffffff",
+        "elements": 4,
+        "chars": 153
+      },
+      {
+        "value": "#111827",
+        "elements": 7,
+        "chars": 95
+      },
+      {
+        "value": "#9ca3af",
+        "elements": 1,
+        "chars": 11
+      }
+    ],
+    "contentBackground": [
+      {
+        "value": "#f9fafb",
+        "elements": 3,
+        "area": 85623
+      },
+      {
+        "value": "#0b1020",
+        "elements": 1,
+        "area": 34125
+      },
+      {
+        "value": "#ffffff",
+        "elements": 2,
+        "area": 21514
+      },
+      {
+        "value": "#0069e8",
+        "elements": 1,
+        "area": 7285
+      },
+      {
+        "value": "#2563eb",
+        "elements": 1,
+        "area": 6789
+      },
+      {
+        "value": "#f3f4f6",
+        "elements": 1,
+        "area": 6280
+      }
+    ]
+  },
+  "rhythm": {
+    "seen": 1,
+    "bands": [
+      {
+        "top": 72,
+        "height": 561,
+        "ground": null,
+        "kind": "image"
       }
     ]
   },

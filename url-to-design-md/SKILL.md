@@ -53,8 +53,26 @@ Ask, in this order, and do not start until all three have an answer:
 
 1. **Whose site is it?** Theirs, or somebody else's.
 2. **`site` or `app`?** If it is behind a login, it is `app`.
-3. **Which pages?** Home plus three or four that carry different furniture — a product page, a
-   pricing page, a form. For an app: a list, a detail, a form, a settings screen.
+3. **Which pages?** `scripts/pick_pages.js` scores the same-origin links and proposes four; show
+   the list with its reasons and let the user change it. For an app: a list, a detail, a form, a
+   settings screen, chosen by the user because a signed-in app cannot be crawled.
+
+```js
+window.__PICK_PAGES__ = { limit: 4 };   // then load scripts/pick_pages.js; read window.__PAGES__
+```
+
+⚠️ **Reading one page is not an option, and that is not a preference.** The spec this skill comes
+from asks for "the home page plus 3–5 key pages, chosen by scoring same-origin links", and the
+reason is two paragraphs later: "dedupe repeated chrome — any count that is identical on every page
+(header and footer) is counted once". **With one page there is nothing to compare, so the dedupe
+cannot happen at all.** Measured on apple.com, from one page: its legal footer carries 68 024
+characters, the content's headings carry 317, and `foreground` came out as the footer's grey. The
+guide was then a faithful description of a footer.
+
+The scorer ranks by the **visible nav bar, left to right**, not by DOM order: apple.com's nav holds
+235 anchors because the mega-menu sits in the DOM beside the bar, and `/iphone` is the 75th of them
+while being the fourth thing a person sees. Links **from the chrome do not count as evidence** of a
+page's importance either — the same footer points at the store 94 times.
 
 ### 2. Measure
 
@@ -314,6 +332,7 @@ schema. Key facts:
 
 ## Scripts
 
+- `scripts/pick_pages.js` — which pages to measure, scored and explained (spec §1)
 - `scripts/extract.js` — the injectable extractor, one file for both delivery paths
 - `scripts/collect.py` — the local collector, so nothing passes through Downloads or the agent
 - `scripts/analyze.py` — snapshots → tokens, and the questions the review step asks
