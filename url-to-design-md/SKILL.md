@@ -117,6 +117,30 @@ computed styles back and fails when one does not equal its token — a guide wit
 
 Show the guide. Then work through the decisions the measurement raised, each with a picture.
 
+### 4b. Prove the primitives — `scripts/pixel_check.py`
+
+Everything else checks that the guide agrees with the tokens, which passes happily while the
+**tokens** are wrong. This crops the real control out of the real page and rebuilds the same box
+from the tokens alone, then counts the pixels.
+
+```bash
+python3 url-to-design-md/scripts/pixel_check.py build .workflow/design-source/tokens.json \
+  --out .workflow/design-source        # writes rebuild.html from the tokens
+# screenshot both in the browser, then:
+python3 url-to-design-md/scripts/pixel_check.py compare --out .workflow/design-source
+```
+
+It reports **chrome** (border, radius, ground — what the tokens decide; a mismatch is a wrong
+token) separately from **content** (where a label sits, an icon inside — no token says that, so it
+is reported and never failed on). On adidas.it it took three controls from 96% difference to
+**0.0% chrome**, and every step of the way the thing it found was a real token error: a pill system
+derived from one 24px dot, white ink on a white ground, a `--border` that was the ground itself, a
+control weight lost by snapping to the body scale.
+
+**Known limit, with its evidence**: on that run the announcement bar still differs by 16.3% chrome,
+and it is one 1px grey row inside the element's own box that is neither a border, nor a box-shadow,
+nor a focus ring — all three were checked and ruled out. Recorded rather than explained away.
+
 ### 5. Write it
 
 ```bash
@@ -126,6 +150,16 @@ python3 url-to-design-md/scripts/make_design_md.py .workflow/design-source/token
 
 `.workflow/DESIGN.md` is the only file that enters the flow. `design-source.md` sits beside it and
 nothing downstream reads it.
+
+```bash
+python3 url-to-design-md/scripts/run_log.py --out .workflow/design-source \
+  --note "anything a person decided that the files cannot show"
+```
+
+`run-log.md` records what was read, what came out, what had to be assumed and what the measurement
+could not see. A measurement without its conditions is an opinion with numbers in it: in six months
+the question is not what the system says — that is in the DESIGN.md — but how much of the site was
+seen, and what was taken on trust.
 
 ### 6. Hand over
 
@@ -214,5 +248,8 @@ schema. Key facts:
 - `scripts/render_decision.py` — one decision, drawn side by side
 - `scripts/render_media.py` — eleven scenes → twelve slides
 - `scripts/verify.py` + `scripts/verify_page.js` — the gate, static and in-page
+- `scripts/pixel_check.py` — rebuild a control from the tokens and count the pixels
+- `scripts/images.py` — prompts, the three image modes, WebP
+- `scripts/run_log.py` — what was read, assumed, and could not be seen
 - `scripts/make_design_md.py` — the DESIGN.md and the divergence record
 - `scripts/test_analyze.py` — 26 tests against a page whose true values are written down

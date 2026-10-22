@@ -659,12 +659,13 @@
         "render_decision.py",
         "render_guide.py",
         "render_media.py",
+        "run_log.py",
         "test_analyze.py",
         "test_render.py",
         "verify.py",
         "verify_page.js"
       ],
-      "skill_md_lines": 218,
+      "skill_md_lines": 255,
       "bundle": "dist/url-to-design-md.skill"
     },
     {

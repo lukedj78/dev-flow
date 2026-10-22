@@ -27,7 +27,7 @@ import json
 import math
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 SCHEMA = 1
@@ -401,7 +401,22 @@ def colour_roles(merged, missing):
     else:
         missing.append("primary")
 
-    if borders:
+    # A border the same colour as the ground is not a border. Measured on adidas.it: the heaviest
+    # border colour by length was #ffffff on a #ffffff page, so the token drew nothing and a
+    # rebuilt button lost its frame — which is what the pixel comparison was still showing after
+    # the weight and the shape were right. Same shape of mistake as the ink; same fix.
+    if borders and page_bg:
+        visible = [r for r in borders
+                   if (contrast(r["value"], page_bg) or 0) >= 1.1]
+        if visible and visible[0] is not borders[0]:
+            roles["border"] = ev(visible[0],
+                                 f"the most border length that is visible on the ground "
+                                 f"({borders[0]['value']} had more but is the ground itself)")
+        elif visible:
+            roles["border"] = ev(visible[0], "the most border length on the page")
+        else:
+            missing.append(f"border (every measured border colour is invisible on {page_bg})")
+    elif borders:
         roles["border"] = ev(borders[0], "the most border length on the page")
     else:
         missing.append("border")
@@ -605,6 +620,73 @@ def type_scale(merged, missing):
 
 
 # --------------------------------------------------------------------------- spacing
+
+
+
+def control_typography(merged, roles, missing):
+    """The type a CONTROL is set in — per VARIANT, because the average is nobody's button.
+
+    Measured on adidas.it: across 144 button candidates the commonest weight is 400 (121 of them),
+    because most things that look like buttons to a selector are nav links and icon buttons. The
+    actual primary and secondary controls are 700, and a mode taken over everything hands them 400 —
+    which is exactly the lightness the pixel comparison showed against the real page.
+
+    So typography is measured per painted ground, and the headline entry is the variant that sits
+    on `--primary`. A button's weight is most of what makes it that brand's button.
+    """
+    from collections import Counter, defaultdict
+    per_ground = defaultdict(lambda: {"size": Counter(), "weight": Counter(), "track": Counter(),
+                                      "case": Counter(), "family": Counter(),
+                                      "bcolor": Counter(), "bwidth": Counter(),
+                                      "radius": Counter(), "n": 0})
+    for cand in merged["candidates"]:
+        for b in (cand.get("buttons") or {}).get("sample", []):
+            if not b.get("fontSize") or not (b.get("label") or "").strip():
+                continue                      # a control with no text says nothing about type
+            g = b.get("background") or "transparent"
+            e = per_ground[g]
+            e["n"] += 1
+            size = float(b["fontSize"]) or 1
+            e["size"][round(size, 1)] += 1
+            e["weight"][str(b.get("fontWeight") or "400")] += 1
+            e["track"][round((b.get("letterSpacing") or 0) / size, 3)] += 1
+            e["case"][b.get("textTransform") or "none"] += 1
+            fam = (b.get("font") or "").split(",")[0].replace('"', "").replace("'", "").strip()
+            if fam:
+                e["family"][fam] += 1
+            # A control carries its OWN border. Measured on adidas.it: `--border` is #3b3b3c, the
+            # colour with the most length on the page, while the secondary buttons are framed in
+            # pure #000000 — and the pixel comparison's whole remaining chrome difference was that
+            # one substitution, on a frame that was otherwise in exactly the right place.
+            if (b.get("borderWidth") or 0) > 0 and b.get("borderColor"):
+                e["bcolor"][b["borderColor"]] += 1
+                e["bwidth"][round(float(b["borderWidth"]), 1)] += 1
+            e["radius"][9999 if b.get("radiusIsPill") else round(float(b.get("radius") or 0), 1)] += 1
+    if not per_ground:
+        missing.append("control typography (no button carried text on the pages read)")
+        return None
+
+    def shape(g, e):
+        return {
+            "ground": g,
+            "measuredOn": e["n"],
+            "family": e["family"].most_common(1)[0][0] if e["family"] else None,
+            "size": e["size"].most_common(1)[0][0],
+            "weight": e["weight"].most_common(1)[0][0],
+            "tracking": e["track"].most_common(1)[0][0],
+            "textTransform": (None if e["case"].most_common(1)[0][0] == "none"
+                              else e["case"].most_common(1)[0][0]),
+            "borderColor": e["bcolor"].most_common(1)[0][0] if e["bcolor"] else None,
+            "borderWidth": e["bwidth"].most_common(1)[0][0] if e["bwidth"] else 0,
+            "radius": e["radius"].most_common(1)[0][0] if e["radius"] else 0,
+        }
+
+    variants = sorted((shape(g, e) for g, e in per_ground.items()),
+                      key=lambda v: -v["measuredOn"])
+    primary = roles.get("primary", {}).get("value")
+    head = next((v for v in variants if v["ground"] == primary), variants[0])
+    head = dict(head, variants=variants[:6])
+    return head
 
 
 def spacing_scale(merged, missing):
@@ -1082,8 +1164,22 @@ def build_tokens(merged):
     comps = components(merged, missing)
 
     radius = merged["radius"]
-    radius_px = sorted(((float(k), n) for k, n in radius.items() if k != "pill"),
-                       key=lambda kv: -kv[1])
+
+    # `--radius` is the radius of the COMPONENTS, not of every div on the page. Counting all
+    # elements answers 0 on any site, because most elements have no corners at all — which looked
+    # right on adidas (whose cards and buttons really are square) and was wrong on a page whose
+    # components are 12px. Same lesson as the control typography: a system value is a component
+    # fact. The all-element tally is kept beside it, because it is what says a site is square.
+    comp_radii = Counter()
+    for cand in merged["candidates"]:
+        for group in ("buttons", "cards", "inputs"):
+            for b in (cand.get(group) or {}).get("sample", []):
+                if b.get("radiusIsPill"):
+                    continue                      # a pill is a shape, not a step on the scale
+                comp_radii[round(float(b.get("radius") or 0), 1)] += 1
+    radius_px = ([(v, n) for v, n in comp_radii.most_common()] or
+                 sorted(((float(k), n) for k, n in radius.items() if k != "pill"),
+                        key=lambda kv: -kv[1]))
 
     # The default shape is decided on the CONTROLS, by majority, not by whether a pill exists
     # anywhere. Measured on adidas.it: 13 of 14 buttons had radius 0 and one 24px dot was round,
@@ -1118,6 +1214,7 @@ def build_tokens(merged):
             "families": [f["value"] for f in merged["fontFamilies"][:4]],
             "fontFaces": merged["declared"]["fontFaces"][:12],
             "scale": type_info,
+            "control": control_typography(merged, roles, missing),
         },
         "spacing": space,
         "radius": {
@@ -1179,6 +1276,14 @@ def write_css(tokens, path):
         lines.append(f"  --radius: {tokens['radius']['default']}px;")
     if tokens["layout"]["container"]:
         lines.append(f"  --container: {tokens['layout']['container']}px;")
+    ctl = tokens["typography"].get("control")
+    if ctl:
+        lines.append(f"  --control-size: {ctl['size']}px;")
+        lines.append(f"  --control-weight: {ctl['weight']};")
+        if ctl["tracking"]:
+            lines.append(f"  --control-tracking: {ctl['tracking']}em;")
+        if ctl["textTransform"]:
+            lines.append(f"  --control-case: {ctl['textTransform']};")
     if tokens["typography"]["families"]:
         lines.append(f"  --font-sans: {tokens['typography']['families'][0]};")
     lines.append("}")

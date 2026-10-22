@@ -233,6 +233,39 @@ class Components(unittest.TestCase):
         self.assertTrue(any("cross-origin" in n for n in self.tokens["notes"]))
 
 
+class ControlTypography(unittest.TestCase):
+    def setUp(self):
+        self.merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        self.tokens = analyze.build_tokens(self.merged)
+
+    def test_controls_carry_their_own_type_per_variant(self):
+        """A type step is size AND weight, and a control carries its own. Measured on adidas.it:
+        across 144 button candidates the commonest weight is 400, because most things a selector
+        calls a button are nav links — while the real controls are 700. Snapping to the body scale
+        by size handed them 400, and the pixel comparison showed the letters too light."""
+        ctl = self.tokens["typography"].get("control")
+        self.assertIsNotNone(ctl)
+        self.assertIn("variants", ctl)
+        for v in ctl["variants"]:
+            for key in ("ground", "size", "weight", "measuredOn"):
+                self.assertIn(key, v)
+
+    def test_a_control_records_its_own_border_not_the_system_one(self):
+        """`--border` is the colour with the most length on the page; a control frames itself in
+        whatever it frames itself in, and on adidas those differ."""
+        ctl = self.tokens["typography"].get("control") or {}
+        for v in ctl.get("variants", []):
+            self.assertIn("borderColor", v)
+            self.assertIn("borderWidth", v)
+
+    def test_an_invisible_border_is_not_the_border_token(self):
+        """Regression. The heaviest border colour by length was #ffffff on a #ffffff page, so the
+        token drew nothing and a rebuilt control lost its frame."""
+        roles = self.tokens["color"]["roles"]
+        if "border" in roles:
+            self.assertNotEqual(roles["border"]["value"], roles["background"]["value"])
+
+
 class Privacy(unittest.TestCase):
     def test_app_mode_keeps_no_strings(self):
         """A signed-in app shows customer names and invoice numbers. The shape of the text is what

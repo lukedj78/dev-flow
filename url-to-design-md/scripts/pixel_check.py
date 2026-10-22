@@ -22,8 +22,11 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import sys
 from pathlib import Path
+
+import analyze
 
 # A component is "matched" below this share of differing pixels. It is deliberately not zero: text
 # antialiasing and a one-pixel subpixel offset are not design errors. It IS tight enough that a pill
@@ -88,7 +91,16 @@ def rebuild_html(tokens, components):
         # measured on adidas.it, where three of four candidates were transparent or white and the
         # naive rebuild reported 90% difference for the wrong reason.
         ground = m.get("background")
-        role_name = next((n for n, r in roles.items() if r.get("value") == ground), None)
+        # Several roles can share a value — on adidas `foreground`, `primary` and `surface-inverse`
+        # are all #000000 — so "the first that matches" put black text on a black bar. Prefer a role
+        # that has a paired foreground, and fall back to one whose pairing is at least legible.
+        matching = [n for n, r in roles.items() if r.get("value") == ground]
+        role_name = next((n for n in matching if n + "-foreground" in roles), None)
+        if role_name is None and matching:
+            role_name = next(
+                (n for n in matching
+                 if (analyze.contrast(roles.get("foreground", {}).get("value", "#000"), ground) or 0) >= 3),
+                matching[0])
         if ground and role_name is None:
             c["unexpressed"] = ground          # no token can draw this: a real gap, reported below
         fg = None
@@ -96,28 +108,54 @@ def rebuild_html(tokens, components):
             fg = role(role_name + "-foreground", None) or role("foreground", "#000")
         bg_css = role(role_name) if role_name else "transparent"
 
-        border_px = m.get("borderWidth") or 0
-        corner = ("9999px" if radius.get("pill")
-                  else f"{radius.get('default') or 0}px")
+        # The control typography for THIS variant, keyed on the ground — not the nearest body
+        # step. Snapping by size alone handed adidas's bold white buttons the 400 weight of 14px
+        # body copy, and the pixel comparison showed it as letters that were too light.
+        font = (tokens["typography"]["families"] or ["system-ui"])[0]
+        ctl = tokens["typography"].get("control") or {}
+        variant = next((v for v in ctl.get("variants", []) if v["ground"] == (ground or "transparent")),
+                       ctl if ctl else None)
+        if variant:
+            font = variant.get("family") or font
+            tok_size = variant["size"]
+            tok_weight = variant["weight"]
+            tok_track = variant["tracking"] or 0
+            tok_case = variant["textTransform"] or "none"
+        else:
+            steps = tokens["typography"]["scale"]["slots"]
+            measured_size = float(m.get("fontSize") or 16)
+            step = min(steps, key=lambda s: abs(s["size"] - measured_size)) if steps else None
+            tok_size = step["size"] if step else measured_size
+            tok_weight = step["weight"] if step else (m.get("fontWeight") or 400)
+            tok_track = (step["tracking"] or 0) if step else 0
+            tok_case = (step.get("textTransform") or "none") if step else "none"
+
+        # The variant's own border and radius, not the system-wide ones — same reason as its
+        # typography: `--border` is the colour with the most length on the page, and a control
+        # frames itself in whatever it frames itself in.
+        v = variant or {}
+        # `or` treats a measured ZERO as missing — the same mistake the radius had. A control that
+        # measured no border must be rebuilt without one, whatever its variant's mode says.
+        border_px = (m["borderWidth"] if m.get("borderWidth") is not None
+                     else (v.get("borderWidth") or 0))
+        border_col = v.get("borderColor") or role("border", "transparent")
+        v_radius = v.get("radius")
+        corner = ("9999px" if v_radius == 9999
+                  else f"{v_radius}px" if v_radius is not None
+                  else ("9999px" if radius.get("pill") else f"{radius.get('default') or 0}px"))
         style = (f"background:{esc(bg_css)};"
                  f"color:{esc(fg or role('foreground', '#000'))};"
                  f"border-radius:{esc(corner)};"
-                 + (f"border:{int(border_px)}px solid {esc(role('border', 'transparent'))};"
-                    if border_px else "border:0;"))
+                 + (f"border:{int(border_px)}px solid {esc(border_col)};"
+                    if border_px else "border:0;")
+                 # This brand draws rules with box-shadow, not border — the red underline and the
+                 # announcement bar's grey hairline are both shadows. A rebuild that only knows
+                 # about borders loses a line that is plainly there.
+                 + (f"box-shadow:{esc(m['shadow'])};" if m.get("shadow") else ""))
         # The label is drawn with the TOKEN typography, not the measured one: the question is
         # whether the exported family, size, weight and tracking put the same letters in the same
         # places. Without it the comparison stops at the box and never tests the type at all.
         label = esc(m.get("label") or "")
-        # Match the measured size to the nearest TOKEN step, so the comparison tests the exported
-        # scale rather than feeding the measured value back in and passing by construction.
-        font = (tokens["typography"]["families"] or ["system-ui"])[0]
-        steps = tokens["typography"]["scale"]["slots"]
-        measured_size = float(m.get("fontSize") or 16)
-        step = min(steps, key=lambda s: abs(s["size"] - measured_size)) if steps else None
-        tok_size = step["size"] if step else measured_size
-        tok_weight = step["weight"] if step else (m.get("fontWeight") or 400)
-        tok_track = (step["tracking"] or 0) if step else 0
-        tok_case = (step.get("textTransform") or "none") if step else "none"
         blocks.append(
             f'<div class="shot" data-shot="{esc(c["id"])}" '
             f'style="width:{w}px;height:{h}px;{style}'
@@ -168,7 +206,7 @@ def cmd_build(args):
 
 def cmd_compare(args):
     try:
-        from PIL import Image, ImageChops
+        from PIL import Image, ImageChops, ImageDraw
     except ImportError:
         print("Pillow is needed for the pixel comparison "
               "(the repo already requires it for image-to-design-md)", file=sys.stderr)
@@ -184,14 +222,51 @@ def cmd_compare(args):
         a = Image.open(src).convert("RGB")
         b = Image.open(rebuilt).convert("RGB")
         if a.size != b.size:
-            b = b.resize(a.size)
-        diff = ImageChops.difference(a, b).convert("L")
-        # a pixel counts as different when it is off by more than a little: antialiasing on text
-        # moves values by a few units and is not a design error
-        hist = diff.histogram()
-        differing = sum(hist[25:])          # off by more than antialiasing moves it
-        share = differing / (a.size[0] * a.size[1])
-        rows.append((ident, share, a.size))
+            # Crop both to the common box instead of resampling. The recorded rect is rounded to
+            # whole pixels while the element is 100.5 wide, and a resize blurs every edge in the
+            # image to paper over one pixel — which then reads as a 8% chrome difference on a
+            # frame that is identical.
+            w0, h0 = min(a.width, b.width), min(a.height, b.height)
+            a = a.crop((0, 0, w0, h0))
+            b = b.crop((0, 0, w0, h0))
+        w, h = a.size
+
+        # Register the two before diffing. The source crop comes from a bounding rect rounded to
+        # whole pixels, so the real button can sit half a pixel off — and a 1px border that is one
+        # pixel out differs along its ENTIRE length, which reported 34% chrome on a frame that was
+        # visibly identical. We are comparing designs, not pixel registration.
+        best, diff = None, None
+        for dx in (-2, -1, 0, 1, 2):
+            for dy in (-2, -1, 0, 1, 2):
+                shifted = ImageChops.offset(b, dx, dy)
+                d = ImageChops.difference(a, shifted).convert("L").point(
+                    lambda v: 255 if v > 24 else 0)
+                score = sum(d.histogram()[25:])
+                if best is None or score < best:
+                    best, diff = score, d
+
+        # Split the difference into what the TOKENS decide and what they do not.
+        #
+        # Chrome is the frame and the ground: border colour and width, radius, fill. Those are
+        # tokens, and a mismatch there is a token that is wrong.
+        #
+        # Content is the interior: the label's position, an icon the control happens to contain.
+        # Measured on adidas.it: after shape, border, colour and weight all matched, 22% of the
+        # pixels still differed — because the real button puts "Uomo" on the left and an arrow on
+        # the right, and the rebuild centres the label. No token says where a label sits beside an
+        # icon. Failing on that would make the gate unreadable; hiding it would make it dishonest.
+        ring = 3
+        mask = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(mask).rectangle([ring, ring, w - 1 - ring, h - 1 - ring], fill=255)
+        chrome = ImageChops.subtract(diff, mask)        # the band outside the inner rectangle
+        content = ImageChops.multiply(diff, mask)
+
+        area = w * h
+        inner = max(1, (w - 2 * ring) * (h - 2 * ring))
+        outer = max(1, area - inner)
+        share_chrome = sum(chrome.histogram()[25:]) / outer
+        share_content = sum(content.histogram()[25:]) / inner
+        rows.append((ident, share_chrome, share_content, a.size))
 
     if missing:
         print(f"  {len(missing)} component(s) have no rebuilt shot: {', '.join(missing[:6])}")
@@ -201,14 +276,19 @@ def cmd_compare(args):
 
     rows.sort(key=lambda r: -r[1])
     worst = rows[0][1]
-    matched = sum(1 for _, s, _ in rows if s <= MATCH_THRESHOLD)
-    print(f"{matched}/{len(rows)} component(s) within {MATCH_THRESHOLD:.0%} differing pixels\n")
-    for ident, share, size in rows:
-        mark = "✓" if share <= MATCH_THRESHOLD else "✗"
-        print(f"  {mark} {ident:<16} {share:6.1%} differ   {size[0]}x{size[1]}")
+    matched = sum(1 for _, s, _, _ in rows if s <= MATCH_THRESHOLD)
+    print(f"{matched}/{len(rows)} component(s) match on the chrome "
+          f"(border, radius, ground) within {MATCH_THRESHOLD:.0%}\n")
+    print(f"  {'':2} {'component':<16} {'chrome':>8} {'content':>9}   size")
+    for ident, chrome, content, size in rows:
+        mark = "✓" if chrome <= MATCH_THRESHOLD else "✗"
+        print(f"  {mark} {ident:<16} {chrome:7.1%} {content:8.1%}   {size[0]}x{size[1]}")
+    print("\n  chrome  = what the tokens decide: border, radius, ground. A mismatch is a wrong token.")
+    print("  content = the label's position and any icon inside. No token says where a label sits")
+    print("            beside an arrow, so this is reported and never failed on.")
     if worst > MATCH_THRESHOLD:
-        print(f"\nThe worst is {worst:.1%}. A component rebuilt from the tokens that does not land "
-              f"on the original is a token that is wrong — not a rendering detail.")
+        print(f"\nThe worst chrome is {worst:.1%}. A component rebuilt from the tokens that does "
+              f"not land on the original is a token that is wrong, not a rendering detail.")
     return 0 if matched == len(rows) else 1
 
 

@@ -5,7 +5,7 @@
   "origin": "http://localhost:8781",
   "path": "/fixtures/known-site.html",
   "title": "Known Site",
-  "capturedAt": "2026-10-21T18:54:04.551Z",
+  "capturedAt": "2026-10-22T06:17:03.125Z",
   "viewport": {
     "width": 1440,
     "height": 900,
@@ -228,6 +228,7 @@
     }
   },
   "radius": {
+    "0": 25,
     "8": 1,
     "12": 5,
     "pill": 1
@@ -264,6 +265,12 @@
         {
           "width": 152,
           "height": 48,
+          "rect": {
+            "x": 48,
+            "y": 304,
+            "w": 152,
+            "h": 48
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 16,
           "fontWeight": "600",
@@ -274,7 +281,7 @@
           "background": "#0069e8",
           "backgroundImage": null,
           "borderWidth": 0,
-          "borderColor": "#ffffff",
+          "borderColor": null,
           "borderStyle": null,
           "radius": 9999,
           "radiusIsPill": true,
@@ -291,6 +298,8 @@
             "easing": "cubic-bezier(0.2, 0, 0, 1)",
             "property": "background-color"
           },
+          "label": "Start building",
+          "u2d": "u2d-button-0",
           "selector": "button, [role=\"button\"], input[type=\"submit\"], a[class*=\"btn\"], a[class*=\"Btn\"], a[class*=\"button\"], a[class*=\"Button\"], a[class*=\"cta\"], a[class*=\"Cta\"], a[class*=\"CTA\"], a[class*=\"action\"]",
           "tag": "a",
           "paintedOnChild": true
@@ -298,6 +307,12 @@
         {
           "width": 143,
           "height": 50,
+          "rect": {
+            "x": 128,
+            "y": 984,
+            "w": 143,
+            "h": 50
+          },
           "font": "Arial",
           "fontSize": 16,
           "fontWeight": "500",
@@ -321,6 +336,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": "Save changes",
+          "u2d": "u2d-button-1",
           "selector": "button, [role=\"button\"], input[type=\"submit\"], a[class*=\"btn\"], a[class*=\"Btn\"], a[class*=\"button\"], a[class*=\"Button\"], a[class*=\"cta\"], a[class*=\"Cta\"], a[class*=\"CTA\"], a[class*=\"action\"]",
           "tag": "button",
           "paintedOnChild": false
@@ -328,6 +345,12 @@
         {
           "width": 126,
           "height": 50,
+          "rect": {
+            "x": 276,
+            "y": 984,
+            "w": 126,
+            "h": 50
+          },
           "font": "Arial",
           "fontSize": 16,
           "fontWeight": "500",
@@ -351,6 +374,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": "Unavailable",
+          "u2d": "u2d-button-2",
           "selector": "button, [role=\"button\"], input[type=\"submit\"], a[class*=\"btn\"], a[class*=\"Btn\"], a[class*=\"button\"], a[class*=\"Button\"], a[class*=\"cta\"], a[class*=\"Cta\"], a[class*=\"CTA\"], a[class*=\"action\"]",
           "tag": "button",
           "paintedOnChild": false
@@ -363,6 +388,12 @@
         {
           "width": 1184,
           "height": 44,
+          "rect": {
+            "x": 128,
+            "y": 940,
+            "w": 1184,
+            "h": 44
+          },
           "font": "Arial",
           "fontSize": 16,
           "fontWeight": "400",
@@ -386,6 +417,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": null,
+          "u2d": "u2d-input-0",
           "selector": "input:not([type=\"hidden\"]):not([type=\"submit\"]), textarea, select",
           "tag": "input",
           "paintedOnChild": false
@@ -398,6 +431,12 @@
         {
           "width": 379,
           "height": 178,
+          "rect": {
+            "x": 128,
+            "y": 632,
+            "w": 379,
+            "h": 178
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 16,
           "fontWeight": "400",
@@ -421,6 +460,8 @@
           "gap": null,
           "shadow": "rgba(17, 24, 39, 0.06) 0px 1px 2px 0px",
           "transition": null,
+          "label": "MeasuredComputed styles, not the stylesh",
+          "u2d": "u2d-card-0",
           "selector": "article, [class*=\"card\"], [class*=\"Card\"]",
           "tag": "article",
           "paintedOnChild": false
@@ -428,6 +469,12 @@
         {
           "width": 379,
           "height": 178,
+          "rect": {
+            "x": 531,
+            "y": 632,
+            "w": 379,
+            "h": 178
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 16,
           "fontWeight": "400",
@@ -451,6 +498,8 @@
           "gap": null,
           "shadow": "rgba(17, 24, 39, 0.06) 0px 1px 2px 0px",
           "transition": null,
+          "label": "WeightedText by characters, background b",
+          "u2d": "u2d-card-1",
           "selector": "article, [class*=\"card\"], [class*=\"Card\"]",
           "tag": "article",
           "paintedOnChild": false
@@ -458,6 +507,12 @@
         {
           "width": 379,
           "height": 178,
+          "rect": {
+            "x": 933,
+            "y": 632,
+            "w": 379,
+            "h": 178
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 16,
           "fontWeight": "400",
@@ -481,6 +536,8 @@
           "gap": null,
           "shadow": "rgba(17, 24, 39, 0.06) 0px 1px 2px 0px",
           "transition": null,
+          "label": "HonestNothing observed is nothing writte",
+          "u2d": "u2d-card-2",
           "selector": "article, [class*=\"card\"], [class*=\"Card\"]",
           "tag": "article",
           "paintedOnChild": false
@@ -493,6 +550,12 @@
         {
           "width": 53,
           "height": 17,
+          "rect": {
+            "x": 176,
+            "y": 27,
+            "w": 53,
+            "h": 17
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 14,
           "fontWeight": "500",
@@ -502,8 +565,8 @@
           "color": "#374151",
           "background": null,
           "backgroundImage": null,
-          "borderWidth": 0,
-          "borderColor": "#374151",
+          "borderWidth": 1,
+          "borderColor": "#e5e7eb",
           "borderStyle": null,
           "radius": 0,
           "radiusIsPill": false,
@@ -516,6 +579,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": "Product",
+          "u2d": "u2d-link-0",
           "selector": "nav a, header a",
           "tag": "a",
           "paintedOnChild": false
@@ -523,6 +588,12 @@
         {
           "width": 47,
           "height": 17,
+          "rect": {
+            "x": 233,
+            "y": 27,
+            "w": 47,
+            "h": 17
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 14,
           "fontWeight": "500",
@@ -532,8 +603,8 @@
           "color": "#374151",
           "background": null,
           "backgroundImage": null,
-          "borderWidth": 0,
-          "borderColor": "#374151",
+          "borderWidth": 1,
+          "borderColor": "#e5e7eb",
           "borderStyle": null,
           "radius": 0,
           "radiusIsPill": false,
@@ -546,6 +617,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": "Pricing",
+          "u2d": "u2d-link-1",
           "selector": "nav a, header a",
           "tag": "a",
           "paintedOnChild": false
@@ -553,6 +626,12 @@
         {
           "width": 34,
           "height": 17,
+          "rect": {
+            "x": 284,
+            "y": 27,
+            "w": 34,
+            "h": 17
+          },
           "font": "Inter, system-ui, sans-serif",
           "fontSize": 14,
           "fontWeight": "500",
@@ -562,8 +641,8 @@
           "color": "#374151",
           "background": null,
           "backgroundImage": null,
-          "borderWidth": 0,
-          "borderColor": "#374151",
+          "borderWidth": 1,
+          "borderColor": "#e5e7eb",
           "borderStyle": null,
           "radius": 0,
           "radiusIsPill": false,
@@ -576,6 +655,8 @@
           "gap": null,
           "shadow": null,
           "transition": null,
+          "label": "Docs",
+          "u2d": "u2d-link-2",
           "selector": "nav a, header a",
           "tag": "a",
           "paintedOnChild": false
@@ -585,6 +666,12 @@
     "header": {
       "width": 1440,
       "height": 72,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 1440,
+        "h": 72
+      },
       "font": "Inter, system-ui, sans-serif",
       "fontSize": 16,
       "fontWeight": "400",
@@ -595,7 +682,7 @@
       "background": "#ffffff",
       "backgroundImage": null,
       "borderWidth": 0,
-      "borderColor": "#111827",
+      "borderColor": null,
       "borderStyle": null,
       "radius": 0,
       "radiusIsPill": false,
@@ -608,6 +695,7 @@
       "gap": 24,
       "shadow": null,
       "transition": null,
+      "label": "Product Pricing Docs",
       "sticky": true,
       "position": "sticky",
       "logo": {
@@ -624,6 +712,12 @@
       "rest": {
         "width": 143,
         "height": 50,
+        "rect": {
+          "x": 128,
+          "y": 984,
+          "w": 143,
+          "h": 50
+        },
         "font": "Arial",
         "fontSize": 16,
         "fontWeight": "500",
@@ -646,11 +740,18 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": "Save changes"
       },
       "focus": {
         "width": 143,
         "height": 50,
+        "rect": {
+          "x": 128,
+          "y": 984,
+          "w": 143,
+          "h": 50
+        },
         "font": "Arial",
         "fontSize": 16,
         "fontWeight": "500",
@@ -673,7 +774,8 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": "Save changes"
       },
       "outline": {
         "width": 1,
@@ -687,6 +789,12 @@
       "rest": {
         "width": 1184,
         "height": 44,
+        "rect": {
+          "x": 128,
+          "y": 940,
+          "w": 1184,
+          "h": 44
+        },
         "font": "Arial",
         "fontSize": 16,
         "fontWeight": "400",
@@ -709,11 +817,18 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": null
       },
       "focus": {
         "width": 1184,
         "height": 44,
+        "rect": {
+          "x": 128,
+          "y": 940,
+          "w": 1184,
+          "h": 44
+        },
         "font": "Arial",
         "fontSize": 16,
         "fontWeight": "400",
@@ -736,7 +851,8 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": null
       },
       "outline": {
         "width": 2,
@@ -750,6 +866,12 @@
       "rest": {
         "width": 53,
         "height": 17,
+        "rect": {
+          "x": 176,
+          "y": 27,
+          "w": 53,
+          "h": 17
+        },
         "font": "Inter, system-ui, sans-serif",
         "fontSize": 14,
         "fontWeight": "500",
@@ -759,8 +881,8 @@
         "color": "#374151",
         "background": null,
         "backgroundImage": null,
-        "borderWidth": 0,
-        "borderColor": "#374151",
+        "borderWidth": 1,
+        "borderColor": "#e5e7eb",
         "borderStyle": null,
         "radius": 0,
         "radiusIsPill": false,
@@ -772,11 +894,18 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": "Product"
       },
       "focus": {
         "width": 53,
         "height": 17,
+        "rect": {
+          "x": 176,
+          "y": 27,
+          "w": 53,
+          "h": 17
+        },
         "font": "Inter, system-ui, sans-serif",
         "fontSize": 14,
         "fontWeight": "500",
@@ -786,8 +915,8 @@
         "color": "#374151",
         "background": null,
         "backgroundImage": null,
-        "borderWidth": 0,
-        "borderColor": "#374151",
+        "borderWidth": 1,
+        "borderColor": "#e5e7eb",
         "borderStyle": null,
         "radius": 0,
         "radiusIsPill": false,
@@ -799,7 +928,8 @@
         ],
         "gap": null,
         "shadow": null,
-        "transition": null
+        "transition": null,
+        "label": "Product"
       },
       "outline": {
         "width": 1,
@@ -812,6 +942,12 @@
     "button:disabled": {
       "width": 126,
       "height": 50,
+      "rect": {
+        "x": 276,
+        "y": 984,
+        "w": 126,
+        "h": 50
+      },
       "font": "Arial",
       "fontSize": 16,
       "fontWeight": "500",
@@ -834,7 +970,8 @@
       ],
       "gap": null,
       "shadow": null,
-      "transition": null
+      "transition": null,
+      "label": "Unavailable"
     },
     "hoverDeclared": [
       {

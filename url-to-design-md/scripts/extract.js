@@ -165,6 +165,21 @@ window.__SNAPSHOT__ = (function extract(options) {
     return best;
   }
 
+  // Walk up at most three levels looking for a frame the painted child does not carry.
+  function inheritedBorder(el) {
+    for (var n = el.parentElement, i = 0; n && i < 3; n = n.parentElement, i++) {
+      var cs; try { cs = getComputedStyle(n); } catch (e) { return { width: 0, color: null }; }
+      for (var s = 0; s < 4; s++) {
+        var side = ["Top", "Bottom", "Left", "Right"][s];
+        var w = px(cs["border" + side + "Width"]) || 0;
+        if (w > 0 && cs["border" + side + "Style"] !== "none") {
+          return { width: w, color: normColor(cs["border" + side + "Color"]) };
+        }
+      }
+    }
+    return { width: 0, color: null };
+  }
+
   function boxOf(el) {
     var cs = getComputedStyle(el);
     var r = el.getBoundingClientRect();
@@ -182,7 +197,12 @@ window.__SNAPSHOT__ = (function extract(options) {
       textTransform: cs.textTransform !== "none" ? cs.textTransform : null,
       color: normColor(cs.color), background: normColor(cs.backgroundColor),
       backgroundImage: cs.backgroundImage !== "none" ? cs.backgroundImage : null,
-      borderWidth: px(cs.borderTopWidth), borderColor: normColor(cs.borderTopColor),
+      // A control's frame often sits on an ancestor while the paint sits on a child — measured on
+      // adidas.it, where the announcement bar's own bottom rule was invisible to the painted layer
+      // and the rebuilt bar came out a pixel short at the bottom.
+      borderWidth: px(cs.borderTopWidth) || inheritedBorder(el).width,
+      borderColor: normColor(cs.borderTopColor) && (px(cs.borderTopWidth) || 0) > 0
+                   ? normColor(cs.borderTopColor) : inheritedBorder(el).color,
       borderStyle: cs.borderTopStyle !== "none" ? cs.borderTopStyle : null,
       radius: px(cs.borderTopLeftRadius),
       radiusIsPill: px(cs.borderTopLeftRadius) >= Math.round(r.height) / 2 && r.height > 0,
@@ -333,7 +353,8 @@ window.__SNAPSHOT__ = (function extract(options) {
 
   /* ---------------------------------------------------------- candidates */
 
-  function describeAll(selector, limit, extra) {
+  function describeAll(selector, limit, extra, selectorKey) {
+    selectorKey = selectorKey || "x";
     var out = [], seen = 0;
     var nodes = document.querySelectorAll(selector);
     for (var j = 0; j < nodes.length && out.length < (limit || MAX_CANDIDATES); j++) {
@@ -344,6 +365,13 @@ window.__SNAPSHOT__ = (function extract(options) {
       seen += 1;
       var layer = paintedLayer(n);
       var row = boxOf(layer);
+      // Tag the painted layer so a caller can screenshot the ELEMENT rather than clip a rectangle.
+      // A clip taken from a bounding rect rounded to whole pixels bleeds one row of whatever sits
+      // beneath — measured on adidas.it, where the announcement bar's crop carried a grey line from
+      // the header below it, and that single row was 16% of the frame being compared.
+      var u2d = "u2d-" + selectorKey + "-" + out.length;
+      try { layer.setAttribute("data-u2d", u2d); } catch (e) { /* read-only DOM */ }
+      row.u2d = u2d;   // NOT `tag`: that one is the HTML tag name, set below
       row.selector = selector;
       row.tag = n.tagName.toLowerCase();
       row.paintedOnChild = layer !== n;
@@ -360,10 +388,12 @@ window.__SNAPSHOT__ = (function extract(options) {
   var candidates = {
     buttons: describeAll('button, [role="button"], input[type="submit"], ' +
       'a[class*="btn"], a[class*="Btn"], a[class*="button"], a[class*="Button"], ' +
-      'a[class*="cta"], a[class*="Cta"], a[class*="CTA"], a[class*="action"]'),
-    inputs: describeAll('input:not([type="hidden"]):not([type="submit"]), textarea, select'),
-    cards: describeAll('article, [class*="card"], [class*="Card"]'),
-    links: describeAll("nav a, header a", 12)
+      'a[class*="cta"], a[class*="Cta"], a[class*="CTA"], a[class*="action"]',
+      null, null, "button"),
+    inputs: describeAll('input:not([type="hidden"]):not([type="submit"]), textarea, select',
+                        null, null, "input"),
+    cards: describeAll('article, [class*="card"], [class*="Card"]', null, null, "card"),
+    links: describeAll("nav a, header a", 12, null, "link")
   };
 
   // The nav and the header are measured in both modes; what differs is whether they are then
