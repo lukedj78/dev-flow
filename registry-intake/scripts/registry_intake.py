@@ -2696,12 +2696,20 @@ def python_facts(body: str) -> PythonFacts:
             for k, v in zip(node.keys, node.values):
                 if isinstance(k, ast.Constant) and k.value == "permissionDecision" and not literal(v):
                     out.computed_decision = out.computed_decision or ast.unparse(v)[:60]
+        elif isinstance(node, ast.JoinedStr) and "permissionDecision" in ast.unparse(node):
+            # An f-string holding the key builds the decision by concatenation: the value is not a
+            # node at all, it is part of the text.
+            out.computed_decision = out.computed_decision or ast.unparse(node)[:60]
+        elif isinstance(node, ast.BinOp) and "permissionDecision" in ast.unparse(node):
+            out.computed_decision = out.computed_decision or ast.unparse(node)[:60]
         elif isinstance(node, ast.keyword) and node.arg == "permissionDecision" and not literal(node.value):
             out.computed_decision = out.computed_decision or ast.unparse(node.value)[:60]
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for t in targets:
-                key = (t.slice.value if isinstance(t, ast.Subscript) and isinstance(t.slice, ast.Constant)
+                computed_key = isinstance(t, ast.Subscript) and not isinstance(t.slice, ast.Constant)
+                key = ("permissionDecision" if computed_key and "permissionDecision" in ast.unparse(node)
+                       else t.slice.value if isinstance(t, ast.Subscript) and isinstance(t.slice, ast.Constant)
                        else getattr(t, "attr", None) or getattr(t, "id", None))
                 if key == "permissionDecision" and node.value is not None and not literal(node.value):
                     out.computed_decision = out.computed_decision or ast.unparse(node.value)[:60]
@@ -2998,10 +3006,14 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 found.append(Finding("H9", "block", event,
                                      HOOK_CODES["H9"] + " — and it computes that at run time",
                                      f"{where}: {script.name}: {m.group(0).strip()}"))
-            computed_at = (facts.computed_decision if facts is not None
-                           else computes_its_decision(body))
-            if computed_at or (facts is None and DECIDES.search(body)
-                               and not LITERAL_DECISION.search(body)):
+            # BOTH, never one instead of the other. Replacing the patterns with the tree removed a
+            # control: the tree sees a decision that is a NODE, and `print('{"permissionDecision":
+            # "' + D + '"}')` is a string the parser reads as an ordinary constant. Each sees what
+            # the other cannot, so they are OR-ed — a check swapped out is a check removed, which
+            # is the regression this file has made twice before under the name of a cleanup.
+            computed_at = (facts.computed_decision if facts is not None else "") \
+                or computes_its_decision(body)
+            if computed_at or (DECIDES.search(body) and not LITERAL_DECISION.search(body)):
                 # An approval pins every file's digest, imports included, so it reopens by itself
                 # the moment any of them is rewritten. Without honouring it the finding would be
                 # permanent, which is how a block stops being read.
