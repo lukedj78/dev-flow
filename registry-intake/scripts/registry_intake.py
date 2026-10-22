@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import difflib
+import fnmatch
 import hashlib
 import importlib.util
 import json
@@ -2179,6 +2180,23 @@ def hook_scripts(root: Path, command: str, _depth: int = 0) -> tuple[list[Path],
 # shape, never that a dangerous command is fine.
 PLAIN_ARG = re.compile(r"[\w.@:=+-]+")
 REDIRECT = re.compile(r"[<>]")
+# What an interpreter may be told BEFORE its script, interpreter by interpreter. Everything there is
+# the interpreter's to read, and the dangerous part of that grammar is the part that loads code:
+# `python3 -m pkg`, `node --require=./x.js`, `--import`, `--loader`, `--eval=…`, a debugger port.
+# `reviewable_shape` skipped every `-` token, so `python3 -m evil tools/run.py` read as "one file
+# here". A short list of options that load nothing, and nothing else; after the script, options are
+# the script's own arguments and stay plain arguments.
+SAFE_INTERPRETER_OPTIONS = (
+    (re.compile(r"python(?:3(?:\.\d+)?)?"), frozenset({"-I", "-B", "-u", "-s", "-E", "-q"})),
+    (re.compile(r"node(?:js)?"), frozenset({"--no-warnings", "--no-deprecation", "--enable-source-maps"})),
+)
+
+
+def safe_interpreter_options(name: str) -> frozenset[str]:
+    for pat, options in SAFE_INTERPRETER_OPTIONS:
+        if pat.fullmatch(name):
+            return options
+    return frozenset()
 
 
 def reviewable_shape(root: Path, command: str) -> str | None:
@@ -2202,6 +2220,17 @@ def reviewable_shape(root: Path, command: str) -> str | None:
         return f"`{prog}` is neither an interpreter we know nor a file here"
     if flags and any(t in flags for t in rest):
         return "it carries its code on the command line"
+    if flags is not None:
+        allowed = safe_interpreter_options(Path(prog).name)
+        for t in rest:
+            # An option first: `--require=./x.js` is also a path to `is_pathish`, and reading it as
+            # the script was the bypass in another spelling.
+            if not t.startswith("-") and is_pathish(root, t):
+                break
+            if t not in allowed:
+                return (f"`{t}` comes before the script, where `{Path(prog).name}` reads it: only "
+                        + (", ".join(f"`{o}`" for o in sorted(allowed)) or "nothing")
+                        + " is known to load no code there")
     scripts, unresolved = hook_scripts(root, command)
     if unresolved:
         return unresolved[0][0]
@@ -3075,7 +3104,7 @@ def hook_decision(payload: dict) -> str | None:
             both = f"{raw}\x00{Path(raw).resolve(strict=False)}" if raw else ""
         except OSError:
             both = raw
-        if raw and BASELINE_PATH.search(both.lower()):
+        if raw and names_baseline(both):
             return ("this writes the file `hook-post` uses as the state from before the command, so "
                     "writing it decides what the next report is allowed to say. Nothing legitimate "
                     "needs it: `registry_intake.py check <root>` recomputes everything from the "
@@ -3091,7 +3120,7 @@ def hook_decision(payload: dict) -> str | None:
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not isinstance(command, str):
         raise TypeError("tool_input.command is not a string")
-    if BASELINE_PATH.search(command):
+    if names_baseline(command):
         return ("this command names registry intake's own before-state file. That file is how "
                 "`hook-post` tells a problem the command introduced from one that was already there, "
                 "so writing it decides what the next report is allowed to say. Nothing legitimate "
@@ -3266,12 +3295,14 @@ def hook_ask(payload: dict) -> str | None:
     # `hook-approve` is distinctive enough to stand alone: gating the whole prompt on seeing
     # `registry_intake` or a python interpreter meant a wrapper script, an alias or `uv run` ran the
     # decision with no prompt at all.
-    if ("registry_intake" not in command
-            and not re.search(r"\bhook-approve\b", command)
-            and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", command)):
+    # On `flat`, not on the raw text: `python3 $S "approve"`, `appr\ove` and `APPROVE` are the same
+    # call to a shell and slipped past every one of these patterns with no prompt.
+    if ("registry_intake" not in flat
+            and not re.search(r"\bhook-approve\b", flat)
+            and not re.search(r"\bpython3?\b[^\n]*\b(?:skill-approve|mcp-approve|allow|approve)\b", flat)):
         return generic
     asks = []
-    if re.search(r"\bhook-approve\b", command):
+    if re.search(r"\bhook-approve\b", flat):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
         who = by.group(1).strip("\"'") if by else "nobody named"
         # NAME them, and name them from the command's OWN root. The first version asked about "a
@@ -3286,7 +3317,7 @@ def hook_ask(payload: dict) -> str | None:
                        f"a hook command a machine cannot ({caveat})" if caveat else
                        "a hook command a machine cannot")
                     + " — hooks being the one thing that runs without the agent choosing to")
-    for verb, target in DECISION_CALL.findall(command):
+    for verb, target in DECISION_CALL.findall(flat):
         by = re.search(r"--by[= ]+(\"[^\"]*\"|'[^']*'|\S+)", command)
         who = by.group(1).strip("\"'") if by else "nobody named"
         what = (f"allowlist the registry {target}" if verb == "allow" else
@@ -3305,7 +3336,27 @@ def hook_ask(payload: dict) -> str | None:
 
 # `registry-intake-<16 hex>.json` under TMPDIR. Narrow on purpose: `registry-intake/` (the skill
 # directory) and `chore/registry-intake-hook` (a branch) are ordinary and must not be denied.
-BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[])")
+BASELINE_PATH = re.compile(r"registry-intake-(?:[0-9a-f]{4,16}|[*?\[${])")
+BASELINE_SAMPLE = "registry-intake-0123456789abcdef.json"
+
+
+def names_baseline(text: str) -> bool:
+    """Whether a command can reach the before-state file. Normalised as `may_install` is (quotes and
+    backslashes out, then case): a quoted, escaped or upper-case spelling is the same file to a
+    shell. A glob over the prefix names it without spelling it (`<prefix-start>*`, `*-intake-*.json`):
+    a glob whose literal part is a piece of the prefix, and that would match the file's name, counts
+    as naming it. `rm *.json` has no such piece and stays ordinary."""
+    flat = re.sub(r"[\"'\\]", "", text).lower()
+    if BASELINE_PATH.search(flat):
+        return True
+    for token in re.split(r"[\s;&|<>()=]+", flat):
+        base = token.rsplit("/", 1)[-1]
+        if not re.search(r"[*?\[]", base):
+            continue
+        pieces = [p for p in re.split(r"[*?\[\]]", base) if len(p) >= 4]
+        if any(p in BASELINE_SAMPLE[:16] or "intake" in p for p in pieces) and fnmatch.fnmatchcase(BASELINE_SAMPLE, base):
+            return True
+    return False
 
 
 # The `.claude/` ask gate lived here and is GONE, deliberately. Seven rounds of review sharpened
