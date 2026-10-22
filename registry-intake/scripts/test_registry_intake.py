@@ -2298,5 +2298,83 @@ class ConfinedWrites(Base):
         self.assertIn(ri.SETUP_MARK[0], (self.root / "CLAUDE.md").read_text())
 
 
+class GateBypasses(Hooks):
+    """Three ways round the gate a security review found on 2026-10-22, each proven by the command
+    that took it. Each test ends with the legitimate commands, because a gate that asks on a fifth
+    of the work is the one people switch off (see the deleted `.claude` ask)."""
+
+    SCRIPTS = {"tools/run.py": "x\n", "tools/run.js": "x\n", "tools/x.js": "x\n", "tools/x.mjs": "x\n",
+               ".claude/hooks/registry_intake.py": "x\n", "scripts/guard/primitives-guard.mjs": "x\n"}
+
+    def test_an_interpreter_option_that_loads_code_is_not_a_readable_shape(self) -> None:
+        """`reviewable_shape` skipped every `-` token, so the option that loads the code was never
+        read: `python3 -m pkg tools/run.py` runs the module pkg, and `node --require=./x.js` runs x.js
+        before the one script the recogniser saw."""
+        root = self.project(("Stop", "echo hi"), scripts=self.SCRIPTS)
+        for command in ("python3 -m evil tools/run.py",
+                        "python3 -W ignore -m evil tools/run.py",
+                        "node --require ./evil tools/run.js",
+                        "node --require=./tools/x.js tools/run.js",
+                        "node -r ./evil tools/run.js",
+                        "node --import=./tools/x.mjs tools/run.js",
+                        "node --loader ./evil tools/run.js",
+                        "node --experimental-loader=./tools/x.mjs tools/run.js",
+                        "node --eval=1 tools/run.js",
+                        "node --inspect-brk tools/run.js"):
+            with self.subTest(bypass=command):
+                self.assertIsNotNone(ri.reviewable_shape(root, command), command)
+        # Still a readable shape: the 46 measured commands' form, an allowlisted option that loads
+        # nothing, and options AFTER the script, which are the script's own arguments.
+        for command in ('python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/registry_intake.py" hook',
+                        'node "$CLAUDE_PROJECT_DIR"/scripts/guard/primitives-guard.mjs bash-pre',
+                        "python3 -I tools/run.py hook", "python3 -u tools/run.py",
+                        "node --no-warnings tools/run.js pre",
+                        "python3 tools/run.py --verbose -q", "node tools/run.js --mode=pre"):
+            with self.subTest(legitimate=command):
+                self.assertIsNone(ri.reviewable_shape(root, command), command)
+
+    def test_a_decision_spelled_differently_still_asks(self) -> None:
+        """The decision ask read the raw text, so a shell spelling of the same command — quoted,
+        escaped, uppercase — recorded a yes with no prompt."""
+        def ask(command):
+            return ri.hook_ask({"tool_name": "Bash", "tool_input": {"command": command}})
+        for command in ('python3 scripts/registry_intake.py "approve" . @ns/item --by me',
+                        "python3 scripts/registry_intake.py 'allow' . @ns https://r.test --reason x --by me",
+                        'S=scripts/registry_intake.py; python3 $S appr\\ove . @ns/item --by me',
+                        'S=scripts/registry_intake.py; python3 $S "skill-approve" . some-skill --by me',
+                        "S=scripts/registry_intake.py; PYTHON3 $S APPROVE . @ns/item --by me",
+                        'python3 x.py "hook-approve" --by me'):
+            with self.subTest(bypass=command):
+                self.assertIsNotNone(ask(command), command)
+        for command in ("pnpm approve-builds", "pnpm approve builds", 'git commit -m "Approve the plan"',
+                        "gh pr review 12 --approve", "ls -la"):
+            with self.subTest(legitimate=command):
+                self.assertIsNone(ask(command), command)
+
+    def test_the_baseline_spelled_differently_is_still_denied(self) -> None:
+        """`BASELINE_PATH` read the raw command while the write-tool branch lowercased it: a quote,
+        a backslash, upper case, a variable after the prefix or a glob over the prefix reached the
+        before-state file without naming it the way the pattern expected."""
+        root = self.project(("Stop", "echo hi"))
+        def deny(command):
+            return ri.hook_decision({"tool_name": "Bash", "cwd": str(root), "tool_input": {"command": command}})
+        for command in ('rm -f "$TMPDIR/registry-intake-"*.json',
+                        'echo "[]" > $TMPDIR/regis"try"-intake-0123456789abcdef.json',
+                        "echo [] > $TMPDIR/registry\\-intake-0123456789abcdef.json",
+                        "echo [] > $TMPDIR/REGISTRY-INTAKE-0123456789ABCDEF.json",
+                        "echo [] > $TMPDIR/registry-intake-$KEY.json",
+                        "echo [] > $TMPDIR/registry-intake-${KEY}.json",
+                        "rm -f $TMPDIR/registry-int*",
+                        "rm -f $TMPDIR/regis*.json",
+                        "rm -f $TMPDIR/*-intake-*.json",
+                        "rm -f $TMPDIR/registry-intake-{a,b}.json"):
+            with self.subTest(bypass=command):
+                self.assertIsNotNone(deny(command), command)
+        for command in ("cd ~/my-skills/registry-intake/scripts && ls", "git checkout chore/registry-intake-hook",
+                        "rm -f *.json", "rm -f $TMPDIR/*.log", "ls $TMPDIR", "pnpm test"):
+            with self.subTest(legitimate=command):
+                self.assertIsNone(deny(command), command)
+
+
 if __name__ == "__main__":
     unittest.main()
