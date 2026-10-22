@@ -184,9 +184,12 @@ a pass — it has to be re-approved, because for that entry nothing beside `SKIL
 **What gets read and what gets hashed are two questions.** Reading is narrow, because scanning a
 binary produces noise. Hashing is **everything**: `tree_sha256` covers every regular file in the
 directory, whatever its name — a `notes.txt` the skill tells the agent to read, a script with no
-extension, anything binary — plus each symlink's **target**, since same-bytes-different-target is
-the retarget `pinned_scripts` already learnt to catch. Keying the digest off the scannable set left
-all of those free to change after somebody signed. Each file hashed but unread is its own K12, so
+extension, anything binary — plus each symlink's **target** (directory links
+included — `is_file()` is false for those, so they fell out of the tree entirely), since
+same-bytes-different-target is the retarget `pinned_scripts` already learnt to catch. Keying the
+digest off the scannable set left all of those free to change after somebody signed, and it is not
+narrowed by directory NAME either: the review does not read what is inside `node_modules`, and
+hashing by the same list made a directory name the one place a file could still hide. Each file hashed but unread is its own K12, so
 the report says which it was. A symlink out of the directory is pinned and **not** read as the
 skill's own: findings against somebody else's file are findings nobody here can fix.
 
@@ -272,7 +275,7 @@ reporting it is guessing.
 | H9 | review / **block** | **a shell resolves the command and we cannot.** An expansion a reader can follow (`$HOME/bin/tool.sh`, a glob) is a review; a command that **computes what it runs** (`$(…)`, a backtick) blocks, because that is the one shape nobody can review. Inventing a path from the literal text would instead report a file that never existed |
 | H10 | block | the settings file **does not parse** — nothing in it was reviewed, and silence is not a pass |
 | H11 | review | an **interpreter is named and no file resolved** — so nothing was read. Not an inline command (`-c`, `-e` carry their code in the text, which the rules above judge) and not a reviewed script: a gap, which says so rather than passing quietly |
-| H13 | block → info | the script **computes its permission decision** — a `permissionDecision` whose value is not a literal `allow`/`deny`/`ask`, so which calls that one approves is unknowable from the text. Judged **per occurrence**: a literal `deny` in the safe branch used to vouch for a computed `allow` in the other, which is the same mistake H4 was corrected for once already. H4 was a regex over the words, and the words are the author's to spell: `D = "al" + "low"` carried `check` from exit 1 to exit 0 and took the `scaffolded` gate with it (measured, third audit). Same judgement H9 makes about a command that computes what it runs, and the same door: `hook-approve --by <them>` |
+| H13 | block → info | the script **computes its permission decision** — a `permissionDecision` whose value is not a literal `allow`/`deny`/`ask`, so which calls that one approves is unknowable from the text. Judged **per occurrence**, and the literal must be the **whole** value: a literal `deny` in the safe branch used to vouch for a computed `allow` in the other (the same mistake H4 was corrected for once already), and before that `"allow" if ok else D` passed by matching the check on its prefix. H4 was a regex over the words, and the words are the author's to spell: `D = "al" + "low"` carried `check` from exit 1 to exit 0 and took the `scaffolded` gate with it (measured, third audit). Same judgement H9 makes about a command that computes what it runs, and the same door: `hook-approve --by <them>` |
 | H12 | block → info | **not in the shape a machine can read**, so no machine reviewed what is here. Cleared only by `hook-approve --by <them>`, which records that a *person* read it — and never clears any other code |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 

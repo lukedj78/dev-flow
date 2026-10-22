@@ -665,6 +665,67 @@ class Skills(Base):
         self.assertEqual([(f.code, f.level) for f in rep.findings], [("K12", "review")])
         self.assertEqual(rep.exit_code, 3, "a person reads it; nothing is blocked")
 
+    def test_a_literal_decision_must_be_the_whole_value(self) -> None:
+        """`"allow" if ok else D` matched the literal check on its PREFIX, so the readable half
+        vouched for the computed one beside it. Caught reviewing the fix that introduced it."""
+        for value in ('"allow" if ok else D', '"deny" if unsafe else D', '"ask" or D', '"allow" + ""'):
+            with self.subTest(value=value):
+                body = f'import json\nprint(json.dumps({{"permissionDecision": {value}}}))\n'
+                self.assertIsNotNone(ri.computes_its_decision(body), value)
+        for value in ('"allow"', '"deny"', "'ask'"):
+            with self.subTest(literal=value):
+                body = f'import json\nprint(json.dumps({{"permissionDecision": {value}}}))\n'
+                self.assertIsNone(ri.computes_its_decision(body), value)
+
+    def test_a_registering_frontmatter_key_is_found_whatever_its_shape(self) -> None:
+        """`hooks:` with an indented block and `hooks: {PreToolUse: […]}` on one line declare the
+        same thing, and only the first was noticed: the check asked whether the value was a NESTED
+        BLOCK, when what matters is the key. Caught reviewing the fix that introduced it."""
+        for value in ("\n  PreToolUse:\n    - command: x\n", " {PreToolUse: [{command: x}]}\n",
+                      " [{event: PreToolUse}]\n"):
+            for key in ("hooks", "mcpServers", "permissions"):
+                with self.subTest(key=key, shape=value.strip()[:20]):
+                    text = f"---\nname: s\nlicense: MIT\n{key}:{value}---\n\nok\n"
+                    self.assertEqual(ri.registering_frontmatter_keys(text), [key])
+                    rep = ri.review_skill("s", text, "local", {})
+                    self.assertIn(("K12", "block"), [(f.code, f.level) for f in rep.findings])
+                    self.assertEqual(rep.exit_code, 1)
+
+    def test_a_payload_in_a_skipped_directory_is_hashed_even_if_not_read(self) -> None:
+        """A directory NAME was the one thing left to hide behind: the review does not read what is
+        in `node_modules`, and keying the digest off the same list left a file in there free to
+        change after approval. Read narrowly, hash everything."""
+        project(self.root)
+        self.cli("setup", str(self.root))
+        skill_file(self.root, "s", "---\nname: s\nlicense: MIT\n---\n\nok\n")
+        write(self.root, f"{ri.SKILLS_DIRS[0]}/s/node_modules/x/index.js", "module.exports = 1\n")
+        beside = ri.skill_files(ri.installed_skill(self.root, "s"))
+        self.assertEqual(beside.get("node_modules/x/index.js"), "", "hashed, not read")
+        self.assertEqual(self.cli("skill-approve", str(self.root), "s", "--by", "luca")[0], 0)
+        self.assertTrue(ri.check(self.root)[0])
+        write(self.root, f"{ri.SKILLS_DIRS[0]}/s/node_modules/x/index.js",
+              'require("child_process").execSync("rm -rf /tmp/x")\n')
+        self.assertFalse(ri.check(self.root)[0], "a dependency rewritten after approval must show")
+
+    def test_a_directory_symlink_is_recorded_by_its_target(self) -> None:
+        """`is_file()` is false for a link to a directory, so it fell out of the tree entirely —
+        and swapping where it points changed every file the skill reaches with nothing to show."""
+        outside = Path(tempfile.mkdtemp())
+        (outside / "a").mkdir(); (outside / "b").mkdir()
+        (outside / "a" / "r.md").write_text("same\n")
+        (outside / "b" / "r.md").write_text("same\n")
+        self.addCleanup(shutil.rmtree, outside, True)
+        project(self.root)
+        self.cli("setup", str(self.root))
+        skill_file(self.root, "s", "---\nname: s\nlicense: MIT\n---\n\nok\n")
+        link = self.root / ri.SKILLS_DIRS[0] / "s" / "refs"
+        link.symlink_to(outside / "a", target_is_directory=True)
+        self.assertIn("refs", dict(ri.skill_tree(ri.installed_skill(self.root, "s"))))
+        before = ri.skill_digest(ri.installed_skill(self.root, "s"))
+        link.unlink(); link.symlink_to(outside / "b", target_is_directory=True)
+        self.assertNotEqual(ri.skill_digest(ri.installed_skill(self.root, "s")), before,
+                            "identical contents, different target — only the target shows it")
+
     def test_every_file_is_hashed_even_the_ones_nobody_reads(self) -> None:
         """The digest was keyed off the SCANNABLE set, so a `.txt` of instructions, a renamed script
         and anything binary were free to change after approval. Two questions, two answers: what
@@ -1223,11 +1284,24 @@ class Hooks(unittest.TestCase):
                 codes = self.codes(("PreToolUse", 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/t.py"'),
                                    scripts={".claude/hooks/t.py": body})
                 self.assertIn(("H9", "block"), codes)
-        # And an ordinary hook that imports the stdlib normally is still clean: a rule that fires on
-        # every Python file is a rule people switch the scanner off for.
+        # And IMPORTING one of those modules is itself a finding — review, not block, since the
+        # import proves intent and not a call. A denylist of call spellings cannot be finished:
+        # `from importlib import import_module` walked past a pattern anchored on `importlib.`, so
+        # the question is now a fact about the file. Anywhere in the list counts, because
+        # `import json, sys, importlib` is the same fact as `import importlib`.
+        for line in ("import importlib\n", "import json, sys, importlib.util\n",
+                     "from importlib import import_module\n", "from runpy import run_path\n",
+                     "import imp\n"):
+            with self.subTest(line=line.strip()):
+                self.assertIn(("H9", "review"), self.codes(
+                    ("PreToolUse", 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/ok.py"'),
+                    scripts={".claude/hooks/ok.py": line + "print(1)\n"}), line)
+        # An ordinary hook that loads no code by name stays clean: a rule that fires on every
+        # Python file is a rule people switch the scanner off for.
         self.assertEqual([c for c, _ in self.codes(
             ("PreToolUse", 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/ok.py"'),
-            scripts={".claude/hooks/ok.py": "import json, sys, importlib.util\nprint(len(sys.stdin.read()))\n"})], [])
+            scripts={".claude/hooks/ok.py": "import json, sys, re\nfrom pathlib import Path\n"
+                                            "print(len(sys.stdin.read()))\n"})], [])
 
     def test_a_literal_decision_is_still_judged_by_H4_and_not_H13(self) -> None:
         """H13 is for the unreadable case only. Firing it on every ordinary hook as well would make

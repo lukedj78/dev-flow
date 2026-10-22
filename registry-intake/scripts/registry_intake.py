@@ -1288,6 +1288,22 @@ SKILL_BODY_RULES: list[tuple[str, str, re.Pattern]] = [
 ]
 
 
+# The three frontmatter keys that register something which runs on its own. Matched by NAME and
+# never by the shape of the value: `hooks:` with an indented block and `hooks: {PreToolUse: […]}`
+# on one line declare the same thing, and only the first was being noticed.
+REGISTERING_KEYS = re.compile(r"""^[ \t]*["']?(hooks|mcpServers|permissions)["']?[ \t]*:""", re.M)
+
+
+def registering_frontmatter_keys(text: str) -> list[str]:
+    """`hooks` / `mcpServers` / `permissions` declared in the frontmatter, however they are written.
+
+    `hook-review` watches `.claude/settings.json`. A skill's own frontmatter is a second place the
+    same registration can be made, and this script was not looking at it."""
+    if not text.startswith("---") or (end := text.find("\n---", 3)) < 0:
+        return []
+    return sorted({m.group(1) for m in REGISTERING_KEYS.finditer(text[3:end])})
+
+
 def nested_frontmatter_keys(text: str) -> list[str]:
     """The frontmatter keys whose value is a nested block, which `split_frontmatter` reads as "".
 
@@ -1440,7 +1456,9 @@ def review_skill(name: str, text: str, source: str,
                                     f"more than {SKILL_SIDE_COUNT} readable files; the rest were not scanned"))
         elif chunk == "":
             q = Path(rel)
-            why = ("not a type this review reads" if not SKILL_SIDE_FILE.search(q.name)
+            why = ("in a directory this review does not read"
+                   if any(part in SKILL_SIDE_SKIP for part in q.parts)
+                   else "not a type this review reads" if not SKILL_SIDE_FILE.search(q.name)
                    else f"over {SKILL_SIDE_MAX // 1024} KB")
             findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
                                     f"{rel}: {why} — hashed, so it cannot change after approval, "
@@ -1453,14 +1471,16 @@ def review_skill(name: str, text: str, source: str,
     # A nested block the flat reader cannot represent is named, not skipped. A `hooks:` one is
     # worse than unread: it registers a command that runs without the agent choosing to, which is
     # this script's `hook-review` surface arriving through a file it was not watching.
-    for key in nested_frontmatter_keys(text):
+    for key in registering_frontmatter_keys(text):
         findings.append(Finding(
-            "K12", "block" if key in ("hooks", "mcpServers", "permissions") else "review", name,
-            SKILL_CODES["K12"],
-            f"frontmatter `{key}:` is a nested block — "
-            + ("it registers something that runs on its own; `hook-review` watches "
-               ".claude/settings.json, not a skill's frontmatter" if key in ("hooks", "mcpServers", "permissions")
-               else "read it; this reader keeps flat `key: value` only")))
+            "K12", "block", name, SKILL_CODES["K12"],
+            f"frontmatter `{key}:` registers something that runs on its own — `hook-review` watches "
+            ".claude/settings.json, not a skill's frontmatter"))
+    for key in nested_frontmatter_keys(text):
+        if key not in registering_frontmatter_keys(text):
+            findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                    f"frontmatter `{key}:` is a nested block — read it; this reader "
+                                    "keeps flat `key: value` only"))
     return SkillReport(name, source, findings, len(text.splitlines()))
 
 
@@ -1539,6 +1559,11 @@ def skill_files(skill_md: Path) -> dict[str, str]:
             out["…"] = ""            # the marker review_skill reports; never scanned as text
             break
         try:
+            # `node_modules` and friends are hashed by `skill_tree` and not read here: a dependency
+            # tree is not this skill's instructions, and scanning one would bury every finding.
+            if any(part in SKILL_SIDE_SKIP for part in Path(rel).parts):
+                out[rel] = ""
+                continue
             if not SKILL_SIDE_FILE.search(q.name) or q.stat().st_size > SKILL_SIDE_MAX:
                 out[rel] = ""
                 continue
@@ -1558,9 +1583,15 @@ def skill_tree(skill_md: Path) -> list[tuple[str, Path]]:
     gets read as text, and that is reasonably narrow — a `.md`, a `.py`, a `.sh`. What gets HASHED
     cannot be narrow at all. Keying the digest off the scannable set left a `.txt` a skill tells the
     agent to read, a `.csv` of instructions, a renamed script and a binary all free to change after
-    somebody signed for the directory. Nothing is skipped by name here except the directories that
-    are never source (`node_modules`, `.git`, caches), and a symlink is hashed by where it POINTS as
-    well as what is there, since retargeting one is the bypass `pinned_scripts` already learnt."""
+    somebody signed for the directory.
+
+    Nothing is skipped by NAME either. Skipping `node_modules` and friends here made a directory
+    name the one thing a file could hide behind: the review does not read what is in there, but the
+    digest has to cover it, or putting the payload in `<skill>/node_modules/x.js` leaves it free to
+    change after approval. `SKILL_SIDE_SKIP` now only keeps those paths out of what gets READ.
+    A symlink is recorded by where it POINTS as well as what is there — directory symlinks
+    included, which `is_file()` alone would drop — since retargeting one is the bypass
+    `pinned_scripts` already learnt."""
     out: list[tuple[str, Path]] = []
     base = skill_md.parent
     if not base.is_dir():
@@ -1568,8 +1599,10 @@ def skill_tree(skill_md: Path) -> list[tuple[str, Path]]:
     for q in sorted(base.rglob("*")):
         try:
             rel = q.relative_to(base)
-            if any(part in SKILL_SIDE_SKIP for part in rel.parts) or not q.is_file():
-                continue
+            if rel.parts[:1] == (".git",):
+                continue             # a repository's own metadata, not the skill's content
+            if not q.is_file() and not q.is_symlink():
+                continue             # a plain directory has no bytes; its contents are listed too
             out.append((rel.as_posix(), q))
         except OSError:
             continue
@@ -1587,8 +1620,11 @@ def skill_digest(skill_md: Path) -> str:
         h.update(rel.encode("utf-8") + b"\0")
         try:
             if q.is_symlink():
+                # The TARGET, before the bytes. A link to a directory has no bytes of its own, and
+                # same-bytes-different-target is the case the digest alone cannot see.
                 h.update(b"->" + os.readlink(q).encode("utf-8", "replace") + b"\0")
-            h.update(q.read_bytes())
+            if q.is_file():
+                h.update(q.read_bytes())
         except OSError:
             pass
         h.update(b"\0")
@@ -2103,7 +2139,10 @@ LITERAL_DECISION = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\'](?:allow|
 # back and looking at ` "allow"`, which starts with a space and not a quote. Measured — it put an
 # H13 on every ordinary hook.
 DECISION_VALUE = re.compile(r"""permissionDecision["']?\s*[:=][ \t]*(?P<val>[^,}\n]{0,48})""")
-LITERAL_VALUE = re.compile(r"""^["'](?:allow|deny|ask)["']""")
+# Anchored at BOTH ends. Matching a prefix made `"allow" if ok else D` read as a literal decision:
+# the readable half vouched for the computed one sitting right beside it. Anything after the
+# literal — a ternary, an `or`, a `+` — means the value is assembled, which is the finding.
+LITERAL_VALUE = re.compile(r"""^["'](?:allow|deny|ask)["']\s*$""")
 
 
 def computes_its_decision(body: str) -> str | None:
@@ -2490,8 +2529,17 @@ PY_IMPORT = re.compile(r"^[ \t]*(?:from[ \t]+(?P<frm>\.{0,2}[\w.]*)[ \t]+import[
                        r"|import[ \t]+(?P<mods>[\w.]+(?:[ \t]*,[ \t]*[\w.]+)*))", re.M)
 # A module name computed at run time is the H9 shape in Python: nothing static can say which file
 # runs. Reported rather than followed, because following it would mean guessing.
-PY_DYNAMIC = re.compile(r"\b(?:importlib\.import_module|importlib\.util\.spec_from_file_location"
-                        r"|__import__|runpy\.run_(?:path|module))\s*\(")
+# INVERTED, because a denylist of call spellings cannot be finished: `from importlib import
+# import_module` walked past a pattern anchored on `importlib.`. These modules exist to load code
+# by name, so IMPORTING one in a hook is the finding — a fact about the file that no renaming of
+# the call changes. A recognised call still blocks, since then there is a line to quote.
+# Anywhere in the import list, not just first: `import json, sys, importlib.util` is the same fact
+# as `import importlib`, and anchoring on the token right after `import` missed it — the identical
+# mistake, one line down, as the call pattern this replaces.
+PY_LOADER_IMPORT = re.compile(r"^[ \t]*(?:import[ \t]+[\w.,\t ]*\b(?:importlib|runpy|imp)\b"
+                              r"|from[ \t]+(?:importlib|runpy|imp)[\w.]*[ \t]+import\b)", re.M)
+PY_DYNAMIC = re.compile(r"\b(?:import_module|spec_from_file_location|module_from_spec|exec_module"
+                        r"|SourceFileLoader|load_source|run_path|run_module|__import__)\s*\(")
 JS_DYNAMIC = re.compile(r"\b(?:require|import)\s*\(\s*(?![\"'])")
 JS_IMPORT = re.compile(r"""(?:\brequire\(|\bfrom|\bimport\s*\(|\bimport)\s*["'](?P<spec>[^"'\n]{1,200})["']""")
 SH_SOURCE = re.compile(r"^[ \t]*(?:\.|source)[ \t]+(?P<path>[^\s;|&()]{1,200})", re.M)
@@ -2731,6 +2779,12 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
             if (m := PY_DYNAMIC.search(body)) or (m := JS_DYNAMIC.search(body)):
                 found.append(Finding("H9", "block", event,
                                      HOOK_CODES["H9"] + " — and it computes that at run time",
+                                     f"{where}: {script.name}: {m.group(0).strip()}"))
+            elif (m := PY_LOADER_IMPORT.search(body)):
+                # No call matched, but the file imported a module whose purpose is loading code by
+                # name. Review, not block: the import alone proves intent, not a call.
+                found.append(Finding("H9", "review", event,
+                                     HOOK_CODES["H9"] + " — it imports a module that loads code by name",
                                      f"{where}: {script.name}: {m.group(0).strip()}"))
             computed_at = computes_its_decision(body)
             if computed_at or (DECIDES.search(body) and not LITERAL_DECISION.search(body)):
