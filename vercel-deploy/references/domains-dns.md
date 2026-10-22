@@ -2,7 +2,7 @@
 
 Attaching a real domain to the project, and getting the apex/`www` pair right the first time.
 
-> **Versions checked 2026-08-04**: Vercel CLI `58.5.1`. Docs: <https://vercel.com/docs/domains/working-with-domains/add-a-domain>, <https://vercel.com/docs/domains/working-with-domains/deploying-and-redirecting>, <https://vercel.com/docs/cli/domains>, <https://vercel.com/docs/cli/alias>.
+> **Versions checked 2026-10-22**: Vercel CLI `65.0.0` (published 2026-10-20). Docs: <https://vercel.com/docs/domains/working-with-domains/add-a-domain>, <https://vercel.com/docs/domains/working-with-domains/deploying-and-redirecting>, <https://vercel.com/docs/cli/domains>, <https://vercel.com/docs/cli/alias>.
 
 ## The one rule that decides the shape
 

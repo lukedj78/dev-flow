@@ -2,7 +2,22 @@
 
 Hand this to the user at the end of every deploy. It is written to be read at 2am by someone who did not run the deploy.
 
-> **Versions checked 2026-08-04**: Vercel CLI `58.5.1`. Docs: <https://vercel.com/docs/instant-rollback>, <https://vercel.com/docs/cli/rollback>, <https://vercel.com/docs/cli/promote>, <https://vercel.com/docs/deployments/promoting-a-deployment>.
+> **Versions checked 2026-10-22**: Vercel CLI `65.0.0` (published 2026-10-20). Docs: <https://vercel.com/docs/instant-rollback>, <https://vercel.com/docs/cli/rollback>, <https://vercel.com/docs/cli/promote>, <https://vercel.com/docs/deployments/promoting-a-deployment>.
+
+## If this project uses rolling releases
+
+Checked 2026-10-22 on CLI `65.0.0`: `vercel rolling-release` did not exist when this runbook was
+written. When a release is mid-flight, **aborting it is faster than rolling back** — it stops the
+traffic shift instead of re-pointing the domains after the fact:
+
+```bash
+pnpm dlx vercel@latest rolling-release fetch          # which stage is live, and on how much traffic
+pnpm dlx vercel@latest rolling-release abort          # stop here, traffic returns to the old one
+pnpm dlx vercel@latest rolling-release complete       # or finish the shift, if it is healthy
+```
+
+If the project does **not** use rolling releases — the default — ignore this section and use the
+rollback below. Nothing here replaces it.
 
 ## Roll back now
 

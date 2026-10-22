@@ -681,7 +681,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 290,
+      "skill_md_lines": 308,
       "bundle": "dist/vercel-deploy.skill"
     },
     {

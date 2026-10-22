@@ -2,7 +2,7 @@
 
 Everything to verify **before** the first `vercel deploy` of a run. Work down the list; each item states what to check, not just what to run.
 
-> **Versions checked 2026-08-04**: Vercel CLI `58.5.1`. Docs: <https://vercel.com/docs/cli/deploying-from-cli>, <https://vercel.com/docs/cli/list>, <https://vercel.com/docs/environment-variables>, <https://vercel.com/docs/deployment-protection>, <https://vercel.com/docs/skew-protection>.
+> **Versions checked 2026-10-22**: Vercel CLI `65.0.0` (published 2026-10-20). Docs: <https://vercel.com/docs/cli/deploying-from-cli>, <https://vercel.com/docs/cli/list>, <https://vercel.com/docs/environment-variables>, <https://vercel.com/docs/deployment-protection>, <https://vercel.com/docs/skew-protection>.
 
 ## 1. The project is configured, not just scaffolded
 

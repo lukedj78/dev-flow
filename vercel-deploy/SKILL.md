@@ -7,7 +7,25 @@ description: 'Ship a Next.js 16 App Router project to production on Vercel end-t
 
 The web counterpart of `rn-eas-deploy`. It is the **only** skill that moves a web project to `phase = "deployed"`.
 
-> **Versions checked 2026-08-04**: Vercel CLI `58.5.1`. Docs: <https://vercel.com/docs/cli/deploy>, <https://vercel.com/docs/cli/deploying-from-cli>, <https://vercel.com/docs/cli/promote>, <https://vercel.com/docs/cli/rollback>, <https://vercel.com/docs/deployments/promoting-a-deployment>, <https://vercel.com/docs/instant-rollback>, <https://vercel.com/docs/git>, <https://vercel.com/docs/domains/working-with-domains/add-a-domain>.
+> **Versions checked 2026-10-22**: Vercel CLI `65.0.0` (published 2026-10-20). Docs: <https://vercel.com/docs/cli/deploy>, <https://vercel.com/docs/cli/deploying-from-cli>, <https://vercel.com/docs/cli/promote>, <https://vercel.com/docs/cli/rollback>, <https://vercel.com/docs/deployments/promoting-a-deployment>, <https://vercel.com/docs/instant-rollback>, <https://vercel.com/docs/git>, <https://vercel.com/docs/domains/working-with-domains/add-a-domain>.
+
+> **What the re-check on 2026-10-22 found.** Seven major versions and 72 releases passed between
+> `58.5.1` and `65.0.0`, so this was read from the published package rather than the docs. The
+> mechanism this skill rests on is **unchanged and not deprecated**: `--skip-domain` still reads
+> *"Disable the automatic promotion (aliasing) of the relevant domains to a new production
+> deployment. You can use `vc promote` to complete the domain-assignment process."* `promote`,
+> `rollback` (with `rollback status` and a 3m default timeout), `alias`, `domains` and `ls` are all
+> still there.
+>
+> **One thing is genuinely new and belongs in this story: `vercel rolling-release` (`rr`)** —
+> *"Rolling releases gradually shift traffic to a new deployment in stages, allowing you to monitor
+> for errors before serving all traffic"*, with `enable`, `configure`, `approve`, `abort`,
+> `complete` and `fetch`. It did not exist at `58.5.1`. It is a **stronger** version of what the
+> staged deploy below does by hand: `--skip-domain` + `promote` is all-or-nothing at the moment of
+> promotion, while a rolling release moves traffic in stages and can be aborted mid-way.
+> **This skill still ships the staged flow**, because it needs no project-level configuration and
+> works on every plan; where a project has rolling releases enabled, say so and use them instead of
+> promoting in one step. See <https://vercel.com/docs/rolling-releases>.
 
 ## Scope — read this first
 
