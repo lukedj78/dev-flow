@@ -196,6 +196,15 @@ confident wrong system rather than an error:
 - The crop tolerance is 2px or 2%, not 1px: a screenshot of an element includes paint the layout
   box does not, so a 104×36 button arrives as a 106×36 file.
 
+- **A translucent colour was dropped before any rule saw it.** `parse_hex` returns None for
+  anything with an alpha channel, and every role list filtered by it — silently. apple.com's
+  hairline is `rgba(0, 0, 0, 0.16)` and carried the **most border length on the page** (2318
+  against 2094), so `--border` became `#0066cc`, the blue of its links, which frames nothing; its
+  body text is `rgba(0, 0, 0, 0.56)` on **68 024 characters**, two thirds of the page, and lost the
+  role to a colour with 317. Translucency is now composited onto the page ground: the token carries
+  what is painted (`#d6d6d6`, `#707070`) and an `authored` field records what was measured. The
+  old failure printed itself and nobody read it — *"had more but only **None**:1"*.
+
 The remaining 9.3% on one button is sub-pixel registration — the two crops are indistinguishable
 side by side. Recorded, not chased.
 
@@ -316,5 +325,5 @@ schema. Key facts:
 - `scripts/images.py` — prompts, the three image modes, WebP
 - `scripts/run_log.py` — what was read, assumed, and could not be seen
 - `scripts/make_design_md.py` — the DESIGN.md and the divergence record
-- `scripts/test_analyze.py` — 48 tests against a page whose true values are written down
+- `scripts/test_analyze.py` — 54 tests against a page whose true values are written down
 - `scripts/test_render.py` — 30 tests on the guide and the gate

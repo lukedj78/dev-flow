@@ -64,6 +64,38 @@ def parse_hex(value):
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
+RGBA = re.compile(r"rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.%]+))?\s*\)")
+
+
+def composite(value, ground):
+    """A translucent colour as it actually appears on `ground` — '#rrggbb', or None.
+
+    `parse_hex` returns None for anything with alpha, so every check built on it silently skipped
+    those values. Measured on apple.com, whose hairline is `rgba(0, 0, 0, 0.16)`: the longest
+    border on the page could not be parsed, so the visibility filter dropped it and the border
+    token became `#0066cc` — the blue of its links, which frames nothing.
+
+    A translucent hairline is one of the commonest things in modern UI. Not reading it is not
+    neutrality: it hands the role to whatever happens to be opaque.
+    """
+    if parse_hex(value):
+        return value
+    if not isinstance(value, str) or not (m := RGBA.fullmatch(value.strip())):
+        return None
+    bg = parse_hex(ground)
+    if not bg:
+        return None
+    try:
+        r, g, b = (float(m.group(i)) for i in (1, 2, 3))
+        raw = m.group(4)
+        a = 1.0 if raw is None else (float(raw[:-1]) / 100 if raw.endswith("%") else float(raw))
+    except ValueError:
+        return None
+    a = max(0.0, min(1.0, a))
+    out = tuple(round(a * c + (1 - a) * bgc) for c, bgc in ((r, bg[0]), (g, bg[1]), (b, bg[2])))
+    return "#%02x%02x%02x" % out
+
+
 def _srgb_to_linear(c):
     c = c / 255.0
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
@@ -290,17 +322,53 @@ def merge_snapshots(snaps, mode):
 def colour_roles(merged, missing):
     """Assign the role names a DESIGN.md needs, each with the evidence that chose it."""
     roles = {}
-    bgs = [r for r in merged["colors"]["background"] if parse_hex(r["value"])]
-    texts = [r for r in merged["colors"]["text"] if parse_hex(r["value"])]
-    borders = [r for r in merged["colors"]["border"] if parse_hex(r["value"])]
-
+    # The ground FIRST, because everything translucent has to be composited onto it. `parse_hex`
+    # returns None for any colour with alpha, so filtering by it here dropped them before any rule
+    # saw them — the measurement's most common exclusion, and entirely silent.
+    #
+    # Measured on apple.com: its hairline is `rgba(0, 0, 0, 0.16)` and carried the most border
+    # length on the page (2318 against 2094), so the border token became `#0066cc`, the blue of
+    # its links, which frames nothing. Its body text is `rgba(0, 0, 0, 0.56)` on 68 024
+    # characters — two thirds of the page — and was dropped the same way.
     doc_bg = merged.get("documentBackground")
-    page_bg = doc_bg if parse_hex(doc_bg) else (bgs[0]["value"] if bgs else None)
+    opaque_bgs = [r for r in merged["colors"]["background"] if parse_hex(r["value"])]
+    page_bg = doc_bg if parse_hex(doc_bg) else (opaque_bgs[0]["value"] if opaque_bgs else None)
+
+    def usable(rows):
+        """Every row, with `composited` set to what it looks like on the page ground.
+
+        A colour that cannot be read even once composited — no ground to composite onto, or a
+        spelling we do not parse — is still dropped, but now it is dropped for being unreadable
+        rather than for having an alpha channel."""
+        out = []
+        for r in rows:
+            seen = composite(r["value"], page_bg) if page_bg else (
+                r["value"] if parse_hex(r["value"]) else None)
+            if seen:
+                out.append({**r, "composited": seen})
+        return out
+
+    bgs = usable(merged["colors"]["background"])
+    texts = usable(merged["colors"]["text"])
+    borders = usable(merged["colors"]["border"])
+
+    def seen(row):
+        """What this row looks like on the page ground. Every contrast check reads this, never the
+        authored string: `contrast("rgba(0, 0, 0, 0.56)", "#ffffff")` is None, and `None >= 3.0`
+        dropped apple.com's body text — 68 024 characters, two thirds of the page — in favour of a
+        colour with 317. The failure even printed itself: "had more but only None:1"."""
+        return row.get("composited") or row["value"]
 
     def ev(row, why):
+        # A composited value is what the colour LOOKS like here; the raw one is what was authored.
+        # The token carries the first, because a token is a colour something is painted with, and
+        # `rgba(0, 0, 0, 0.16)` painted on a dark ground is a different colour. The raw value stays
+        # beside it so the evidence can say where the number came from.
+        value = row.get("composited") or row["value"]
         return {
-            "value": row["value"],
-            "oklch": oklch_css(row["value"]),
+            "value": value,
+            **({"authored": row["value"]} if value != row["value"] else {}),
+            "oklch": oklch_css(value),
             "weight": row["weight"],
             "elements": row["elements"],
             "pages": row["pages"],
@@ -322,12 +390,12 @@ def colour_roles(merged, missing):
     # So the winner has to be legible against the ground it was chosen for, and if it is not, the
     # next candidate that is takes the role and the near-miss is recorded.
     if texts and page_bg:
-        legible = [r for r in texts if (contrast(r["value"], page_bg) or 0) >= 3.0]
+        legible = [r for r in texts if (contrast(seen(r), page_bg) or 0) >= 3.0]
         if legible and legible[0] is not texts[0]:
             roles["foreground"] = ev(legible[0],
                                      f"most characters that are legible on the ground "
                                      f"({texts[0]['value']} had more but only "
-                                     f"{contrast(texts[0]['value'], page_bg)}:1)")
+                                     f"{contrast(seen(texts[0]), page_bg):.2f}:1)")
         elif legible:
             roles["foreground"] = ev(legible[0], "most characters on the page")
         else:
@@ -344,9 +412,9 @@ def colour_roles(merged, missing):
         chosen = roles["foreground"]["value"]
         base_c = contrast(chosen, page_bg)
         for r in texts:
-            if r["value"] == chosen:
+            if seen(r) == chosen:
                 continue
-            c = contrast(r["value"], page_bg)
+            c = contrast(seen(r), page_bg)
             if c and base_c and c < base_c * 0.75 and c >= 1.6:
                 roles["muted-foreground"] = ev(r, "second text colour, lower contrast on the ground")
                 break
@@ -406,8 +474,11 @@ def colour_roles(merged, missing):
     # rebuilt button lost its frame — which is what the pixel comparison was still showing after
     # the weight and the shape were right. Same shape of mistake as the ink; same fix.
     if borders and page_bg:
+        # Composited first: a translucent hairline is a border, and `parse_hex` cannot read one.
+        # Each row keeps what it would LOOK like here, so the token is a colour that can be
+        # written into CSS and the evidence still names what was measured.
         visible = [r for r in borders
-                   if (contrast(r["value"], page_bg) or 0) >= 1.1]
+                   if (contrast(seen(r), page_bg) or 0) >= 1.1]
         if visible and visible[0] is not borders[0]:
             roles["border"] = ev(visible[0],
                                  f"the most border length that is visible on the ground "

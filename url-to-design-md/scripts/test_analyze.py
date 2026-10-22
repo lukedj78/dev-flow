@@ -325,6 +325,77 @@ class Outputs(unittest.TestCase):
             self.assertIn("confidence", role)
 
 
+class Translucency(unittest.TestCase):
+    """`parse_hex` returns None for anything with an alpha channel, and every role list filtered by
+    it — so a translucent colour was dropped before any rule saw it. Silently, and it is one of the
+    commonest things in modern UI.
+
+    Measured on apple.com: its hairline is `rgba(0, 0, 0, 0.16)` with the most border length on the
+    page (2318 against 2094), so the border token became `#0066cc`, the blue of its links, which
+    frames nothing. Its body text is `rgba(0, 0, 0, 0.56)` on 68 024 characters — two thirds of the
+    page — and lost the role to a colour with 317. That one even printed its own failure: "had more
+    but only None:1"."""
+
+    def test_a_translucent_colour_is_composited_onto_the_ground(self):
+        for value, ground, want in (
+            ("rgba(0, 0, 0, 0.16)", "#ffffff", "#d6d6d6"),
+            ("rgba(0, 0, 0, 0.56)", "#ffffff", "#707070"),
+            ("rgba(255, 255, 255, 0.5)", "#000000", "#808080"),
+            ("rgb(0 0 0 / 20%)", "#ffffff", "#cccccc"),
+            ("#0071e3", "#ffffff", "#0071e3"),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(analyze.composite(value, ground), want)
+
+    def test_the_same_colour_composites_differently_on_two_grounds(self):
+        """Which is why the token carries the composited value: `rgba(0,0,0,.16)` on black is not
+        the same colour as on white, and a token is what something is painted with."""
+        self.assertNotEqual(analyze.composite("rgba(0, 0, 0, 0.16)", "#ffffff"),
+                            analyze.composite("rgba(0, 0, 0, 0.16)", "#000000"))
+
+    def test_an_unreadable_value_is_still_dropped(self):
+        """Dropped for being unreadable, not for having an alpha channel."""
+        for value in ("color-mix(in oklab, red, blue)", "var(--x)", "", None, "oklch(0.5 0.1 200)"):
+            with self.subTest(value=value):
+                self.assertIsNone(analyze.composite(value, "#ffffff"))
+        self.assertIsNone(analyze.composite("rgba(0, 0, 0, 0.5)", "var(--ground)"),
+                          "no ground to composite onto")
+
+    def test_a_translucent_ink_can_win_the_role_and_says_where_it_came_from(self):
+        merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        merged["colors"]["text"] = [
+            {"value": "rgba(0, 0, 0, 0.56)", "weight": 68024, "elements": 112,
+             "pages": 1, "confidence": 1.0},
+            {"value": "#1d1d1f", "weight": 317, "elements": 17, "pages": 1, "confidence": 1.0},
+        ]
+        merged["documentBackground"] = "#ffffff"
+        roles = analyze.colour_roles(merged, [])
+        self.assertEqual(roles["foreground"]["value"], "#707070",
+                         "the colour two thirds of the page is actually painted in")
+        self.assertEqual(roles["foreground"]["authored"], "rgba(0, 0, 0, 0.56)",
+                         "and the evidence names what was measured")
+
+    def test_a_translucent_hairline_can_win_the_border_role(self):
+        merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        merged["colors"]["border"] = [
+            {"value": "rgba(0, 0, 0, 0.16)", "weight": 2318, "elements": 2,
+             "pages": 1, "confidence": 1.0},
+            {"value": "#0066cc", "weight": 2094, "elements": 16, "pages": 1, "confidence": 1.0},
+        ]
+        merged["documentBackground"] = "#ffffff"
+        roles = analyze.colour_roles(merged, [])
+        self.assertEqual(roles["border"]["value"], "#d6d6d6")
+        self.assertEqual(roles["border"]["authored"], "rgba(0, 0, 0, 0.16)")
+
+    def test_an_opaque_token_carries_no_authored_field(self):
+        """`authored` appears only when the two differ, so its presence means something."""
+        merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        roles = analyze.colour_roles(merged, [])
+        for name, role in roles.items():
+            if role["value"] == role.get("authored"):
+                self.fail(f"{name} carries a redundant `authored`")
+
+
 class WhatTheExtractorKeeps(unittest.TestCase):
     """Against the fixture page, whose true values are written down in it. These three cases were
     added after measuring apple.com, where each of them silently produced a wrong system."""
