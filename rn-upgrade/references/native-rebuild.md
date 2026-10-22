@@ -1,4 +1,6 @@
-> Snapshot date: 2026-07-23 (link targets re-checked 2026-08-26). Command flags can change between Expo SDK majors — re-verify `[VERIFY]`-tagged items against `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` or MCP Expo (`https://mcp.expo.dev/mcp`) before running on an unfamiliar SDK.
+> Snapshot date: 2026-10-22, read from the published `@expo/cli@58.1.14` rather than the docs site. Command flags can change between Expo SDK majors — re-verify against `https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/` or MCP Expo (`https://mcp.expo.dev/mcp`) before running on an unfamiliar SDK.
+>
+> ⚠️ **The clean flag inverted, and it matters here.** At `58.1.14` the CLI declares both `--clean` and `--no-clean`, but computes `clean: !args['--no-clean']` — so **cleaning is now the default** and the help documents only `--no-clean`: *"Apply changes to the existing native folders instead of recreating them"*. A plain `npx expo prebuild` **recreates** the native folders. On a bare project with hand-edited native code that is the difference between keeping the edits and losing them: pass `--no-clean` to merge, and keep passing `--clean` only where this file means *recreate*, which still reads correctly.
 
 # Native rebuild: CNG vs bare workflow
 

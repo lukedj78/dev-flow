@@ -41,7 +41,7 @@ The `stack` object follows the existing contract (see `contracts.md`). `framewor
 | `feature_complete` | `rn-eas-deploy` |
 | `deployed` | maintenance loop: `rn-add-screen` for new features, `rn-eas-build-submit-update` for OTA hotfixes |
 
-All skills shipped — Wave 3 complete as of 2026-05-22.
+All skills shipped — Wave 3 complete. Re-checked 2026-10-22 against this repo: every `rn-*` skill named above exists on disk.
 
 ## Knowledge skills available (auto-invoked when context matches)
 

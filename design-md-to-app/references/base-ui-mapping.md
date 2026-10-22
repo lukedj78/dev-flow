@@ -138,7 +138,21 @@ export function ConfirmDialog({ open, onClose, children }: Props) {
 
 The skill should wrap commonly-used composites into `components/ui/*` files (`Button.tsx`, `Dialog.tsx`, `Popover.tsx`, etc.) so the rest of the app imports a single ergonomic primitive — same pattern as shadcn, but composed from Base UI primitives instead of generated source.
 
-## Component coverage (as of 2026-05)
+## Component coverage (re-read 2026-10-22 against `@base-ui/react@1.9.0`)
+
+> ⚠️ **The package was renamed.** `@base-ui-components/react` is frozen at `1.0.0-rc.0`
+> (2025-12-04, ~260k downloads a week); the live package is **`@base-ui/react`**, at `1.9.0`
+> (2026-10-09, ~10.8M a week). Anything installing the old name is installing a package that has
+> not moved in eleven months. Read from the published tarball, not the docs site.
+>
+> It now exports **78 primitives**. Three things this file used to say are no longer true, and they
+> change what to reach for:
+>
+> - **`drawer` ships natively** — so `vaul` is no longer needed for a drawer on a Base UI project;
+> - **`combobox` and `autocomplete` ship** — the `cmdk` slot;
+> - **`otp-field` ships** — the `input-otp` slot.
+>
+> Still absent, so the fallback below stands: **`calendar` and `date-picker`.**
 
 Base UI ships these primitives. Map each DESIGN.md component to one:
 
@@ -159,7 +173,7 @@ Base UI ships these primitives. Map each DESIGN.md component to one:
 | Number input | `NumberField.Root` | |
 | Form / field validation | `Form.Root` + `Form.Field` | optional Zod / RHF on top |
 | Toast | `Toast` — shadcn's **first-party Toast for Base UI** (since 2026-07: actions, status types, promises, stacking, swipe-dismiss). `sonner` still works if you prefer it. | `pnpm dlx shadcn@latest add toast` |
-| Calendar / date picker | (not yet in Base UI as of 2026-05 — fall back to `react-day-picker`) | |
+| Calendar / date picker | (still not in Base UI at `1.9.0`, 2026-10-22 — fall back to `react-day-picker`) | |
 | Toggle group | `ToggleGroup.Root` | |
 | Avatar | (compose with `<img>` + fallback — no primitive) | |
 

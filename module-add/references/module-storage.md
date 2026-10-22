@@ -4,7 +4,7 @@ Wire **Vercel Blob** as the file-storage layer of an existing scaffold. Defaults
 
 **Why Blob is the default here, not UploadThing or S3.** dev-flow's default deploy target is Vercel (`stack.deploy = "vercel"`). Blob is same-platform: no second vendor, no second dashboard or billing relationship, no extra sub-processor to add to the GDPR register that `compliance-audit` builds, and credentials arrive automatically on the linked Vercel project (OIDC — no long-lived secret in your env). UploadThing and S3 remain documented alternatives at the bottom of this file — pick them only when the user explicitly asks.
 
-> **Versions checked 2026-08**: `@vercel/blob@2.6.1`. Docs: <https://vercel.com/docs/vercel-blob> and <https://vercel.com/docs/vercel-blob/using-blob-sdk>.
+> **Versions checked 2026-10-22**: `@vercel/blob@2.8.2` (2026-10-14; `2.6.1` previously). Docs: <https://vercel.com/docs/vercel-blob> and <https://vercel.com/docs/vercel-blob/using-blob-sdk>.
 
 ## Idempotency check
 
@@ -422,7 +422,7 @@ These are **not** the default. Each gets a pointer, not a recipe — implement f
 
 **Pick it when**: you want the prebuilt DX — a typed file router with per-type size/count limits, and drop-in `<UploadButton>` / `<UploadDropzone>` components with progress, previews and error states already styled. If "I don't want to build the dropzone" is the actual requirement, this is the honest answer.
 
-- **Packages**: `uploadthing` (7.7.4 as of 2026-08), `@uploadthing/react` (7.3.3). React 19 supported.
+- **Packages**: `uploadthing` (7.7.4, still latest as of 2026-10-22), `@uploadthing/react` (7.3.3, likewise). React 19 supported.
 - **Env var**: `UPLOADTHING_TOKEN` — a single base64 token. (v6's `UPLOADTHING_SECRET` + `UPLOADTHING_APP_ID` were **replaced** by it in v7; if you find those in an existing project, it's on v6.)
 - **Shape**: `createUploadthing()` file router in `app/api/uploadthing/core.ts` with `f({ image: { maxFileSize: "4MB", maxFileCount: 1 } }).middleware(...).onUploadComplete(...)`; `createRouteHandler({ router })` from `uploadthing/next` in `app/api/uploadthing/route.ts`; `generateUploadButton<OurFileRouter>()` / `generateUploadDropzone` from `@uploadthing/react`.
 - **Auth gate**: `.middleware()` — throw `UploadThingError("Unauthorized")` when there's no session. Same boundary as Blob's `onBeforeGenerateToken`.
@@ -435,7 +435,7 @@ These are **not** the default. Each gets a pointer, not a recipe — implement f
 
 **Pick it when**: the user must own the bucket — an existing AWS estate, a contractual/residency requirement Blob can't satisfy, or a hard "no managed file vendor" rule. Also the right call when files are consumed by other AWS services (Lambda, Athena, Glacier lifecycle).
 
-- **Packages**: `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` (3.1101.0 as of 2026-08).
+- **Packages**: `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` (3.1155.0 as of 2026-10-22; 3.1101.0 before).
 - **Env vars**: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET`. Prefer OIDC federation from Vercel over static keys where possible.
 - **Shape**: server generates a presigned `PUT` with `getSignedUrl(s3, new PutObjectCommand({ Bucket, Key, ContentType }), { expiresIn })`; the browser `PUT`s the file straight at that URL. *"A presigned URL is limited by the permissions of the user who creates it"* — so the IAM policy on the signing identity is the real access control. Max expiry with SigV4 is **7 days**.
 - **CORS is mandatory** for browser `PUT`s. The S3 console takes JSON only:

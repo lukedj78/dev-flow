@@ -35,7 +35,7 @@ Pick Base UI when the DESIGN.md shows any of:
 
 - **Headless + Tailwind philosophy preferred** (same as shadcn), BUT the user does NOT want to maintain copy-pasted source — they want a library they can `pnpm update` and not think about.
 - **Strong accessibility requirements** (WCAG AA+, screenreader-first, keyboard navigation rigor) — Base UI inherits MUI team's a11y track record without Material's visual baggage.
-- **Modest component surface** suffices: the DESIGN.md uses Buttons, Dialogs, Popovers, Tabs, Forms — none of the things Base UI hasn't shipped yet (Calendar / DatePicker / Drawer are NOT in Base UI as of 2026-05).
+- **Modest component surface** suffices: the DESIGN.md uses Buttons, Dialogs, Popovers, Tabs, Forms — none of the things Base UI hasn't shipped yet (**re-read 2026-10-22 against `@base-ui/react@1.9.0`** — note the package rename from `@base-ui-components/react`, which is frozen at `1.0.0-rc.0`: Calendar and DatePicker are still absent, but **Drawer now ships**, as do Combobox, Autocomplete and OTP field).
 - The user has tried shadcn before and found CLI updates / `components.json` maintenance friction.
 - **Tree-shake matters** — Base UI imports cleanly per-primitive; shadcn ships everything you `add --all` (negligible for most apps, mentionable for embedded / kiosks).
 - **The project is part of an MUI shop** but the new app's visual identity wants to escape Material — Base UI is the smooth migration path because the headless layer is the same team.

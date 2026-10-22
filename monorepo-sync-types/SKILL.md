@@ -44,7 +44,7 @@ Read `meta.json#stack_config.supabase_project_ref` (or equivalent) for the gen c
 
 #### Supabase
 
-Run the canonical gen command. **Checked 2026-08-12 against `supabase@2.113.0`'s own README** — it now
+Run the canonical gen command. **Checked 2026-10-22 against `supabase@2.121.0`'s own README** (and before that `2.113.0`; the README still shows the same two forms) — it now
 documents the command without an explicit `typescript` argument:
 
 ```bash
