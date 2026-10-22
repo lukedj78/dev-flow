@@ -59,6 +59,12 @@ def collect_components(snapshots):
                     "page": page,
                     "viewport": vw,
                     "rect": rect,
+                    # The tag the extractor put on the element itself. Carried through because a
+                    # clip from a rounded bounding rect bleeds a row of whatever is beneath, and
+                    # an element screenshot stops at its own box — measured on adidas.it, where
+                    # the top bar's crop carried a strip of the header under it. Without this key
+                    # the browser side silently falls back to the rect, which is the artefact.
+                    "u2d": box.get("u2d"),
                     "measured": box,
                 })
                 n += 1
@@ -212,13 +218,35 @@ def cmd_compare(args):
               "(the repo already requires it for image-to-design-md)", file=sys.stderr)
         return 2
 
-    rows, missing = [], []
+    # The recorded size is the measurement's own. A crop that does not match it is a crop of a
+    # DIFFERENT element — on adidas.it, two injections on one page left the same `data-u2d` on two
+    # elements, and the stale one had collapsed to 0x0 at 390px. Comparing that against a rebuild
+    # would have produced a number about nothing, so a mismatched pair is refused and named.
+    recorded = {}
+    cj = args.out / "components.json"
+    if cj.is_file():
+        try:
+            items = json.loads(cj.read_text(encoding="utf-8"))
+            items = items if isinstance(items, list) else items.get("components", [])
+            recorded = {it["id"]: it["rect"] for it in items if it.get("rect")}
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            recorded = {}
+
+    rows, missing, wrong_size = [], [], []
     for src in sorted(args.out.glob("source-*.png")):
         ident = src.stem[len("source-"):]
         rebuilt = args.out / f"rebuilt-{ident}.png"
         if not rebuilt.is_file():
             missing.append(ident)
             continue
+        if (rect := recorded.get(ident)):
+            got = Image.open(src).size
+            # Whole-pixel rounding gives one pixel of slack either way; anything more is a
+            # different element, not a different rounding.
+            if abs(got[0] - round(rect["w"])) > 1 or abs(got[1] - round(rect["h"])) > 1:
+                wrong_size.append(f"{ident}: cropped {got[0]}x{got[1]}, measured "
+                                  f"{round(rect['w'])}x{round(rect['h'])}")
+                continue
         a = Image.open(src).convert("RGB")
         b = Image.open(rebuilt).convert("RGB")
         if a.size != b.size:
@@ -270,6 +298,11 @@ def cmd_compare(args):
 
     if missing:
         print(f"  {len(missing)} component(s) have no rebuilt shot: {', '.join(missing[:6])}")
+    if wrong_size:
+        print(f"  {len(wrong_size)} crop(s) REFUSED — the file is not the element that was "
+              f"measured, so any number from it would be about nothing:")
+        for w in wrong_size[:6]:
+            print(f"      {w}")
     if not rows:
         print("nothing to compare — run run-pixel-check.js first", file=sys.stderr)
         return 2

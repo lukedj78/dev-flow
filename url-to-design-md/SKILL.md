@@ -117,6 +117,19 @@ computed styles back and fails when one does not equal its token — a guide wit
 
 Show the guide. Then work through the decisions the measurement raised, each with a picture.
 
+**Every question arrives with my recommendation, first and marked, with the reason.** That is the
+user's standing instruction, and it is enforced in `analyze.py#require_recommendations` rather than
+remembered: a question whose id has no entry in `RECOMMENDED` raises, so a new one cannot be added
+without deciding what to advise. Measured on the second adidas run — **none** of the eight questions
+carried a recommendation, because when it had been done before it was done by hand in the chat,
+which means it held for exactly as long as somebody remembered it. The recommended option is not
+always the first one as written (`coverage:scheme` lists "read the other theme too" first while the
+sensible default is to ship one theme), so it is an index, not a convention.
+
+A close call also names **the value the tokens hold**, not the heaviest raw candidate: `foreground`
+offered "keep #ffffff" while the token was `#000000`, because the legibility guard had already
+rejected #ffffff and the question did not know.
+
 ### 4b. Prove the primitives — `scripts/pixel_check.py`
 
 Everything else checks that the guide agrees with the tokens, which passes happily while the
@@ -137,9 +150,31 @@ is reported and never failed on). On adidas.it it took three controls from 96% d
 derived from one 24px dot, white ink on a white ground, a `--border` that was the ground itself, a
 control weight lost by snapping to the body scale.
 
-**Known limit, with its evidence**: on that run the announcement bar still differs by 16.3% chrome,
-and it is one 1px grey row inside the element's own box that is neither a border, nor a box-shadow,
-nor a focus ring — all three were checked and ruled out. Recorded rather than explained away.
+**Second run, 2026-10-22, after the fixes**: **18 of 19 controls at 0.0% chrome** (one card at
+1.1%), every button included. The one failure is the same announcement bar, at the same 16.3%.
+
+**Known limit, with its evidence**: the announcement bar differs by 16.3% chrome, and it is one 1px
+grey row inside the element's own box that is neither a border, nor a box-shadow, nor a focus ring —
+all three were checked and ruled out. Recorded rather than explained away.
+
+**Two traps the second run found, both now closed in the scripts:**
+
+- **The tags must be cleared before measuring.** `data-u2d` ids are numbered per run, so injecting
+  twice on one page — which is what measuring 1440 and then 390 does — left the same `u2d-card-0` on
+  two different elements. 36 duplicated ids on adidas.it, and the crop then took the stale one,
+  which at 390px had collapsed to 0×0. `extract.js` now removes every previous tag first and says
+  how many it cleared.
+- **A crop whose box does not match the recorded rect is REFUSED, not compared.** Two defences for
+  one failure, because it was silent in both places: `pixel_check.py compare` reads
+  `components.json` and names any crop whose size is more than a pixel off, instead of producing a
+  number about a different element. On the second run it refused three at 390px — React had
+  remounted those cards between the measurement and the crop, and no comparison was possible.
+
+**And a card is a SURFACE.** The selector matches by class name, so it also caught every descendant
+of anything named "card": an `h4` product title (284×20) and a `p` category (81×20) came back as
+cards, were rebuilt as boxes and compared against lines of text — 14–32% chrome that was not a wrong
+token at all, but an element classified wrong. A candidate now needs its own ground, border or
+shadow, or the `<article>` tag.
 
 ### 5. Write it
 
@@ -252,4 +287,5 @@ schema. Key facts:
 - `scripts/images.py` — prompts, the three image modes, WebP
 - `scripts/run_log.py` — what was read, assumed, and could not be seen
 - `scripts/make_design_md.py` — the DESIGN.md and the divergence record
-- `scripts/test_analyze.py` — 26 tests against a page whose true values are written down
+- `scripts/test_analyze.py` — 37 tests against a page whose true values are written down
+- `scripts/test_render.py` — 25 tests on the guide and the gate

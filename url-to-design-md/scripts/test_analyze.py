@@ -325,5 +325,89 @@ class Outputs(unittest.TestCase):
             self.assertIn("confidence", role)
 
 
+class Recommendations(unittest.TestCase):
+    """The user's standing instruction: every multiple-choice question arrives with my
+    recommendation inside the options, first and marked. On the first adidas run NONE of the eight
+    questions carried one — it had been done by hand in the chat, which means it held for exactly as
+    long as somebody remembered it. These tests are what makes it hold without remembering."""
+
+    def questions(self):
+        return analyze.build_tokens(
+            analyze.merge_snapshots([load(1440), load(390)], "site"))["questions"]
+
+    def test_every_question_carries_a_recommendation_first_and_marked(self):
+        qs = self.questions()
+        self.assertTrue(qs, "the fixture raises at least one question")
+        for q in qs:
+            with self.subTest(q=q["id"]):
+                self.assertTrue(q.get("recommend"), f"{q['id']} has no recommendation")
+                self.assertTrue(q.get("why"), f"{q['id']} does not say why")
+                self.assertTrue(q["options"], f"{q['id']} has no options")
+                self.assertTrue(q["options"][0].startswith(q["recommend"]),
+                                f"{q['id']}: the recommendation is not the first option")
+                self.assertIn("← recommended:", q["options"][0],
+                              f"{q['id']}: the recommendation is not marked")
+                self.assertEqual(sum("← recommended:" in o for o in q["options"]), 1,
+                                 f"{q['id']}: exactly one option is marked")
+
+    def test_a_question_with_no_recommendation_is_refused(self):
+        """A rule that only applies to the questions already written is not a rule. Adding a new
+        one without deciding what to advise must fail here rather than reach the user."""
+        with self.assertRaises(AssertionError) as caught:
+            analyze.require_recommendations([
+                {"id": "something:new", "kind": "judgement", "question": "?",
+                 "options": ["a", "b"], "default": "a"}])
+        self.assertIn("RECOMMENDED", str(caught.exception))
+
+    def test_an_out_of_range_recommendation_is_refused(self):
+        saved = analyze.RECOMMENDED.get("colour:gradient")
+        analyze.RECOMMENDED["colour:gradient"] = (5, "nonsense")
+        try:
+            with self.assertRaises(AssertionError):
+                analyze.require_recommendations([
+                    {"id": "colour:gradient", "kind": "judgement", "question": "?",
+                     "options": ["a", "b"], "default": "a"}])
+        finally:
+            if saved is not None:
+                analyze.RECOMMENDED["colour:gradient"] = saved
+
+    def test_the_recommended_option_is_not_assumed_to_be_the_first(self):
+        """`coverage:scheme` lists "read the other theme too" first while the sensible default is to
+        ship one theme. Reading option 0 as the recommendation would have inverted the advice."""
+        qs = analyze.require_recommendations([
+            {"id": "coverage:scheme", "kind": "coverage", "question": "?",
+             "options": ["read the other theme too", "this project ships one theme"],
+             "default": "one theme"}])
+        self.assertEqual(qs[0]["recommend"], "this project ships one theme")
+
+    def test_a_close_call_recommends_the_value_the_tokens_actually_hold(self):
+        """Measured on adidas.it: #ffffff carried the most characters and reaches 1.0:1 on a white
+        ground, so the legibility guard took #000000 — and the question then offered to "keep
+        #ffffff", a value that had already been discarded. It read the heaviest RAW candidate
+        instead of the chosen role.
+
+        The fixture's own foreground is also its heaviest, so the divergence is built here: the two
+        top candidates are put within 20% of each other and the role is set to the SECOND, which is
+        exactly the shape the guard produces."""
+        merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        tokens = analyze.build_tokens(merged)
+        text = merged["colors"]["text"]
+        heaviest, runner = text[0]["value"], text[1]["value"]
+        runner_row = next(r for r in text if r["value"] == runner)
+        runner_row["weight"] = int(text[0]["weight"] * 0.9)      # close enough to raise the question
+        tokens["color"]["roles"]["foreground"] = {
+            "value": runner, "why": "most characters that are legible on the ground",
+            "confidence": 1.0,
+        }
+        qs = [q for q in analyze.open_questions(tokens, merged) if q["id"] == "close:foreground"]
+        self.assertTrue(qs, "a close call on foreground must still be raised")
+        q = qs[0]
+        self.assertIn(runner, q["recommend"], "the recommendation names the value the tokens hold")
+        self.assertNotIn(heaviest, q["recommend"],
+                         "never offer to keep the candidate the guard rejected")
+        self.assertIn(heaviest, " ".join(q["options"][1:]),
+                      "the rejected candidate is still offered as the alternative")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -921,6 +921,72 @@ def slop_drift(final, measured):
     return hits
 
 
+# WHICH OPTION DO I RECOMMEND, AND WHY. One table, because the rule belongs in the code: the user's
+# standing instruction is that every multiple-choice question arrives with my recommendation inside
+# the options, first and marked. On the adidas run NONE of the eight questions carried one — when it
+# had been done before, it was done by hand in the chat, which means it held for exactly as long as
+# somebody remembered it. `require_recommendations` below refuses a question without one, so a new
+# question cannot be added without deciding this.
+#
+# The index is into `options` as written. It is NOT always 0: `coverage:scheme` lists "read the
+# other theme too" first while the sensible default is to ship one theme, and reading the first
+# option as the recommendation would have inverted that advice.
+RECOMMENDED = {
+    "contrast": (0, "a faithful record of the source beats a prettier number; fix it when the "
+                    "design diverges, and record it there"),
+    "confidence:colour": (0, "a role seen on one page in five is a page's colour, not the system's"),
+    "inferred:components": (1, "an inferred default is honest about being inferred; a guessed "
+                               "measurement is not"),
+    "missing:slots": (0, "shadcn's defaults are a known quantity; a value nobody measured sitting "
+                         "in a measured file is not"),
+    "type:mobile": (0, "the ramp is a deliberate choice on a site this size, not an accident"),
+    "type:scale": (0, "chosen sizes are what the brand ships; a regular ratio would be our "
+                      "invention wearing a measurement's clothes"),
+    "coverage:scheme": (1, "one theme done properly beats two half-read, and a second can be "
+                           "measured later"),
+    "coverage:pages": (0, "three or four pages is where cross-page confirmation starts; one page "
+                          "cannot tell a system from a layout"),
+    "declared:unpainted": (0, "what is painted is what people see, and it is what the browser "
+                              "resolved — the declared value may never apply"),
+    "close": (0, "the tokens already hold it, and the reason is recorded against the role"),
+    "button:paintlayer": (0, "the grouping is checked against the real control by `pixel_check`, "
+                             "which is evidence rather than an assumption"),
+    "radius:both": (0, "one pill among square controls is an accent, and making it the default "
+                       "would reshape every control on the page"),
+    "elevation:scale": (0, "one measured shadow is one fact; a scale built from it is four guesses"),
+    "type:secondfamily": (1, "530 characters against 8730 is a logo or a flourish, not a second "
+                             "face in the system"),
+    "spacing:offgrid": (0, "89% on a 4px grid IS the grid; the remainder is rounding and "
+                           "third-party widgets"),
+    "colour:gradient": (0, "it was measured on the page the brand puts first"),
+}
+
+
+def require_recommendations(questions):
+    """Every question carries the recommendation, first and marked. Enforced, not remembered.
+
+    A question without one is a bug in this file, so it raises rather than passing something
+    incomplete to the review step: the point of the rule is that the person reading the
+    questionnaire never has to ask what I would do."""
+    for q in questions:
+        key = q["id"].split(":")[0] if q["id"].split(":")[0] in RECOMMENDED else q["id"]
+        if key not in RECOMMENDED:
+            raise AssertionError(
+                f"question {q['id']!r} has no entry in RECOMMENDED — decide what you would do "
+                f"before asking, and say why")
+        idx, why = RECOMMENDED[key]
+        opts = list(q.get("options") or [])
+        if not (0 <= idx < len(opts)):
+            raise AssertionError(f"question {q['id']!r}: recommended index {idx} is not one of its "
+                                 f"{len(opts)} option(s)")
+        q["recommend"] = opts[idx]
+        q["why"] = q.get("why") or why
+        # Marked, and FIRST — so it is read before the alternative rather than found next to it.
+        q["options"] = [f"{opts[idx]}  ← recommended: {q['why']}"] + [
+            o for i, o in enumerate(opts) if i != idx]
+    return questions
+
+
 def open_questions(tokens, merged):
     """The decisions a person has to make, each with its evidence and a default.
 
@@ -1066,14 +1132,27 @@ def open_questions(tokens, merged):
             continue                    # not a contest: the document said so
         rows = [r for r in merged["colors"][group] if parse_hex(r["value"])][:2]
         if len(rows) == 2 and rows[1]["weight"] > rows[0]["weight"] * 0.8:
+            # The CHOSEN value, not the heaviest one. `colour_roles` may already have rejected the
+            # winner — on adidas.it #ffffff had the most characters and reaches 1.0:1 on a white
+            # ground, so the legibility guard took #000000. The question then said "keep #ffffff"
+            # about a token that was #000000: it offered to keep something that had already been
+            # discarded, which makes the questionnaire wrong rather than merely unhelpful.
+            chosen = roles_now.get(role, {}).get("value")
+            other = next((r["value"] for r in rows if r["value"] != chosen), rows[1]["value"])
+            guarded = "legible" in why or "contrast" in why
             out.append({
                 "id": f"close:{role}",
                 "kind": "judgement",
-                "question": f"`{role}` was close: {rows[0]['value']} won with "
-                            f"{rows[0]['weight']} against {rows[1]['value']} with {rows[1]['weight']}.",
-                "evidence": "within 20% — the winner is not obvious",
-                "options": [f"keep {rows[0]['value']}", f"use {rows[1]['value']} instead"],
-                "default": f"{rows[0]['value']}",
+                "question": f"`{role}` was close: {rows[0]['value']} carried "
+                            f"{rows[0]['weight']} against {rows[1]['value']} with "
+                            f"{rows[1]['weight']}, and {chosen} is what the tokens hold"
+                            + (f" — {why}" if guarded else "."),
+                "evidence": "within 20% — the weight alone does not settle it",
+                "options": [f"keep {chosen}", f"use {other} instead"],
+                "recommend": f"keep {chosen}",
+                "why": (why if guarded else
+                        f"it carried the most {group} and nothing ruled it out"),
+                "default": f"{chosen}",
             })
 
     buttons = tokens["components"].get("button") or {}
@@ -1153,7 +1232,7 @@ def open_questions(tokens, merged):
             "default": "kept as a token",
         })
 
-    return out
+    return require_recommendations(out)
 
 
 def build_tokens(merged):

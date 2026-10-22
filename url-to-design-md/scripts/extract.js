@@ -24,6 +24,19 @@ window.__SNAPSHOT__ = (function extract(options) {
   var notes = [];
   function note(s) { if (notes.indexOf(s) === -1) notes.push(s); }
 
+  // CLEAR THE PREVIOUS RUN'S TAGS FIRST. The ids below are numbered per run, so injecting twice on
+  // one page — which is what measuring 1440 and then 390 does — left the SAME `u2d-card-0` on two
+  // different elements. Measured on adidas.it: 36 duplicated ids, and
+  // `locator('[data-u2d="u2d-card-0"]').first()` then cropped the stale element, which at 390 had
+  // collapsed to 0x0. The crop and the measurement would have been of different things, with
+  // nothing to say so.
+  var stale = 0;
+  try {
+    var old = document.querySelectorAll("[data-u2d]");
+    for (var si = 0; si < old.length; si += 1) { old[si].removeAttribute("data-u2d"); stale += 1; }
+  } catch (e) { /* read-only DOM */ }
+  if (stale) note(stale + " tag(s) from an earlier run on this page were cleared before measuring");
+
   /* ---------------------------------------------------------------- colour */
 
   // getComputedStyle hands back `oklch()` / `lab()` / `color-mix()` untouched in current engines, so
@@ -353,7 +366,7 @@ window.__SNAPSHOT__ = (function extract(options) {
 
   /* ---------------------------------------------------------- candidates */
 
-  function describeAll(selector, limit, extra, selectorKey) {
+  function describeAll(selector, limit, extra, selectorKey, keep) {
     selectorKey = selectorKey || "x";
     var out = [], seen = 0;
     var nodes = document.querySelectorAll(selector);
@@ -376,6 +389,13 @@ window.__SNAPSHOT__ = (function extract(options) {
       row.tag = n.tagName.toLowerCase();
       row.paintedOnChild = layer !== n;
       if (extra) extra(row, n, cs);
+      // The filter runs AFTER the row exists, because what it tests are measured values — and it
+      // takes the tag back off, or a rejected element would keep an id that nothing refers to and
+      // a caller cropping by tag would find elements the snapshot never mentions.
+      if (keep && !keep(row, n, cs)) {
+        try { layer.removeAttribute("data-u2d"); } catch (e) { /* read-only DOM */ }
+        continue;
+      }
       out.push(row);
     }
     return { total: seen, sample: out };
@@ -392,7 +412,22 @@ window.__SNAPSHOT__ = (function extract(options) {
       null, null, "button"),
     inputs: describeAll('input:not([type="hidden"]):not([type="submit"]), textarea, select',
                         null, null, "input"),
-    cards: describeAll('article, [class*="card"], [class*="Card"]', null, null, "card"),
+    // A card is a SURFACE: it has a ground of its own, or a border, or a shadow. The selector
+    // matches by class name, so on a real page it also catches every descendant of anything named
+    // "card" — measured on adidas.it, where an `h4` product title (284x20) and a `p` category
+    // (81x20) came back as cards. They have no background, no border and no radius, so
+    // `pixel_check` rebuilt them as boxes and compared them against lines of text: 14-32% chrome
+    // difference that was not a wrong token at all, but an element classified wrong. Text inside a
+    // card is read by the typography pass, which is where it belongs.
+    cards: describeAll('article, [class*="card"], [class*="Card"]', null, null, "card",
+      function (row, n) {
+        // An <article> is a card by its own tag, whatever it is painted like.
+        if (n.tagName.toLowerCase() === "article") return true;
+        var painted = row.background && row.background !== "transparent"
+          && row.background !== "rgba(0, 0, 0, 0)";
+        var framed = row.borderWidth > 0 || (row.shadow && row.shadow !== "none");
+        return !!(painted || framed);
+      }),
     links: describeAll("nav a, header a", 12, null, "link")
   };
 
