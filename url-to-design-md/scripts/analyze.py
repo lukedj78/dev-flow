@@ -716,11 +716,17 @@ def cluster_sizes(rows, tolerance=0.12):
                 if total:
                     c["size"] = round((c["size"] * c["chars"] + row["size"] * row["chars"]) / total, 2)
                 c["chars"] = total
+                c["contentChars"] = (c.get("contentChars") or 0) + (row.get("contentChars") or 0)
                 c["elements"] += row["elements"]
                 placed = True
                 break
         if not placed:
             clusters.append({"size": row["size"], "chars": row["chars"],
+                             # Characters OUTSIDE the chrome. The spec's dedupe again: apple.com's
+                             # 12px step carries 72 073 characters and almost all of them are the
+                             # legal footer, so "the step with the most characters" names the small
+                             # print as the body — which it then is, in the built app.
+                             "contentChars": row.get("contentChars") or 0,
                              "elements": row["elements"], "members": [row]})
     for c in clusters:
         dominant = max(c["members"], key=lambda m: m["chars"])
@@ -789,6 +795,7 @@ def type_scale(merged, missing):
             "textTransform": c.get("textTransform"),
             "family": c["family"],
             "chars": c["chars"],
+            "contentChars": c.get("contentChars") or 0,
             "elements": c["elements"],
             "tags": c["tags"],
         })

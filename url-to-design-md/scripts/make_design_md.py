@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 # Our measured role -> the spec's name, taken from design-md-to-app/references/shadcn-mapping.md so
@@ -81,24 +83,115 @@ def yaml_scalar(value) -> str:
     return json.dumps(s)
 
 
-def typography_names(slots):
-    """Assign one spec name per measured role, largest first, without ever reusing a name."""
-    used, named = set(), []
-    for rank, slot in enumerate(slots):
-        candidate = None
-        for tag in slot.get("tags", []):
-            maybe = TAG_TO_SPEC.get(tag)
-            if maybe and maybe not in used:
-                candidate = maybe
+# The names the spec's own examples use. `h7` is not among them, and nor is `link` — a link is a
+# role, not a step on a scale. Anything this skill emits has to be in here.
+SPEC_LEVELS = ("h1", "h2", "h3", "h4", "h5", "h6",
+               "body-lg", "body-md", "body-sm", "label", "caption", "code")
+
+
+def check_downstream(design_path):
+    """Read the file back with the CONSUMER'S parser, and return what it would complain about.
+
+    This skill's output is `design-md-to-app`'s input, and until now nothing checked that. The
+    cost of not checking was measurable: a `h7` level the spec has no name for, a `link` level that
+    is a role rather than a step, and a body set larger than a heading — because the names followed
+    the HTML tag instead of the size. `design-md-to-app` maps each level onto its nearest Tailwind
+    slot BY SIZE, so that last one would have put every paragraph in the built app at 28px.
+
+    Using the consumer's own parser rather than a second implementation of its rules is the point:
+    a check that agrees with its own idea of the format proves nothing.
+    """
+    out = []
+    parser = Path(__file__).resolve().parents[2] / "design-md-to-app" / "scripts" / "parse_design_md.py"
+    if not parser.is_file():
+        return ["design-md-to-app/scripts/parse_design_md.py is not installed next to this skill, "
+                "so the output was NOT checked against its consumer"]
+    r = subprocess.run([sys.executable, str(parser), str(design_path)],
+                       capture_output=True, text=True, check=False)
+    if r.returncode != 0:
+        return [f"the consumer's parser refused the file: {(r.stderr or '').strip()[:200]}"]
+    try:
+        parsed = json.loads(r.stdout)
+    except json.JSONDecodeError as exc:
+        return [f"the consumer's parser returned something unreadable: {exc}"]
+
+    out += [f"consumer warning: {w}" for w in parsed.get("warnings") or []]
+
+    # The spec's own examples name levels semantically and stop at h6. A level outside that set
+    # reaches the theme as a name nothing maps.
+    levels = list((parsed.get("frontmatter") or {}).get("typography") or {})
+    for lv in levels:
+        if lv not in SPEC_LEVELS:
+            out.append(f"typography level `{lv}` is not a name the spec uses "
+                       f"({', '.join(SPEC_LEVELS)})")
+
+    # A scale is an order. Downstream maps by size, so a body larger than a heading becomes a
+    # heading-sized paragraph in the built app.
+    def size_of(name):
+        try:
+            return float(str(parsed["frontmatter"]["typography"][name]["fontSize"]).rstrip("px"))
+        except (KeyError, TypeError, ValueError):
+            return None
+    heads = [(lv, size_of(lv)) for lv in levels if lv.startswith("h")]
+    bodies = [(lv, size_of(lv)) for lv in levels if lv.startswith(("body", "label", "caption"))]
+    for h, hs in heads:
+        for b, bs in bodies:
+            if hs is not None and bs is not None and bs > hs:
+                out.append(f"`{b}` ({bs}px) is larger than `{h}` ({hs}px) — downstream maps levels "
+                           f"onto Tailwind slots by size, so the body would take a heading's slot")
                 break
-        if candidate is None:
-            for fallback in (f"h{rank + 1}", "body-lg", "body-md", "body-sm", "label", "caption"):
-                if fallback not in used:
-                    candidate = fallback
-                    break
-        used.add(candidate)
-        named.append((candidate, slot))
-    return named
+    return out
+
+
+def typography_names(slots):
+    """One spec name per measured step, ORDERED BY SIZE.
+
+    The first version named each step after the HTML tag it was mostly used on, and that produced a
+    scale that contradicts itself: on apple.com a 27.7px step used on `<p>` became `body-md` while
+    a 20.9px step on `<h4>` stayed `h4`, so the body was larger than a heading. Downstream,
+    `design-md-to-app` maps each level onto its *nearest Tailwind slot by size* — so it would have
+    given the body text a heading's slot, and every paragraph in the built app would be 28px.
+
+    A scale is an order. The body is the step carrying the most characters, because that is the
+    text people read; everything above it is a heading, largest first; everything below is small
+    print. Tags still break ties between steps of the same size, where they are evidence rather
+    than a contradiction.
+
+    Never invents a name: the spec's examples stop at h6, and a level this cannot name is dropped
+    with a note rather than called `h7`.
+    """
+    if not slots:
+        return []
+    ordered = sorted(slots, key=lambda sl: -(sl.get("size") or 0))
+    # The body is the step carrying the most CONTENT characters. Counting all of them names the
+    # legal footer: on apple.com the 12px step has 72 073 characters and 17px has 209, so the body
+    # came out as the small print — and `design-md-to-app` would have set every paragraph at 12px.
+    #
+    # `a or b` WOULD BRING THE FOOTER STRAIGHT BACK, and did: that 12px step has a content count of
+    # exactly 0, and `0 or 72073` is 72073 in Python. A measured zero is a fact — "all of this is
+    # chrome" — not a missing value. Third time this trap has been hit in this repo, so the choice
+    # is made once, for the whole scale: if ANY step was counted in the content, every step is
+    # judged on the content.
+    counted = any((sl.get("contentChars") or 0) > 0 for sl in ordered)
+    key = "contentChars" if counted else "chars"
+    body_i = max(range(len(ordered)), key=lambda i: ordered[i].get(key) or 0)
+
+    named, dropped = [], []
+    # Above the body: headings, largest first. The spec's examples stop at h6.
+    above = ordered[:body_i]
+    for rank, slot in enumerate(above[-6:] if len(above) > 6 else above):
+        named.append((f"h{rank + 1}", slot))
+    dropped += [sl for sl in above[:-6]] if len(above) > 6 else []
+
+    named.append(("body-md", ordered[body_i]))
+
+    # Below the body: the small print, in order.
+    below = ordered[body_i + 1:]
+    for name, slot in zip(("body-sm", "label", "caption", "code"), below):
+        named.append((name, slot))
+    dropped += below[4:]
+
+    return named, dropped
 
 
 def frontmatter(tokens, name):
@@ -116,7 +209,8 @@ def frontmatter(tokens, name):
     slots = tokens["typography"]["scale"]["slots"]
     if slots:
         lines.append("typography:")
-        for spec_name, slot in typography_names(slots):
+        named, dropped = typography_names(slots)
+        for spec_name, slot in named:
             lines.append(f"  {spec_name}:")
             lines.append(f"    fontFamily: {yaml_scalar(slot['family'])}")
             lines.append(f"    fontSize: {px(slot['size'])}")
@@ -167,7 +261,7 @@ def body(tokens, name, measured_note):
         f"| `{spec}` | {s['family']} | {px(s['size'])} | "
         f"{s['mobileSize'] or '—'} | {s['weight']} | {s['lineHeight'] or '—'} | "
         f"{s['tracking'] or 0}em |"
-        for spec, s in typography_names(scale["slots"]))
+        for spec, s in typography_names(scale["slots"])[0])
 
     missing = "\n".join(f"- {m}" for m in tokens["missing"]) or "- Nothing."
     notes = "\n".join(f"- {n}" for n in tokens["notes"]) or "- None."
@@ -406,6 +500,15 @@ def main(argv=None):
     print(f"DESIGN.md written -> {design} ({design.stat().st_size / 1024:.1f} KB)")
     if final["missing"]:
         print(f"  not observed and therefore not written: {len(final['missing'])} slot(s)")
+
+    problems = check_downstream(design)
+    for line in problems:
+        print(f"  ✗ {line}", file=sys.stderr)
+    if problems:
+        print("\nThe DESIGN.md was written, and `design-md-to-app` would choke on it. "
+              "Fix the above before handing it on.", file=sys.stderr)
+        return 1
+    print("  ✓ parses as a Google design.md and reads cleanly in design-md-to-app")
     return 0
 
 

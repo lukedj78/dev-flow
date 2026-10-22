@@ -12,6 +12,9 @@ whose reason is forgotten is deleted by the next person who finds it inconvenien
 from __future__ import annotations
 
 import json
+import tempfile
+import sys
+import re
 import unittest
 from pathlib import Path
 
@@ -771,6 +774,78 @@ class Recommendations(unittest.TestCase):
                          "never offer to keep the candidate the guard rejected")
         self.assertIn(heaviest, " ".join(q["options"][1:]),
                       "the rejected candidate is still offered as the alternative")
+
+
+class DownstreamContract(unittest.TestCase):
+    """This skill's output is `design-md-to-app`'s input, and nothing checked that until the user
+    asked whether the design system would still line up with the rest of the flow. It did not:
+    a level called `h7` that the spec has no name for, a `link` level that is a role rather than a
+    step, and a body set larger than a heading — because the names followed the HTML tag instead
+    of the size, and downstream maps levels onto Tailwind slots BY SIZE."""
+
+    def setUp(self):
+        sys.path.insert(0, str(HERE))
+        import make_design_md
+        self.md = make_design_md
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        tokens = analyze.build_tokens(
+            analyze.merge_snapshots([load(1440), load(390)], "site"))
+        out = Path(self.tmp.name)
+        (out / "DESIGN.md").write_text(
+            self.md.frontmatter(tokens, "Example") + self.md.body(tokens, "Example", ""),
+            encoding="utf-8")
+        self.design = out / "DESIGN.md"
+        self.tokens = tokens
+
+    def test_what_we_write_reads_cleanly_in_the_consumer(self):
+        self.assertEqual(self.md.check_downstream(self.design), [])
+
+    def test_an_invented_level_is_refused(self):
+        text = self.design.read_text().replace("  h1:", "  h7:", 1)
+        self.design.write_text(text)
+        problems = self.md.check_downstream(self.design)
+        self.assertTrue(any("h7" in p for p in problems), problems)
+
+    def test_a_body_larger_than_a_heading_is_refused(self):
+        """The one that would have shown up as 28px paragraphs in the built app."""
+        text = re.sub(r"(  body-md:\n    fontFamily: [^\n]+\n    fontSize: )[\d.]+px",
+                      r"\g<1>99px", self.design.read_text(), count=1)
+        if "99px" not in text:
+            self.skipTest("this fixture has no body-md to enlarge")
+        self.design.write_text(text)
+        problems = self.md.check_downstream(self.design)
+        self.assertTrue(any("larger than" in p for p in problems), problems)
+
+    def test_the_levels_are_ordered_by_size(self):
+        """A scale is an order. The names follow the sizes, not the tags they were seen on."""
+        named, _ = self.md.typography_names(self.tokens["typography"]["scale"]["slots"])
+        sizes = [sl["size"] for _, sl in named]
+        self.assertEqual(sizes, sorted(sizes, reverse=True))
+        self.assertTrue(all(n in self.md.SPEC_LEVELS for n, _ in named),
+                        [n for n, _ in named])
+
+    def test_the_body_is_the_content_not_the_footer(self):
+        """A measured zero is a fact. `(content or 0) or chars` brought the footer straight back:
+        apple.com's 12px step has 0 content characters and 72 073 in total, and `0 or 72073` is
+        72073 — so the small print became the body for the third time in this repo."""
+        slots = [
+            {"slot": "text-xl", "size": 20.9, "chars": 708, "contentChars": 708,
+             "weight": "400", "family": "X", "lineHeightRatio": 1.2, "tracking": 0,
+             "mobileSize": None, "lineHeight": 25, "clamp": None, "tags": ["p"]},
+            {"slot": "text-xs", "size": 12.0, "chars": 72073, "contentChars": 0,
+             "weight": "400", "family": "X", "lineHeightRatio": 1.3, "tracking": 0,
+             "mobileSize": None, "lineHeight": 16, "clamp": None, "tags": ["p"]},
+        ]
+        named, _ = self.md.typography_names(slots)
+        by_name = dict(named)
+        self.assertEqual(by_name["body-md"]["size"], 20.9,
+                         "the body is what the CONTENT is written in")
+
+    def test_the_check_says_so_when_it_could_not_run(self):
+        """A check that cannot run must not report success — the mistake this audit found twice."""
+        problems = self.md.check_downstream(Path(self.tmp.name) / "nothing.md")
+        self.assertTrue(problems, "a missing file is not a pass")
 
 
 if __name__ == "__main__":
