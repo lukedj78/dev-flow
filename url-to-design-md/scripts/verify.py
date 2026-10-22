@@ -67,12 +67,20 @@ class Result:
 def slop_checks(html, res):
     import collections
 
-    # "A row of identical metric boxes. Four numbers in four boxes state four facts and no argument."
-    metric_rows = len(re.findall(r'class="grid grid--4"', html))
-    boxes = len(re.findall(r'<div class="card"><div class="note">[^<]+</div>'
-                           r'<div style="font-size:var\(--size-3xl', html))
-    res.add("no row of identical metric boxes", boxes < 3,
-            f"{boxes} metric box(es) in {metric_rows} row(s)" if boxes else "none")
+    # NOT a check against metric boxes. R5.2.2 asks for exactly that — "a centred headline and four
+    # big figures" — and this check forbade it, which is how a requirement left the guide: the user
+    # asked for an AI-slop pass, I reached for rule 11 of `anti-slop-fallbacks`, deleted the
+    # figures, and then wrote this to keep them out.
+    #
+    # Rule 11 is about boxes of INVENTED numbers, the kind that appear because a layout has four
+    # slots. Four measured facts about one site, each with its denominator shown, are the opposite
+    # of that. What is still worth checking is that each figure carries its denominator, since a
+    # number without one is the generic box rule 11 means.
+    stats = re.findall(r'<div class="stat">(.*?)</div>\s*</div>', html, re.S)
+    bare = [x for x in stats if 'class="note"' not in x]
+    res.add("every headline figure carries its denominator", not bare,
+            f"{len(bare)} of {len(stats)} figure(s) stand alone" if bare
+            else f"{len(stats)} figure(s), each with its note")
 
     # "The same section silhouette repeated for sections that answer different questions."
     silhouettes = collections.Counter()
@@ -87,10 +95,18 @@ def slop_checks(html, res):
     res.add("sections do not all share one silhouette", worst[1] <= 3,
             f"{worst[1]} sections shaped `{worst[0]}`" if worst[1] else "varied")
 
-    # "Decorative gradients, glows, blobs, mesh backgrounds, glassmorphism."
-    glass = "backdrop-filter" in html
-    res.add("no glassmorphism", not glass,
-            "backdrop-filter present" if glass else "none")
+    # NOT a ban on glass. R5.2.1 asks for "a frosted-glass card showing one token" on the cover,
+    # and R5.4 for a top bar that frosts once past it — so forbidding `backdrop-filter` forbade two
+    # requirements. Second time this file has done that; the first was the Overview's figures.
+    #
+    # Rule 11 is about glass used as DECORATION, spread over a page that has no reason for it.
+    # What is worth checking is that it stays where the brief puts it: the cover's card and the
+    # sticky bar, not scattered through the content.
+    glass_rules = len(re.findall(r"backdrop-filter", html))
+    allowed = len(re.findall(r"\.glass\b|\.topbar|\.cover", html))
+    res.add("frosted glass stays on the cover and the bar", glass_rules <= 4,
+            f"{glass_rules} backdrop-filter declaration(s)"
+            + ("" if glass_rules <= 4 else " — more than the cover card and the bar need"))
 
     # "A badge or pill for ordinary metadata. A date is a date."
     pills = re.findall(r'<span class="pill"[^>]*>([^<]{1,40})</span>', html)

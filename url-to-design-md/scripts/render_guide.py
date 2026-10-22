@@ -190,6 +190,88 @@ def fallback(name, default):
 # --------------------------------------------------------------------------- stylesheet
 
 
+PAGE_CSS = """
+/* R5.2: full pages, not stacked sections. Each one fills the viewport it opens in and carries its
+   own ground, so scrolling the guide feels like scrolling the site rather than reading a report. */
+:root { --bar-h: 56px; }
+/* The sticky bar sits over the page, so every page starts below it. Without this the first line
+   of each one is cut in half — visible on the Overview and the Contents, and invisible to every
+   check in verify.py, which is the argument for R8.3 in one screenshot. */
+.page { min-height: 100svh; display: flex; align-items: center;
+        padding: calc(var(--bar-h) + 40px) 0 72px; }
+.page--centred { text-align: center; }
+.page--centred .wrap > * { margin-left: auto; margin-right: auto; }
+
+/* R5.2.1 — the cover. Full-bleed ground, the brand's own, with the name set over it. */
+.cover { position: relative; color: var(--cover-ink); isolation: isolate; }
+.cover-bleed { position: absolute; inset: 0; z-index: -2; background: var(--bleed); }
+/* The brand's gradient as a wash over the flat ground, never as the ground: a gradient has no one
+   colour, so nothing can be proven legible against it. */
+.cover-wash { position: absolute; inset: 0; z-index: -1; opacity: .55;
+              mask-image: linear-gradient(to bottom, transparent, #000 45%); }
+.cover-wrap { max-width: 52rem; }
+.cover-title { font-size: clamp(40px, 9vw, 112px); line-height: 1.02; margin: 20px 0 0;
+               text-wrap: balance; color: inherit; }
+.cover-lede { color: inherit; opacity: .88; max-width: 44ch; margin-top: 20px; }
+.cover-cta { margin-top: 28px; }
+.cover-foot { color: inherit; opacity: .7; margin-top: 48px; }
+/* The frosted card the site itself uses for a figure. */
+.glass { margin-top: 36px; max-width: 22rem; padding: 20px; border-radius: var(--radius, 12px);
+         background: color-mix(in srgb, var(--cover-ink) 12%, transparent);
+         border: 1px solid color-mix(in srgb, var(--cover-ink) 26%, transparent);
+         backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: inherit; }
+.glass .note { color: inherit; opacity: .75; }
+.glass-v { font-family: var(--font-mono, ui-monospace, monospace); font-size: 15px; margin-top: 6px; }
+.glass-hex { font-size: var(--size-2xl, 24px); font-weight: 600; margin: 4px 0 8px; }
+
+/* R5.2.2 — four measured figures, each with its denominator under it. */
+.stats { display: grid; gap: 24px; margin-top: 40px;
+         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.stat-v { font-size: clamp(34px, 5vw, 56px); line-height: 1; font-weight: 700; }
+.stat-l { margin-top: 8px; font-weight: 600; }
+
+/* R5.2.3 — the contents, in the site's own card shape. */
+.tiles { display: grid; gap: 16px; margin-top: 32px;
+         grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }
+.tiles > * { min-width: 0; }
+.tile { position: relative; display: block; min-height: 190px; padding: 18px;
+        border-radius: var(--radius, 12px); background: var(--card, #f4f4f5);
+        border: 1px solid var(--border, transparent); color: inherit; text-decoration: none;
+        overflow: hidden; }
+.tile::before { content: ""; position: absolute; inset: 0; background: var(--gradient, none);
+                opacity: .10; transform: scale(1); transition: transform 1.2s var(--ease, ease-out); }
+.tile:hover::before, .tile:focus-visible::before { transform: scale(1.08); }
+.tile-n { font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; opacity: .6; }
+.tile-arrow { position: absolute; top: 18px; right: 18px; opacity: .55; }
+.tile-body { position: absolute; left: 18px; right: 18px; bottom: 16px; display: block; }
+.tile-t { display: block; font-weight: 600; font-size: var(--size-lg, 18px); }
+
+/* R5.2.7, R5.2.9, R5.2.12 — the pages the brief sets on the dark ground. */
+.page--dark { background: var(--surface-inverse, #111); color: var(--foreground-inverse, #fff); }
+.page--dark .note, .page--dark .lede { color: inherit; opacity: .78; }
+.page--dark table, .page--dark th, .page--dark td { border-color:
+  color-mix(in srgb, var(--foreground-inverse, #fff) 22%, transparent); }
+.page--dark .card { background: color-mix(in srgb, var(--foreground-inverse, #fff) 8%, transparent);
+                    border-color: color-mix(in srgb, var(--foreground-inverse, #fff) 20%, transparent);
+                    color: inherit; }
+/* A dark gradient on a dark page is a black rectangle. Apple's three gradients are all near-black,
+   and on the Colour page they disappeared entirely — a swatch showing nothing, which is worse than
+   no swatch. Each one gets a light plate under it so its actual colour is visible. */
+.grad-plate { background: var(--background, #fff); border-radius: var(--radius, 8px);
+              padding: 6px; }
+.page--dark .grad-plate { box-shadow: inset 0 0 0 1px
+                            color-mix(in srgb, var(--foreground-inverse, #fff) 24%, transparent); }
+
+@media (max-width: 640px) {
+  .page { min-height: 0; padding: 56px 0; }
+  .cover { min-height: 92svh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile::before { transition: none; }
+}
+"""
+
+
 def stylesheet(tokens):
     """Every rule below reads a variable. The fallbacks exist because a site may not supply a slot,
     and a guide that collapses when `--accent` is missing is a guide that only renders one site."""
@@ -382,7 +464,7 @@ def stylesheet(tokens):
   }}
 
   footer {{ padding-block: 48px; font-size: {fallback("--size-sm", "13px")}; }}
-"""
+""" + PAGE_CSS
 
 
 # --------------------------------------------------------------------------- sections
@@ -424,54 +506,177 @@ def review(tokens):
 
 
 def cover(tokens, brand):
+    """R5.2.1 — a full page, not a banner.
+
+    A full-bleed image (the brand's own gradient when there are none), the name set large over it,
+    a factual lede, a pill call to action, and a frosted-glass card showing one token. The
+    unofficial label and the disclaimer sit at the foot of the page.
+    """
     scale = tokens["typography"]["scale"]
+    src = tokens["source"]
+    grads = (tokens["color"].get("gradients") or [])
+    roles = tokens["color"]["roles"]
+
+    # THE INK IS CHOSEN AGAINST THE GROUND, not before it.
+    #
+    # The first version took the gradient as the ground and `foreground-inverse` as the ink, and on
+    # apple.com — whose gradient is almost white — the title, the pill, the lede and the glass card
+    # all came out white on white. Invisible. `verify.py` passed it 14 of 15, because nothing it
+    # checks can see a page. This is the same mistake the `foreground` role made on adidas, made
+    # again one layer up, and it is why R8.3 says to look.
+    #
+    # A gradient has no single colour to measure, so its ink cannot be derived — only a flat ground
+    # can carry that claim. When the only candidate is a gradient, the inverted band is used
+    # instead and the gradient becomes the page's accent, not its floor.
+    candidates = []
+    if roles.get("surface-inverse"):
+        candidates.append((roles["surface-inverse"]["value"], "the site's own inverted band"))
+    if roles.get("foreground"):
+        candidates.append((roles["foreground"]["value"], "the site's darkest measured ink"))
+    if roles.get("background"):
+        candidates.append((roles["background"]["value"], "the site's ground"))
+
+    bleed, bleed_why, ink = None, "", "#fff"
+    for value, why in candidates:
+        for cand in (roles.get("foreground-inverse", {}).get("value"),
+                     roles.get("primary-foreground", {}).get("value"),
+                     roles.get("foreground", {}).get("value"), "#ffffff", "#111111"):
+            if cand and (analyze.contrast(cand, value) or 0) >= 4.5:
+                bleed, bleed_why, ink = value, why, cand
+                break
+        if bleed:
+            break
+    if not bleed:
+        # Nothing measured can carry legible text over anything else measured. Say so rather than
+        # paint an unreadable page: the fallback is the plainest pair there is.
+        bleed, bleed_why, ink = "#111111", "no measured pair reached 4.5:1, so this is a fallback", "#ffffff"
+
+    one = None
+    for name in ("primary", "accent", "foreground", "background"):
+        if name in roles:
+            one = (name, roles[name])
+            break
+    # The gradient, when there is one, washes over the flat ground rather than replacing it: the
+    # brand's colour is present and the text still has a floor it can be read against.
+    gradient_wash = (f'<div class="cover-wash" aria-hidden="true" '
+                     f'style="background:{css_safe(grads[0])}"></div>' if grads else "")
+
+    token_card = ""
+    if one:
+        token_card = f"""
+      <div class="glass">
+        <div class="note">A token, measured</div>
+        <div class="glass-v">--{esc(one[0])}</div>
+        <div class="glass-hex">{esc(one[1]['value'])}</div>
+        <div class="note">{esc(one[1]['why'][:72])}</div>
+      </div>"""
+
     return f"""
-<section class="cover">
-  <div class="wrap">
+<section id="cover" class="page cover" style="--bleed:{css_safe(bleed)};--cover-ink:{css_safe(ink)}">
+  <div class="cover-bleed" aria-hidden="true"></div>
+  {gradient_wash}
+  <div class="wrap cover-wrap">
     <span class="pill">Unofficial analysis</span>
-    <h1>{esc(brand)} design system, as measured</h1>
-    <p class="lede" style="color:inherit;opacity:.9">
-      Every value on this page was read from the rendered pages of
-      <code>{esc(tokens['source']['origin'] or '')}</code> on
-      {esc(tokens['source']['pageCount'])} page(s) at
-      {esc(' and '.join(str(v) + 'px' for v in tokens['source']['viewports']))}.
-      Nothing here is a design proposal yet — it is the starting point you are about to move away from.
+    <h1 class="cover-title">{esc(brand)}<br>brand guidelines</h1>
+    <p class="lede cover-lede">
+      Measured from {esc(src['pageCount'])} page(s) of <code>{esc(src['origin'] or '')}</code>
+      at {esc(' and '.join(str(v) + 'px' for v in src['viewports']))},
+      and rebuilt here from the tokens alone.
     </p>
-    <p><a class="btn" href="#rebuild">See the tokens rebuilt</a></p>
-    <div class="card" style="max-width:360px;color:inherit">
-      <div class="note" style="color:inherit;opacity:.8">Type scale</div>
-      <div style="font-size:var(--size-3xl, 28px);font-weight:600">
-        {len(scale['slots'])} steps{'' if scale['uniform'] is False else ' · ' + str(scale['ratio'])}
-      </div>
-      <div class="note" style="color:inherit;opacity:.8">
-        {esc(scale['note'] or (scale['nearestInterval'] or 'uniform'))}
-      </div>
-    </div>
+    <p><a class="btn cover-cta" href="#rebuild">See the tokens rebuilt</a></p>
+    {token_card}
+    <p class="cover-foot note">
+      {esc(scale['slots'] and len(scale['slots']) or 0)} type steps ·
+      {esc(len(tokens['color']['roles']))} colour roles · ground is {esc(bleed_why)}<br>
+      Unofficial analysis. Not affiliated with or endorsed by {esc(brand)}.
+      Trademarks belong to their owners.
+    </p>
   </div>
 </section>"""
 
 
-def overview(tokens):
-    """One composed statement, not a row of boxes.
+def contents(tokens):
+    """R5.2.3 — eight cards in the style of the site's own product cards: number upper left, title
+    lower left, arrow upper right, a slow zoom on hover.
 
-    Rule 11 of anti-slop-fallbacks: "a row of identical metric boxes — four numbers in four boxes
-    state four facts and no argument". The first version of this section was exactly that, and the
-    user spotted it on the adidas guide before any check did. What a measurement actually has to
-    say is a RATIO with its denominator visible: how much of the system was found, out of how much
-    there is.
+    This page did not exist. It is not decoration: it is where the guide shows that it can build
+    the site's card, at the site's radius, on the site's ground — the same claim the rebuild page
+    makes about buttons, made about the pattern a brand repeats most.
+    """
+    pages = [
+        ("01", "Overview", "#overview", "what was found, and what was not"),
+        ("02", "Token rebuild test", "#rebuild", "the controls, from the tokens alone"),
+        ("03", "Typography", "#typography", "each role at its real size"),
+        ("04", "Fonts", "#fonts", "the families, their weights and share"),
+        ("05", "Colour", "#colour", "roles, contrast and the palette in proportion"),
+        ("06", "Layout and spacing", "#layout", "grid, containers, radii, breakpoints"),
+        ("07", "Components", "#components", "buttons on their own grounds"),
+        ("08", "Design tokens", "#tokens", "the CSS and the JSON, to copy"),
+    ]
+    cards = "".join(f"""
+    <a class="tile" href="{esc(href)}">
+      <span class="tile-n">{esc(n)}</span>
+      <span class="tile-arrow" aria-hidden="true">→</span>
+      <span class="tile-body">
+        <span class="tile-t">{esc(title)}</span>
+        <span class="note">{esc(note)}</span>
+      </span>
+    </a>""" for n, title, href, note in pages)
+
+    return f"""
+<section id="contents" class="page"><div class="wrap">
+  <h2>Contents</h2>
+  <p class="lede">Eight pages, built from the measured tokens and nothing else.</p>
+  <div class="tiles">{cards}</div>
+</div></section>"""
+
+
+def overview(tokens):
+    """R5.2.2: a centred headline and four big figures — typefaces, colours, spacing base, button
+    variants.
+
+    This section had those figures, and I removed them. The user said "do a pass for AI slop, I can
+    see some by eye" about the adidas guide; I reached for rule 11 of `anti-slop-fallbacks` — "a row
+    of identical metric boxes states four facts and no argument" — deleted a requirement, and then
+    wrote a check into `verify.py` forbidding it for ever. That is the precise moment this guide
+    stopped being the thing it was asked to be.
+
+    The two rules are not in conflict, and the difference is one word: **measured**. Rule 11 is
+    about boxes of invented or generic numbers — the ones that appear because a layout has four
+    slots. These four are facts about this site, each with its denominator visible, and the prose
+    under them carries the argument the boxes cannot. The ratio stays; the figures come back.
     """
     roles = tokens["color"]["roles"]
     scale = tokens["typography"]["scale"]
     space = tokens["spacing"]
     src = tokens["source"]
+    fams = tokens["typography"]["families"]
+    variants = len(((tokens.get("components") or {}).get("button") or {}).get("variants") or [])
     slots_total = len(roles) + len(tokens["missing"])
-    pages = src["pageCount"]
-    vps = len(src["viewports"])
+
+    def stat(value, label, note):
+        return (f'<div class="stat"><div class="stat-v">{esc(value)}</div>'
+                f'<div class="stat-l">{esc(label)}</div>'
+                f'<div class="note">{esc(note)}</div></div>')
+
+    figures = (
+        stat(len(fams), "typeface" + ("s" if len(fams) != 1 else ""),
+             ", ".join(fams[:2]) or "none measured")
+        + stat(len(roles), "colour roles",
+               f"of {slots_total} the system has slots for")
+        + stat(f"{space['base']}px" if space["base"] else "none",
+               "spacing base",
+               f"{space['coverage']:.0%} of values sit on it" if space["base"]
+               else "no 8/4/2px grid explains the values")
+        + stat(variants or "—", "button variant" + ("s" if variants != 1 else ""),
+               ("pill" if tokens["radius"]["pill"] else f"{tokens['radius']['default'] or 0}px")
+               + " by default")
+    )
 
     missing = ""
     if tokens["missing"]:
         items = ", ".join(esc(m.split(" ")[0]) for m in tokens["missing"])
-        missing = (f'<p class="note missing" style="margin-top:20px">Not observed, and therefore '
+        missing = (f'<p class="note missing" style="margin-top:24px">Not observed, and therefore '
                    f'not written: {items}. These keep their framework default on purpose — a value '
                    f'nobody measured, sitting in a measured file, is indistinguishable from one '
                    f'that was.</p>')
@@ -479,20 +684,18 @@ def overview(tokens):
     shape = tokens["radius"].get("buttonShape") or {}
     shape_line = ""
     if shape.get("of"):
-        shape_line = (f' The default control shape is '
-                      f'{"a pill" if tokens["radius"]["pill"] else str(tokens["radius"]["default"] or 0) + "px"}'
-                      f', from {shape.get("square" if not tokens["radius"]["pill"] else "pill", 0)}'
-                      f' of {shape["of"]} buttons.')
+        kind = "pill" if tokens["radius"]["pill"] else "square"
+        shape_line = (f' The default control shape comes from {shape.get(kind, 0)} of '
+                      f'{shape["of"]} measured buttons.')
 
     return f"""
-<section id="overview"><div class="wrap">
-  <h2>What was found, and what was not</h2>
-  <p style="font-size:var(--size-xl, 20px);max-width:48ch;margin:16px 0 0">
-    <strong>{len(roles)} of {slots_total}</strong> colour roles had evidence;
-    <strong>{len(scale['slots'])}</strong> type steps came out of
-    {esc(pages)} page(s) read at {esc(vps)} width(s); and a
-    <strong>{esc(space['base'] or '—')}px</strong> grid explains
-    <strong>{space['coverage']:.0%}</strong> of every spacing value on them.{shape_line}
+<section id="overview" class="page page--centred"><div class="wrap">
+  <h2>Overview</h2>
+  <div class="stats">{figures}</div>
+  <p class="lede" style="max-width:52ch;margin:32px auto 0">
+    <strong>{len(roles)} of {slots_total}</strong> colour roles had evidence, from
+    {esc(src['pageCount'])} page(s) read at
+    {esc(' and '.join(str(v) + 'px' for v in src['viewports']))}.{shape_line}
   </p>
   {missing}
 </div></section>"""
@@ -545,7 +748,7 @@ def rebuild(tokens):
                   f'</span></p>' if style else
                   f'<p class="note" style="color:inherit;opacity:.8">{esc(why)}</p>')
     return f"""
-<section id="rebuild"><div class="wrap">
+<section id="rebuild" class="page"><div class="wrap">
   <h2>Token rebuild test</h2>
   <p class="lede">A button, a card and a field built from the exported variables and nothing else.
   This is the proof that the tokens carry the system: if these look wrong, the tokens are wrong.</p>
@@ -593,7 +796,7 @@ def typography(tokens):
             f'The quick brown fox jumps</div></div>')
     note = f'<p class="note">{esc(scale["note"])}</p>' if scale["note"] else ""
     return f"""
-<section id="typography"><div class="wrap">
+<section id="typography" class="page"><div class="wrap">
   <h2>Typography</h2>
   <p class="lede">Each role is shown at its <strong>real</strong> size, leading, weight and tracking —
   never one size for all. The slot names are Tailwind's own, redefined; no parallel scale was invented.</p>
@@ -626,7 +829,7 @@ def fonts(tokens, faces_note=""):
              if face_rows else '<p class="note">No @font-face rule was readable '
                                '(the stylesheet may be cross-origin).</p>')
     return f"""
-<section id="fonts"><div class="wrap">
+<section id="fonts" class="page"><div class="wrap">
   <h2>Fonts</h2>
   {faces_note or '<p class="note">Rendered in a substitute: the real families are named below but '
                  'their files are not loaded, so the sizes here are right and the voice is not. '
@@ -658,10 +861,10 @@ def colour(tokens):
         f'<div title="{esc(p["value"])} — {p["share"] / total:.1%}" '
         f'style="flex:{max(1, round(p["share"] / total * 1000))};background:{esc(p["value"])}"></div>'
         for p in palette[:10])
-    grads = "".join(f'<div class="swatch" style="background:{esc(g)}"></div>'
+    grads = "".join(f'<div class="grad-plate"><div class="swatch" style="background:{esc(g)}"></div></div>'
                     for g in tokens["color"]["gradients"][:3])
     return f"""
-<section id="colour"><div class="wrap">
+<section id="colour" class="page page--dark"><div class="wrap">
   <h2>Colour</h2>
   <p class="lede">Roles with the evidence that chose each one. Share is painted area for grounds and
   characters for text, so a one-pixel border on four hundred rows does not outvote a hero.</p>
@@ -689,7 +892,7 @@ def layout(tokens):
     bps = "".join(f"<li><code>{esc(b['edge'])}-width: {esc(b['px'])}px</code></li>"
                   for b in tokens["layout"]["breakpoints"])
     return f"""
-<section id="layout"><div class="wrap">
+<section id="layout" class="page"><div class="wrap">
   <h2>Layout and spacing</h2>
   <div class="grid grid--4" style="margin:24px 0">
     <div class="card"><div class="note">Base unit</div>
@@ -753,7 +956,7 @@ def components(tokens):
   its owner, and a measurement does not transfer it.</p>"""
 
     return f"""
-<section id="components"><div class="wrap">
+<section id="components" class="page page--dark"><div class="wrap">
   <h2>Components</h2>
   <p class="lede">Measured variants, grouped by their painted signature.</p>
   {''.join(out)}
@@ -785,7 +988,7 @@ def imagery(tokens, image_cards):
                 + '. The source\'s own photographs stay on the source: what is recorded here is a '
                   'description of them, never a copy.</p>')
     return f"""
-<section id="imagery"><div class="wrap">
+<section id="imagery" class="page"><div class="wrap">
   <h2>Imagery</h2>
   {body}
   {image_cards}
@@ -805,7 +1008,7 @@ def voice(tokens):
     stats = "".join(f"<tr><td>{esc(k)}</td><td class=num>{esc(json.dumps(val))}</td></tr>"
                     for k, val in v["stats"].items())
     return f"""
-<section id="voice"><div class="wrap">
+<section id="voice" class="page"><div class="wrap">
   <h2>Voice and tone</h2>
   <p class="lede">Three rules derived from counting, not from an impression. The statistics are
   below so you can disagree with the rules.</p>
@@ -823,7 +1026,7 @@ def tokens_section(tokens, rows):
         f"<tr><td><code>{esc(n)}</code></td><td><code>{esc(v)}</code></td>"
         f"<td class=note>{esc(why)}</td></tr>" for n, v, why in rows)
     return f"""
-<section id="tokens"><div class="wrap">
+<section id="tokens" class="page page--dark"><div class="wrap">
   <h2>Design tokens</h2>
   <p class="lede">The whole system as variables. Everything on this page reads these and nothing
   else — which is why moving one changes what you see.</p>
@@ -844,7 +1047,7 @@ def method(tokens):
     notes = "".join(f"<li>{esc(n)}</li>" for n in tokens["notes"]) or "<li>None recorded.</li>"
     missing = "".join(f"<li>{esc(m)}</li>" for m in tokens["missing"]) or "<li>Nothing.</li>"
     return f"""
-<section id="method"><div class="wrap">
+<section id="method" class="page"><div class="wrap">
   <h2>Method</h2>
   <p class="lede">How this was produced, and what it could not see.</p>
   <div class="grid grid--2" style="margin-top:24px">
@@ -900,6 +1103,31 @@ SCRIPT = """
 """
 
 
+def brand_name(origin):
+    """A brand's name, from its host — "Apple", not "www.apple.com".
+
+    R5.2.1 asks for the brand's name across the cover, and the host is not it: a guide titled
+    "www.apple.com brand guidelines" reads as a report about a URL, which is exactly the register
+    the whole document is supposed to avoid. Strip the scheme, the leading www and the public
+    suffix, then capitalise — and leave anything that is already capitalised alone, so `GitHub`
+    does not come back as `Github`. The user can always override with `--brand`.
+    """
+    host = (origin or "the source").split("//")[-1].split("/")[0]
+    # A subdomain is not a brand: `ui.shadcn.com` is Shadcn, not Ui. These are the labels a site
+    # puts in front of its own name, never the name itself.
+    PREFIX = {"www", "ui", "app", "apps", "docs", "doc", "shop", "store", "my", "go", "get",
+              "web", "beta", "staging", "dev", "m", "mobile", "account", "portal", "cloud"}
+    parts = [x for x in host.split(".") if x]
+    while len(parts) > 2 and parts[0].lower() in PREFIX:
+        parts.pop(0)
+    if parts and parts[0].lower() in PREFIX and len(parts) > 1:
+        parts.pop(0)
+    label = parts[0] if parts else host
+    if not label:
+        return host
+    return label if label[:1].isupper() or any(c.isupper() for c in label) else label.capitalize()
+
+
 def render(tokens, brand, image_cards="", embedded_css="", link_fonts=False):
     rows = token_rows(tokens)
     faces, faces_note = font_faces(tokens, link_fonts)
@@ -934,6 +1162,7 @@ def render(tokens, brand, image_cards="", embedded_css="", link_fonts=False):
 {cover(tokens, brand)}
 {review(tokens)}
 {overview(tokens)}
+{contents(tokens)}
 {rebuild(tokens)}
 {typography(tokens)}
 {fonts(tokens, faces_note)}
@@ -991,7 +1220,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     tokens = json.loads(args.tokens.read_text(encoding="utf-8"))
-    brand = args.brand or (tokens["source"]["origin"] or "the source").split("//")[-1].split("/")[0]
+    brand = args.brand or brand_name(tokens["source"]["origin"])
     args.out.mkdir(parents=True, exist_ok=True)
 
     light = args.out / "brand-guide.html"
