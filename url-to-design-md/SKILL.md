@@ -3,10 +3,18 @@ name: url-to-design-md
 description: 'Measure a live website or a signed-in web app and turn it into a DESIGN.md (Google design.md spec) plus shadcn theme, a visual review page and social slides. Reads COMPUTED styles from the rendered DOM — colour roles with usage share, the type scale at two viewports, spacing grid, radii, shadows, motion, components and states — never the authored stylesheet, so it works on Tailwind and CSS-in-JS. Use when the user hands over a URL and wants to start a project from an existing design: "parti da questo sito", "estrai il design system da <url>", "rifacciamo questo sito", "measure this app''s design". Produces a review page with the decisions the measurement could not settle, then writes `.workflow/DESIGN.md` only after the user approves. Not for: Figma (use `figma-to-design-md`), raster images (use `image-to-design-md`), building the app (use `design-md-to-app` after), one page from a screenshot (use `screenshot-to-page`).'
 ---
 
-# URL → DESIGN.md
+# URL → brand guide → DESIGN.md
 
-Take a live site or a signed-in app, measure what it actually paints, and come back with a design
-system the user can argue with before any of it enters the project.
+Take a live site or a signed-in app, measure what it actually paints, build **a brand guide that
+looks like that site**, and read the DESIGN.md back out of the guide.
+
+```
+URL → capture → analyse → tokens → THE GUIDE → read the guide → DESIGN.md → design-md-to-app
+```
+
+**The guide is the product**; `references/spec.md` §4 calls it "where most of the value is". The
+DESIGN.md is its *reading*, not a second branch from the tokens — so a value that the guide could
+not rebuild never reaches `design-md-to-app`. That check exists at none of the other entrances.
 
 The third entrance to `DESIGN.md`, beside `figma-to-design-md` and `image-to-design-md`. The exit is
 identical, so nothing downstream changes: `wireframe-canvas` → `design-md-to-app`.
@@ -325,6 +333,12 @@ schema. Key facts:
 
 ## References
 
+- **`references/spec.md` — the source specification, verbatim, and every delta we take from it.**
+  Read it before changing anything here. A change is justified against a numbered point in it, or
+  it is a change to the spec and the user decides. The first version of this skill was written
+  from a *reading* of that text rather than from the text, and the difference showed up as a guide
+  that was a report, a `foreground` taken from a legal footer, and two of the thirteen pages simply
+  absent.
 - `references/measure.md` — what to measure, and the trap behind each correction
 - `references/review.md` — the questionnaire: the derived questions, the pictures, the skip
 - `references/artifacts.md` — the guide, the slides, and why the video is deferred

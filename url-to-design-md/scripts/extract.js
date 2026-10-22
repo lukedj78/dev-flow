@@ -429,10 +429,17 @@ window.__SNAPSHOT__ = (function extract(options) {
         family: fam, size: px(cs.fontSize), weight: cs.fontWeight,
         lineHeight: px(cs.lineHeight), letterSpacing: px(cs.letterSpacing),
         textTransform: cs.textTransform !== "none" ? cs.textTransform : null,
-        chars: 0, elements: 0, tags: {}
+        chars: 0, elements: 0, tags: {}, inks: {}, region: {}
       });
       t.chars += chars; t.elements += 1;
       t.tags[el.tagName.toLowerCase()] = (t.tags[el.tagName.toLowerCase()] || 0) + 1;
+      // THE INK OF EACH STEP. Without it, "the colour of the text" is one number for a whole page,
+      // and `foreground` goes to whatever is written at length — on apple.com a grey disclaimer,
+      // while the headline "iPhone Duo" is near-black. Spec §2 asks for `text` AND `text-muted`;
+      // telling them apart needs to know which colour the big steps are set in.
+      var ink = normColor(cs.color);
+      if (ink) t.inks[ink] = (t.inks[ink] || 0) + chars;
+      t.region[region] = (t.region[region] || 0) + chars;
     }
 
     ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"].forEach(function (p) {
@@ -816,6 +823,15 @@ window.__SNAPSHOT__ = (function extract(options) {
     for (var tg in row.tags) tags.push(tg);
     tags.sort(function (a, b) { return row.tags[b] - row.tags[a]; });
     row.tags = tags.slice(0, 4);
+    // The ink this step is most often set in, and how much of the step is chrome. Both are facts
+    // about the ROLE: a step written half in the footer is a footer step.
+    var inks = [];
+    for (var ik in row.inks) inks.push({ value: ik, chars: row.inks[ik] });
+    inks.sort(function (a, b) { return b.chars - a.chars; });
+    row.inks = inks.slice(0, 3);
+    row.color = inks.length ? inks[0].value : null;
+    row.contentChars = row.region.content || 0;
+    delete row.region;
     typeRows.push(row);
   }
   typeRows.sort(function (a, b) { return b.size - a.size || b.chars - a.chars; });

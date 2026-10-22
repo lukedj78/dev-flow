@@ -325,6 +325,138 @@ class Outputs(unittest.TestCase):
             self.assertIn("confidence", role)
 
 
+class ChromeAndGround(unittest.TestCase):
+    """Spec §2: "dedupe repeated chrome — any count that is identical on every page (header and
+    footer) is counted once", and "backgrounds by painted area". Both were missing, and apple.com
+    measured the cost of each."""
+
+    def base(self):
+        return analyze.merge_snapshots([load(1440), load(390)], "site")
+
+    def test_the_ink_comes_from_the_content_not_the_footer(self):
+        """Measured: apple.com's legal footer carries 68 024 characters of one grey and the
+        content's headings carry 317. Weighting by characters — which the spec asks for — then
+        hands `text` to the footer on every site that has a long one, which is most of them."""
+        m = self.base()
+        m["documentBackground"] = "#ffffff"
+        m["colors"]["background"] = [
+            {"value": "#ffffff", "weight": 900000, "elements": 1, "pages": 1, "confidence": 1.0}]
+        m["colors"]["text"] = [
+            {"value": "#8a8a8a", "weight": 68024, "elements": 112, "pages": 1, "confidence": 1.0},
+            {"value": "#1d1d1f", "weight": 317, "elements": 17, "pages": 1, "confidence": 1.0}]
+        m["colors"]["contentText"] = [
+            {"value": "#1d1d1f", "weight": 317, "elements": 17, "pages": 1, "confidence": 1.0}]
+        roles = analyze.colour_roles(m, [])
+        self.assertEqual(roles["foreground"]["value"], "#1d1d1f",
+                         "the content's ink, not the footer's")
+
+    def test_a_page_with_no_main_still_gets_an_ink(self):
+        """The dedupe is a preference, not a precondition: a page with no <main> has an empty
+        content list, and returning nothing there would be worse than returning the chrome."""
+        m = self.base()
+        m["colors"]["contentText"] = []
+        roles = analyze.colour_roles(m, [])
+        self.assertIsNotNone(roles.get("foreground"), "the full list is the fallback")
+
+    def test_the_ground_is_the_document_when_the_document_paints_the_page(self):
+        """The fixture is an ordinary white page with a dark hero. The hero is the single largest
+        fill, and taking the heaviest area would have made the page dark."""
+        m = self.base()
+        roles = analyze.colour_roles(m, [])
+        self.assertEqual(roles["background"]["value"], "#ffffff")
+
+    def test_the_ground_is_the_painted_area_when_the_document_is_barely_visible(self):
+        """apple.com declares #ffffff on <body> and shows it only behind the nav; every band is
+        #f5f5f7 or #000000. Trusting the declaration put the real ground into `card`."""
+        m = self.base()
+        m["documentBackground"] = "#ffffff"
+        m["colors"]["background"] = [
+            {"value": "#f5f5f7", "weight": 17344983, "elements": 40, "pages": 1, "confidence": 1.0},
+            {"value": "#000000", "weight": 7164090, "elements": 13, "pages": 1, "confidence": 1.0},
+            {"value": "#ffffff", "weight": 90000, "elements": 2, "pages": 1, "confidence": 1.0}]
+        roles = analyze.colour_roles(m, [])
+        self.assertEqual(roles["background"]["value"], "#f5f5f7",
+                         "a colour painting 0.4% of the page is not the ground")
+
+    def test_the_rhythm_travels_and_belongs_to_one_page(self):
+        """Spec §2 asks for "the home page's section rhythm (light/dark bands)". Adding two
+        viewports' layouts together describes neither, so it comes from the widest capture."""
+        m = self.base()
+        self.assertIn("rhythm", m)
+        self.assertIn("bands", m["rhythm"])
+
+
+class InkAndAccent(unittest.TestCase):
+    """Spec §2 lists `text`, `text-muted` and `accent` as three roles. Two rules that looked
+    reasonable collapsed all three onto the wrong colours, and apple.com showed both."""
+
+    def apple_like(self):
+        """The shape apple.com measures as: a near-black headline ink, a long grey disclaimer, a
+        link blue, and white text on the dark band."""
+        m = analyze.merge_snapshots([load(1440), load(390)], "site")
+        m["documentBackground"] = "#f5f5f7"
+        m["colors"]["background"] = [
+            {"value": "#f5f5f7", "weight": 17344983, "elements": 40, "pages": 1, "confidence": 1.0},
+            {"value": "#000000", "weight": 7164090, "elements": 13, "pages": 1, "confidence": 1.0}]
+        ink = [
+            {"value": "#6e6e73", "weight": 68024, "elements": 112, "pages": 1, "confidence": 1.0},
+            {"value": "#0066cc", "weight": 900, "elements": 16, "pages": 1, "confidence": 1.0},
+            {"value": "#1d1d1f", "weight": 317, "elements": 17, "pages": 1, "confidence": 1.0},
+            {"value": "#f5f5f7", "weight": 640, "elements": 9, "pages": 1, "confidence": 1.0}]
+        m["colors"]["contentText"] = ink
+        m["colors"]["text"] = list(ink)
+        m["type"] = [
+            {"size": 56, "weight": "600", "chars": 45, "contentChars": 45, "color": "#1d1d1f"},
+            {"size": 40, "weight": "600", "chars": 108, "contentChars": 108, "color": "#1d1d1f"},
+            {"size": 21, "weight": "400", "chars": 640, "contentChars": 640, "color": "#f5f5f7"},
+            {"size": 19, "weight": "400", "chars": 24, "contentChars": 24, "color": "#6e6e73"},
+            {"size": 17, "weight": "400", "chars": 68024, "contentChars": 68024, "color": "#6e6e73"}]
+        return m
+
+    def test_the_ink_is_the_headings_colour_not_the_small_print(self):
+        """The headline is 45 characters; the disclaimer is 68 024. Counting characters — which
+        the spec asks for — makes the small print the brand's ink, and the guide comes out grey."""
+        roles = analyze.colour_roles(self.apple_like(), [])
+        self.assertEqual(roles["foreground"]["value"], "#1d1d1f")
+
+    def test_muted_is_the_neutral_one_and_the_saturated_one_is_an_accent(self):
+        """"Second text colour with lower contrast" picked the link blue and called it muted. A
+        link colour in `muted-foreground` turns every caption in the built app blue.
+
+        The blue is given MORE weight than the grey here on purpose: with the grey first, any rule
+        that just takes the first dimmer colour passes by accident, and the test proves nothing."""
+        m = self.apple_like()
+        for r in m["colors"]["contentText"]:
+            if r["value"] == "#0066cc":
+                r["weight"] = 90000        # heavier than the grey's 68 024
+        m["colors"]["contentText"].sort(key=lambda r: -r["weight"])
+        m["colors"]["text"] = list(m["colors"]["contentText"])
+        roles = analyze.colour_roles(m, [])
+        self.assertEqual(roles["muted-foreground"]["value"], "#6e6e73")
+        self.assertEqual(roles.get("accent", {}).get("value"), "#0066cc")
+        self.assertLess(analyze.chroma_of(roles["muted-foreground"]["value"]), 0.04)
+        self.assertGreater(analyze.chroma_of(roles["accent"]["value"]), 0.04)
+
+    def test_chroma_separates_a_grey_from_a_colour(self):
+        for value, neutral in (("#6e6e73", True), ("#000000", True), ("#ffffff", True),
+                               ("#0066cc", False), ("#e30613", False), ("#408267", False)):
+            with self.subTest(value=value):
+                self.assertEqual(analyze.chroma_of(value) < 0.04, neutral)
+
+    def test_the_ink_of_the_dark_band_gets_its_own_role(self):
+        """640 characters of #f5f5f7: unreadable on the light ground, perfectly readable on the
+        black one. Not the ink and not a near-miss — the other half of the system, which the spec
+        calls `text-inverse` and which had nowhere to go."""
+        roles = analyze.colour_roles(self.apple_like(), [])
+        self.assertEqual(roles.get("foreground-inverse", {}).get("value"), "#f5f5f7")
+
+    def test_a_page_with_one_ink_raises_no_accent(self):
+        """A rule that always fires invents a role. The fixture is an ordinary page."""
+        roles = analyze.colour_roles(analyze.merge_snapshots([load(1440), load(390)], "site"), [])
+        if "accent" in roles:
+            self.assertGreaterEqual(analyze.chroma_of(roles["accent"]["value"]), 0.04)
+
+
 class Translucency(unittest.TestCase):
     """`parse_hex` returns None for anything with an alpha channel, and every role list filtered by
     it — so a translucent colour was dropped before any rule saw it. Silently, and it is one of the
@@ -363,12 +495,19 @@ class Translucency(unittest.TestCase):
 
     def test_a_translucent_ink_can_win_the_role_and_says_where_it_came_from(self):
         merged = analyze.merge_snapshots([load(1440), load(390)], "site")
-        merged["colors"]["text"] = [
+        # `contentText`, because that is the list the roles read: spec §2 dedupes the chrome, and
+        # the ink role is the one that mistake ruins. The all-text list is set to the same thing so
+        # the test does not accidentally pass through the fallback.
+        ink = [
             {"value": "rgba(0, 0, 0, 0.56)", "weight": 68024, "elements": 112,
              "pages": 1, "confidence": 1.0},
             {"value": "#1d1d1f", "weight": 317, "elements": 17, "pages": 1, "confidence": 1.0},
         ]
+        merged["colors"]["contentText"] = ink
+        merged["colors"]["text"] = list(ink)
         merged["documentBackground"] = "#ffffff"
+        merged["colors"]["background"] = [
+            {"value": "#ffffff", "weight": 900000, "elements": 1, "pages": 1, "confidence": 1.0}]
         roles = analyze.colour_roles(merged, [])
         self.assertEqual(roles["foreground"]["value"], "#707070",
                          "the colour two thirds of the page is actually painted in")

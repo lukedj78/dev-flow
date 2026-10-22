@@ -256,8 +256,17 @@ def merge_snapshots(snaps, mode):
         "background": fold(lambda s: s["colors"]["background"], "area"),
         "border": fold(lambda s: s["colors"]["border"], "length"),
         "fill": fold(lambda s: s["colors"]["fill"], "area"),
+        # Spec §2's dedupe — "any count that is identical on every page (header and footer) is
+        # counted once" — done by REGION, so it also works on a single capture. Both lists travel:
+        # the roles read these, and the difference is reported rather than quietly applied.
+        "contentText": fold(lambda s: s["colors"].get("contentText") or [], "chars"),
+        "contentBackground": fold(lambda s: s["colors"].get("contentBackground") or [], "area"),
     }
     merged["gradients"] = fold(lambda s: s["gradients"], "area")
+    # Spec §2: "the home page's section rhythm (light/dark bands)". A rhythm belongs to a PAGE —
+    # adding two layouts together describes neither — so it comes from the widest capture.
+    widest = max(snaps, key=lambda s: (s.get("viewport") or {}).get("width", 0))
+    merged["rhythm"] = widest.get("rhythm") or {"seen": 0, "bands": []}
 
     # A box-shadow with no blur and no spread is a LINE, not an elevation. Measured on adidas.it,
     # where the commonest box-shadow was `rgb(227,43,43) 0 1px 0 0` — their red underline — and it
@@ -319,6 +328,48 @@ def merge_snapshots(snaps, mode):
 # --------------------------------------------------------------------------- colour roles
 
 
+def chroma_of(value):
+    """OKLCH chroma, 0 for a grey. The one number that separates a quiet ink from an accent."""
+    rgb = parse_hex(value)
+    if not rgb:
+        return None
+    try:
+        _, c, _ = to_oklch(value)
+        return c
+    except Exception:
+        return None
+
+
+def type_ink(merged, ground):
+    """The colour the LARGEST type steps are set in, voted by characters — or None.
+
+    Spec §2 lists `text` and `text-muted` as separate roles, and character weight alone cannot tell
+    them apart: on any real page the longest run of text is the small print. A brand's ink is what
+    its headings are set in.
+
+    Steps above the MEDIAN size, so one outsized word cannot decide it, and only steps that are
+    legible on the ground — a heading set in white lives on a dark band, and that is `text-inverse`
+    (below), not this.
+    """
+    rows = [r for r in (merged.get("type") or []) if r.get("color") and r.get("size")]
+    if not rows:
+        return None
+    sizes = sorted(r["size"] for r in rows)
+    median = sizes[len(sizes) // 2]
+    big = [r for r in rows if r["size"] >= median]
+    votes, steps = defaultdict(int), defaultdict(int)
+    for r in big:
+        ink = composite(r["color"], ground) if ground else r["color"]
+        if not ink or (ground and (contrast(ink, ground) or 0) < 3.0):
+            continue
+        votes[ink] += max(1, r.get("contentChars") or r.get("chars") or 1)
+        steps[ink] += 1
+    if not votes:
+        return None
+    best = max(votes, key=lambda k: votes[k])
+    return {"value": best, "chars": votes[best], "steps": steps[best]}
+
+
 def colour_roles(merged, missing):
     """Assign the role names a DESIGN.md needs, each with the evidence that chose it."""
     roles = {}
@@ -330,9 +381,29 @@ def colour_roles(merged, missing):
     # length on the page (2318 against 2094), so the border token became `#0066cc`, the blue of
     # its links, which frames nothing. Its body text is `rgba(0, 0, 0, 0.56)` on 68 024
     # characters — two thirds of the page — and was dropped the same way.
+    # THE GROUND, spec §2: "backgrounds by painted area".
+    #
+    # `documentBackground` is whatever `<body>` declares, and on apple.com that is #ffffff — a
+    # colour visible only behind the nav, while every band a reader meets is #f5f5f7 or #000000.
+    # Taking the document's word for it put the real ground into `card` and a near-invisible colour
+    # into `background`, and every contrast check afterwards was measured against the wrong wall.
+    #
+    # But the heaviest area is not the answer either: a page with one dark hero and a white body
+    # has its hero as the largest single fill. So the document's colour wins when it is PRESENT —
+    # when it actually paints a fair share of the page — and the painted area decides when it is
+    # not. Both rules are the same question asked twice: what is the wall most of this page stands
+    # against.
     doc_bg = merged.get("documentBackground")
     opaque_bgs = [r for r in merged["colors"]["background"] if parse_hex(r["value"])]
-    page_bg = doc_bg if parse_hex(doc_bg) else (opaque_bgs[0]["value"] if opaque_bgs else None)
+    total_area = sum(r["weight"] for r in opaque_bgs) or 1
+    doc_share = next((r["weight"] / total_area for r in opaque_bgs
+                      if r["value"] == doc_bg), 0.0)
+    if parse_hex(doc_bg) and doc_share >= 0.15:
+        page_bg = doc_bg
+    elif opaque_bgs:
+        page_bg = opaque_bgs[0]["value"]
+    else:
+        page_bg = doc_bg if parse_hex(doc_bg) else None
 
     def usable(rows):
         """Every row, with `composited` set to what it looks like on the page ground.
@@ -348,8 +419,12 @@ def colour_roles(merged, missing):
                 out.append({**r, "composited": seen})
         return out
 
+    # CONTENT FIRST, spec §2's dedupe. The ink is where it matters most: a legal footer is
+    # thousands of characters of one grey, and weighting by characters hands it the role outright.
+    # Measured on apple.com: footer 68 024 characters, content headings 317.
+    # The full lists remain the fallback for a page with no <main> at all.
+    texts = usable(merged["colors"].get("contentText") or []) or usable(merged["colors"]["text"])
     bgs = usable(merged["colors"]["background"])
-    texts = usable(merged["colors"]["text"])
     borders = usable(merged["colors"]["border"])
 
     def seen(row):
@@ -389,9 +464,28 @@ def colour_roles(merged, missing):
     # #ffffff on a #ffffff page. Every other check passed; only drawing it showed white on white.
     # So the winner has to be legible against the ground it was chosen for, and if it is not, the
     # next candidate that is takes the role and the near-miss is recorded.
+    # THE INK OF THE HEADINGS, not of the longest paragraph.
+    #
+    # Spec §2 asks for `text` and `text-muted` as two roles, and "weight text by characters" alone
+    # cannot separate them: the longest text on a page is its small print. Measured on apple.com —
+    # the headline "iPhone Duo" is #1d1d1f at 56px, while a 21px disclaimer carries 640 characters
+    # in grey, so counting characters called the grey the brand's ink and the guide came out in it.
+    #
+    # The big steps are what a brand speaks in. `type_ink` votes among the steps ABOVE the median
+    # size, weighted by characters, so a page with one giant word does not decide it either.
+    head_ink = type_ink(merged, page_bg)
     if texts and page_bg:
         legible = [r for r in texts if (contrast(seen(r), page_bg) or 0) >= 3.0]
-        if legible and legible[0] is not texts[0]:
+        if head_ink and (not legible or seen(legible[0]) != head_ink["value"]):
+            roles["foreground"] = {
+                "value": head_ink["value"], "oklch": oklch_css(head_ink["value"]),
+                "weight": head_ink["chars"], "elements": head_ink["steps"],
+                "pages": merged["pageCount"], "confidence": 1.0,
+                "why": f"the ink of the {head_ink['steps']} largest type step(s) "
+                       f"({head_ink['chars']} characters); the most-written colour was "
+                       f"{texts[0]['value']}, which is the small print",
+            }
+        elif legible and legible[0] is not texts[0]:
             roles["foreground"] = ev(legible[0],
                                      f"most characters that are legible on the ground "
                                      f"({texts[0]['value']} had more but only "
@@ -403,21 +497,38 @@ def colour_roles(merged, missing):
     elif texts:
         roles["foreground"] = ev(texts[0], "most characters on the page")
 
-    # text-muted is the next text colour with clearly lower contrast against the ground. Derived
-    # from the foreground that was CHOSEN, not from the heaviest candidate: when the guard above
-    # swaps the winner, measuring against the rejected one makes the threshold unreachable.
-    # (It also has to sit OUTSIDE the branches — nested under one of them it ran only in the case
-    # that never happens, and the role vanished silently. Caught by a test, not by reading.)
+    # MUTED IS NEUTRAL; A SATURATED TEXT COLOUR IS AN ACCENT. Spec §2 lists both roles, and
+    # "second text colour with lower contrast" cannot tell them apart: on apple.com it picked
+    # #0066cc, the blue of its links, and called it muted — while the actual quiet grey (#6e6e73,
+    # used under every headline) went nowhere. A link colour put into `muted-foreground` turns
+    # every caption in the built app blue.
     if page_bg and "foreground" in roles:
         chosen = roles["foreground"]["value"]
         base_c = contrast(chosen, page_bg)
+        dimmer = []
         for r in texts:
             if seen(r) == chosen:
                 continue
             c = contrast(seen(r), page_bg)
             if c and base_c and c < base_c * 0.75 and c >= 1.6:
-                roles["muted-foreground"] = ev(r, "second text colour, lower contrast on the ground")
-                break
+                dimmer.append((r, c, chroma_of(seen(r))))
+        neutral = [d for d in dimmer if d[2] is not None and d[2] < 0.04]
+        if neutral:
+            r, c, ch = neutral[0]
+            roles["muted-foreground"] = ev(
+                r, f"the quiet ink: {c:.1f}:1 against the ground and chroma {ch:.3f} — neutral, "
+                   f"where a saturated one would be an accent")
+        elif dimmer:
+            r, c, ch = dimmer[0]
+            roles["muted-foreground"] = ev(
+                r, f"second text colour, lower contrast on the ground ({c:.1f}:1); no neutral one "
+                   f"was measured, so this carries chroma {ch:.3f}")
+        # The saturated ones are `accent` — spec §2's own role, and until now never filled.
+        saturated = [d for d in dimmer if d[2] is not None and d[2] >= 0.04]
+        if saturated and "accent" not in roles:
+            r, c, ch = saturated[0]
+            roles["accent"] = ev(r, f"a saturated text colour, chroma {ch:.3f} at {c:.1f}:1 — "
+                                    f"used for emphasis, not for quiet text")
 
     if not texts:
         missing.append("foreground")
@@ -432,6 +543,30 @@ def colour_roles(merged, missing):
             roles["card"] = ev(near[0], "a background near the ground: a surface, not an inversion")
         if far:
             roles["surface-inverse"] = ev(far[0], "a background far from the ground: an inverted band")
+
+    # `text-inverse` (spec §2's own name; ours is `foreground-inverse` to match the rest). The ink
+    # used on the dark band — which a banded site has and a one-ground site does not. Measured on
+    # apple.com: 640 characters at 21px in #f5f5f7, which is unreadable on its light ground and
+    # perfectly readable on the black one, so it is neither the ink nor a near-miss: it is the
+    # other half of the system. Without the role, that colour either wins `foreground` wrongly or
+    # is dropped as illegible.
+    inverse_bg = (roles.get("surface-inverse") or {}).get("value")
+    if texts and page_bg and inverse_bg:
+        on_dark = [r for r in texts
+                   if (contrast(seen(r), inverse_bg) or 0) >= 4.5
+                   and (contrast(seen(r), page_bg) or 0) < 3.0]
+        if on_dark:
+            roles["foreground-inverse"] = ev(
+                on_dark[0],
+                f"the ink on the inverted band: {contrast(seen(on_dark[0]), inverse_bg):.1f}:1 on "
+                f"{inverse_bg}, {contrast(seen(on_dark[0]), page_bg):.1f}:1 on the ground")
+
+    # text-muted is the next text colour with clearly lower contrast against the ground. Derived
+    # from the foreground that was CHOSEN, not from the heaviest candidate: when the guard above
+    # swaps the winner, measuring against the rejected one makes the threshold unreachable.
+    # (It also has to sit OUTSIDE the branches — nested under one of them it ran only in the case
+    # that never happens, and the role vanished silently. Caught by a test, not by reading.)
+
 
     # The action colour is the painted layer of the buttons, not the loudest colour on the page.
     action_counts = defaultdict(lambda: {"weight": 0, "elements": 0, "fg": defaultdict(int)})
@@ -1423,6 +1558,9 @@ def build_tokens(merged):
             "control": control_typography(merged, roles, missing),
         },
         "spacing": space,
+        # Spec §2 and §4: the rhythm is both a measured fact and the guide's own art direction
+        # ("its alternating light and dark grounds"), so it travels with the tokens.
+        "rhythm": merged.get("rhythm") or {"seen": 0, "bands": []},
         "radius": {
             "values": [{"px": v, "count": n} for v, n in radius_px[:8]],
             "pill": pill_is_default,
