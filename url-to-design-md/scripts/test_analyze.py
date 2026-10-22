@@ -776,6 +776,41 @@ class Recommendations(unittest.TestCase):
                       "the rejected candidate is still offered as the alternative")
 
 
+class OtherSites(unittest.TestCase):
+    """Every rule in this file was derived from apple.com, and a rule derived from one site is a
+    rule about that site. These are the cases two structurally different ones produced."""
+
+    def scale(self, values):
+        merged = {"spacing": {"padding": {str(v): n for v, n in values.items()},
+                              "gap": {}, "margin": {}}}
+        return analyze.spacing_scale(merged, [])
+
+    def test_a_five_pixel_scale_is_a_scale(self):
+        """gov.uk's published design system is on 5px — 20, 15, 10, 5 — and the spec names only
+        8/4/2, so following it literally reports "no grid" about a site with a strict one."""
+        out = self.scale({20: 115, 15: 88, 10: 70, 5: 66, 7: 8})
+        self.assertEqual(out["base"], 5)
+
+    def test_two_pixels_is_never_the_answer(self):
+        """Every integer system is on a 2px grid, so it passes any threshold and says nothing.
+        stripe.com came back as "2px, 90% of values on the grid": true, and useless."""
+        out = self.scale({6: 113, 12: 108, 18: 40, 22: 20})
+        self.assertNotEqual(out["base"], 2)
+
+    def test_a_base_that_scrapes_past_loses_to_one_that_fits(self):
+        """8px at 70.1% against 4px at 90.9% is not a close call, and taking the larger one on the
+        strength of a tenth of a point would have made the fixture an 8px system."""
+        out = self.scale({4: 30, 8: 40, 12: 20, 20: 10, 6: 18, 10: 14})
+        self.assertEqual(out["base"], 4)
+
+    def test_a_site_on_no_grid_still_says_so(self):
+        """apple.com: 4px explains half of it and nothing explains more. The answer is still that
+        there is no grid, with the shares shown."""
+        out = self.scale({9.6: 332, 4: 370, 8: 279, 20: 222, 11: 42, 15: 151})
+        self.assertIsNone(out["base"])
+        self.assertIn("4", out["triedCoverage"])
+
+
 class CrossPage(unittest.TestCase):
     """More pages are only worth reading if the roles look at them. Measured on apple.com across
     three pages: `#0066cc` — the blue underline of its links — carried 2094px of border length on

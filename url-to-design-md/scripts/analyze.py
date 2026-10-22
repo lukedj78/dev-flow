@@ -950,11 +950,29 @@ def spacing_scale(merged, missing):
     # Measured on the test page, which is an 8px system: coverage was 100% for 2, 100% for 4 and 97%
     # for 8, so "highest coverage wins" answered 2 — true, useless, and it would have put a 2px grid
     # in a DESIGN.md. Every system is on a 2px grid; the question is the step a designer reaches for.
+    # Also 5 and 10: the spec names 8/4/2, and gov.uk is on a 5px scale (20, 15, 10, 5) that the
+    # three do not describe — so following the list literally reports "no grid" about a site that
+    # has a strict one. Measured.
     coverage = {}
-    for base in (8, 4, 2):
+    for base in (10, 8, 5, 4, 2):
         coverage[base] = sum(n for v, n in pool.items()
                              if abs(v / base - round(v / base)) < 1e-6) / total
-    best = next((b for b in (8, 4, 2) if coverage[b] >= 0.80), None)
+    # 2px is not a design decision. Every integer system is on a 2px grid, so it passes any
+    # threshold and tells the reader nothing: stripe.com came back as "2px, 90% of values on the
+    # grid", which is true and useless. A base that constrains nothing is not a base, and the
+    # honest answer is the one apple.com already gets — not observed, with the shares shown.
+    # 70%, not 80%. The threshold was mine, not the spec's, and at 80% gov.uk's 5px scale — which
+    # its published design system really does use — came back as "no grid" at 75%. A base that
+    # explains seven values in ten is a base; the rest is what `offGrid` is for.
+    # The largest base over the threshold, UNLESS a smaller one explains the page markedly better.
+    # At 0.70 alone the test page answered 8px on 70.1% while 4px explained 90.9% of it — a base
+    # that scrapes past the line is not the same claim as one that fits. Twenty points of coverage
+    # is the difference between a grid and a coincidence.
+    eligible = [b for b in (10, 8, 5, 4) if coverage[b] >= 0.70]
+    best = None
+    if eligible:
+        strongest = max(coverage[b] for b in eligible)
+        best = next(b for b in eligible if coverage[b] >= strongest - 0.15)
     if best is None:
         # NO BASE IS AN ANSWER. The fallback used to be 1, and `coverage.get(1, 1.0)` then reported
         # "base 1px, 100% of values on the grid" — a number that is true by construction, since
@@ -964,7 +982,7 @@ def spacing_scale(merged, missing):
         #
         # A base nobody measured, written into a file that says it is a measurement, is the exact
         # thing this skill refuses to do everywhere else.
-        missing.append("spacing base (no 8/4/2px grid explains 80% of the values)")
+        missing.append("spacing base (no 10/8/5/4px grid explains 70% of the values)")
         common = sorted(pool.items(), key=lambda kv: -kv[1])[:6]
         return {
             "base": None,
@@ -1758,7 +1776,7 @@ def main(argv=None):
     else:
         tried = ", ".join(f"{b}px {c:.0%}" for b, c in (space.get("triedCoverage") or {}).items())
         common = ", ".join(f"{c['value']}px ×{c['count']}" for c in (space.get("commonest") or [])[:4])
-        print(f"  spacing base : NOT OBSERVED — no 8/4/2px grid explains 80% of the values "
+        print(f"  spacing base : NOT OBSERVED — no 10/8/5/4px grid explains 70% of the values "
               f"({tried}). Commonest steps: {common}")
     if tokens["missing"]:
         print(f"  NOT OBSERVED : {', '.join(tokens['missing'])}")
