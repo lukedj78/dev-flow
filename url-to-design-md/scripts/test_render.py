@@ -278,5 +278,79 @@ class Gate(unittest.TestCase):
         self.assertIn("opens offline, no external reference", [c["check"] for c in res.failed])
 
 
+class InverseBand(unittest.TestCase):
+    """The inverse band painted its button from `--primary` like the light one. On a site whose
+    primary IS the inverse ground that is a black button on a black band — invisible, directly under
+    a caption reading "a system that only works on one ground is half a system". Measured on
+    adidas.it, second run."""
+
+    def tokens(self, variants):
+        return {
+            "color": {"roles": {"background": {"value": "#ffffff"},
+                                "foreground": {"value": "#000000"},
+                                "surface-inverse": {"value": "#000000"},
+                                "primary": {"value": "#000000"}}},
+            "components": {"button": {"variants": variants}},
+        }
+
+    def test_it_picks_a_measured_variant_that_is_legible_there(self):
+        t = self.tokens([
+            {"count": 27, "example": {"background": "#000000", "color": "#ffffff", "borderWidth": 0}},
+            {"count": 14, "example": {"background": "#ffffff", "color": "#000000",
+                                      "borderWidth": 1, "borderColor": "#000000"}},
+        ])
+        style, why = render_guide.button_for_ground(t, "#000000")
+        self.assertIsNotNone(style)
+        self.assertIn("#ffffff", style, "the white variant is the one that shows on black")
+        self.assertNotIn("background:#000000", style)
+        self.assertIn("14×", why, "the note says how often it was actually seen")
+        self.assertIn("21.0:1", why, "and what it measures here")
+
+    def test_it_prefers_the_commonest_legible_variant(self):
+        t = self.tokens([
+            {"count": 2, "example": {"background": "#408267", "color": "#ffffff", "borderWidth": 0}},
+            {"count": 14, "example": {"background": "#ffffff", "color": "#000000", "borderWidth": 0}},
+        ])
+        style, why = render_guide.button_for_ground(t, "#000000")
+        # `background:`, not just the hex: the green variant carries #ffffff as its TEXT colour, so
+        # a bare substring check passed while the wrong variant was chosen.
+        self.assertIn("background:#ffffff", style, "14 beats 2 when both are legible")
+        self.assertNotIn("background:#408267", style)
+        self.assertIn("14×", why)
+
+    def test_it_refuses_rather_than_inventing_a_colour(self):
+        """Every variant here is a fact read off the page. When none of them works on that ground,
+        the honest answer is to say so — computing a new colour would be the one thing this skill
+        does not do."""
+        t = self.tokens([
+            {"count": 27, "example": {"background": "#000000", "color": "#ffffff", "borderWidth": 0}},
+            {"count": 3, "example": {"background": "#111111", "color": "#ffffff", "borderWidth": 0}},
+        ])
+        style, why = render_guide.button_for_ground(t, "#000000")
+        self.assertIsNone(style)
+        self.assertIn("no measured button variant", why)
+
+    def test_a_variant_with_no_ground_is_not_a_candidate(self):
+        """A transparent button has no ground to measure, so it cannot be checked against one."""
+        t = self.tokens([
+            {"count": 27, "example": {"background": None, "color": "#000000", "borderWidth": 0}},
+            {"count": 1, "example": {"background": "#ffffff", "color": "#000000", "borderWidth": 0}},
+        ])
+        style, why = render_guide.button_for_ground(t, "#000000")
+        self.assertIn("#ffffff", style)
+        self.assertIn("1×", why)
+
+    def test_the_rendered_band_carries_a_visible_button(self):
+        t = self.tokens([
+            {"count": 14, "example": {"background": "#ffffff", "color": "#000000",
+                                      "borderWidth": 1, "borderColor": "#000000"}},
+        ])
+        html = render_guide.rebuild(t)
+        self.assertIn("On the inverse", html)
+        self.assertIn("background:#ffffff", html)
+        self.assertNotIn('class="btn" data-rebuild="button-on-inverse"', html,
+                         "the old unconditional primary button is gone")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -33,6 +33,8 @@ import html
 import json
 import re
 import mimetypes
+
+import analyze
 from pathlib import Path
 
 MAX_LIGHT_BYTES = 150 * 1024
@@ -496,11 +498,53 @@ def overview(tokens):
 </div></section>"""
 
 
+def button_for_ground(tokens, ground):
+    """The measured button variant that is legible on `ground`, and why it was picked.
+
+    The inverse band used `--primary` like the light one, and on a site whose primary IS the
+    inverse ground that paints a black button on a black band: invisible, under a caption reading
+    "a system that only works on one ground is half a system". Measured on adidas.it.
+
+    Nothing is invented. The variants here were all read off the real page — adidas ships a white
+    button with a black border alongside the black one — so this picks between facts rather than
+    computing a colour. If none of them clears 3:1 on that ground, it says so instead of showing
+    something that cannot be seen.
+    """
+    roles = tokens["color"]["roles"]
+    variants = (tokens.get("components", {}).get("button") or {}).get("variants") or []
+    best = None
+    for v in variants:
+        ex = v.get("example") or {}
+        bg = ex.get("background")
+        if not bg or not analyze.parse_hex(bg):
+            continue
+        ratio = analyze.contrast(bg, ground)
+        if ratio >= 3.0 and (best is None or v.get("count", 0) > best[0].get("count", 0)):
+            best = (v, bg, ex.get("color") or roles.get("background", {}).get("value", "#fff"),
+                    ratio)
+    if best is None:
+        return None, ("no measured button variant reaches 3:1 on this ground — the source never "
+                      "puts one here, and inventing a colour would be the one thing this skill "
+                      "does not do")
+    v, bg, fg, ratio = best
+    return (f'style="background:{esc(bg)};color:{esc(fg)};border:'
+            f'{esc(int((v.get("example") or {}).get("borderWidth") or 0))}px solid '
+            f'{esc((v.get("example") or {}).get("borderColor") or "transparent")}"',
+            f"the variant seen {v.get('count')}× on the page, {ratio:.1f}:1 here")
+
+
 def rebuild(tokens):
     """The gate made visible. These three controls use only variables; `verify.py` reads their
     computed styles back and fails when one does not equal its token. If this section looks right,
     the tokens are the system; if it looks wrong, the tokens are wrong — not the page."""
-    return """
+    inverse = (tokens["color"]["roles"].get("surface-inverse")
+               or tokens["color"]["roles"].get("foreground") or {}).get("value", "#111")
+    style, why = button_for_ground(tokens, inverse)
+    on_inverse = (f'<p><button class="btn" {style}>Primary action</button>'
+                  f'<span class="note" style="margin-left:12px;color:inherit;opacity:.7">{esc(why)}'
+                  f'</span></p>' if style else
+                  f'<p class="note" style="color:inherit;opacity:.8">{esc(why)}</p>')
+    return f"""
 <section id="rebuild"><div class="wrap">
   <h2>Token rebuild test</h2>
   <p class="lede">A button, a card and a field built from the exported variables and nothing else.
@@ -520,7 +564,7 @@ def rebuild(tokens):
       <h3 style="color:inherit">On the inverse</h3>
       <p class="note" style="color:inherit;opacity:.8">The same card on the inverted band, because a
       system that only works on one ground is half a system.</p>
-      <p><button class="btn" data-rebuild="button-on-inverse">Primary action</button></p>
+      {on_inverse}
     </div>
   </div>
 </div></section>"""
