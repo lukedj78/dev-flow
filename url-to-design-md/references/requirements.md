@@ -12,6 +12,9 @@ we deliver* — none of it is copied here. This file is a restatement: every req
 it is in here, in our words, numbered so it can be cited in a commit or an argument. The original
 is linked above and should be read there.
 
+**Where this skill stands against each number is recorded below**, in the *State* table at the end.
+A requirement with no mark is one nobody has checked since it was written.
+
 Two notes on using this file:
 
 1. **A change to this skill is justified against a number below, or it is a change to the
@@ -233,6 +236,78 @@ screenshots taken during verification.
 **R9.3** Finish by saying what was measured, what was assumed, and what it cost.
 
 ---
+
+# State — what is done, what is not, measured on 2026-10-22
+
+Checked by running the skill on **apple.com** (three pages), **gov.uk** and **stripe.com**, and by
+executing the source prompt separately to produce a reference artefact to compare against.
+
+| | Requirement | State |
+|---|---|---|
+| R0.1–0.4 | one URL in, an art-directed guide out, measured and rebuilt | **partly** — the guide exists and is built from the tokens; R0.2 ("not a report") is half met, see R5 |
+| R1.1–1.3 | unofficial labels, disclaimer, no copied assets | **done** |
+| R1.4 | bot check: `--headed` or a paste-into-DevTools snippet | **missing** — prose only, no snippet. The reference run shipped one (24 KB) |
+| R1.5–1.6 | AI labels, plain copy, standard section names | **done** |
+| R2.1–2.7 | capture: Playwright, scored pages, two viewports, computed styles | **done** — `pick_pages.js` ranks by the visible nav bar; the extractor goes in through `evaluate`, since gov.uk's CSP refuses an injected script |
+| R3.1 | dedupe the chrome | **done** — by region, so it works on one capture too |
+| R3.2 | type: clusters, roles, `clamp()`, ratio | **done** — `clamp()` is omitted, never invented, when a step has no mobile measure |
+| R3.3 | colour: eleven roles, hex + OKLCH, share, contrast | **done** — translucent values composited onto the ground; roles weighted by how many pages saw them |
+| R3.4 | layout: base, radii, container, breakpoints, section rhythm | **done** — bases 10/8/5/4 (never 2); rhythm measured by geometry |
+| R3.5 | components: button, card, nav, inferred input | **done** |
+| R3.6 | **imagery described in words** | **MISSING** — the extractor counts formats, crops, full-bleed share, object-fit and media area; `analyze.py` never reads them |
+| R3.7 | voice: five quotes, three rules, the statistics | **done** |
+| R4.1–4.3 | tokens as CSS and W3C JSON, used everywhere in the guide | **done** |
+| R5.1 | art direction derived from the tokens | **partly** — type, colour, radius and button shape come from the measurement; motion and the gradient do not yet |
+| R5.2.1 Cover | full page, name, lede, pill, frosted card | **done** |
+| R5.2.2 Overview | centred headline, four figures | **done** |
+| R5.2.3 Contents | eight cards in the site's own card shape | **done** — ours are flat where the reference gives each one a composed gradient |
+| R5.2.4 Rebuild | controls from tokens on both grounds | **done** |
+| R5.2.5 Typography | chapter photo, specimen card, **chip tabs per role** | **MISSING** — the tabs |
+| R5.2.6 Fonts | giant "Aa", weights, share, local-font check | **partly** — the specimen and weights are in; the local-font check is not |
+| R5.2.7 Colour (dark) | palette bar in proportion, role tiles, contrast | **done** |
+| R5.2.8 Layout | facts, column diagram, staircase, radii, rhythm | **partly** — the diagram and the staircase are tables, not drawings |
+| R5.2.9 Components (dark) | **variants on the grounds they were measured on** | **MISSING** |
+| R5.2.10 Imagery | mosaic, measured facts, source links | **MISSING** — waits on R3.6 |
+| R5.2.11 Voice | split page, quoted lines, three rule cards | **partly** |
+| R5.2.12 Tokens (dark) | copy, copy-JSON, download, code panels | **done** |
+| R5.2.13 Method | assumptions, run log, prompts table | **done** |
+| R5.3 | motion: rise-in, slow zoom, the brand's easing | **partly** — reveals and reduced-motion are in; the measured easing is not used |
+| R5.4 | top bar transparent over the cover, frosted after | **MISSING** — the bar is sticky, the transition is not |
+| R5.5 | no horizontal scroll at 390px | **done**, and checked |
+| R5.6 | two editions, 150 KB, offline | **partly** — the light edition is in budget; the hero edition contradicts R6.2, see below |
+| R6.1–6.5 | prompts, the three modes, WebP, review | **partly** — nine prompts and the three modes exist; nothing has been generated or reviewed |
+| R7.1–7.4 | slides: 8 + 4, same tokens, badges | **UNTESTED** — `render_media.py` exists and has never been run |
+| R8.1 | video, 60 fps, frame-accurate | **UNTESTED** — `make_video.py` exists and has never been run |
+| R8.2 | verify.js and its checks | **done** — 15 checks, and two of them had to stop forbidding R5.2.2 and R5.2.1 |
+| R8.3 | **screenshot everything, look, fix** | **partly** — done by hand on the pages built so far, not wired into the flow |
+| R9.1–9.3 | run log, deliverables, closing summary | **partly** — the run log is written; the `out/<host>/` layout is not what we produce |
+
+## Known contradictions in the requirements, and what we do about them
+
+1. **R5.6 against R6.2.** Two editions must differ by embedded WebP, and `none` forbids producing
+   any image. They cannot both hold. **Undecided** — the reference run shipped them identical and
+   said so in the file. We currently skip the hero edition, which is the other reading.
+2. **R3.3's character weighting against role assignment.** Weighting text by characters hands the
+   ink role to the longest text on the page, which is the legal footer. We scope the rule to
+   content characters; the reference picks the body by element count instead. Same hole, two
+   patches.
+3. **R3.4's "8/4/2" is not every grid.** gov.uk is on 5px. We added 10 and 5, and refuse 2 as an
+   answer because every integer system satisfies it.
+4. **R2.2's "one page per top-level path" under-specifies product families.** `/mac`,
+   `/macbook-air`, `/macbook-pro` are three paths and one product. **Not handled** — the reference
+   added a second grouping on the first hyphen-token, and we should.
+5. **R3.4's rhythm assumes dark bands exist.** A site with one ground has no rhythm to report, and
+   R5.2.7/9/12 still demand dark pages. We fall back to `surface-inverse`; a site with no inverse
+   at all is **unhandled**.
+
+## Known defects, measured, not yet fixed
+
+- **gov.uk**: `primary` takes a pale blue panel instead of the green button, and `surface-inverse`
+  takes the link blue instead of the black header. Button detection on that site finds the wrong
+  painted layer.
+- **apple.com**: the 80px step has no mobile measure, because only the home page is read at 390px.
+  R2.3 says to read the home page at 390, so reading the other pages there too is a change to the
+  requirements, not a bug fix — but every `clamp()` for the big steps is the poorer for it.
 
 # Our deltas
 

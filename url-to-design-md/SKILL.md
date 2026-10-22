@@ -334,7 +334,10 @@ schema. Key facts:
 
 ## References
 
-- **`references/requirements.md` — what this skill must do, numbered R0–R9, plus our deltas.**
+- **`references/requirements.md` — what this skill must do, numbered R0–R9, what is DONE and what
+  is not, the contradictions in the requirements themselves, and our deltas.** Start there: the
+  *State* table says which numbers are met, which are missing and which have never been run, each
+  one measured rather than asserted. Pick the next piece of work from it.**
   Read it before changing anything here: a change is justified against a number in it, or it is a
   change to the requirements and the user decides. They are **restated in our own words** from a
   public prompt by Amir Mushichge, which carries no licence — so by our own `registry-intake` K8
