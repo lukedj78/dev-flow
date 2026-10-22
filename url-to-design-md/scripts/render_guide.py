@@ -130,6 +130,28 @@ def css_safe(value):
     return v.replace("<", "\\3c ").replace(">", "\\3e ")
 
 
+def css_attr(value, fallback=""):
+    """A measured value on its way into a `style="..."` ATTRIBUTE.
+
+    `css_safe` guards the other context — a `<style>` element — where the danger is `</style>` and
+    the quoting is CSS's. An attribute is parsed by HTML first, so one double quote ends it and
+    whatever follows becomes markup: a site can declare
+
+        background-image: linear-gradient(red, blue)" onmouseover="…
+
+    and `css_safe` passes it through untouched, because it contains no brace, no semicolon and no
+    backslash. Measured on this file's own output.
+
+    So the two contexts get two functions, and this one escapes for HTML after CSS. A value that
+    `css_safe` refuses becomes the fallback rather than an empty declaration, because a half-written
+    `style="background:"` is a silent failure and a missing wash is a visible one.
+    """
+    safe = css_safe(value)
+    if safe is None:
+        return fallback
+    return html.escape(safe, quote=True)
+
+
 def font_faces(tokens, link: bool):
     """The measured @font-face rules, re-declared so the guide renders in the real typeface.
 
@@ -559,7 +581,8 @@ def cover(tokens, brand):
     # The gradient, when there is one, washes over the flat ground rather than replacing it: the
     # brand's colour is present and the text still has a floor it can be read against.
     gradient_wash = (f'<div class="cover-wash" aria-hidden="true" '
-                     f'style="background:{css_safe(grads[0])}"></div>' if grads else "")
+                     f'style="background:{css_attr(grads[0])}"></div>'
+                     if grads and css_safe(grads[0]) else "")
 
     token_card = ""
     if one:
@@ -572,7 +595,7 @@ def cover(tokens, brand):
       </div>"""
 
     return f"""
-<section id="cover" class="page cover" style="--bleed:{css_safe(bleed)};--cover-ink:{css_safe(ink)}">
+<section id="cover" class="page cover" style="--bleed:{css_attr(bleed, '#111111')};--cover-ink:{css_attr(ink, '#ffffff')}">
   <div class="cover-bleed" aria-hidden="true"></div>
   {gradient_wash}
   <div class="wrap cover-wrap">

@@ -352,5 +352,48 @@ class InverseBand(unittest.TestCase):
                          "the old unconditional primary button is gone")
 
 
+class AttributeContext(unittest.TestCase):
+    """`css_safe` guards a `<style>` element; a `style="..."` attribute is a different context and
+    one double quote ends it. Every value here was read off somebody else's page, so a site can
+    declare a gradient that closes the attribute and opens an event handler — and `css_safe` lets
+    it through, because it holds no brace, no semicolon and no backslash."""
+
+    EVIL = 'linear-gradient(red, blue)" onmouseover="alert(1)'
+
+    def test_a_quote_cannot_leave_the_attribute(self):
+        out = render_guide.css_attr(self.EVIL)
+        self.assertNotIn('"', out)
+        self.assertIn("&quot;", out)
+
+    def test_css_safe_alone_does_not_protect_an_attribute(self):
+        """The regression this guards: the first version used css_safe in both contexts."""
+        self.assertIn('"', render_guide.css_safe(self.EVIL))
+
+    def test_an_ordinary_value_passes_through(self):
+        for value in ("#0071e3", "linear-gradient(red,blue)", "oklch(0.5 0.1 200)"):
+            with self.subTest(value=value):
+                self.assertEqual(render_guide.css_attr(value), value)
+
+    def test_a_refused_value_becomes_the_fallback(self):
+        """An empty declaration — `style="background:"` — is a silent failure; a fallback is not."""
+        self.assertEqual(render_guide.css_attr("x}body{display:none", "#111"), "#111")
+        self.assertEqual(render_guide.css_attr("@import url(x)", "#111"), "#111")
+
+    def test_the_cover_escapes_what_it_was_handed(self):
+        """End to end, because the unit being safe is not the same as the page being safe: a
+        skipped test here would hide the only one that proves the fix where it matters."""
+        import analyze
+        snaps = [json.loads((FIXTURES / f"snapshot-known-site-{w}.json").read_text())
+                 for w in (1440, 390)]
+        tokens = analyze.build_tokens(analyze.merge_snapshots(snaps, "site"))
+        tokens["color"]["gradients"] = [self.EVIL]
+        tokens["color"]["roles"]["surface-inverse"] = {
+            "value": self.EVIL, "oklch": "", "weight": 1, "elements": 1, "pages": 1,
+            "confidence": 1.0, "why": "a hostile value"}
+        out = render_guide.cover(tokens, "Example")
+        self.assertNotIn('onmouseover="alert', out)
+        self.assertNotIn('blue)" on', out, "the attribute must not be closeable")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
