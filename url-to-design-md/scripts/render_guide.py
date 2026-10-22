@@ -145,6 +145,12 @@ def css_attr(value, fallback=""):
     So the two contexts get two functions, and this one escapes for HTML after CSS. A value that
     `css_safe` refuses becomes the fallback rather than an empty declaration, because a half-written
     `style="background:"` is a silent failure and a missing wash is a visible one.
+
+    Measured limit of the tests around this: `--bleed` and `--cover-ink` only ever receive values
+    that already passed a contrast check, so they are parseable colours by the time they arrive and
+    a mutation there survives the suite. The gradient wash is the surface that takes a raw measured
+    string, and that one is covered end to end. Both go through here regardless — a guarantee that
+    holds only for the inputs you happened to think of is not a guarantee.
     """
     safe = css_safe(value)
     if safe is None:
