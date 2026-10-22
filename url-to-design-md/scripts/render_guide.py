@@ -98,6 +98,28 @@ def token_rows(tokens):
         rows.append(("--font-sans", f"{fams[0]}, system-ui, sans-serif", "most characters"))
     if len(fams) > 1:
         rows.append(("--font-alt", f"{fams[1]}, system-ui, sans-serif", "second family"))
+
+    # THE HEADING FAMILY IS ITS OWN TOKEN. `--font-sans` is whichever family carries the most
+    # characters, which is the BODY face by definition — the headings are short. Apple sets its
+    # headings in SF Pro Display and its paragraphs in SF Pro Text, and a guide that titles every
+    # page in Text has the two the wrong way round on every page it has. The step rows already
+    # carry `family` per slot; this names the one the largest step uses, so the guide can set a
+    # heading without guessing.
+    slots = tokens["typography"]["scale"]["slots"]
+    display = next((sl.get("family") for sl in slots if sl.get("family")), None)
+    if display:
+        biggest = slots[0]["slot"] if slots else ""
+        rows.append(("--font-display", f"{display}, system-ui, sans-serif",
+                     f"the family of {biggest}, the largest measured step"))
+        rows.append(("--size-display", slots[0]["clamp"] or f"{slots[0]['size']}px",
+                     f"{slots[0]['size']}px — the largest step the site actually sets, "
+                     f"so nothing here is bigger than anything there"))
+        if slots[0].get("weight"):
+            rows.append(("--weight-display", str(slots[0]["weight"]), "as measured on that step"))
+        if slots[0].get("tracking"):
+            rows.append(("--tracking-display", f"{slots[0]['tracking']}em", "as measured"))
+        if slots[0].get("lineHeightRatio"):
+            rows.append(("--leading-display", str(slots[0]["lineHeightRatio"]), "as measured"))
     if tokens["shadows"]:
         rows.append(("--shadow", tokens["shadows"][0], "the commonest shadow"))
     motion = tokens.get("motion")
@@ -238,8 +260,16 @@ PAGE_CSS = """
 .cover-wash { position: absolute; inset: 0; z-index: -1; opacity: .55;
               mask-image: linear-gradient(to bottom, transparent, #000 45%); }
 .cover-wrap { max-width: 52rem; }
-.cover-title { font-size: clamp(40px, 9vw, 112px); line-height: 1.02; margin: 20px 0 0;
-               text-wrap: balance; color: inherit; }
+/* R4.3 and R5.1: the title is the site's own largest step, in the site's own heading family, at
+   its measured weight, tracking and leading. The first version used `clamp(40px, 9vw, 112px)` — a
+   value I chose — so the guide's biggest word was 72px on a site whose largest is 56, set in the
+   body face. Nothing here may be larger than something there. */
+.cover-title { font-family: var(--font-display, var(--font-sans, system-ui));
+               font-size: var(--size-display, var(--size-6xl, 48px));
+               font-weight: var(--weight-display, 600);
+               letter-spacing: var(--tracking-display, 0);
+               line-height: var(--leading-display, 1.05);
+               margin: 20px 0 0; text-wrap: balance; color: inherit; }
 .cover-lede { color: inherit; opacity: .88; max-width: 44ch; margin-top: 20px; }
 .cover-cta { margin-top: 28px; }
 .cover-foot { color: inherit; opacity: .7; margin-top: 48px; }
@@ -255,7 +285,14 @@ PAGE_CSS = """
 /* R5.2.2 — four measured figures, each with its denominator under it. */
 .stats { display: grid; gap: 24px; margin-top: 40px;
          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-.stat-v { font-size: clamp(34px, 5vw, 56px); line-height: 1; font-weight: 700; }
+/* R5.2.6 — the specimen, at the largest size the face is actually set at on the site. */
+.aa { font-size: var(--size-display, var(--size-6xl, 48px)); line-height: 1;
+      letter-spacing: var(--tracking-display, 0); }
+
+.stat-v { font-family: var(--font-display, var(--font-sans, system-ui));
+          font-size: var(--size-4xl, var(--size-3xl, 36px)); line-height: 1;
+          font-weight: var(--weight-display, 700);
+          letter-spacing: var(--tracking-display, 0); }
 .stat-l { margin-top: 8px; font-weight: 600; }
 
 /* R5.2.3 — the contents, in the site's own card shape. */
@@ -419,16 +456,28 @@ def stylesheet(tokens):
     padding-block: clamp(72px, 14vw, 160px);
     border-bottom: 1px solid {fallback("--border", "rgba(0,0,0,.08)")};
   }}
+  /* THE LARGEST STEP THE SITE HAS, never a larger one we like.
+     This read `--size-7xl` with `clamp(40px, 9vw, 72px)` behind it, and apple.com has no 7xl —
+     its largest step is 56px — so the fallback fired and the guide's biggest word was 72px on a
+     site whose biggest is 56. A fallback that invents a value is the same defect as a token that
+     invents one; it just waits for the measurement to come up short. `--size-display` is the
+     largest step that was actually measured, so when it is missing there is no page to set. */
   .cover h1 {{
-    font-size: {fallback("--size-7xl", "clamp(40px, 9vw, 72px)")};
-    line-height: {fallback("--leading-7xl", "1.05")};
-    letter-spacing: {fallback("--tracking-7xl", "-0.02em")};
-    font-weight: {fallback("--weight-7xl", "600")};
+    font-family: {fallback("--font-display", fallback("--font-sans", "system-ui"))};
+    font-size: {fallback("--size-display", fallback("--size-6xl", "48px"))};
+    line-height: {fallback("--leading-display", "1.05")};
+    letter-spacing: {fallback("--tracking-display", "0")};
+    font-weight: {fallback("--weight-display", "600")};
     margin: 0 0 16px;
     text-wrap: balance;
   }}
 
+  /* Headings are set in the HEADING family. `--font-sans` is whichever family carries the most
+     characters, which is the body face by definition — Apple sets headlines in SF Pro Display and
+     paragraphs in SF Pro Text, and using `--font-sans` for both put them the wrong way round on
+     every page of the guide. */
   h2 {{
+    font-family: {fallback("--font-display", fallback("--font-sans", "system-ui"))};
     font-size: {fallback("--size-3xl", "clamp(24px, 4vw, 32px)")};
     line-height: {fallback("--leading-3xl", "1.2")};
     letter-spacing: {fallback("--tracking-3xl", "-0.01em")};
@@ -437,6 +486,7 @@ def stylesheet(tokens):
     text-wrap: balance;
   }}
   h3 {{
+    font-family: {fallback("--font-display", fallback("--font-sans", "system-ui"))};
     font-size: {fallback("--size-xl", "20px")};
     line-height: {fallback("--leading-xl", "1.4")};
     font-weight: {fallback("--weight-xl", "600")};
@@ -843,11 +893,23 @@ def fonts(tokens, faces_note=""):
     families = tokens["typography"]["families"]
     faces = tokens["typography"]["fontFaces"]
     cards = ""
+    # R5.2.6 asks for a giant "Aa" per family — and the size of "giant" is a measurement, not a
+    # preference. 72px was a number I picked, and on apple.com it made the specimen larger than
+    # anything the site sets. `--size-display` is the largest step actually measured, which is the
+    # biggest this face is ever seen at on the real pages: giant, and true.
+    weights = {}
+    for sl in tokens["typography"]["scale"]["slots"]:
+        if sl.get("family"):
+            weights.setdefault(sl["family"], []).append(str(sl.get("weight") or ""))
     for i, fam in enumerate(families[:3]):
         var = "--font-sans" if i == 0 else "--font-alt"
-        cards += (f'<div class="card"><div style="font-size:72px;line-height:1;'
-                  f'font-family:var({var}, system-ui)">Aa</div>'
+        seen = sorted({w for w in weights.get(fam, []) if w})
+        note = (f'{len(seen)} weight(s) measured: {", ".join(seen)}' if seen
+                else "no weight measured for this family")
+        cards += (f'<div class="card"><div class="aa" style="font-family:var({var}, system-ui)">'
+                  f'Aa</div>'
                   f'<h3 style="margin-top:12px">{esc(fam)}</h3>'
+                  f'<p class="note">{esc(note)}</p>'
                   f'<p class="note">Named and linked, never copied. Font files belong to their owner.</p></div>')
     face_rows = "".join(
         f"<tr><td>{esc(f.get('family'))}</td><td class=num>{esc(f.get('weight') or '—')}</td>"
