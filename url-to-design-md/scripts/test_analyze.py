@@ -380,6 +380,53 @@ class Recommendations(unittest.TestCase):
              "default": "one theme"}])
         self.assertEqual(qs[0]["recommend"], "this project ships one theme")
 
+    def test_a_second_family_is_judged_by_the_steps_it_carries(self):
+        """The table said "530 characters against 8730 is a logo or a flourish" and recommended
+        dropping it. On adidas.it that family is the face of text-4xl, 3xl and 2xl — every heading
+        on the page — and the count is low BECAUSE headings are short. A recommendation that
+        depends on the data cannot live in a constant."""
+        merged = analyze.merge_snapshots([load(1440), load(390)], "site")
+        tokens = analyze.build_tokens(merged)
+        fams = merged["fontFamilies"]
+        if len(fams) < 2:
+            self.skipTest("the fixture has one family")
+
+        # the measured case: the second family is the face of the heading steps
+        slots = tokens["typography"]["scale"].get("slots") or []
+        for sl in slots:
+            if sl["slot"] in ("text-4xl", "text-3xl", "text-2xl"):
+                sl["family"] = fams[1]["value"]
+        fams[1]["weight"] = int(fams[0]["weight"] * 0.05)
+        q = next(q for q in analyze.open_questions(tokens, merged)
+                 if q["id"] == "type:secondfamily")
+        self.assertIn("keep it", q["recommend"], "a face that carries the headings is kept")
+        self.assertIn("heading step", q["why"])
+
+        # and the other way: no heading step, so the low count is what it looks like
+        for sl in slots:
+            sl["family"] = fams[0]["value"]
+        q = next(q for q in analyze.open_questions(tokens, merged)
+                 if q["id"] == "type:secondfamily")
+        self.assertIn("drop it", q["recommend"], "a face that carries no heading is dropped")
+
+    def test_a_question_that_computed_its_own_recommendation_keeps_it(self):
+        """The table is the fallback, not the authority. A question that worked the answer out from
+        the measurement must not have it overwritten by a constant."""
+        qs = analyze.require_recommendations([
+            {"id": "colour:gradient", "kind": "judgement", "question": "?",
+             "options": ["it is part of the system", "it belongs to that one page, drop it"],
+             "recommend": "it belongs to that one page, drop it",
+             "why": "measured on one page out of five", "default": "kept"}])
+        self.assertEqual(qs[0]["recommend"], "it belongs to that one page, drop it")
+        self.assertTrue(qs[0]["options"][0].startswith("it belongs to that one page"))
+        self.assertIn("measured on one page", qs[0]["options"][0])
+
+    def test_a_recommendation_that_is_not_an_option_is_refused(self):
+        with self.assertRaises(AssertionError):
+            analyze.require_recommendations([
+                {"id": "colour:gradient", "kind": "judgement", "question": "?",
+                 "options": ["a", "b"], "recommend": "c", "why": "typo", "default": "a"}])
+
     def test_a_close_call_recommends_the_value_the_tokens_actually_hold(self):
         """Measured on adidas.it: #ffffff carried the most characters and reaches 1.0:1 on a white
         ground, so the legibility guard took #000000 — and the question then offered to "keep

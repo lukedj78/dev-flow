@@ -954,8 +954,6 @@ RECOMMENDED = {
     "radius:both": (0, "one pill among square controls is an accent, and making it the default "
                        "would reshape every control on the page"),
     "elevation:scale": (0, "one measured shadow is one fact; a scale built from it is four guesses"),
-    "type:secondfamily": (1, "530 characters against 8730 is a logo or a flourish, not a second "
-                             "face in the system"),
     "spacing:offgrid": (0, "89% on a 4px grid IS the grid; the remainder is rounding and "
                            "third-party widgets"),
     "colour:gradient": (0, "it was measured on the page the brand puts first"),
@@ -969,6 +967,20 @@ def require_recommendations(questions):
     incomplete to the review step: the point of the rule is that the person reading the
     questionnaire never has to ask what I would do."""
     for q in questions:
+        opts_now = list(q.get("options") or [])
+        if q.get("recommend") and q.get("why"):
+            # The question worked it out from the measurement, which beats a constant: the entry
+            # for `type:secondfamily` said "530 characters against 8730 is a logo or a flourish"
+            # and recommended dropping it — on adidas.it that family carries EVERY heading, and the
+            # character count is low because headings are short. A recommendation that depends on
+            # the data cannot live in a table.
+            if q["recommend"] not in opts_now:
+                raise AssertionError(f"question {q['id']!r}: its own recommendation "
+                                     f"{q['recommend']!r} is not one of its options")
+            idx = opts_now.index(q["recommend"])
+            q["options"] = [f"{opts_now[idx]}  ← recommended: {q['why']}"] + [
+                o for i, o in enumerate(opts_now) if i != idx]
+            continue
         key = q["id"].split(":")[0] if q["id"].split(":")[0] in RECOMMENDED else q["id"]
         if key not in RECOMMENDED:
             raise AssertionError(
@@ -1195,15 +1207,38 @@ def open_questions(tokens, merged):
 
     fams = merged["fontFamilies"]
     if len(fams) > 1 and fams[1]["weight"] < fams[0]["weight"] * 0.1:
+        # The steps this family is the face of. `text-4xl` down to `text-xl` are headings; a face
+        # that carries them is the brand's display face whatever its character count, and the count
+        # is low precisely BECAUSE headings are short.
+        heading_slots = [sl["slot"] for sl in (tokens["typography"]["scale"].get("slots") or [])
+                         if sl.get("family") == fams[1]["value"]
+                         and sl["slot"] in ("text-9xl", "text-8xl", "text-7xl", "text-6xl",
+                                            "text-5xl", "text-4xl", "text-3xl", "text-2xl",
+                                            "text-xl")]
         out.append({
             "id": "type:secondfamily",
             "kind": "judgement",
             "question": f"A second family, `{fams[1]['value']}`, carries only "
-                        f"{fams[1]['weight']} characters against {fams[0]['weight']}.",
+                        f"{fams[1]['weight']} characters against {fams[0]['weight']}"
+                        + (f", and it is the face of {', '.join(heading_slots)}" if heading_slots
+                           else ", and it carries no heading step") + ".",
             "evidence": "too little to tell a deliberate display face from an element that simply "
-                        "never inherited the body font",
+                        "never inherited the body font — so WHICH steps it carries decides it, "
+                        "not the count",
             "options": ["it is a real second face, keep it",
                         "drop it — one family"],
+            # WHICH STEPS, not how many characters. A display face carries headings, and headings
+            # are short: on adidas.it `adidasFG` had 530 characters to the body's 8730 and was the
+            # face of text-4xl, 3xl and 2xl — every heading on the page. The count said flourish;
+            # the slots said it is the brand's voice.
+            "recommend": ("it is a real second face, keep it" if heading_slots
+                          else "drop it — one family"),
+            "why": (f"it is the face of {len(heading_slots)} heading step(s) "
+                    f"({', '.join(heading_slots)}) — a display face carries headings, and headings "
+                    f"are short, so the character count is the wrong measure here"
+                    if heading_slots else
+                    "it carries no heading step, so the low count is what it looks like: an "
+                    "element that never inherited the body font"),
             "default": "kept",
         })
 

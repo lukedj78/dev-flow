@@ -25,6 +25,7 @@ import argparse
 import html
 import json
 import re
+import sys
 from pathlib import Path
 
 import analyze
@@ -276,6 +277,20 @@ def main(argv=None):
     if proposed is None and args.kind == "contrast":
         ground = tokens["color"]["roles"].get("background", {}).get("value", "#ffffff")
         proposed, _ = analyze.adjust_for_contrast(current, ground, 4.5)
+
+    # A DECISION HAS TWO SIDES. `specimen_type` and the rest skip the proposed half when it is
+    # missing, so the page came out with one card on it — a picture of the current value, under a
+    # question asking whether to change it. Nobody can answer that: the whole premise of this step
+    # is that the same thing printed both ways answers itself, and half of it answers nothing.
+    # Measured on the second adidas run, on the type-scale question.
+    #
+    # `scale` and `fallback` build both sides themselves from one argument, so they are exempt by
+    # construction rather than by name.
+    if proposed is None and args.kind not in ("scale", "fallback"):
+        print(f"refused: --kind {args.kind} needs --proposed. A decision page with only the "
+              f"current value is a picture, not a question — and the question it is shown under "
+              f"cannot be answered from it.", file=sys.stderr)
+        return 2
 
     cast = float if args.kind in ("type", "spacing") else str
     args.out.mkdir(parents=True, exist_ok=True)
