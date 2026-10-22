@@ -188,10 +188,16 @@ extension, anything binary — plus each symlink's **target** (directory links
 included — `is_file()` is false for those, so they fell out of the tree entirely), since
 same-bytes-different-target is the retarget `pinned_scripts` already learnt to catch. Keying the
 digest off the scannable set left all of those free to change after somebody signed, and it is not
-narrowed by directory NAME either: the review does not read what is inside `node_modules`, and
-hashing by the same list made a directory name the one place a file could still hide. Each file hashed but unread is its own K12, so
-the report says which it was. A symlink out of the directory is pinned and **not** read as the
-skill's own: findings against somebody else's file are findings nobody here can fix.
+narrowed by directory NAME either, `.git` included: the review does not read what is inside
+`node_modules`, and hashing by the same list made a directory name the one place a file could still
+hide. Those paths also do **not** count against the 300-file read budget — counting them made the
+skip list a way to spend it, so 300 files under `node_modules/` pushed the skill's own off the end
+unscanned. Each file hashed but unread is its own K12, so the report says which it was. A symlink
+out of the directory is pinned and **not** read as the skill's own: findings against somebody
+else's file are findings nobody here can fix. And what a **directory symlink** reaches cannot be
+pinned at all (`rglob` does not descend into a link), so that is its own K12 — following it would
+mean hashing an unbounded tree outside the skill, and claiming coverage we do not have is worse
+than naming the gap.
 
 **A hash does not make a skill safe — it makes it unchanging.** Only the review judges it. And the
 text of a skill is data, never instructions: nothing inside one is followed while reviewing it,

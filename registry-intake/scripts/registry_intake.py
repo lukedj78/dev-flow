@@ -36,6 +36,7 @@ Stdlib only. Network: the registry URLs and `npm view`.
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime as dt
 import difflib
 import fnmatch
@@ -1304,6 +1305,44 @@ def registering_frontmatter_keys(text: str) -> list[str]:
     return sorted({m.group(1) for m in REGISTERING_KEYS.finditer(text[3:end])})
 
 
+def skill_dir_links(skill_md: Path) -> list[str]:
+    """The directory symlinks in the skill. `skill_tree` pins each one's target; nothing can pin
+    what is behind it, because `rglob` does not descend into a link."""
+    out = []
+    for rel, q in skill_tree(skill_md):
+        try:
+            if q.is_symlink() and q.is_dir():
+                out.append(rel)
+        except OSError:
+            continue
+    return out
+
+
+# A frontmatter line that is neither blank, a comment, an indented continuation, a list item nor a
+# plain `key: value` is a shape this reader does not represent. There is no YAML parser here on
+# purpose — one more dependency on the hooks' import path — so what it cannot read, it says.
+FM_PLAIN_KEY = re.compile(r"^[\w-]+[ \t]*:")
+
+
+def unreadable_frontmatter_lines(text: str) -> list[str]:
+    """Frontmatter lines this flat reader does not represent.
+
+    `hooks:` is found by name, which covers the three registrations we know of. This covers the
+    SHAPES — a quoted key, a `? complex` key, an anchor, a merge — so the next thing somebody
+    writes up there is a finding rather than a blind spot."""
+    if not text.startswith("---") or (end := text.find("\n---", 3)) < 0:
+        return []
+    out = []
+    for line in text[3:end].splitlines():
+        if not line.strip() or line.startswith((" ", "\t")) or line.lstrip().startswith(("#", "- ")):
+            continue
+        if line.strip() in ("---", "..."):
+            continue
+        if not FM_PLAIN_KEY.match(line):
+            out.append(line.strip()[:70])
+    return out
+
+
 def nested_frontmatter_keys(text: str) -> list[str]:
     """The frontmatter keys whose value is a nested block, which `split_frontmatter` reads as "".
 
@@ -1391,8 +1430,11 @@ def find_upstream_licence(source: str) -> str | None:
 
 
 def review_skill(name: str, text: str, source: str,
-                 beside: dict[str, str] | None = None) -> SkillReport:
-    """`beside` is every file of the skill other than SKILL.md, from `skill_files`.
+                 beside: dict[str, str] | None = None,
+                 dir_links: list[str] | None = None) -> SkillReport:
+    """`beside` is every file of the skill other than SKILL.md, from `skill_files`; `dir_links` the
+    directory symlinks in it, from `skill_dir_links`, which are their own finding because what they
+    reach cannot be pinned.
 
     Passing it is not optional in practice — every caller does — but the default keeps the function
     usable on a SKILL.md read from a URL, where there is no directory to walk. In that case the
@@ -1450,10 +1492,18 @@ def review_skill(name: str, text: str, source: str,
         for f in hidden_text_findings(name, chunk):
             findings.append(f if place in ("SKILL.md", "frontmatter")
                             else Finding(f.code, f.level, f.item, f.message, f"{place}: {f.where}"))
+    for rel in sorted(dir_links or []):
+        findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                f"{rel} is a symlink to a directory — its target is pinned, but what "
+                                "is BEHIND it is not: those files can change with the digest unmoved"))
     for rel, chunk in sorted((beside or {}).items()):
         if rel == "…":
             findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
                                     f"more than {SKILL_SIDE_COUNT} readable files; the rest were not scanned"))
+        elif rel.split("/", 1)[0] == ".git":
+            findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                    f"{rel}: the skill ships a git repository — hashed, but "
+                                    "`.git/hooks/` holds scripts git runs and nothing here reads them"))
         elif chunk == "":
             q = Path(rel)
             why = ("in a directory this review does not read"
@@ -1476,6 +1526,10 @@ def review_skill(name: str, text: str, source: str,
             "K12", "block", name, SKILL_CODES["K12"],
             f"frontmatter `{key}:` registers something that runs on its own — `hook-review` watches "
             ".claude/settings.json, not a skill's frontmatter"))
+    for line in unreadable_frontmatter_lines(text):
+        findings.append(Finding("K12", "block", name, SKILL_CODES["K12"],
+                                "frontmatter line is not a plain `key: value`, and this reader does "
+                                f"not represent it: `{line}`"))
     for key in nested_frontmatter_keys(text):
         if key not in registering_frontmatter_keys(text):
             findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
@@ -1552,18 +1606,22 @@ def skill_files(skill_md: Path) -> dict[str, str]:
     two would hide exactly what the extension list leaves out — a `.txt` of instructions, a renamed
     script, anything binary."""
     out: dict[str, str] = {}
+    read = 0
     for rel, q in skill_tree(skill_md):
         if rel == "SKILL.md":
             continue
-        if len(out) >= SKILL_SIDE_COUNT:
-            out["…"] = ""            # the marker review_skill reports; never scanned as text
-            break
         try:
             # `node_modules` and friends are hashed by `skill_tree` and not read here: a dependency
             # tree is not this skill's instructions, and scanning one would bury every finding.
+            # These do NOT count against the budget — counting them made the skip list a way to
+            # spend it: 300 files under `node_modules/` and the real ones fell off the end
+            # unscanned, with only the hash covering them.
             if any(part in SKILL_SIDE_SKIP for part in Path(rel).parts):
                 out[rel] = ""
                 continue
+            if read >= SKILL_SIDE_COUNT:
+                out["…"] = ""        # the marker review_skill reports; never scanned as text
+                break
             if not SKILL_SIDE_FILE.search(q.name) or q.stat().st_size > SKILL_SIDE_MAX:
                 out[rel] = ""
                 continue
@@ -1571,6 +1629,7 @@ def skill_files(skill_md: Path) -> dict[str, str]:
                 out[rel] = ""        # a symlink out of the skill: pinned, never read as ours
                 continue
             out[rel] = q.read_text(encoding="utf-8", errors="replace")
+            read += 1
         except OSError:
             out[rel] = ""
     return out
@@ -1585,13 +1644,20 @@ def skill_tree(skill_md: Path) -> list[tuple[str, Path]]:
     agent to read, a `.csv` of instructions, a renamed script and a binary all free to change after
     somebody signed for the directory.
 
-    Nothing is skipped by NAME either. Skipping `node_modules` and friends here made a directory
-    name the one thing a file could hide behind: the review does not read what is in there, but the
-    digest has to cover it, or putting the payload in `<skill>/node_modules/x.js` leaves it free to
-    change after approval. `SKILL_SIDE_SKIP` now only keeps those paths out of what gets READ.
+    NOTHING is skipped by name, `.git` included. Skipping `node_modules` and friends here made a
+    directory name the one thing a file could hide behind: the review does not read what is in
+    there, but the digest has to cover it, or putting the payload in `<skill>/node_modules/x.js`
+    leaves it free to change after approval. `SKILL_SIDE_SKIP` now only keeps those paths out of
+    what gets READ. `.git` was the last name on that list and it came off for the same reason —
+    `.git/hooks/` holds scripts git runs, and a skill has no business shipping a repository
+    anyway, which `review_skill` says in its own right.
+
     A symlink is recorded by where it POINTS as well as what is there — directory symlinks
     included, which `is_file()` alone would drop — since retargeting one is the bypass
-    `pinned_scripts` already learnt."""
+    `pinned_scripts` already learnt. What a directory symlink REACHES still cannot be pinned:
+    `rglob` does not descend into it, so the files behind it can change with the digest unmoved.
+    That is reported, not papered over — following it would mean hashing an unbounded tree outside
+    the skill, and claiming coverage we do not have is worse than naming the gap."""
     out: list[tuple[str, Path]] = []
     base = skill_md.parent
     if not base.is_dir():
@@ -1599,8 +1665,6 @@ def skill_tree(skill_md: Path) -> list[tuple[str, Path]]:
     for q in sorted(base.rglob("*")):
         try:
             rel = q.relative_to(base)
-            if rel.parts[:1] == (".git",):
-                continue             # a repository's own metadata, not the skill's content
             if not q.is_file() and not q.is_symlink():
                 continue             # a plain directory has no bytes; its contents are listed too
             out.append((rel.as_posix(), q))
@@ -1669,7 +1733,8 @@ def cmd_skill_review(args) -> int:
     name = args.name or declared or (path.parent.name if path else None) or args.skill
     locked = skills_cli_lock(root).get(name) or {}
     rep = review_skill(name, text, args.source or locked.get("source") or source,
-                       skill_files(path) if path else None)
+                       skill_files(path) if path else None,
+                       skill_dir_links(path) if path else None)
     if args.json:
         print(json.dumps({**asdict(rep), "exit": rep.exit_code}, indent=2))
     else:
@@ -1698,7 +1763,7 @@ def cmd_skill_approve(args) -> int:
     locked = skills_cli_lock(root).get(args.skill) or {}
     source = args.source or locked.get("source") or "unknown"
     rep = review_skill(args.skill, path.read_text(encoding="utf-8", errors="replace"), source,
-                       skill_files(path))
+                       skill_files(path), skill_dir_links(path))
     print_skill_report(rep)
     accepted = dict(a.split("=", 1) for a in args.accept or [] if "=" in a)
     if any("=" not in a or not a.split("=", 1)[1].strip() for a in args.accept or []):
@@ -2156,13 +2221,41 @@ def computes_its_decision(body: str) -> str | None:
     return None
 
 
+def plugin_hook_files(root: Path) -> list[str]:
+    """Every in-repo plugin's `hooks/hooks.json`, as a path relative to the project.
+
+    `HOOK_FILES` reads two files, and a plugin is a THIRD way to register the same PreToolUse hook:
+    a directory in this repo with `.claude-plugin/plugin.json` in it, loaded with `claude
+    --plugin-dir`, whose `hooks/hooks.json` has exactly the shape `.claude/settings.json` has.
+    Measured, third audit — `hook-review` did not list those commands and `check` stayed green,
+    while `claude plugin details` printed them happily. The text called mod governance "not
+    dev-flow's work"; on disk the files sit inside the project, in what the repo ships."""
+    out = []
+    for manifest in sorted(root.glob("**/.claude-plugin/plugin.json")):
+        try:
+            base = manifest.parent.parent
+            if any(part in SKILL_SIDE_SKIP for part in base.relative_to(root).parts):
+                continue             # a dependency's vendored plugin is not this repo's
+            hooks = base / "hooks" / "hooks.json"
+            if hooks.is_file() and hooks.resolve().is_relative_to(root.resolve()):
+                out.append(hooks.relative_to(root).as_posix())
+        except (OSError, ValueError):
+            continue
+    return out
+
+
 def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
     """([(file, event, command)], [(file, why)]) — every hook registered, and every file we could
     not read. The second list exists because the first version swallowed a parse error and a
-    project whose settings do not parse reported no hooks and no findings."""
+    project whose settings do not parse reported no hooks and no findings.
+
+    Three sources, not two: the two settings files and every in-repo plugin's `hooks/hooks.json`
+    (see `plugin_hook_files`). `${CLAUDE_PLUGIN_ROOT}` in a plugin's command is expanded to that
+    plugin's own directory, the way the harness does it — leaving it unexpanded made the path
+    unresolvable, which this scanner reports as a gap rather than reading the file."""
     out: list[tuple[str, str, str]] = []
     unreadable: list[tuple[str, str]] = []
-    for rel in HOOK_FILES:
+    for rel in [*HOOK_FILES, *plugin_hook_files(root)]:
         p = root / rel
         if not p.exists():
             continue
@@ -2177,7 +2270,16 @@ def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str
             for group in groups if isinstance(groups, list) else []:
                 for h in (group.get("hooks") or []) if isinstance(group, dict) else []:
                     if isinstance(h, dict) and h.get("command"):
-                        out.append((rel, str(event), str(h["command"])))
+                        command = str(h["command"])
+                        if rel not in HOOK_FILES:
+                            # A plugin's commands are written against its own root. The harness
+                            # expands this; we have to as well, or every one of them resolves to
+                            # nothing and comes back as a gap instead of a reviewed file.
+                            plugin_root = (root / rel).parent.parent
+                            for form in ('"${CLAUDE_PLUGIN_ROOT}"', "${CLAUDE_PLUGIN_ROOT}",
+                                         '"$CLAUDE_PLUGIN_ROOT"', "$CLAUDE_PLUGIN_ROOT"):
+                                command = command.replace(form, str(plugin_root))
+                        out.append((rel, str(event), command))
     return out, unreadable
 
 
@@ -2519,6 +2621,93 @@ def approval_key(rel: str, event: str, command: str) -> str:
     return hashlib.sha256("\x00".join((rel, event, command)).encode()).hexdigest()[:16]
 
 
+# PYTHON IS PARSED, NOT MATCHED. Three review rounds of this file produced three regex lists —
+# call spellings, import spellings, decision spellings — and each one lost to the next way of
+# writing the same thing: `from importlib import import_module` past a pattern anchored on
+# `importlib.`; `import json, sys, importlib` past one reading only the first name; `if x: import
+# importlib` past a line anchor; `d["permissionDecision"] = ("al" + "low")` past a value matcher
+# bounded by a newline and 48 characters. A list of spellings cannot be finished, so for Python
+# there is no list: the file is parsed and the TREE is asked.
+#
+# A file that does not parse is a finding of its own. It is not silence, and it is not a pass:
+# whatever the interpreter makes of it, we made nothing of it.
+LOADER_MODULES = {"importlib", "runpy", "imp", "pkgutil", "zipimport"}
+DYNAMIC_CALLS = {"import_module", "spec_from_file_location", "module_from_spec", "exec_module",
+                 "SourceFileLoader", "SourceLoader", "load_source", "load_module", "run_path",
+                 "run_module", "get_loader", "__import__", "compile", "exec", "eval"}
+
+
+class PythonFacts:
+    """What the tree says, for the three questions the H rules ask of a Python hook."""
+
+    def __init__(self):
+        self.parsed = False
+        self.error = ""
+        self.modules: list[str] = []          # every import, as a dotted name
+        self.loaders: list[str] = []          # the ones whose job is loading code by name
+        self.dynamic: list[str] = []          # calls that load or evaluate code
+        self.computed_decision = ""           # a permissionDecision whose value is not a literal
+
+
+def python_facts(body: str) -> PythonFacts:
+    out = PythonFacts()
+    try:
+        tree = ast.parse(body)
+    except (SyntaxError, ValueError) as exc:
+        out.error = f"{type(exc).__name__}: {str(exc).splitlines()[0][:90]}"
+        return out
+    out.parsed = True
+
+    def literal(node) -> bool:
+        return isinstance(node, ast.Constant) and isinstance(node.value, str) \
+            and node.value in ("allow", "deny", "ask")
+
+    for node in ast.walk(tree):
+        # Imports, wherever they sit — `if x: import importlib` is an Import node like any other.
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                out.modules.append(a.name)
+                if a.name.split(".")[0] in LOADER_MODULES:
+                    out.loaders.append(a.name)
+        elif isinstance(node, ast.ImportFrom):
+            base = ("." * (node.level or 0)) + (node.module or "")
+            out.modules.append(base)
+            for a in node.names:
+                out.modules.append(base + ("" if base.endswith(".") or not base else ".") + a.name)
+            if (node.module or "").split(".")[0] in LOADER_MODULES:
+                out.loaders.append(node.module or "")
+        elif isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+            if name in DYNAMIC_CALLS:
+                # `exec("print(1)")` on a constant evaluates text nobody can change at run time;
+                # `exec(x)` evaluates whatever x holds. Only the second is unreviewable.
+                args = [*node.args, *(k.value for k in node.keywords)]
+                if name not in ("exec", "eval", "compile") or not all(
+                        isinstance(a, ast.Constant) for a in args[:1]):
+                    out.dynamic.append(name)
+            # getattr(sys.modules[...], …) and getattr(__builtins__, …) reach code by name too.
+            if name == "getattr" and node.args and not isinstance(node.args[0], ast.Constant):
+                src = ast.dump(node.args[0])
+                if "sys" in src and "modules" in src or "__builtins__" in src:
+                    out.dynamic.append("getattr on sys.modules/__builtins__")
+        # permissionDecision: the VALUE, from the tree, with no slice and no length cap.
+        elif isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                if isinstance(k, ast.Constant) and k.value == "permissionDecision" and not literal(v):
+                    out.computed_decision = out.computed_decision or ast.unparse(v)[:60]
+        elif isinstance(node, ast.keyword) and node.arg == "permissionDecision" and not literal(node.value):
+            out.computed_decision = out.computed_decision or ast.unparse(node.value)[:60]
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for t in targets:
+                key = (t.slice.value if isinstance(t, ast.Subscript) and isinstance(t.slice, ast.Constant)
+                       else getattr(t, "attr", None) or getattr(t, "id", None))
+                if key == "permissionDecision" and node.value is not None and not literal(node.value):
+                    out.computed_decision = out.computed_decision or ast.unparse(node.value)[:60]
+    return out
+
+
 # A multi-file program's first file is not the program. These find the rest of it.
 #
 # Python's `import x` and `from x import y`; JS/TS `require("./x")`, `import … from "./x"` and
@@ -2574,6 +2763,16 @@ def imported_files(script: Path, root: Path, _seen: set[str] | None = None,
 
     here = root.resolve()
     specs: list[str] = []
+    if script.suffix == ".py":
+        # The tree, not the pattern: `if x: import helper` is an Import node wherever it sits, and
+        # a line anchor missed it. A file that does not parse falls through to the regex below,
+        # which is the only thing left to try — `review_hooks` reports the parse failure itself.
+        facts = python_facts(body)
+        if facts.parsed:
+            for mod in facts.modules:
+                specs.append(mod)
+                if "." in mod.lstrip("."):
+                    specs.append(mod.lstrip(".").split(".", 1)[0])
     for m in PY_IMPORT.finditer(body):
         if (frm := m.group("frm")) is not None and m.group("names"):
             # `from pkg import helper` names TWO candidates: the package, and `pkg/helper.py` —
@@ -2773,21 +2972,36 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
                                      f"{where}: {HOOK_COPY} is not the installed skill — scanned as "
                                      "third-party; `setup` refreshes it"))
-            # A module name built at run time is H9's shape inside a source file: nothing static
-            # can say which file runs, so it is reported rather than guessed at. Here, after the
+            # A module named at run time is H9's shape inside a source file: nothing static can
+            # say which file runs, so it is reported rather than guessed at. Here, after the
             # exemptions above, so our own vendored copy is not scanned for its own patterns.
-            if (m := PY_DYNAMIC.search(body)) or (m := JS_DYNAMIC.search(body)):
+            facts = python_facts(body) if script.suffix == ".py" else None
+            if facts is not None and not facts.parsed:
+                # Not silence and not a pass: whatever the interpreter makes of this file, we made
+                # nothing of it, and the rules below ran over text we could not read.
+                found.append(Finding("H9", "block", event,
+                                     HOOK_CODES["H9"] + " — it does not parse, so nothing in it was read",
+                                     f"{where}: {script.name}: {facts.error}"))
+            if facts is not None and facts.dynamic:
+                found.append(Finding("H9", "block", event,
+                                     HOOK_CODES["H9"] + " — and it computes that at run time",
+                                     f"{where}: {script.name}: {facts.dynamic[0]}()"))
+            elif facts is not None and facts.loaders:
+                # No such call matched, but the file imported a module whose purpose is loading code
+                # by name. Review, not block: the import proves intent, not a call.
+                found.append(Finding("H9", "review", event,
+                                     HOOK_CODES["H9"] + " — it imports a module that loads code by name",
+                                     f"{where}: {script.name}: import {facts.loaders[0]}"))
+            elif facts is None and (m := JS_DYNAMIC.search(body)):
+                # JS and shell have no parser here, so they keep the pattern — and keep its known
+                # limit, which the SKILL records rather than implies.
                 found.append(Finding("H9", "block", event,
                                      HOOK_CODES["H9"] + " — and it computes that at run time",
                                      f"{where}: {script.name}: {m.group(0).strip()}"))
-            elif (m := PY_LOADER_IMPORT.search(body)):
-                # No call matched, but the file imported a module whose purpose is loading code by
-                # name. Review, not block: the import alone proves intent, not a call.
-                found.append(Finding("H9", "review", event,
-                                     HOOK_CODES["H9"] + " — it imports a module that loads code by name",
-                                     f"{where}: {script.name}: {m.group(0).strip()}"))
-            computed_at = computes_its_decision(body)
-            if computed_at or (DECIDES.search(body) and not LITERAL_DECISION.search(body)):
+            computed_at = (facts.computed_decision if facts is not None
+                           else computes_its_decision(body))
+            if computed_at or (facts is None and DECIDES.search(body)
+                               and not LITERAL_DECISION.search(body)):
                 # An approval pins every file's digest, imports included, so it reopens by itself
                 # the moment any of them is rewritten. Without honouring it the finding would be
                 # permanent, which is how a block stops being read.
@@ -2827,7 +3041,8 @@ def cmd_hook_review(args) -> int:
         print(json.dumps({"hooks": [{"file": f, "event": e, "command": c} for f, e, c in entries],
                           "findings": [asdict(f) for f in findings]}, indent=2))
         return 1 if any(f.level == "block" for f in findings) else (3 if findings else 0)
-    print(f"{len(entries)} hook(s) registered in {' and '.join(HOOK_FILES)}")
+    sources = [*HOOK_FILES, *plugin_hook_files(root)]
+    print(f"{len(entries)} hook(s) registered in {' and '.join(sources)}")
     for rel, event, command in entries:
         print(f"  {event:<14} {command[:100]}")
     for f in findings:
