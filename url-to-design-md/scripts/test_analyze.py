@@ -776,6 +776,49 @@ class Recommendations(unittest.TestCase):
                       "the rejected candidate is still offered as the alternative")
 
 
+class CrossPage(unittest.TestCase):
+    """More pages are only worth reading if the roles look at them. Measured on apple.com across
+    three pages: `#0066cc` — the blue underline of its links — carried 2094px of border length on
+    ONE page and beat the hairline's 2079px seen on ALL THREE. Fifteen pixels, and the fifteen
+    pixels were a page-local accent that then became `--border` for the whole system."""
+
+    def merged(self, border_rows, pages=3):
+        m = analyze.merge_snapshots([load(1440), load(390)], "site")
+        m["pageCount"] = pages
+        m["documentBackground"] = "#ffffff"
+        m["colors"]["border"] = border_rows
+        return m
+
+    ROWS = [
+        {"value": "#0066cc", "weight": 2094, "elements": 16, "pages": 1, "confidence": 1.0},
+        {"value": "rgba(0, 0, 0, 0.16)", "weight": 2079, "elements": 4, "pages": 3,
+         "confidence": 1.0},
+    ]
+
+    def test_a_value_on_every_page_beats_a_near_tie_seen_once(self):
+        roles = analyze.colour_roles(self.merged(self.ROWS), [])
+        self.assertEqual(roles["border"]["value"], "#d6d6d6",
+                         "the hairline is on all three pages; the blue is on one")
+
+    def test_a_landslide_on_one_page_is_not_overruled(self):
+        """The scale is gentle on purpose: a brand's accent can legitimately live on one page, and
+        this is meant to tip a near-tie, not to overrule a clear winner."""
+        rows = [
+            {"value": "#0066cc", "weight": 9000, "elements": 16, "pages": 1, "confidence": 1.0},
+            {"value": "#d2d2d7", "weight": 700, "elements": 4, "pages": 3, "confidence": 1.0},
+        ]
+        roles = analyze.colour_roles(self.merged(rows), [])
+        self.assertEqual(roles["border"]["value"], "#0066cc")
+
+    def test_one_page_changes_nothing(self):
+        """With a single capture every value has the same share, so the sort would be a no-op
+        dressed as a decision — and the order it was given must survive."""
+        rows = [dict(r, pages=1) for r in self.ROWS]
+        roles = analyze.colour_roles(self.merged(rows, pages=1), [])
+        self.assertEqual(roles["border"]["value"], "#0066cc",
+                         "with one page read, weight alone decides, as before")
+
+
 class DownstreamContract(unittest.TestCase):
     """This skill's output is `design-md-to-app`'s input, and nothing checked that until the user
     asked whether the design system would still line up with the rest of the flow. It did not:

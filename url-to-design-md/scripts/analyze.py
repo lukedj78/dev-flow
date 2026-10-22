@@ -405,6 +405,25 @@ def colour_roles(merged, missing):
     else:
         page_bg = doc_bg if parse_hex(doc_bg) else None
 
+    def across_pages(row):
+        """The weight, scaled by how much of the site the value was seen on.
+
+        Reading five pages and then choosing as if one had been read is the shape of mistake this
+        skill keeps making in different clothes. Measured on apple.com across three pages: the
+        border role went to `#0066cc` — the blue underline of its links — on 2094px of length seen
+        on ONE page, beating the hairline's 2079px seen on ALL THREE. Fifteen pixels decided it,
+        and the fifteen pixels were a page-local accent.
+
+        Cross-page confirmation is what more pages are FOR. A value on every page is the system; the
+        same value on one page is that page. The scale is deliberately gentle — a value seen
+        everywhere is worth about twice one seen once, not ten times — because a brand's accent can
+        legitimately live on a single page, and this should tip a near-tie rather than overrule a
+        landslide.
+        """
+        pages = max(1, merged.get("pageCount") or 1)
+        share = (row.get("pages") or 1) / pages
+        return (row.get("weight") or 0) * (0.5 + 0.5 * share)
+
     def usable(rows):
         """Every row, with `composited` set to what it looks like on the page ground.
 
@@ -426,6 +445,12 @@ def colour_roles(merged, missing):
     texts = usable(merged["colors"].get("contentText") or []) or usable(merged["colors"]["text"])
     bgs = usable(merged["colors"]["background"])
     borders = usable(merged["colors"]["border"])
+    if (merged.get("pageCount") or 1) > 1:
+        # Only when there is more than one page to compare. On a single capture every value has the
+        # same share and the sort would be a no-op dressed as a decision.
+        borders.sort(key=lambda r: -across_pages(r))
+        bgs.sort(key=lambda r: -across_pages(r))
+        texts.sort(key=lambda r: -across_pages(r))
 
     def seen(row):
         """What this row looks like on the page ground. Every contrast check reads this, never the
