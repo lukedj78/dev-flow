@@ -1249,6 +1249,10 @@ SKILL_CODES = {
     "K9": "hidden text — the reader does not see it and the model does",
     "K10": "an encoded blob — unreadable by this review, which is the point of encoding it",
     "K11": "a markdown link or image that carries data out in its query string",
+    # K12 added 2026-10-22, third audit: every rule above was applied to SKILL.md's body alone,
+    # so a payload one file away was silent. The rules now read the whole skill; this code is for
+    # the part of it they still could not.
+    "K12": "the skill ships a file this review did not read — too large, or past the file budget",
 }
 
 # Zero-width and bidirectional control characters. A skill is prose for a model to obey; there is no
@@ -1349,7 +1353,14 @@ def find_upstream_licence(source: str) -> str | None:
     return None
 
 
-def review_skill(name: str, text: str, source: str) -> SkillReport:
+def review_skill(name: str, text: str, source: str,
+                 beside: dict[str, str] | None = None) -> SkillReport:
+    """`beside` is every file of the skill other than SKILL.md, from `skill_files`.
+
+    Passing it is not optional in practice — every caller does — but the default keeps the function
+    usable on a SKILL.md read from a URL, where there is no directory to walk. In that case the
+    report says so, because "no payload found beside it" and "nothing was looked at" are different
+    answers and only one of them is a pass."""
     fm, body = split_frontmatter(text)
     findings: list[Finding] = []
     tools = fm.get("allowed-tools", "")
@@ -1377,16 +1388,39 @@ def review_skill(name: str, text: str, source: str) -> SkillReport:
                 "frontmatter"))
     if skill_source_kind(source) == "url":
         findings.append(Finding("K7", "review", name, f"served from {source} — no tag, no commit, no diff", "source"))
-    seen: set[tuple[str, str]] = set()
-    for code, level, pat in SKILL_BODY_RULES:
-        for m in pat.finditer(body):
-            line = body[body.rfind("\n", 0, m.start()) + 1:(body.find("\n", m.end()) + 1 or None)].strip()
-            key = (code, m.group(0)[:80])
-            if key in seen:
-                continue
-            seen.add(key)
-            findings.append(Finding(code, level, name, SKILL_CODES[code], line[:160]))
-    findings += hidden_text_findings(name, text)
+    seen: set[tuple[str, str, str]] = set()
+    # SKILL.md first, then every file beside it. Same rules, same levels: a `curl … | sh` is a K2
+    # block wherever in the skill it sits, and `where` names the file so a reader opens the right
+    # one. Measured bypass, third audit — the K rules read `body` and nothing else, so the payload
+    # moved to `scripts/helper.py` and the review went quiet.
+    for place, chunk in [("SKILL.md", body), *sorted((beside or {}).items())]:
+        if not chunk:
+            continue
+        for code, level, pat in SKILL_BODY_RULES:
+            for m in pat.finditer(chunk):
+                line = chunk[chunk.rfind("\n", 0, m.start()) + 1:(chunk.find("\n", m.end()) + 1 or None)].strip()
+                key = (code, place, m.group(0)[:80])
+                if key in seen:
+                    continue
+                seen.add(key)
+                where = (line[:160] if place == "SKILL.md" else f"{place}: {line[:140]}")
+                findings.append(Finding(code, level, name, SKILL_CODES[code], where))
+        findings += [f for f in hidden_text_findings(name, chunk)
+                     if place == "SKILL.md" or f.__setattr__("where", f"{place}: {f.where}") is None]
+    for rel, chunk in sorted((beside or {}).items()):
+        if rel == "…":
+            findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                    f"more than {SKILL_SIDE_COUNT} readable files; the rest were not scanned"))
+        elif chunk == "":
+            findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                    f"{rel} is over {SKILL_SIDE_MAX // 1024} KB — read it, or say why it is data"))
+    if beside is None:
+        findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
+                                "only SKILL.md was read: no local directory to walk, so nothing "
+                                "beside it was scanned"))
+    # NOT called again on `text`: the loop above already ran it on `body`, and on each file beside
+    # it. Running it on the whole `text` as well reported every frontmatter finding twice.
+    findings += [f for f in hidden_text_findings(name, text[:len(text) - len(body)])]
     return SkillReport(name, source, findings, len(text.splitlines()))
 
 
@@ -1437,6 +1471,74 @@ def skills_cli_lock(root: Path) -> dict[str, dict]:
         return {}
 
 
+# A skill is a DIRECTORY, and `review_skill` read one file of it. Measured, third audit: the K
+# rules all apply to `SKILL.md`'s body, so the same `curl … | sh` that is a K2 block there was
+# silent in `scripts/helper.py` next to it — and `cmd_skill_approve` hashed `SKILL.md` alone, so a
+# file beside it could also be ADDED or rewritten after a person approved it with nothing to say so.
+# Same class as the hook that imported its payload: the thing reviewed and the thing that runs
+# drifting apart by one indirection.
+SKILL_SIDE_FILE = re.compile(r"\.(?:md|py|js|mjs|cjs|ts|mts|tsx|sh|bash|zsh|json|ya?ml|toml)$", re.I)
+SKILL_SIDE_SKIP = {"node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build"}
+SKILL_SIDE_MAX = 512 * 1024          # per file; past this it is data, not instructions
+SKILL_SIDE_COUNT = 300
+
+
+def skill_files(skill_md: Path) -> dict[str, str]:
+    """{path within the skill: text} for every readable file BESIDE SKILL.md.
+
+    Bounded on purpose, and the bounds are reported rather than silently applied: a skill that
+    ships a 10 MB fixture is not a skill whose rules were not checked, but a reader has to know
+    which it was. `review_skill` turns anything skipped into a finding of its own."""
+    out: dict[str, str] = {}
+    base = skill_md.parent
+    if not base.is_dir():
+        return out
+    try:
+        here = base.resolve()
+    except OSError:
+        return out
+    for q in sorted(base.rglob("*")):
+        if len(out) >= SKILL_SIDE_COUNT:
+            out["…"] = ""            # the marker review_skill reports; never scanned as text
+            break
+        try:
+            if q.name == "SKILL.md" and q.parent == base:
+                continue
+            if any(part in SKILL_SIDE_SKIP for part in q.relative_to(base).parts):
+                continue
+            if not q.is_file() or not SKILL_SIDE_FILE.search(q.name):
+                continue
+            if not q.resolve().is_relative_to(here):
+                continue             # a symlink out of the skill is somebody else's file
+            if q.stat().st_size > SKILL_SIDE_MAX:
+                out[q.relative_to(base).as_posix()] = ""
+                continue
+            out[q.relative_to(base).as_posix()] = q.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+    return out
+
+
+def skill_digest(skill_md: Path) -> str:
+    """One digest over the whole skill: every path and its bytes, in order.
+
+    `sha256(SKILL.md)` was the approval's proof, so every file beside it was free to change
+    afterwards. Paths are hashed with the contents, or moving a file between two names would leave
+    the digest untouched."""
+    h = hashlib.sha256()
+    base = skill_md.parent
+    h.update(b"SKILL.md\0" + (skill_md.read_bytes() if skill_md.is_file() else b"") + b"\0")
+    for rel in sorted(skill_files(skill_md)):
+        h.update(rel.encode("utf-8") + b"\0")
+        q = base / rel
+        try:
+            h.update(q.read_bytes() if q.is_file() else b"")
+        except OSError:
+            pass
+        h.update(b"\0")
+    return h.hexdigest()
+
+
 def installed_skill(root: Path, name: str) -> Path:
     """Where the skill landed. The first directory that has it, else the canonical one — so the
     refusal message names a path the user can act on."""
@@ -1474,14 +1576,19 @@ def cmd_skill_review(args) -> int:
     declared = split_frontmatter(text)[0].get("name", "").strip()
     name = args.name or declared or (path.parent.name if path else None) or args.skill
     locked = skills_cli_lock(root).get(name) or {}
-    rep = review_skill(name, text, args.source or locked.get("source") or source)
+    rep = review_skill(name, text, args.source or locked.get("source") or source,
+                       skill_files(path) if path else None)
     if args.json:
         print(json.dumps({**asdict(rep), "exit": rep.exit_code}, indent=2))
     else:
         print_skill_report(rep)
         ours = ((load_lock(root) or {}).get("skills") or {}).get(name)
-        if ours and path and sha256(path) != ours["sha256"]:
-            print(f"\n  ✗ the installed file changed since {ours['approved_by']} approved it on {ours['approved_at']}")
+        if ours and path and (tree := skill_digest(path)) != ours.get("tree_sha256", ""):
+            what = ("SKILL.md and the files beside it" if sha256(path) != ours["sha256"]
+                    else "a file beside SKILL.md") if "tree_sha256" in ours else \
+                   "the approval predates whole-skill hashing, so it covers SKILL.md only"
+            print(f"\n  ✗ {what} — changed since {ours['approved_by']} approved it on "
+                  f"{ours['approved_at']} (tree {tree[:12]}…)")
     return rep.exit_code
 
 
@@ -1498,7 +1605,8 @@ def cmd_skill_approve(args) -> int:
         return 1
     locked = skills_cli_lock(root).get(args.skill) or {}
     source = args.source or locked.get("source") or "unknown"
-    rep = review_skill(args.skill, path.read_text(encoding="utf-8", errors="replace"), source)
+    rep = review_skill(args.skill, path.read_text(encoding="utf-8", errors="replace"), source,
+                       skill_files(path))
     print_skill_report(rep)
     accepted = dict(a.split("=", 1) for a in args.accept or [] if "=" in a)
     if any("=" not in a or not a.split("=", 1)[1].strip() for a in args.accept or []):
@@ -1515,6 +1623,11 @@ def cmd_skill_approve(args) -> int:
         "source_kind": skill_source_kind(source),
         "path": path.relative_to(root).as_posix(),
         "sha256": sha256(path),
+        # The whole skill, not its front page. `sha256` above is SKILL.md's and stays, because the
+        # messages name it; `tree_sha256` is what `check` holds the skill to, so a file beside it
+        # can no longer be added or rewritten after a person signed for the directory.
+        "tree_sha256": skill_digest(path),
+        "files": 1 + len(skill_files(path)),
         "findings": [f"{f.level}:{f.code}" for f in rep.findings],
         "accepted": {c: accepted[c] for c in sorted({f.code for f in rep.findings}) if c in accepted},
         "approved_by": args.by,
@@ -1522,7 +1635,8 @@ def cmd_skill_approve(args) -> int:
         "note": args.note or "",
     }
     save_lock(root, lock)
-    print(f"\napproved skill {args.skill} · sha256 {sha256(path)[:12]}… · {LOCK} updated")
+    print(f"\napproved skill {args.skill} · {1 + len(skill_files(path))} file(s) · "
+          f"tree {skill_digest(path)[:12]}… · {LOCK} updated")
     return 0
 
 
@@ -1533,8 +1647,16 @@ def check_skills(root: Path, lock: dict) -> list[str]:
         p = root / entry["path"]
         if not p.exists():
             problems.append(f"skill {name}: {entry['path']} is gone, but the lock approves it")
-        elif sha256(p) != entry["sha256"]:
-            problems.append(f"skill {name}: {entry['path']} changed since {entry['approved_by']} approved it "
+        elif "tree_sha256" not in entry:
+            # Approved before the whole skill was hashed, so the record covers SKILL.md and nothing
+            # beside it. That is not a pass: every file in the directory is instructions the agent
+            # reads, and for this entry none of them was ever pinned.
+            problems.append(f"skill {name}: approved before whole-skill hashing — the record covers "
+                            f"{entry['path']} only, not the files beside it. Re-run "
+                            f"`skill-approve {name} --by <you>` to cover the directory")
+        elif skill_digest(p) != entry["tree_sha256"]:
+            which = ("SKILL.md" if sha256(p) != entry["sha256"] else "a file beside SKILL.md")
+            problems.append(f"skill {name}: {which} changed since {entry['approved_by']} approved it "
                             f"on {entry['approved_at']} — `skill-review` shows what, then re-approve")
     for name in skills_cli_lock(root):
         if name not in ours:
@@ -1720,8 +1842,9 @@ def cmd_hook_approve(args) -> int:
     version read an `accepted` map from the lock, a key nothing ever wrote, with no `--by` and
     outside the `ask` prompt. That stays true of the RULES — H1, H2, H5 and the rest block here as
     anywhere, approved shape or not, and this command refuses while any of them is outstanding.
-    What it clears is H12 only: the shape nobody can read mechanically, which without a door would
-    be a permanent finding, and a permanent finding is one people learn to scroll past."""
+    What it clears is H12 and H13: the shape nobody can read mechanically, and the decision a
+    script computes at run time — which without a door would be permanent findings, and a permanent
+    finding is one people learn to scroll past."""
     root = args.root.resolve()
     lock = load_lock(root)
     if lock is None:
@@ -1732,21 +1855,35 @@ def cmd_hook_approve(args) -> int:
         for rel, why in unreadable:
             print(f"refused: {rel} does not parse ({why}) — nothing in it was reviewed", file=sys.stderr)
         return 1
+    # Two reasons a machine read nothing: the command's SHAPE, and a script that computes its
+    # permission decision (H13). The second has a readable command, so selecting targets by shape
+    # alone left H13 with a remedy that printed "nothing to approve" — a block with no door, which
+    # is the one thing this command exists to prevent.
+    # `item` carries the event and `where` starts with the settings file, so the pair identifies
+    # the registration without re-parsing the message a human reads.
+    computed = {(f.where.split(" · ", 1)[0], f.item) for f in review_hooks(root, lock) if f.code == "H13"}
     targets = [(rel, event, command, why) for rel, event, command in entries
                if command not in (HOOK_COMMAND, HOOK_POST_COMMAND)
-               and (why := reviewable_shape(root, command)) is not None
+               and ((why := reviewable_shape(root, command)) is not None
+                    or ((rel, event) in computed
+                        and (why := "it computes its permission decision at run time")))
                and (not args.only or args.only in command)]
     if not targets:
-        print("nothing to approve: every hook command is in the shape a machine can read"
+        print("nothing to approve: every hook command is in the shape a machine can read, and none "
+              "computes its permission decision"
               + (f" (nothing matched --only {args.only})" if args.only else ""))
         return 0
-    blocking = [f for f in review_hooks(root, lock) if f.level == "block" and f.code != "H12"]
+    # H12 and H13 are the two findings that say "a machine read nothing here" — one about the
+    # command's shape, one about a decision the script computes. Both are what this command exists
+    # to clear; every other block is a rule a person cannot approve away. Leaving H13 out of this
+    # list made its own remedy ("read it, then `hook-approve --by <you>`") impossible to follow.
+    blocking = [f for f in review_hooks(root, lock) if f.level == "block" and f.code not in ("H12", "H13")]
     if blocking:
         print("refused: a rule still blocks, and approving a SHAPE never approves a command:",
               file=sys.stderr)
         for f in blocking:
             print(f"  {f.code} {f.item}: {f.message} — {f.where}", file=sys.stderr)
-        print("Fix those first; H12 is the only finding this command clears.", file=sys.stderr)
+        print("Fix those first; H12 and H13 are the only findings this command clears.", file=sys.stderr)
         return 1
     approved = (lock.setdefault("hooks", {})).setdefault("approved", {})
     for rel, event, command, why in targets:
@@ -1861,6 +1998,8 @@ HOOK_CODES = {
     "H11": "an interpreter is named and we could not say which file it runs — nothing was read",
     "H12": "not in the shape a machine can read, so nothing here was reviewed by one — a person "
            "reads it, and `hook-approve --by <them>` records that they did",
+    "H13": "decides permissions and computes the decision — which calls it approves cannot be read "
+           "from the file, so nothing here was reviewed by a machine",
 }
 
 # What the harness expands and `shlex` does not. A token still carrying any of these after our own
@@ -1889,6 +2028,15 @@ HOOK_RULES: list[tuple[str, str, re.Pattern]] = [
 
 # A hook that unconditionally decides "allow" is the inverse of ours: it approves calls nobody saw.
 AUTO_ALLOW = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\']allow["\']')
+# H4 was a regex over the TEXT, and the text is the author's to spell: `D = "al" + "low"` carried
+# `check` from exit 1 to exit 0 and took the `set-phase scaffolded` gate with it. Measured, third
+# audit. Nothing static can say what a program prints, so the question is inverted — a file that
+# NAMES the decision is deciding, and if no literal decision can be read out of it, then what it
+# approves is unreviewable. That is the same judgement H9 already makes about a command which
+# computes what it runs, and it has the same way out: a person reads it and `hook-approve --by`
+# records that they did.
+DECIDES = re.compile(r"permissionDecision")
+LITERAL_DECISION = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\'](?:allow|deny|ask)["\']')
 
 
 def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
@@ -2254,16 +2402,105 @@ def approval_key(rel: str, event: str, command: str) -> str:
     return hashlib.sha256("\x00".join((rel, event, command)).encode()).hexdigest()[:16]
 
 
+# A multi-file program's first file is not the program. These find the rest of it.
+#
+# Python's `import x` and `from x import y`; JS/TS `require("./x")`, `import … from "./x"` and
+# `import("./x")`; and a shell's `. ./x` / `source ./x`.
+PY_IMPORT = re.compile(r"^[ \t]*(?:from[ \t]+(?P<frm>\.{0,2}[\w.]+)[ \t]+import\b"
+                       r"|import[ \t]+(?P<mods>[\w.]+(?:[ \t]*,[ \t]*[\w.]+)*))", re.M)
+JS_IMPORT = re.compile(r"""(?:\brequire\(|\bfrom|\bimport\s*\(|\bimport)\s*["'](?P<spec>[^"'\n]{1,200})["']""")
+SH_SOURCE = re.compile(r"^[ \t]*(?:\.|source)[ \t]+(?P<path>[^\s;|&()]{1,200})", re.M)
+MODULE_SUFFIXES = (".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".sh", ".bash", ".zsh")
+IMPORT_DEPTH = 4
+
+
+def imported_files(script: Path, root: Path, _seen: set[str] | None = None,
+                   _depth: int = 0) -> list[Path]:
+    """Every file inside the project that `script` pulls in, transitively.
+
+    The hook rules read the body of the script the COMMAND names, and stopped there. A three-line
+    `tool.py` whose whole content is `import helper` / `helper.run()` put the payload one file out
+    of reach: `hook-review` reported no findings and `check` exited 0 with `curl … | sh` sitting in
+    `helper.py` next to it. Measured, and it is the same class as every other bypass this scanner
+    has had — the reviewed thing and the running thing drifting apart by one indirection.
+
+    Only specifiers that RESOLVE TO A FILE INSIDE the project are followed. `import json` is the
+    stdlib and `require("react")` is node_modules: neither is code this repo vendors or reviews,
+    and reporting them would bury every real finding under a hook's ordinary dependencies. A
+    specifier we cannot resolve is therefore silence here, not a gap — the gap cases (an
+    interpreter with no file, a computed command) belong to `hook_scripts`, which still reports
+    them.
+    """
+    seen = _seen if _seen is not None else {script.resolve().as_posix()}
+    if _depth >= IMPORT_DEPTH:
+        return []
+    try:
+        body = script.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+
+    here = root.resolve()
+    specs: list[str] = []
+    for m in PY_IMPORT.finditer(body):
+        if frm := m.group("frm"):
+            specs.append(frm)
+        if mods := m.group("mods"):
+            specs += [x.strip() for x in mods.split(",")]
+    specs += [m.group("spec") for m in JS_IMPORT.finditer(body)]
+    specs += [m.group("path") for m in SH_SOURCE.finditer(body)]
+
+    out: list[Path] = []
+    for spec in specs:
+        if SHELL_SYNTAX.search(spec):
+            continue                       # a computed path: `hook_scripts` owns that case
+        # `from .pkg.helper import x` and `require("./pkg/helper")` name the same file two ways.
+        rel = spec.lstrip(".").replace(".", "/") if spec[:1] == "." and "/" not in spec else spec
+        rel = rel.replace("\\", "/")
+        # BOTH bases, always. `./x` means "next to this file" in JS and "from the working
+        # directory" in a shell — the same spelling, two resolutions — so `source ./.claude/hooks/
+        # lib.sh` resolved to nothing when only the script's own directory was tried, and the
+        # payload in `lib.sh` went unread. Trying both can at worst open a project file that this
+        # script does not actually import: a finding on our own code, which a person can check.
+        # The other direction is a bypass, so the error leans this way on purpose.
+        bases = [script.parent, here]
+        for base in bases:
+            for cand in (base / rel, *(Path(str(base / rel) + sfx) for sfx in MODULE_SUFFIXES),
+                         *(base / rel / f"__init__{sfx}" for sfx in (".py",)),
+                         *(base / rel / f"index{sfx}" for sfx in (".js", ".ts", ".mjs", ".cjs"))):
+                try:
+                    if not cand.is_file():
+                        continue
+                    real = cand.resolve()
+                except OSError:
+                    continue
+                if not real.is_relative_to(here) or real.as_posix() in seen:
+                    continue
+                seen.add(real.as_posix())
+                out.append(cand)
+                out += imported_files(cand, root, seen, _depth + 1)
+                break
+            else:
+                continue
+            break
+    return out
+
+
 def pinned_scripts(root: Path, command: str) -> dict[str, dict[str, str]]:
     """{the path as the command names it: {where it resolves to, the digest there}}.
 
     Both halves, because one is not enough. The digest alone misses a **symlink retargeted** after
     approval — same named path, same recorded bytes at the old target, different code running. The
     named path alone misses an edit. And the SET of them is pinned too, since `is_pathish` consults
-    the filesystem, so the same text can resolve to a different set of files later."""
+    the filesystem, so the same text can resolve to a different set of files later.
+
+    The imports are pinned with them, for the same reason `review_hooks` reads them: pinning only
+    the named file left `helper.py` free to be rewritten after a person approved `tool.py`, so the
+    approval outlived the very change it exists to notice. A new import also changes the SET, which
+    reopens the approval on its own."""
     out: dict[str, dict[str, str]] = {}
     here = root.resolve()
-    for q in hook_scripts(root, command)[0]:
+    named = hook_scripts(root, command)[0]
+    for q in [*named, *(q for n in named if n.is_file() for q in imported_files(n, root))]:
         try:
             if not q.is_file():
                 continue
@@ -2332,6 +2569,15 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 seen.add(code)
                 found.append(Finding(code, level, event, HOOK_CODES[code], command[:150]))
         scripts, unresolved = ((([root / HOOK_COPY]), []) if mine else hook_scripts(root, command))
+        # And every file those scripts import. Reading only the named file meant a three-line
+        # `tool.py` doing `import helper` hid the payload one indirection away, with `hook-review`
+        # reporting nothing. The imports are appended rather than merged in, so a finding still
+        # names the file it was found in: `helper.py: curl … | sh` is actionable, `tool.py: …` is a
+        # lie. Every H rule below then applies to them unchanged.
+        if not mine:
+            for script in list(scripts):
+                if script.is_file():
+                    scripts += [q for q in imported_files(script, root) if q not in scripts]
         for token, kind in unresolved:
             # Making H9 uniformly `review` was a control regression: before it, an unresolvable
             # command produced an invented path and an H8 *block* — for the wrong reason, but it
@@ -2375,6 +2621,16 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
                                      f"{where}: {HOOK_COPY} is not the installed skill — scanned as "
                                      "third-party; `setup` refreshes it"))
+            if DECIDES.search(body) and not LITERAL_DECISION.search(body):
+                # An approval pins every file's digest, imports included, so it reopens by itself
+                # the moment any of them is rewritten. Without honouring it the finding would be
+                # permanent, which is how a block stops being read.
+                read_by = approved_shape(lock, root, rel, event, command)
+                found.append(Finding("H13", "info" if read_by else "block", event,
+                                     HOOK_CODES["H13"] + (f" — read by {read_by['by']} on "
+                                                          f"{read_by['at'][:10]}" if read_by else ""),
+                                     f"{where}: {script.name} builds its permissionDecision at run "
+                                     "time" + ("" if read_by else " — read it, then `hook-approve --by <you>`")))
             if AUTO_ALLOW.search(body):
                 # A `deny` ANYWHERE used to clear this finding: one such string — in a comment, a
                 # docstring, an unrelated branch, or a rule that merely names the word — turned a
@@ -3524,7 +3780,14 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--by", required=True); s.add_argument("--accept", action="append"); s.add_argument("--note")
     s.add_argument("--file", help=f"which registration, when the name is in more than one of {', '.join(MCP_FILES)}")
     s = sub.add_parser("install"); s.add_argument("root", type=Path); s.add_argument("item"); s.add_argument("--cwd")
-    s.add_argument("shadcn_args", nargs=argparse.REMAINDER)
+    # NOT REMAINDER. REMAINDER starts at the first token after `item` and swallows everything,
+    # including our OWN flags: `install <root> <item> --cwd packages/ui` — the order SKILL.md
+    # documents — left `args.cwd` None and handed shadcn a raw `--cwd packages/ui`, resolved
+    # against whatever cwd the subprocess had rather than the absolute path built below. The flag
+    # only ever worked written BEFORE the item, and nothing said so. With `*`, argparse reads our
+    # flags in either position, consumes the `--` itself, and a stray shadcn flag written without
+    # `--` now fails loudly instead of quietly changing which argument install thought it had.
+    s.add_argument("shadcn_args", nargs="*")
     s = sub.add_parser("check"); s.add_argument("root", type=Path)
     s = sub.add_parser("caps"); s.add_argument("root", type=Path); s.add_argument("--reason", required=True)
     sub.add_parser("hook")

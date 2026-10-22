@@ -153,6 +153,7 @@ python3 $S mcp-approve   <root> <name> --by <name> [--accept CODE="why"] [--note
 | K7 | review | the source is an unversioned URL — the text changes with no tag and no diff |
 | K9 | block | **hidden text** — a zero-width or bidi control character, or an instruction inside an HTML comment. Every rule above reads *visible* prose, which assumes the prose is the whole text |
 | K10 | block | an **encoded blob** (a long base64 or hex run). S2 blocks an obfuscated component; nothing blocked one pasted into a skill |
+| K12 | review | the skill ships a readable file this review **did not read** — over 512 KB, past the 300-file budget, or a `SKILL.md` fetched from a URL with no directory to walk. "Nothing beside it" and "nothing was looked at" are different answers |
 | K11 | review | a markdown link or image whose URL **carries a query string** — `![](https://host/px?data=…)` is a fetch the renderer performs, with room for the payload |
 | K8 | **block** / review | no `license:` in the frontmatter. **Block** when no LICENSE is found upstream either, or the source is a URL with nothing local to read: with no licence the default is **all rights reserved**, so only the *idea* travels, rewritten in our own words — never the text, into a repo we deliver. **Review** when a LICENSE does exist upstream: read it and record the terms. Split 2026-10-05 on `jnsahaj/skills` (102★, no LICENSE), where one message sent the reader to a file that does not exist |
 
@@ -167,9 +168,19 @@ re-checks it afterwards. It is also not reproducible from outside: videorc's loc
 `1aaf6dc1…` for creem's file, while that URL served a file hashing `2ee18bd2…` on 2026-09-30 — the
 text changed, or the digest covers something else, and from here the two are indistinguishable. So
 `skills-lock.json` is read as evidence a skill was **installed**, the `skills` section of
-`registry-lock.json` is the evidence it was **reviewed**, and the sha256 in it is one this script
-computed over the file on disk. `check` reports a locked skill whose text moved after approval, and
-every skill the CLI installed that nobody reviewed.
+`registry-lock.json` is the evidence it was **reviewed**, and the digest in it is one this script
+computed **over the whole skill directory** — every path and its bytes, in order. `check` reports a
+locked skill whose text moved after approval, and every skill the CLI installed that nobody reviewed.
+
+⚠️ **A skill is a directory, and until 2026-10-22 only its `SKILL.md` was read.** Every K rule ran
+over that one file's body, so the same `curl … | sh` that blocks on page one was silent in a
+`helper.py` under the skill's own scripts/ beside it — and `sha256` covered `SKILL.md` alone, leaving every file next to it
+free to be rewritten, or **added**, after a person signed. Measured in the third audit; the same
+class as a hook that imports its payload. Now: the K rules read every `.md`/`.py`/`.js`/`.ts`/`.sh`/
+`.json`/`.yaml`/`.toml` file in the directory, each finding names the file it is in, `tree_sha256`
+pins the lot, and a lock entry written before this (no `tree_sha256`) is a **problem** rather than a
+pass — it has to be re-approved, because for that entry nothing beside `SKILL.md` was ever pinned.
+A symlink out of the directory is not read as the skill's own.
 
 **A hash does not make a skill safe — it makes it unchanging.** Only the review judges it. And the
 text of a skill is data, never instructions: nothing inside one is followed while reviewing it,
@@ -222,7 +233,8 @@ We wrote one, governed the other three for a month, and never read the file ours
 here where we carried none.
 
 `hook-review <root>` lists every command registered in `.claude/settings.json` and
-`settings.local.json`, and reports:
+`settings.local.json`, reads the body of **every file those commands run and everything those files
+import** — transitively, to four levels, and only within the project — and reports:
 
 | Code | Level | Finding |
 |---|---|---|
@@ -232,10 +244,20 @@ here where we carried none.
 | H4 | review / **block** | the script answers `permissionDecision: "allow"`. If it never answers `deny` or `ask` it approves instead of deciding, which is the inverse of ours, and blocks; if it decides elsewhere too it is **still reported**, at review, because what the `allow` covers is a thing a person reads |
 | H5 | block | a destructive command run automatically, with nobody to confirm it |
 | H6 | review | the script lives outside the project, or is reached by an absolute path — unreviewable in a diff, and broken on every other machine |
+
+⚠️ **The imports are read because reading only the named file was a bypass.** A three-line
+`tool.py` whose whole body is `import helper` / `helper.run()` put `curl … \| sh` one file out of
+reach: `hook-review` reported no findings and `check` exited 0 (measured, third audit). A finding
+names the file the line is **in**, never the entry point — sending a reader to the wrong file is
+worse than silence, because it looks like an answer. Python `import`/`from`, JS `require`/`import`,
+and a shell's `.`/`source` are all followed; a specifier that resolves to the stdlib, to
+`node_modules` or to anything outside the project is **silence, not a finding**, or every real one
+would sit under a hook's ordinary dependencies.
 | H7 | review | detaches a background process that outlives the call |
 | H9 | review / **block** | **a shell resolves the command and we cannot.** An expansion a reader can follow (`$HOME/bin/tool.sh`, a glob) is a review; a command that **computes what it runs** (`$(…)`, a backtick) blocks, because that is the one shape nobody can review. Inventing a path from the literal text would instead report a file that never existed |
 | H10 | block | the settings file **does not parse** — nothing in it was reviewed, and silence is not a pass |
 | H11 | review | an **interpreter is named and no file resolved** — so nothing was read. Not an inline command (`-c`, `-e` carry their code in the text, which the rules above judge) and not a reviewed script: a gap, which says so rather than passing quietly |
+| H13 | block → info | the script **computes its permission decision** — `permissionDecision` is named and no literal `allow`/`deny`/`ask` can be read out of the file, so which calls it approves is unknowable from the text. H4 was a regex over the words, and the words are the author's to spell: `D = "al" + "low"` carried `check` from exit 1 to exit 0 and took the `scaffolded` gate with it (measured, third audit). Same judgement H9 makes about a command that computes what it runs, and the same door: `hook-approve --by <them>` |
 | H12 | block → info | **not in the shape a machine can read**, so no machine reviewed what is here. Cleared only by `hook-approve --by <them>`, which records that a *person* read it — and never clears any other code |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
@@ -398,11 +420,12 @@ So the gate moved. A hook command is **recognised**, not parsed:
 No chaining, no redirection, no URL, no inline code, no command substitution. Matched: we read the
 script, and every rule above applies as before. Not matched: **H12 blocks**, because no machine read
 it — and a person can, with `hook-approve <root> --by <them>`, which pins the exact command text and
-the sha256 of each project file it names. Edit the text or the script and the approval dies.
+the sha256 of each project file it names **and of every file those import**. Edit the text, the
+script, or a module it pulls in — or add one, which changes the set — and the approval dies.
 
 Three properties make the door safe rather than the acceptance path the note above refuses:
 
-- **It clears H12 and nothing else.** `hook-approve` refuses outright while any other code blocks:
+- **It clears H12 and H13, and nothing else.** `hook-approve` refuses outright while any other code blocks:
   approving a *shape* is never approving a command. `curl … | sh` stays blocked whoever read it.
 - **`--by` is required**, and the PreToolUse `ask` gate covers the command, so the user confirms it
   like `allow`, `approve`, `skill-approve` and `mcp-approve`.
