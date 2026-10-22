@@ -646,8 +646,8 @@
         "artifacts.md",
         "contracts.md",
         "measure.md",
-        "review.md",
-        "spec.md"
+        "requirements.md",
+        "review.md"
       ],
       "scripts": [
         "analyze.py",
@@ -667,7 +667,7 @@
         "verify.py",
         "verify_page.js"
       ],
-      "skill_md_lines": 362,
+      "skill_md_lines": 365,
       "bundle": "dist/url-to-design-md.skill"
     },
     {

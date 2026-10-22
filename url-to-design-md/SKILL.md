@@ -12,9 +12,10 @@ looks like that site**, and read the DESIGN.md back out of the guide.
 URL → capture → analyse → tokens → THE GUIDE → read the guide → DESIGN.md → design-md-to-app
 ```
 
-**The guide is the product**; `references/spec.md` §4 calls it "where most of the value is". The
-DESIGN.md is its *reading*, not a second branch from the tokens — so a value that the guide could
-not rebuild never reaches `design-md-to-app`. That check exists at none of the other entrances.
+**The guide is the product** — `references/requirements.md` R5, which carries most of the weight.
+The DESIGN.md is its *reading* (R5→D1), not a second branch from the tokens, so a value the guide
+could not rebuild never reaches `design-md-to-app`. That check exists at none of the other
+entrances.
 
 The third entrance to `DESIGN.md`, beside `figma-to-design-md` and `image-to-design-md`. The exit is
 identical, so nothing downstream changes: `wireframe-canvas` → `design-md-to-app`.
@@ -333,12 +334,14 @@ schema. Key facts:
 
 ## References
 
-- **`references/spec.md` — the source specification, verbatim, and every delta we take from it.**
-  Read it before changing anything here. A change is justified against a numbered point in it, or
-  it is a change to the spec and the user decides. The first version of this skill was written
-  from a *reading* of that text rather than from the text, and the difference showed up as a guide
-  that was a report, a `foreground` taken from a legal footer, and two of the thirteen pages simply
-  absent.
+- **`references/requirements.md` — what this skill must do, numbered R0–R9, plus our deltas.**
+  Read it before changing anything here: a change is justified against a number in it, or it is a
+  change to the requirements and the user decides. They are **restated in our own words** from a
+  public prompt by Amir Mushichge, which carries no licence — so by our own `registry-intake` K8
+  rule, only the idea travels and the text stays where it is, linked. The first version of this
+  skill was written from a *reading* of that source rather than from a specification, and the
+  difference showed up as a guide that was a report, an ink colour taken from a legal footer, and
+  two of the thirteen pages simply absent.
 - `references/measure.md` — what to measure, and the trap behind each correction
 - `references/review.md` — the questionnaire: the derived questions, the pictures, the skip
 - `references/artifacts.md` — the guide, the slides, and why the video is deferred
