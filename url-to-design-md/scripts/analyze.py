@@ -716,14 +716,35 @@ def spacing_scale(merged, missing):
     for base in (8, 4, 2):
         coverage[base] = sum(n for v, n in pool.items()
                              if abs(v / base - round(v / base)) < 1e-6) / total
-    best = next((b for b in (8, 4, 2) if coverage[b] >= 0.80), 1)
-    best_cov = coverage.get(best, 1.0)
+    best = next((b for b in (8, 4, 2) if coverage[b] >= 0.80), None)
+    if best is None:
+        # NO BASE IS AN ANSWER. The fallback used to be 1, and `coverage.get(1, 1.0)` then reported
+        # "base 1px, 100% of values on the grid" — a number that is true by construction, since
+        # every integer sits on a 1px grid, and reads like an excellent result while meaning the
+        # opposite. Measured on apple.com, whose commonest step is 9.6px (186 occurrences) and
+        # which is on no power-of-two grid at all.
+        #
+        # A base nobody measured, written into a file that says it is a measurement, is the exact
+        # thing this skill refuses to do everywhere else.
+        missing.append("spacing base (no 8/4/2px grid explains 80% of the values)")
+        common = sorted(pool.items(), key=lambda kv: -kv[1])[:6]
+        return {
+            "base": None,
+            "coverage": 0,
+            "triedCoverage": {str(b): round(c, 3) for b, c in coverage.items()},
+            "commonest": [{"value": v, "count": n} for v, n in common],
+            "onGrid": [],
+            "offGrid": [{"value": v, "count": n} for v, n in common],
+            "total": total,
+        }
+    best_cov = coverage[best]
 
     on = sorted(v for v in pool if abs(v / best - round(v / best)) < 1e-6)
     off = sorted(v for v in pool if abs(v / best - round(v / best)) >= 1e-6)
     return {
         "base": best,
         "coverage": round(best_cov, 3),
+        "triedCoverage": {str(b): round(c, 3) for b, c in coverage.items()},
         "onGrid": [int(v) if v == int(v) else v for v in on][:24],
         "offGrid": [{"value": v, "count": pool[v]} for v in off][:12],
         "total": total,
@@ -1489,8 +1510,15 @@ def main(argv=None):
     print(f"  colour roles : {len(tokens['color']['roles'])}")
     print(f"  type slots   : {len(tokens['typography']['scale']['slots'])}"
           f" (ratio {tokens['typography']['scale']['ratio']})")
-    print(f"  spacing base : {tokens['spacing']['base']}px "
-          f"({tokens['spacing']['coverage']:.0%} of values on the grid)")
+    space = tokens["spacing"]
+    if space["base"]:
+        print(f"  spacing base : {space['base']}px "
+              f"({space['coverage']:.0%} of values on the grid)")
+    else:
+        tried = ", ".join(f"{b}px {c:.0%}" for b, c in (space.get("triedCoverage") or {}).items())
+        common = ", ".join(f"{c['value']}px ×{c['count']}" for c in (space.get("commonest") or [])[:4])
+        print(f"  spacing base : NOT OBSERVED — no 8/4/2px grid explains 80% of the values "
+              f"({tried}). Commonest steps: {common}")
     if tokens["missing"]:
         print(f"  NOT OBSERVED : {', '.join(tokens['missing'])}")
     for n in tokens["notes"]:

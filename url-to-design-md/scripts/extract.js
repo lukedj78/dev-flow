@@ -92,6 +92,18 @@ window.__SNAPSHOT__ = (function extract(options) {
   // its greys and its 4px radius land in the palette and the radius scale.
   var CONSENT_WORDS = /(cookie|consent|gdpr|privacy[-_]?(banner|notice|prefs)|onetrust|cookiebot|usercentrics|klaro|didomi|iubenda|trustarc|cmp[-_]?(banner|container)|borlabs|complianz)/i;
   var CONSENT_TEXT = /(we use cookies|utilizziamo i cookie|questo sito utilizza|accept all|accetta tutti|manage (your )?(cookies|preferences)|gestisci (i )?cookie|reject all|rifiuta)/i;
+  // A cookie banner is one kind of interstitial, not the kind. apple.com opens with a country and
+  // region switcher — `<aside id="ac-localeswitcher">`, aria-label "Choose country or region" —
+  // which carries its own buttons at its own radius, and those landed among the measured
+  // components because none of the words above appear anywhere in it. An app-install banner, a
+  // newsletter modal and a geo redirect are the same shape: a third party's or a secondary
+  // flow's furniture sitting on the brand's design.
+  //
+  // Matched on the ACCESSIBLE NAME, which is the one place these consistently describe themselves,
+  // and on the ids the common ones use. In `app` mode nothing here applies: there a modal may well
+  // be the product.
+  var INTERSTITIAL_WORDS = /(localeswitcher|locale[-_]?switcher|geo[-_]?(redirect|banner)|country[-_]?(selector|switcher)|app[-_]?banner|smartbanner|newsletter[-_]?(modal|popup)|paywall)/i;
+  var INTERSTITIAL_LABEL = /(choose (your )?(country|region|location)|scegli (il )?(paese|regione)|seleziona (il )?paese|continue to the|open in the app|apri nell'app)/i;
 
   function isConsent(el) {
     for (var n = el; n && n !== document.documentElement; n = n.parentElement) {
@@ -101,6 +113,12 @@ window.__SNAPSHOT__ = (function extract(options) {
       var role = n.getAttribute && n.getAttribute("role");
       if ((role === "dialog" || role === "alertdialog" || n.tagName === "DIALOG") &&
           CONSENT_TEXT.test((n.textContent || "").slice(0, 400))) return true;
+      // The other interstitials. Never in `app` mode: there a modal may be the product.
+      if (MODE === "site") {
+        if (INTERSTITIAL_WORDS.test(id) || INTERSTITIAL_WORDS.test(cls)) return true;
+        var label = (n.getAttribute && n.getAttribute("aria-label")) || "";
+        if (label && INTERSTITIAL_LABEL.test(label)) return true;
+      }
     }
     return false;
   }
@@ -176,6 +194,28 @@ window.__SNAPSHOT__ = (function extract(options) {
       for (var i = 0; i < n.children.length; i++) stack.push(n.children[i]);
     }
     return best;
+  }
+
+  // THE GROUND THIS CONTROL SITS ON. Not the control's own fill — what is behind it.
+  //
+  // Measured on apple.com: the same blue pill, with identical measured values, compared at 0.0%
+  // against one crop and 33.9% against another. The difference was entirely in the pill's corners,
+  // where the crop shows whatever is BEHIND the button — black in a dark section, white in a light
+  // one — while the rebuild always drew it on the page ground. A token that is right can still be
+  // compared wrongly, and without this the number blamed the token.
+  //
+  // It is also a fact worth having on its own: a control's ground is part of where it is allowed
+  // to appear.
+  function groundBehind(el) {
+    for (var n = el.parentElement, i = 0; n && i < 12; n = n.parentElement, i += 1) {
+      var cs; try { cs = getComputedStyle(n); } catch (e) { continue; }
+      var bg = normColor(cs.backgroundColor);
+      if (bg) return bg;
+      // An element can paint with an image rather than a colour, and then the colour behind it is
+      // not what shows. Reported as unknown rather than guessed.
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return null;
+    }
+    return null;
   }
 
   // Walk up at most three levels looking for a frame the painted child does not carry.
@@ -366,11 +406,34 @@ window.__SNAPSHOT__ = (function extract(options) {
 
   /* ---------------------------------------------------------- candidates */
 
+  // How much a candidate LOOKS like a component. The sample used to be the first N in document
+  // order, and on apple.com the first 24 matches are carousel arrows and nav links while the
+  // actual buttons — `<a class="button">`, blue, pill, 131x44 — sit further down the page and
+  // never entered it. The system was then derived from the chrome of a slideshow.
+  //
+  // Order by evidence, not by position: something with its own ground, a painted border, a shadow
+  // or a real radius is a component; a bare link that happens to match the selector is not. Size
+  // breaks the tie, because a 22x44 arrow and a 131x44 call to action are not the same thing.
+  function componentScore(row) {
+    var score = 0;
+    if (row.background && row.background !== "transparent"
+        && row.background !== "rgba(0, 0, 0, 0)") score += 100;
+    if (row.borderWidth > 0 && row.borderStyle && row.borderStyle !== "none") score += 60;
+    if (row.shadow && row.shadow !== "none") score += 40;
+    if (row.radius > 0 || row.radiusIsPill) score += 30;
+    if (row.label) score += 10;
+    var r = row.rect || {};
+    return score + Math.min(20, Math.sqrt((r.w || 0) * (r.h || 0)) / 8);
+  }
+
   function describeAll(selector, limit, extra, selectorKey, keep) {
     selectorKey = selectorKey || "x";
-    var out = [], seen = 0;
+    var cap = limit || MAX_CANDIDATES;
+    var pool = [], seen = 0;
     var nodes = document.querySelectorAll(selector);
-    for (var j = 0; j < nodes.length && out.length < (limit || MAX_CANDIDATES); j++) {
+    // A hard ceiling on the WALK, so a page with ten thousand links cannot stall the measurement.
+    // Far above the sample size, because the point is to choose from more than we keep.
+    for (var j = 0; j < nodes.length && pool.length < 600; j++) {
       var n = nodes[j];
       var cs; try { cs = getComputedStyle(n); } catch (e) { continue; }
       var r = n.getBoundingClientRect();
@@ -378,25 +441,31 @@ window.__SNAPSHOT__ = (function extract(options) {
       seen += 1;
       var layer = paintedLayer(n);
       var row = boxOf(layer);
-      // Tag the painted layer so a caller can screenshot the ELEMENT rather than clip a rectangle.
-      // A clip taken from a bounding rect rounded to whole pixels bleeds one row of whatever sits
-      // beneath — measured on adidas.it, where the announcement bar's crop carried a grey line from
-      // the header below it, and that single row was 16% of the frame being compared.
-      var u2d = "u2d-" + selectorKey + "-" + out.length;
-      try { layer.setAttribute("data-u2d", u2d); } catch (e) { /* read-only DOM */ }
-      row.u2d = u2d;   // NOT `tag`: that one is the HTML tag name, set below
       row.selector = selector;
       row.tag = n.tagName.toLowerCase();
       row.paintedOnChild = layer !== n;
+      row.behind = groundBehind(layer);
       if (extra) extra(row, n, cs);
-      // The filter runs AFTER the row exists, because what it tests are measured values — and it
-      // takes the tag back off, or a rejected element would keep an id that nothing refers to and
-      // a caller cropping by tag would find elements the snapshot never mentions.
-      if (keep && !keep(row, n, cs)) {
-        try { layer.removeAttribute("data-u2d"); } catch (e) { /* read-only DOM */ }
-        continue;
-      }
-      out.push(row);
+      // The filter runs on MEASURED values, so it can only run once the row exists.
+      if (keep && !keep(row, n, cs)) continue;
+      pool.push({ row: row, layer: layer, score: componentScore(row) });
+    }
+    // Highest evidence first, and document order within a tie so the result is stable.
+    pool.forEach(function (p, i) { p.i = i; });
+    pool.sort(function (a, b) { return (b.score - a.score) || (a.i - b.i); });
+    var out = [];
+    for (var k = 0; k < pool.length && out.length < cap; k++) {
+      var p = pool[k];
+      // Tag the painted layer so a caller can screenshot the ELEMENT rather than clip a rectangle.
+      // A clip taken from a bounding rect rounded to whole pixels bleeds one row of whatever sits
+      // beneath — measured on adidas.it, where the announcement bar's crop carried a grey line
+      // from the header below it, and that single row was 16% of the frame being compared.
+      // Tagged only for what is KEPT: a tag on a dropped element is an id the snapshot never
+      // mentions, which a caller cropping by tag would still find.
+      var u2d = "u2d-" + selectorKey + "-" + out.length;
+      try { p.layer.setAttribute("data-u2d", u2d); } catch (e) { /* read-only DOM */ }
+      p.row.u2d = u2d;   // NOT `tag`: that one is the HTML tag name, set above
+      out.push(p.row);
     }
     return { total: seen, sample: out };
   }
@@ -425,7 +494,13 @@ window.__SNAPSHOT__ = (function extract(options) {
         if (n.tagName.toLowerCase() === "article") return true;
         var painted = row.background && row.background !== "transparent"
           && row.background !== "rgba(0, 0, 0, 0)";
-        var framed = row.borderWidth > 0 || (row.shadow && row.shadow !== "none");
+        // A WIDTH IS NOT A BORDER. apple.com declares `border-width: 1px` on the spans of its legal
+        // text with `border-style: none`, so nothing is drawn — and the surface filter, which only
+        // asked whether the width was above zero, let three paragraphs through as cards. They were
+        // then rebuilt as framed boxes and compared against text: 14-34% chrome, and again not a
+        // wrong token but an element that is not a component.
+        var drawn = row.borderStyle && row.borderStyle !== "none" && row.borderStyle !== "hidden";
+        var framed = (row.borderWidth > 0 && drawn) || (row.shadow && row.shadow !== "none");
         return !!(painted || framed);
       }),
     links: describeAll("nav a, header a", 12, null, "link")

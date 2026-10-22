@@ -325,6 +325,113 @@ class Outputs(unittest.TestCase):
             self.assertIn("confidence", role)
 
 
+class WhatTheExtractorKeeps(unittest.TestCase):
+    """Against the fixture page, whose true values are written down in it. These three cases were
+    added after measuring apple.com, where each of them silently produced a wrong system."""
+
+    def setUp(self):
+        self.snaps = {w: load(w) for w in (1440, 390)}
+
+    def labels(self, w, kind="buttons"):
+        return [c.get("label") for c in self.snaps[w]["candidates"][kind]["sample"]]
+
+    def test_an_interstitial_is_excluded_like_a_cookie_banner(self):
+        """apple.com opens with a country switcher — an `<aside>` whose aria-label is "Choose
+        country or region" and which contains none of the consent words. Its buttons, at its own
+        radius, went straight into the measured components."""
+        for w in (1440, 390):
+            with self.subTest(viewport=w):
+                self.assertNotIn("Continue", self.labels(w),
+                                 "the locale switcher's button is not part of this design")
+                self.assertGreaterEqual(self.snaps[w]["counts"]["skippedConsent"], 2,
+                                        "and the exclusion is counted, not silent")
+
+    def test_a_declared_border_width_with_no_style_is_not_a_surface(self):
+        """`border-width: 1px; border-style: none` draws nothing. apple.com declares exactly that
+        on its legal text, and three paragraphs came back as cards, were rebuilt as framed boxes
+        and compared against lines of text for 14-34% chrome."""
+        for w in (1440, 390):
+            with self.subTest(viewport=w):
+                cards = self.snaps[w]["candidates"]["cards"]["sample"]
+                self.assertTrue(cards, "the real cards are still found")
+                for c in cards:
+                    self.assertTrue(
+                        (c.get("background") not in (None, "transparent"))
+                        or (c.get("borderWidth", 0) > 0 and c.get("borderStyle") not in (None, "none"))
+                        or c.get("shadow"),
+                        f"{c.get('label', '')[:30]!r} is not a surface")
+                self.assertFalse(any("declares a border width" in (c.get("label") or "")
+                                     for c in cards),
+                                 "the paragraph that declares a width and draws nothing is out")
+
+    def test_each_candidate_records_the_ground_behind_it(self):
+        """A rounded control's crop shows what is BEHIND it in the corners. The same blue pill
+        scored 0.0% against a crop on white and 33.9% against one on black, and the number blamed
+        a token that was right."""
+        for w in (1440, 390):
+            with self.subTest(viewport=w):
+                by_label = {c.get("label"): c for c in self.snaps[w]["candidates"]["buttons"]["sample"]}
+                dark = by_label.get("On a dark ground")
+                self.assertIsNotNone(dark, "the fixture has a pill on a dark section")
+                self.assertEqual(dark["behind"], "#0b1020",
+                                 "the ground behind it, not its own fill")
+                self.assertEqual(dark["background"], "#2563eb")
+                light = by_label.get("Save changes")
+                self.assertEqual(light["behind"], "#ffffff")
+
+    def test_the_sample_is_chosen_by_evidence_not_by_document_order(self):
+        """apple.com's first 24 matches are carousel arrows and nav links; its actual buttons sit
+        further down and never entered the sample, so the system was derived from the chrome of a
+        slideshow. Here the painted controls must be present whatever their position."""
+        for w in (1440, 390):
+            with self.subTest(viewport=w):
+                labels = self.labels(w)
+                for want in ("Start building", "On a dark ground"):
+                    self.assertIn(want, labels, f"{want} is painted, so it belongs in the sample")
+
+
+class SpacingBase(unittest.TestCase):
+    """Measured on apple.com: its commonest step is 9.6px (186 occurrences) and no power-of-two
+    grid explains it. The fallback used to be a base of 1, and `coverage.get(1, 1.0)` then printed
+    "base 1px, 100% of values on the grid" — true by construction, since every value sits on a 1px
+    grid, and it reads like an excellent result while meaning there is no grid at all."""
+
+    def scale(self, values):
+        merged = {"spacing": {"padding": {str(v): n for v, n in values.items()},
+                              "gap": {}, "margin": {}}}
+        missing = []
+        return analyze.spacing_scale(merged, missing), missing
+
+    def test_no_grid_is_reported_as_not_observed(self):
+        out, missing = self.scale({9.6: 186, 15.0: 151, 11.0: 42, 7.0: 30})
+        self.assertIsNone(out["base"], "a base nobody measured must not be written")
+        self.assertEqual(out["coverage"], 0)
+        self.assertTrue(any("spacing base" in m for m in missing),
+                        "and it is listed among what was not observed")
+        self.assertEqual(out["commonest"][0]["value"], 9.6,
+                         "the report names what WAS found instead")
+        self.assertIn("8", out["triedCoverage"], "and what each candidate base would have covered")
+
+    def test_a_real_grid_is_still_found(self):
+        out, missing = self.scale({8: 100, 16: 60, 24: 40, 32: 20, 5: 2})
+        self.assertEqual(out["base"], 8)
+        self.assertGreater(out["coverage"], 0.9)
+        self.assertEqual(missing, [])
+
+    def test_the_largest_base_wins_not_the_best_coverage(self):
+        """Every system is on a 2px grid; the question is the step a designer reaches for."""
+        out, _ = self.scale({8: 100, 16: 60, 4: 10, 2: 2})
+        self.assertEqual(out["base"], 8)
+
+    def test_a_base_is_never_one_pixel(self):
+        """The specific regression. 1px coverage is 100% for any integer set, so it can only ever
+        look like a perfect result."""
+        for values in ({9.6: 50, 15: 40}, {3: 10, 7: 10, 11: 10}, {1: 5, 3: 5}):
+            with self.subTest(values=sorted(values)):
+                out, _ = self.scale(values)
+                self.assertNotEqual(out["base"], 1)
+
+
 class Recommendations(unittest.TestCase):
     """The user's standing instruction: every multiple-choice question arrives with my
     recommendation inside the options, first and marked. On the first adidas run NONE of the eight

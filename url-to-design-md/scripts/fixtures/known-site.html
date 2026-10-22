@@ -117,5 +117,28 @@
   <button>Accept all</button>
 </div>
 
+<!-- A country switcher. Not a cookie banner: none of the consent words appear in it, and it is
+     excluded on its aria-label. Measured on apple.com, whose own switcher put a "Continua" button
+     at its own radius among this page's components. -->
+<aside id="locale-switcher" aria-label="Choose country or region"
+       style="position:fixed;bottom:0;left:0;right:0;background:#fafafc;padding:12px 24px">
+  Looks like you are in another country.
+  <a href="#" style="background:#1d1d1f;color:#fff;border-radius:8px;padding:8px 16px;
+     display:inline-block">Continue</a>
+</aside>
+
+<!-- A WIDTH IS NOT A BORDER. `border-style: none` draws nothing, so this paragraph is not a
+     surface and must not be sampled as a card. apple.com declares exactly this on its legal text,
+     and three paragraphs came back as cards because the filter only read the width. -->
+<p class="card-like" style="border-width:1px;border-style:none;border-color:rgba(0,0,0,.16);
+   padding:12px">Legal text that declares a border width and draws no border.</p>
+
+<!-- A pill on a DARK ground. Its crop shows the dark behind it in the corners, so a rebuild drawn
+     on the page ground differs there and nowhere else. -->
+<section style="background:#0b1020;padding:24px">
+  <a class="cta" href="#" style="background:#2563eb;color:#fff;border-radius:999px;
+     padding:10px 20px;display:inline-block">On a dark ground</a>
+</section>
+
 </body>
 </html>

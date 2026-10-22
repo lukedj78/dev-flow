@@ -218,9 +218,8 @@ belong to their owners and are not reproduced here.
 
 ## Overview
 
-A system of {len(roles)} colour roles and {len(scale['slots'])} type steps on a
-{tokens['spacing']['base']}px spacing grid
-({tokens['spacing']['coverage']:.0%} of measured spacing values sit on it).
+A system of {len(roles)} colour roles and {len(scale['slots'])} type steps
+{'on a ' + str(tokens['spacing']['base']) + 'px spacing grid (' + format(tokens['spacing']['coverage'], '.0%') + ' of measured spacing values sit on it)' if tokens['spacing']['base'] else 'with **no measured spacing grid**: no 8/4/2px base explains 80% of the values, so none is written here. The commonest steps were ' + ', '.join(str(c['value']) + 'px (×' + str(c['count']) + ')' for c in (tokens['spacing'].get('commonest') or [])[:4])}.
 {'The type steps are uniform at a ratio of ' + str(scale['ratio']) + (', a ' + scale['nearestInterval'] + '.' if scale['nearestInterval'] else '.') if scale['uniform'] else 'The type steps are not uniform, so no single ratio describes the scale.'}
 
 ## Colors
@@ -250,7 +249,7 @@ rather than letting the stack fall through silently.
 ## Layout
 
 - Container: {tokens['layout']['container'] or '—'}px
-- Spacing base: {tokens['spacing']['base'] or '—'}px — scale {', '.join(str(int(v)) for v in tokens['spacing']['onGrid'][:8])}
+- Spacing base: {str(tokens['spacing']['base']) + 'px — scale ' + ', '.join(str(int(v)) for v in tokens['spacing']['onGrid'][:8]) if tokens['spacing']['base'] else 'not observed — no 8/4/2px grid explains the measured values'}
 - Breakpoints: {bps}
 
 ## Elevation & Depth

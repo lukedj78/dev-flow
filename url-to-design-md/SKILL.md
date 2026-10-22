@@ -170,6 +170,35 @@ all three were checked and ruled out. Recorded rather than explained away.
   number about a different element. On the second run it refused three at 390px — React had
   remounted those cards between the measurement and the crop, and no comparison was possible.
 
+**Second site, apple.com, 2026-10-22.** Six more, and the first five would each have produced a
+confident wrong system rather than an error:
+
+- **The sample was the first N in document order.** apple.com's first 24 matches are carousel
+  arrows and nav links; its actual buttons — `<a class="button">`, `#0071e3`, pill, 131×44 — sit
+  further down the page and **never entered the sample**, so the system was derived from the chrome
+  of a slideshow. Candidates are now ordered by evidence (own ground, painted border, shadow,
+  radius, then size) and the top N kept.
+- **An interstitial is not only a cookie banner.** apple.com opens with a country switcher — an
+  `<aside>` labelled "Choose country or region", containing none of the consent words — whose
+  buttons went into the measurement. Matched now on the accessible name and the usual ids, in
+  `site` mode only: in `app` mode a modal may be the product.
+- **A declared border width is not a border.** `border-width: 1px; border-style: none` draws
+  nothing; apple.com declares exactly that on its legal text, and three paragraphs came back as
+  cards, were rebuilt as framed boxes and compared against lines of text.
+- **No spacing base is an answer.** The fallback was a base of **1px**, which reports "100% of
+  values on the grid" — true by construction, since every value sits on a 1px grid, and it reads
+  like an excellent result. apple.com's commonest step is 9.6px (×186) and no power-of-two grid
+  explains it, so the base is now **not written** and the DESIGN.md says so.
+- **A control is rebuilt on the ground it was MEASURED on.** A rounded control's crop shows what is
+  behind it in the corners: the same blue pill scored 0.0% against a crop taken on white and
+  **33.9%** against one taken on black, and the number blamed a token that was right. Each
+  candidate now records `behind`, and that one fix took the run from 9/12 to **11/12**.
+- The crop tolerance is 2px or 2%, not 1px: a screenshot of an element includes paint the layout
+  box does not, so a 104×36 button arrives as a 106×36 file.
+
+The remaining 9.3% on one button is sub-pixel registration — the two crops are indistinguishable
+side by side. Recorded, not chased.
+
 **And a card is a SURFACE.** The selector matches by class name, so it also caught every descendant
 of anything named "card": an `h4` product title (284×20) and a `p` category (81×20) came back as
 cards, were rebuilt as boxes and compared against lines of text — 14–32% chrome that was not a wrong
@@ -287,5 +316,5 @@ schema. Key facts:
 - `scripts/images.py` — prompts, the three image modes, WebP
 - `scripts/run_log.py` — what was read, assumed, and could not be seen
 - `scripts/make_design_md.py` — the DESIGN.md and the divergence record
-- `scripts/test_analyze.py` — 37 tests against a page whose true values are written down
-- `scripts/test_render.py` — 25 tests on the guide and the gate
+- `scripts/test_analyze.py` — 48 tests against a page whose true values are written down
+- `scripts/test_render.py` — 30 tests on the guide and the gate

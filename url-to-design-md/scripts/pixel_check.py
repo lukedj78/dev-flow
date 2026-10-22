@@ -162,7 +162,15 @@ def rebuild_html(tokens, components):
         # whether the exported family, size, weight and tracking put the same letters in the same
         # places. Without it the comparison stops at the box and never tests the type at all.
         label = esc(m.get("label") or "")
+        # DRAW IT ON THE GROUND IT WAS MEASURED ON. A rounded control's crop shows whatever is
+        # BEHIND it in the corners, so the same blue pill scored 0.0% against a crop taken on white
+        # and 33.9% against one taken on black — the whole difference in four corners, and the
+        # number blamed a token that was right. Measured on apple.com. When the ground was not
+        # readable (an image behind the control), it falls back to the page background and the
+        # comparison carries that limit rather than inventing one.
+        behind = m.get("behind") or role("background", "#ffffff")
         blocks.append(
+            f'<div class="shot-wrap" style="background:{esc(behind)};display:inline-block">'
             f'<div class="shot" data-shot="{esc(c["id"])}" '
             f'style="width:{w}px;height:{h}px;{style}'
             f'font-family:{esc(font)},system-ui,sans-serif;'
@@ -171,7 +179,7 @@ def rebuild_html(tokens, components):
             f'letter-spacing:{esc(tok_track)}em;'
             f'text-transform:{esc(tok_case)};'
             f'display:flex;align-items:center;justify-content:center;'
-            f'overflow:hidden;box-sizing:border-box">{label}</div>')
+            f'overflow:hidden;box-sizing:border-box">{label}</div></div>')
 
     # The source's own faces, linked. Without them the type comparison would fail because the
     # browser substituted a font, which is a fact about this machine and not about the tokens.
@@ -241,9 +249,14 @@ def cmd_compare(args):
             continue
         if (rect := recorded.get(ident)):
             got = Image.open(src).size
-            # Whole-pixel rounding gives one pixel of slack either way; anything more is a
-            # different element, not a different rounding.
-            if abs(got[0] - round(rect["w"])) > 1 or abs(got[1] - round(rect["h"])) > 1:
+            # Two pixels, or 2% on a large box — whichever is larger. One pixel was too tight: a
+            # screenshot of an element includes paint the layout box does not, so apple.com's
+            # 104x36 button came back as a 106x36 file and was refused as "a different element".
+            # The check exists to catch a crop of something ELSE — a stale tag, a remounted node,
+            # a 0x0 box — and those differ by a lot, not by a border's worth.
+            slack_w = max(2, round(rect["w"] * 0.02))
+            slack_h = max(2, round(rect["h"] * 0.02))
+            if abs(got[0] - round(rect["w"])) > slack_w or abs(got[1] - round(rect["h"])) > slack_h:
                 wrong_size.append(f"{ident}: cropped {got[0]}x{got[1]}, measured "
                                   f"{round(rect['w'])}x{round(rect['h'])}")
                 continue
