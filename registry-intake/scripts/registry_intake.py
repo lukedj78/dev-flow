@@ -1288,9 +1288,30 @@ SKILL_BODY_RULES: list[tuple[str, str, re.Pattern]] = [
 ]
 
 
+def nested_frontmatter_keys(text: str) -> list[str]:
+    """The frontmatter keys whose value is a nested block, which `split_frontmatter` reads as "".
+
+    Not a parser's job list — a finding's. `hooks:` with an indented `PreToolUse` under it
+    registers a command the harness runs, and both this flat reader and the K rules missed it: the
+    reader because the indented lines do not match `key:`, the rules because they only ever saw the
+    body. Measured, third audit."""
+    out = []
+    if not text.startswith("---") or (end := text.find("\n---", 3)) < 0:
+        return out
+    lines = text[3:end].splitlines()
+    for i, line in enumerate(lines):
+        if (m := re.match(r"^([\w-]+)\s*:\s*$", line)) and any(
+                nxt.startswith((" ", "\t")) and nxt.strip() for nxt in lines[i + 1:i + 2]):
+            out.append(m.group(1))
+    return out
+
+
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     """The YAML a SKILL.md actually uses: flat `key: value` lines. No parser, so a nested block is
-    returned as its first line — enough for `allowed-tools` and `license`, which is all we read."""
+    returned as its first line — enough for `allowed-tools` and `license`, which is all we read.
+
+    What it DROPS is reported rather than ignored: `nested_frontmatter_keys` names the blocks, and
+    `review_skill` runs every rule over the raw frontmatter text as well as the body."""
     if not text.startswith("---"):
         return {}, text
     end = text.find("\n---", 3)
@@ -1393,7 +1414,11 @@ def review_skill(name: str, text: str, source: str,
     # block wherever in the skill it sits, and `where` names the file so a reader opens the right
     # one. Measured bypass, third audit — the K rules read `body` and nothing else, so the payload
     # moved to `scripts/helper.py` and the review went quiet.
-    for place, chunk in [("SKILL.md", body), *sorted((beside or {}).items())]:
+    # The frontmatter is text the model reads too, and it was the one part no rule ever saw: the
+    # flat reader keeps `key: value` and drops everything indented, so a `hooks:` block declaring a
+    # PreToolUse command sat in neither half. Scanned raw, exactly as the body is.
+    head = text[: len(text) - len(body)]
+    for place, chunk in [("frontmatter", head), ("SKILL.md", body), *sorted((beside or {}).items())]:
         if not chunk:
             continue
         for code, level, pat in SKILL_BODY_RULES:
@@ -1403,24 +1428,39 @@ def review_skill(name: str, text: str, source: str,
                 if key in seen:
                     continue
                 seen.add(key)
-                where = (line[:160] if place == "SKILL.md" else f"{place}: {line[:140]}")
+                where = (line[:160] if place in ("SKILL.md", "frontmatter")
+                         else f"{place}: {line[:140]}")
                 findings.append(Finding(code, level, name, SKILL_CODES[code], where))
-        findings += [f for f in hidden_text_findings(name, chunk)
-                     if place == "SKILL.md" or f.__setattr__("where", f"{place}: {f.where}") is None]
+        for f in hidden_text_findings(name, chunk):
+            findings.append(f if place in ("SKILL.md", "frontmatter")
+                            else Finding(f.code, f.level, f.item, f.message, f"{place}: {f.where}"))
     for rel, chunk in sorted((beside or {}).items()):
         if rel == "…":
             findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
                                     f"more than {SKILL_SIDE_COUNT} readable files; the rest were not scanned"))
         elif chunk == "":
+            q = Path(rel)
+            why = ("not a type this review reads" if not SKILL_SIDE_FILE.search(q.name)
+                   else f"over {SKILL_SIDE_MAX // 1024} KB")
             findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
-                                    f"{rel} is over {SKILL_SIDE_MAX // 1024} KB — read it, or say why it is data"))
+                                    f"{rel}: {why} — hashed, so it cannot change after approval, "
+                                    "but nobody here read it"))
+
     if beside is None:
         findings.append(Finding("K12", "review", name, SKILL_CODES["K12"],
                                 "only SKILL.md was read: no local directory to walk, so nothing "
                                 "beside it was scanned"))
-    # NOT called again on `text`: the loop above already ran it on `body`, and on each file beside
-    # it. Running it on the whole `text` as well reported every frontmatter finding twice.
-    findings += [f for f in hidden_text_findings(name, text[:len(text) - len(body)])]
+    # A nested block the flat reader cannot represent is named, not skipped. A `hooks:` one is
+    # worse than unread: it registers a command that runs without the agent choosing to, which is
+    # this script's `hook-review` surface arriving through a file it was not watching.
+    for key in nested_frontmatter_keys(text):
+        findings.append(Finding(
+            "K12", "block" if key in ("hooks", "mcpServers", "permissions") else "review", name,
+            SKILL_CODES["K12"],
+            f"frontmatter `{key}:` is a nested block — "
+            + ("it registers something that runs on its own; `hook-review` watches "
+               ".claude/settings.json, not a skill's frontmatter" if key in ("hooks", "mcpServers", "permissions")
+               else "read it; this reader keeps flat `key: value` only")))
     return SkillReport(name, source, findings, len(text.splitlines()))
 
 
@@ -1484,36 +1524,53 @@ SKILL_SIDE_COUNT = 300
 
 
 def skill_files(skill_md: Path) -> dict[str, str]:
-    """{path within the skill: text} for every readable file BESIDE SKILL.md.
+    """{path within the skill: text} for every file BESIDE SKILL.md — "" when it was not read.
 
-    Bounded on purpose, and the bounds are reported rather than silently applied: a skill that
-    ships a 10 MB fixture is not a skill whose rules were not checked, but a reader has to know
-    which it was. `review_skill` turns anything skipped into a finding of its own."""
+    Built on `skill_tree`, so the keys are every file in the directory and not only the ones worth
+    scanning. An empty value is the signal `review_skill` turns into a K12: a file this review
+    hashed but did not read is not the same thing as a file that is not there, and collapsing the
+    two would hide exactly what the extension list leaves out — a `.txt` of instructions, a renamed
+    script, anything binary."""
     out: dict[str, str] = {}
-    base = skill_md.parent
-    if not base.is_dir():
-        return out
-    try:
-        here = base.resolve()
-    except OSError:
-        return out
-    for q in sorted(base.rglob("*")):
+    for rel, q in skill_tree(skill_md):
+        if rel == "SKILL.md":
+            continue
         if len(out) >= SKILL_SIDE_COUNT:
             out["…"] = ""            # the marker review_skill reports; never scanned as text
             break
         try:
-            if q.name == "SKILL.md" and q.parent == base:
+            if not SKILL_SIDE_FILE.search(q.name) or q.stat().st_size > SKILL_SIDE_MAX:
+                out[rel] = ""
                 continue
-            if any(part in SKILL_SIDE_SKIP for part in q.relative_to(base).parts):
+            if not q.resolve().is_relative_to(skill_md.parent.resolve()):
+                out[rel] = ""        # a symlink out of the skill: pinned, never read as ours
                 continue
-            if not q.is_file() or not SKILL_SIDE_FILE.search(q.name):
+            out[rel] = q.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            out[rel] = ""
+    return out
+
+
+def skill_tree(skill_md: Path) -> list[tuple[str, Path]]:
+    """[(path within the skill, the file)] for EVERY regular file in it, extension be damned.
+
+    Two different questions, and binding them to one answer was a hole: `skill_files` decides what
+    gets read as text, and that is reasonably narrow — a `.md`, a `.py`, a `.sh`. What gets HASHED
+    cannot be narrow at all. Keying the digest off the scannable set left a `.txt` a skill tells the
+    agent to read, a `.csv` of instructions, a renamed script and a binary all free to change after
+    somebody signed for the directory. Nothing is skipped by name here except the directories that
+    are never source (`node_modules`, `.git`, caches), and a symlink is hashed by where it POINTS as
+    well as what is there, since retargeting one is the bypass `pinned_scripts` already learnt."""
+    out: list[tuple[str, Path]] = []
+    base = skill_md.parent
+    if not base.is_dir():
+        return out
+    for q in sorted(base.rglob("*")):
+        try:
+            rel = q.relative_to(base)
+            if any(part in SKILL_SIDE_SKIP for part in rel.parts) or not q.is_file():
                 continue
-            if not q.resolve().is_relative_to(here):
-                continue             # a symlink out of the skill is somebody else's file
-            if q.stat().st_size > SKILL_SIDE_MAX:
-                out[q.relative_to(base).as_posix()] = ""
-                continue
-            out[q.relative_to(base).as_posix()] = q.read_text(encoding="utf-8", errors="replace")
+            out.append((rel.as_posix(), q))
         except OSError:
             continue
     return out
@@ -1524,15 +1581,14 @@ def skill_digest(skill_md: Path) -> str:
 
     `sha256(SKILL.md)` was the approval's proof, so every file beside it was free to change
     afterwards. Paths are hashed with the contents, or moving a file between two names would leave
-    the digest untouched."""
+    the digest untouched; a symlink's target is hashed too, or retargeting one would not show."""
     h = hashlib.sha256()
-    base = skill_md.parent
-    h.update(b"SKILL.md\0" + (skill_md.read_bytes() if skill_md.is_file() else b"") + b"\0")
-    for rel in sorted(skill_files(skill_md)):
+    for rel, q in skill_tree(skill_md):
         h.update(rel.encode("utf-8") + b"\0")
-        q = base / rel
         try:
-            h.update(q.read_bytes() if q.is_file() else b"")
+            if q.is_symlink():
+                h.update(b"->" + os.readlink(q).encode("utf-8", "replace") + b"\0")
+            h.update(q.read_bytes())
         except OSError:
             pass
         h.update(b"\0")
@@ -2037,6 +2093,28 @@ AUTO_ALLOW = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\']allow["\']')
 # records that they did.
 DECIDES = re.compile(r"permissionDecision")
 LITERAL_DECISION = re.compile(r'permissionDecision["\']?\s*[:=]\s*["\'](?:allow|deny|ask)["\']')
+# PER OCCURRENCE, not per file. The first version asked "does this file contain a literal decision
+# anywhere", so one literal `deny` in an unrelated branch cleared the finding and the computed
+# `allow` beside it went unreported — the same mistake H4 had already been fixed for once, where a
+# stray `deny` cleared a block. A decision is either readable where it is written or it is not.
+#
+# The value is CAPTURED and then tested, never negated with a lookahead. `\s*` backtracks, so
+# a negative lookahead placed after it matched `"permissionDecision": "allow"` by giving the space
+# back and looking at ` "allow"`, which starts with a space and not a quote. Measured — it put an
+# H13 on every ordinary hook.
+DECISION_VALUE = re.compile(r"""permissionDecision["']?\s*[:=][ \t]*(?P<val>[^,}\n]{0,48})""")
+LITERAL_VALUE = re.compile(r"""^["'](?:allow|deny|ask)["']""")
+
+
+def computes_its_decision(body: str) -> str | None:
+    """The first `permissionDecision` whose value is not a literal, or None.
+
+    Returns the TEXT, not a bool, because the finding has to quote the line: "it computes the
+    decision" sends a reader to a file, `permissionDecision": D` sends them to a line."""
+    for m in DECISION_VALUE.finditer(body):
+        if not LITERAL_VALUE.match(m.group("val").strip()):
+            return m.group(0).strip()
+    return None
 
 
 def hook_entries(root: Path) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
@@ -2406,8 +2484,15 @@ def approval_key(rel: str, event: str, command: str) -> str:
 #
 # Python's `import x` and `from x import y`; JS/TS `require("./x")`, `import … from "./x"` and
 # `import("./x")`; and a shell's `. ./x` / `source ./x`.
-PY_IMPORT = re.compile(r"^[ \t]*(?:from[ \t]+(?P<frm>\.{0,2}[\w.]+)[ \t]+import\b"
+PY_IMPORT = re.compile(r"^[ \t]*(?:from[ \t]+(?P<frm>\.{0,2}[\w.]*)[ \t]+import[ \t]+"
+                       r"(?P<names>\*|\([^)]*\)|[\w.]+(?:[ \t]*as[ \t]+\w+)?"
+                       r"(?:[ \t]*,[ \t]*[\w.]+(?:[ \t]*as[ \t]+\w+)?)*)"
                        r"|import[ \t]+(?P<mods>[\w.]+(?:[ \t]*,[ \t]*[\w.]+)*))", re.M)
+# A module name computed at run time is the H9 shape in Python: nothing static can say which file
+# runs. Reported rather than followed, because following it would mean guessing.
+PY_DYNAMIC = re.compile(r"\b(?:importlib\.import_module|importlib\.util\.spec_from_file_location"
+                        r"|__import__|runpy\.run_(?:path|module))\s*\(")
+JS_DYNAMIC = re.compile(r"\b(?:require|import)\s*\(\s*(?![\"'])")
 JS_IMPORT = re.compile(r"""(?:\brequire\(|\bfrom|\bimport\s*\(|\bimport)\s*["'](?P<spec>[^"'\n]{1,200})["']""")
 SH_SOURCE = re.compile(r"^[ \t]*(?:\.|source)[ \t]+(?P<path>[^\s;|&()]{1,200})", re.M)
 MODULE_SUFFIXES = (".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".sh", ".bash", ".zsh")
@@ -2442,10 +2527,22 @@ def imported_files(script: Path, root: Path, _seen: set[str] | None = None,
     here = root.resolve()
     specs: list[str] = []
     for m in PY_IMPORT.finditer(body):
-        if frm := m.group("frm"):
+        if (frm := m.group("frm")) is not None and m.group("names"):
+            # `from pkg import helper` names TWO candidates: the package, and `pkg/helper.py` —
+            # which is the one the payload sits in. Following only the package reached
+            # `pkg/__init__.py` and stopped, so the measured bypass needed no dots at all.
+            # `from . import helper` has an empty `frm`, and its candidate is just `helper`.
             specs.append(frm)
+            for nm in re.findall(r"[\w.]+", m.group("names").replace(" as ", " ")):
+                if nm not in ("as", "*"):
+                    specs.append((frm.rstrip(".") + "." + nm) if frm and not frm.endswith(".")
+                                 else (frm + nm if frm else nm))
         if mods := m.group("mods"):
-            specs += [x.strip() for x in mods.split(",")]
+            # `import pkg.helper` reads BOTH: the dotted name is the file, the head is its package.
+            for mod in (x.strip() for x in mods.split(",")):
+                specs.append(mod)
+                if "." in mod:
+                    specs.append(mod.split(".", 1)[0])
     specs += [m.group("spec") for m in JS_IMPORT.finditer(body)]
     specs += [m.group("path") for m in SH_SOURCE.finditer(body)]
 
@@ -2453,9 +2550,16 @@ def imported_files(script: Path, root: Path, _seen: set[str] | None = None,
     for spec in specs:
         if SHELL_SYNTAX.search(spec):
             continue                       # a computed path: `hook_scripts` owns that case
-        # `from .pkg.helper import x` and `require("./pkg/helper")` name the same file two ways.
-        rel = spec.lstrip(".").replace(".", "/") if spec[:1] == "." and "/" not in spec else spec
-        rel = rel.replace("\\", "/")
+        # `from .pkg.helper import x`, `import pkg.helper` and `require("./pkg/helper")` name the
+        # same file three ways. A dotted name is a PATH in every one of them, and converting only
+        # the leading-dot spelling left `import pkg.helper` looking for a file called
+        # `pkg.helper.py` — so it resolved to nothing and the payload under `pkg/` went unread.
+        if "/" not in spec and spec.strip("."):
+            rel = spec.lstrip(".").replace(".", "/")
+        else:
+            rel = spec.replace("\\", "/")
+        if not rel:
+            continue
         # BOTH bases, always. `./x` means "next to this file" in JS and "from the working
         # directory" in a shell — the same spelling, two resolutions — so `source ./.claude/hooks/
         # lib.sh` resolved to nothing when only the script's own directory was tried, and the
@@ -2621,7 +2725,15 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 found.append(Finding("H6", "review", event, HOOK_CODES["H6"],
                                      f"{where}: {HOOK_COPY} is not the installed skill — scanned as "
                                      "third-party; `setup` refreshes it"))
-            if DECIDES.search(body) and not LITERAL_DECISION.search(body):
+            # A module name built at run time is H9's shape inside a source file: nothing static
+            # can say which file runs, so it is reported rather than guessed at. Here, after the
+            # exemptions above, so our own vendored copy is not scanned for its own patterns.
+            if (m := PY_DYNAMIC.search(body)) or (m := JS_DYNAMIC.search(body)):
+                found.append(Finding("H9", "block", event,
+                                     HOOK_CODES["H9"] + " — and it computes that at run time",
+                                     f"{where}: {script.name}: {m.group(0).strip()}"))
+            computed_at = computes_its_decision(body)
+            if computed_at or (DECIDES.search(body) and not LITERAL_DECISION.search(body)):
                 # An approval pins every file's digest, imports included, so it reopens by itself
                 # the moment any of them is rewritten. Without honouring it the finding would be
                 # permanent, which is how a block stops being read.
@@ -2630,7 +2742,8 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                                      HOOK_CODES["H13"] + (f" — read by {read_by['by']} on "
                                                           f"{read_by['at'][:10]}" if read_by else ""),
                                      f"{where}: {script.name} builds its permissionDecision at run "
-                                     "time" + ("" if read_by else " — read it, then `hook-approve --by <you>`")))
+                                     f"time" + (f" — `{computed_at}`" if computed_at else "")
+                                     + ("" if read_by else " — read it, then `hook-approve --by <you>`")))
             if AUTO_ALLOW.search(body):
                 # A `deny` ANYWHERE used to clear this finding: one such string — in a comment, a
                 # docstring, an unrelated branch, or a rule that merely names the word — turned a

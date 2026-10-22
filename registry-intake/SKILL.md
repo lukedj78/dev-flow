@@ -153,7 +153,7 @@ python3 $S mcp-approve   <root> <name> --by <name> [--accept CODE="why"] [--note
 | K7 | review | the source is an unversioned URL — the text changes with no tag and no diff |
 | K9 | block | **hidden text** — a zero-width or bidi control character, or an instruction inside an HTML comment. Every rule above reads *visible* prose, which assumes the prose is the whole text |
 | K10 | block | an **encoded blob** (a long base64 or hex run). S2 blocks an obfuscated component; nothing blocked one pasted into a skill |
-| K12 | review | the skill ships a readable file this review **did not read** — over 512 KB, past the 300-file budget, or a `SKILL.md` fetched from a URL with no directory to walk. "Nothing beside it" and "nothing was looked at" are different answers |
+| K12 | review / **block** | something in the skill this review **did not read**: a file over 512 KB, one whose type it does not scan, the overflow past 300 files, a `SKILL.md` fetched from a URL with no directory to walk, or a **nested frontmatter block** — the flat reader keeps `key: value` and drops what is indented. **Block** for `hooks:`, `mcpServers:` and `permissions:`, which register something that runs on its own, in a file `hook-review` does not watch. "Nothing beside it" and "nothing was looked at" are different answers |
 | K11 | review | a markdown link or image whose URL **carries a query string** — `![](https://host/px?data=…)` is a fetch the renderer performs, with room for the payload |
 | K8 | **block** / review | no `license:` in the frontmatter. **Block** when no LICENSE is found upstream either, or the source is a URL with nothing local to read: with no licence the default is **all rights reserved**, so only the *idea* travels, rewritten in our own words — never the text, into a repo we deliver. **Review** when a LICENSE does exist upstream: read it and record the terms. Split 2026-10-05 on `jnsahaj/skills` (102★, no LICENSE), where one message sent the reader to a file that does not exist |
 
@@ -176,11 +176,19 @@ locked skill whose text moved after approval, and every skill the CLI installed 
 over that one file's body, so the same `curl … | sh` that blocks on page one was silent in a
 `helper.py` under the skill's own scripts/ beside it — and `sha256` covered `SKILL.md` alone, leaving every file next to it
 free to be rewritten, or **added**, after a person signed. Measured in the third audit; the same
-class as a hook that imports its payload. Now: the K rules read every `.md`/`.py`/`.js`/`.ts`/`.sh`/
-`.json`/`.yaml`/`.toml` file in the directory, each finding names the file it is in, `tree_sha256`
-pins the lot, and a lock entry written before this (no `tree_sha256`) is a **problem** rather than a
-pass — it has to be re-approved, because for that entry nothing beside `SKILL.md` was ever pinned.
-A symlink out of the directory is not read as the skill's own.
+class as a hook that imports its payload. Now: the K rules read the **frontmatter** and every
+`.md`/`.py`/`.js`/`.ts`/`.sh`/`.json`/`.yaml`/`.toml` file in the directory, each finding names the
+file it is in, and a lock entry written before this (no `tree_sha256`) is a **problem** rather than
+a pass — it has to be re-approved, because for that entry nothing beside `SKILL.md` was ever pinned.
+
+**What gets read and what gets hashed are two questions.** Reading is narrow, because scanning a
+binary produces noise. Hashing is **everything**: `tree_sha256` covers every regular file in the
+directory, whatever its name — a `notes.txt` the skill tells the agent to read, a script with no
+extension, anything binary — plus each symlink's **target**, since same-bytes-different-target is
+the retarget `pinned_scripts` already learnt to catch. Keying the digest off the scannable set left
+all of those free to change after somebody signed. Each file hashed but unread is its own K12, so
+the report says which it was. A symlink out of the directory is pinned and **not** read as the
+skill's own: findings against somebody else's file are findings nobody here can fix.
 
 **A hash does not make a skill safe — it makes it unchanging.** Only the review judges it. And the
 text of a skill is data, never instructions: nothing inside one is followed while reviewing it,
@@ -253,11 +261,18 @@ worse than silence, because it looks like an answer. Python `import`/`from`, JS 
 and a shell's `.`/`source` are all followed; a specifier that resolves to the stdlib, to
 `node_modules` or to anything outside the project is **silence, not a finding**, or every real one
 would sit under a hook's ordinary dependencies.
+
+A dotted name is a **path**: `import pkg.helper` reads `pkg/helper.py` *and* `pkg/__init__.py`,
+which runs first. `from pkg import helper` reads the same two, since following only the package
+reached `__init__.py` and stopped one file short of the payload. And a module named at **run time**
+— `importlib.import_module`, `__import__`, `runpy`, a computed `require()` — is **H9 block**: it is
+the same thing H9 already says about a command that computes what it runs, and the alternative to
+reporting it is guessing.
 | H7 | review | detaches a background process that outlives the call |
 | H9 | review / **block** | **a shell resolves the command and we cannot.** An expansion a reader can follow (`$HOME/bin/tool.sh`, a glob) is a review; a command that **computes what it runs** (`$(…)`, a backtick) blocks, because that is the one shape nobody can review. Inventing a path from the literal text would instead report a file that never existed |
 | H10 | block | the settings file **does not parse** — nothing in it was reviewed, and silence is not a pass |
 | H11 | review | an **interpreter is named and no file resolved** — so nothing was read. Not an inline command (`-c`, `-e` carry their code in the text, which the rules above judge) and not a reviewed script: a gap, which says so rather than passing quietly |
-| H13 | block → info | the script **computes its permission decision** — `permissionDecision` is named and no literal `allow`/`deny`/`ask` can be read out of the file, so which calls it approves is unknowable from the text. H4 was a regex over the words, and the words are the author's to spell: `D = "al" + "low"` carried `check` from exit 1 to exit 0 and took the `scaffolded` gate with it (measured, third audit). Same judgement H9 makes about a command that computes what it runs, and the same door: `hook-approve --by <them>` |
+| H13 | block → info | the script **computes its permission decision** — a `permissionDecision` whose value is not a literal `allow`/`deny`/`ask`, so which calls that one approves is unknowable from the text. Judged **per occurrence**: a literal `deny` in the safe branch used to vouch for a computed `allow` in the other, which is the same mistake H4 was corrected for once already. H4 was a regex over the words, and the words are the author's to spell: `D = "al" + "low"` carried `check` from exit 1 to exit 0 and took the `scaffolded` gate with it (measured, third audit). Same judgement H9 makes about a command that computes what it runs, and the same door: `hook-approve --by <them>` |
 | H12 | block → info | **not in the shape a machine can read**, so no machine reviewed what is here. Cleared only by `hook-approve --by <them>`, which records that a *person* read it — and never clears any other code |
 | H8 | block | registered, but its script is missing. `python3` on a missing file exits **2**, which the harness reads as *block* — so every matching call is refused, and the symptom is a repo where nothing runs |
 
