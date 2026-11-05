@@ -1,6 +1,6 @@
 ---
 name: iframe-canvas
-description: 'Decide and build a pan/zoom canvas whose artboards are live `<iframe>` previews — the architecture behind AI site/app builders (Reweb, Sleek, Plasmic, Builder.io, Onlook), not the one behind Figma. Owns the decisions that fail late: how many live frames the tab can afford, same-origin vs cross-origin isolation, snapshot-vs-live per artboard, the interaction mode that gates pointer events, the camera and its two coordinate spaces, and the `postMessage` contract across the boundary. Use when the user says "infinite canvas", "canvas infinita", "tavolozza tipo Figma", "artboard", "live preview in an iframe", "visual editor", "click to select an element in the preview", "pan and zoom the workspace", or when a preview iframe gets slow, blurry, or stops receiving clicks. Refuses outside Next.js 16 web. Not for: WebGL/Konva canvas rendering (a different architecture — this skill says when to switch), React Native, the editor UI around the canvas, or wireframes before a scaffold (`wireframe-canvas`).'
+description: 'Decide and build a pan/zoom canvas whose artboards are live `<iframe>` previews — the architecture behind AI site/app builders (Reweb, Sleek, Plasmic, Builder.io, Onlook), not the one behind Figma. Owns the decisions that fail late: how many live frames the tab can afford, same-origin vs cross-origin isolation, snapshot-vs-live per artboard, the interaction mode that gates pointer events, the camera and its two coordinate spaces, and the `postMessage` contract across the boundary. Use when the user says "infinite canvas", "canvas infinita", "tavolozza tipo Figma", "artboard", "live preview in an iframe", "visual editor", "click to select an element in the preview", "pan and zoom the workspace", or when a preview iframe gets slow, blurry, or stops receiving clicks. Refuses outside Next.js 16 web. Not for: building the rendered canvas (Konva — chosen and set up in `references/rendered-canvas.md`), React Native, the editor UI around the canvas, or wireframes before a scaffold (`wireframe-canvas`).'
 ---
 
 # iframe-canvas — the frame budget comes before the feature
@@ -89,7 +89,7 @@ Pick per artboard, not per product. The four viable shapes:
 | **All live** | every artboard an iframe, always | one process, N contexts, one thread | ≤ ~3 artboards, light content, and you have measured it |
 | **Snapshot + hydrate** (default) | inactive = image/static HTML, focused = iframe | a snapshot invalidates on **every** edit to its source | more than a handful of artboards — what Miro and FigJam do for inactive content |
 | **Single live** | one iframe, artboards are a selector | loses side-by-side comparison | editing is the main verb, comparison is occasional — Plasmic's answer |
-| **Rendered** | no iframes; draw to WebGL/2D | you own layout, text, fonts, a11y | the content is *your* document model, not arbitrary HTML — Figma's answer |
+| **Rendered** | no iframes; draw to WebGL/2D | you own layout, text, fonts, a11y | the content is *your* document model, not arbitrary HTML — Figma's answer. **→ `references/rendered-canvas.md`** |
 
 The mistake is not choosing wrong. It is **not choosing**, shipping "all live" by default,
 and discovering the budget at twelve artboards with a camera and a protocol already built
@@ -220,8 +220,13 @@ in the incubator, no standard. Track it; ship nothing on it. `[VERIFY]` on every
 
 ## What this skill does NOT do
 
-- **Does not build a rendered canvas.** If Decision 2 lands on "rendered", this skill has
-  done its job by getting you there; the WebGL/Konva work is outside it.
+- **Does not build a rendered canvas** — but it no longer leaves you nowhere. If Decision 2 lands on
+  "rendered", read **`references/rendered-canvas.md`**: the library choice (Konva, measured against
+  React Flow and Fabric), the Next.js 16 wiring (`'use client'` is the whole setup on Konva 10 — the
+  `canvas` package and `ssr: false` were Konva 9 workarounds), and the two failures that are
+  structural rather than fixable — **no accessibility tree at all**, and `react-konva` being a custom
+  React reconciler whose minor mirrors React's. The camera and the coordinate spaces above still
+  apply unchanged. The document model, hit-testing, layers, undo and export stay product work.
 - **Does not design the editor UI.** Panels, toolbars, layer trees are `screenshot-to-page`.
 - **Does not own export.** Capturing, serialising or exporting artboards is product work.
 - **Does not cover React Native.** No iframes there.

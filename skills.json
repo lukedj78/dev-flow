@@ -494,10 +494,11 @@
       "references": [
         "contracts.md",
         "pointer-and-lifecycle.md",
-        "production-survey.md"
+        "production-survey.md",
+        "rendered-canvas.md"
       ],
       "scripts": [],
-      "skill_md_lines": 237,
+      "skill_md_lines": 242,
       "bundle": "dist/iframe-canvas.skill"
     },
     {
