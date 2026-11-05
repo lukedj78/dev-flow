@@ -690,7 +690,12 @@ DATED_MARKER_RE = re.compile(
     r"\b(verified|re-verified|checked|snapshot date|last pass|read|as of)\b:?\s*(?:on\s+)?"
     r"(20\d\d-\d\d(?:-\d\d)?)\b", re.I)
 # Dated records of what happened, not facts that can go stale.
-STALE_EXEMPT = ("CHANGELOG.md", "AUDIT.md", "docs/superpowers/", "evals/compliance/baselines/", "dist/")
+# Files whose dates are the RECORD, not a claim needing refresh. A changelog row, a dated spec and a
+# watch-pass row all say "this was true on that date" on purpose; re-dating them would falsify the
+# history the file exists to keep. `vercel-changelog-watch.md` joined on 2026-11-05, when a date sweep
+# found its 2026-07-30 log rows flagged — rows that must never move.
+STALE_EXEMPT = ("CHANGELOG.md", "AUDIT.md", "docs/superpowers/", "evals/compliance/baselines/", "dist/",
+                "docs/vercel-changelog-watch.md")
 
 
 def check_stale_markers(root: Path, today=None) -> None:
@@ -702,15 +707,22 @@ def check_stale_markers(root: Path, today=None) -> None:
                                               and rel != "dev-flow/references/contracts.md"):
             continue
         text = (root / rel).read_text(errors="ignore")
-        old = []
+        # A line's freshness is its NEWEST marker, not its oldest. "checked X, re-checked Y" is how a
+        # re-verification records what it replaced; flagging the X half made that unwritable, so the only
+        # way to quiet the note was to delete the history it was asking for. Per line, not per file:
+        # one fresh date must not vouch for every other claim in the document.
+        newest: dict[int, tuple[datetime.date, str]] = {}
         for m in DATED_MARKER_RE.finditer(text):
             stamp = m.group(2)
             try:
                 day = datetime.date.fromisoformat(stamp if len(stamp) == 10 else stamp + "-01")
             except ValueError:
                 continue
-            if (today - day).days > STALE_DAYS:
-                old.append((day, text.count("\n", 0, m.start()) + 1, m.group(0)))
+            line = text.count("\n", 0, m.start()) + 1
+            if line not in newest or day > newest[line][0]:
+                newest[line] = (day, m.group(0))
+        old = [(day, line, marker) for line, (day, marker) in newest.items()
+               if (today - day).days > STALE_DAYS]
         if old:
             day, line, marker = min(old)
             more = f" (+{len(old) - 1} more)" if len(old) > 1 else ""

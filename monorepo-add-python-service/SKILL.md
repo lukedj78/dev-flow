@@ -17,10 +17,17 @@ monorepo through two seams and no others:
 2. a **generated TypeScript client** in `packages/api/src/<name>/`, so a schema change breaks
    `apps/web`'s typecheck instead of its users.
 
-> **Versions verified 2026-09-11** — `uv@0.12.13`, `fastapi@0.141.1`, `uvicorn@0.52.4`,
-> `pydantic@2.13.5`, `pytest@9.1.1`, `ruff@0.16.7`, `turbo@2.10.12`,
-> `openapi-typescript@7.13.0`, `openapi-fetch@0.17.0`. Every reference cites its source next
-> to the instruction. `[VERIFY]` marks the surfaces that move.
+> **Versions re-verified 2026-11-05**, Python from **PyPI** and JS from npm — `uv@0.13.7`,
+> `fastapi@0.162.0`, `uvicorn@0.54.0`, `pydantic@2.14.3`, `pytest@9.2.0`, `ruff@0.17.3`,
+> `turbo@2.11.10`; **`openapi-typescript@7.13.0` and `openapi-fetch@0.17.0` have not moved at all**
+> since 2026-09-11. FastAPI is the one to look at — `0.141.1 → 0.162.0` is **21 minors in eight weeks**,
+> so treat its version as a `[VERIFY]` surface rather than a pin you can carry. Every reference cites
+> its source next to the instruction.
+>
+> ⚠️ **Read these from PyPI, not npm.** `uv` and `fastapi` are also the names of unrelated npm
+> packages (`uv@1.4.0`, `fastapi@0.0.8` on 2026-11-05), so `npm view uv version` answers confidently
+> with a number that has nothing to do with this file. The command is
+> `curl -s https://pypi.org/pypi/<name>/json | python3 -c "…['info']['version']"`.
 
 ## Why a `package.json` bridge and not turbo's native Python support
 

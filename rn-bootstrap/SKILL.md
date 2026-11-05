@@ -147,4 +147,4 @@ Components follow Rule of Three for promotion (L0 → L1 → L2), targeting `com
 
 - Course: codewithbeto.dev/rnCourse — free lessons 5-6 (Creating Your First App, Project Structure).
 - Official: https://docs.expo.dev/get-started/create-a-project/
-- Official: https://www.nativewind.dev/docs/getting-started/installation — ⚠️ the old `nativewind.dev/v4/getting-started/expo-router` URL **404s** as of 2026-08-26 (the site dropped the `/v4/` prefix and no longer has an Expo-Router-specific page); Expo Router setup is folded into Installation.
+- Official: https://www.nativewind.dev/docs/getting-started/installation — ⚠️ the old `nativewind.dev/v4/getting-started/expo-router` URL **404s** (2026-08-26, re-checked 2026-11-05, still 404; the installation page we point at instead answers 200) (the site dropped the `/v4/` prefix and no longer has an Expo-Router-specific page); Expo Router setup is folded into Installation.

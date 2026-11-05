@@ -29,6 +29,10 @@ pnpm add resend react-email
 React Email 6.0 unified the components, render, and preview CLI into a single `react-email` package — `@react-email/components` is deprecated (`npm i react-email`). Import template primitives from `"react-email"`, including `render` and `Tailwind`.
 
 > **Checked 2026-09-15** on a real project (Hostitaly): `resend@6.28.1`, `react-email@6.9.5`, the emailcn
+> **Versions re-checked 2026-11-05: `resend@6.37.0`, `react-email@6.11.6`.** Nine and six releases on;
+> the integration described below was verified against the older pair on a real project, and **that part
+> has not been re-run** — this is a version re-check, not a re-run of the integration. Treat the code
+> below as `[VERIFY]` against the installed versions rather than as re-confirmed.
 > registry at `https://emailcn.run/r/registry.json` (338 items), better-auth 1.7.5.
 
 ## Templates: emailcn first, then hand-written — always React Email with `<Tailwind>`

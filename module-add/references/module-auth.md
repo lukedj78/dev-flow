@@ -358,7 +358,7 @@ because you will never have met them.
 
 better-auth ships this. It is **not** part of the core package.
 
-> **Checked 2026-09-11** against the shipped declarations (`npm pack`, then the `.d.mts`) —
+> **Checked 2026-09-11** against the shipped declarations (`npm pack`, then the `.d.mts`), and the headline fact **re-checked 2026-11-05 at `better-auth@1.7.18`** (was 1.7.7): `npm view @better-auth/oidc-provider` still answers **E404**, so the package named below still does not exist —
 > `better-auth@1.7.4`, `@better-auth/oauth-provider@1.7.4`, `@better-auth/mcp@1.7.4`,
 > `@better-auth/cimd` — all MIT.
 

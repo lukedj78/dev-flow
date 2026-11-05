@@ -110,7 +110,7 @@ Tag a release: `git tag v1.2.0 && git push origin v1.2.0` → workflow builds + 
 ## Where to find runner / step references
 
 - Runner types (linux-small / linux-medium / linux-large / macos-medium): https://docs.expo.dev/eas/workflows/syntax/
-- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas/workflows/syntax/ — ⚠️ the `/eas/workflows/reference/` URL this line used to point at **404s** (checked 2026-08-26); the syntax page is the live one, and `/eas/workflows/examples/` has the worked cases.
+- Built-in actions (checkout, use-npm, build, submit, update): https://docs.expo.dev/eas/workflows/syntax/ — ⚠️ the `/eas/workflows/reference/` URL this line used to point at **404s** (checked 2026-08-26, re-checked 2026-11-05, still 404; the syntax page answers 200); the syntax page is the live one, and `/eas/workflows/examples/` has the worked cases.
 
 ## When to use cron
 

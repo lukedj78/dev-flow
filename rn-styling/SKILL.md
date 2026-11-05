@@ -40,7 +40,7 @@ description: 'Use when styling React Native + Expo components: choosing between 
 ## Sources
 
 - Course: codewithbeto.dev/rnCourse — lesson 10 "Styling Your App" (free).
-- Official: https://reactnative.dev/docs/style (RN's own styling reference) — ⚠️ the `docs.expo.dev/develop/user-interface/styling/` page this line used to cite **404s** (checked 2026-08-26); Expo's user-interface section now covers `color-themes/`, `safe-areas/`, `fonts/` and `animation/` rather than a single styling page
+- Official: https://reactnative.dev/docs/style (RN's own styling reference) — ⚠️ the `docs.expo.dev/develop/user-interface/styling/` page this line used to cite **404s** (checked 2026-08-26, re-checked 2026-11-05, still 404; `color-themes/`, `safe-areas/` and `fonts/` all answer 200); Expo's user-interface section now covers `color-themes/`, `safe-areas/`, `fonts/` and `animation/` rather than a single styling page
 - Official: https://www.nativewind.dev/ (v4)
 - Official: https://github.com/AppAndFlow/react-native-safe-area-context
 - Official: https://docs.expo.dev/versions/latest/sdk/ui/ (`@expo/ui`) — the page badges it **Included in Expo Go** and recommends `~58.0.20`, matching `expo@58.0.14`'s pin (checked 2026-10-17; at SDK 57 they disagreed by a patch — take the SDK's pin). Import paths and the 19 root exports verified at 58.0.20; SDK 58 changed iOS `<Host>` alignment and stack default spacing — see `references/expo-ui.md`

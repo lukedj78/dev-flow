@@ -257,7 +257,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 266,
+      "skill_md_lines": 279,
       "bundle": "dist/product-to-agent-skill.skill"
     },
     {
@@ -769,7 +769,7 @@
       "skill_file": "eve-registry-porting/SKILL.md",
       "references": [],
       "scripts": [],
-      "skill_md_lines": 181,
+      "skill_md_lines": 185,
       "bundle": "dist/eve-registry-porting.skill"
     },
     {
@@ -1057,7 +1057,7 @@
         "scaffold_python_service.sh",
         "test_scaffold_python_service.sh"
       ],
-      "skill_md_lines": 198,
+      "skill_md_lines": 205,
       "bundle": "dist/monorepo-add-python-service.skill"
     },
     {

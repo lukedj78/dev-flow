@@ -9,9 +9,13 @@ layer of your own.
 pricing copy. User-owned data (accounts, orders, messages) stays in `db` / `auth`. The two never
 overlap: the Studio is CRUD for content, Postgres + RLS is CRUD for users.
 
-> **Versions checked 2026-09-08** — `next-sanity@13.3.4` (peers `next ^16.0.0-0`, `react ^19.2.3`,
-> `sanity ^5.29.0 || ^6.0.0`, `@sanity/client ^7.26.2 || ^8.0.0`, `styled-components ^6.1`);
-> `sanity@6.13.0` (`engines.node >=22.12`). Sources: the `next-sanity` README
+> **Versions re-checked 2026-11-05** — `next-sanity@13.4.0` (was `13.3.4` on 2026-09-08) and
+> `sanity@6.22.0` (was `6.13.0`; `engines.node >=22.12`, unchanged). ⚠️ **One peer range moved and it is
+> the one that bites: `@sanity/client` is now `^7.28.0 || ^8.11.0`**, where this line used to record
+> `^7.26.2 || ^8.0.0` — so a project that pinned `@sanity/client@8.0.x` from the old range is now below
+> `next-sanity`'s floor on the 8 line, which surfaces as a peer warning rather than a build failure.
+> Also newly listed: `react-dom ^19.2.3` beside `react ^19.2.3`. Unchanged: `next ^16.0.0-0`,
+> `sanity ^5.29.0 || ^6.0.0`, `styled-components ^6.1`. Sources: the `next-sanity` README
 > (<https://github.com/sanity-io/next-sanity>), the official template
 > <https://github.com/sanity-io/sanity-template-nextjs-clean> (`frontend/sanity/lib/*`, `studio/*` —
 > committed 2026-08-03, pins `next-sanity ^13.0.8` / `sanity ^5.31.1`),

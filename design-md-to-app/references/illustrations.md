@@ -68,9 +68,10 @@ can search these icons"* — the bare `mcp add` above registers the server but w
 Get the key from koboyo.com/icons ("Get your key") and pass it as the server's auth header.
 
 Then ask for what the moment needs ("an empty mailbox", "two people reviewing a document") and the
-agent returns candidates. Individual SVGs are also downloadable from the site. Endpoint checked on
-2026-08-26: `https://api.koboyo.com/v1-mcp` answers **405 to a GET**, which is the expected reply from
-a Streamable-HTTP MCP endpoint that wants POST — alive, not dead. `[VERIFY]` the transport/URL against
+agent returns candidates. Individual SVGs are also downloadable from the site.
+Endpoint checked 2026-08-26, re-checked 2026-11-05, unchanged: `https://api.koboyo.com/v1-mcp` answers **405 to a
+GET**, which is the expected reply from a Streamable-HTTP MCP endpoint that wants POST — alive, not
+dead (and `koboyo.com/icons`, where the key comes from, answers 200). `[VERIFY]` the transport/URL against
 the site anyway; MCP endpoints move.
 
 Whatever the path: **vendor the chosen SVGs into the repo** (`public/illustrations/` or `components/illustrations/`), don't hotlink. They become project assets you control, review and can recolor.

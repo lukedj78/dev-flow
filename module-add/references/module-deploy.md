@@ -80,7 +80,7 @@ That's it for a single-app project. `$schema` gives editor autocomplete and vali
 **⚠️ Cron frequency is plan-gated, and it fails at deploy time, not at run time.** On the Hobby plan
 Vercel accepts **one run per day per entry** and *rejects a more frequent expression when the deployment
 is created* — the build never starts and the PR check fails with a link to the pricing doc, which reads
-like a broken build. Verified 2026-09-16 (Hostitaly, a 15-minute compliance sweeper). Decide before
+like a broken build. Verified 2026-09-16 (Hostitaly, a 15-minute compliance sweeper) — **an observation from one of our own projects, so the 2026-11-05 date sweep deliberately left it alone: re-confirming it means running that project again, not reading a page.** Decide before
 writing the entry:
 
 - the schedule is genuinely daily → write it and move on;

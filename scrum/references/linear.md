@@ -5,7 +5,7 @@ live and are confirmed for this workspace; the one part that stays workspace-spe
 re-checking on a new workspace is the **label taxonomy** (flagged `[VERIFY]` at that row) — everything
 else does not need re-verification.
 
-> **Why that marker can't be closed from here** (checked 2026-08-26): Linear's own MCP page does not
+> **Why that marker can't be closed from here** (checked 2026-08-26, **re-checked 2026-11-05 and unchanged** — both quoted phrases are still on the page, and `list_issues` / `create_issue` / any `search_*` name still appear nowhere on it): Linear's own MCP page does not
 > enumerate tool names — it says only that the server *"has tools available for finding, creating and
 > updating objects in Linear like issues, projects, and comments — **with more functionality on the
 > way**"*. So the table below is confirmed by having *run* it, not by reading a spec, and the only way

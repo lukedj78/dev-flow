@@ -55,7 +55,15 @@ and renders `docs/compliance/subprocessors.md`. Suggestion: (a) no → `none`; (
 
 **Certifications are per offer, not per company.** SecNumCloud (ANSSI) is the strictest EU-sovereignty
 qualification; checked 2026-09-15 it is **not** held company-wide by any vendor below — OVHcloud has it on
-specific offers, Clever Cloud through partner Cloud Temple's zones, Scaleway is *"undergoing"* it. C5 (BSI)
+specific offers, Clever Cloud through partner Cloud Temple's zones, Scaleway is *"undergoing"* it.
+⚠️ **The date on that sentence is deliberately still 2026-09-15.** A re-check on 2026-11-05 could not
+reach the primary source: ANSSI's qualified-products list (`cyber.gouv.fr/produits-services-qualifies`)
+is rendered client-side and sits behind an Imperva bot check with a CAPTCHA, which we do not complete.
+Scaleway's own data-privacy page, which *is* reachable, says nothing about SecNumCloud either. **So this
+roster is the one claim on this page carrying an unverified date rather than a stale one** — treat
+"Scaleway is undergoing it" as possibly out of date, and confirm per offer with the vendor before
+writing it into a proposal. Re-reading it needs a browser session that can answer the bot check, or
+asking the vendor directly. C5 (BSI)
 and HDS (French health data) answer other questions. Never write "sovereign" from a logo — write the offer.
 
 ## 3. Operating rules
@@ -219,6 +227,9 @@ Logging and observability (how-to: `module-add/references/module-observability.m
 | Mistral AI | EU alternative (FR, no US parent) | EU by default; US endpoint only if chosen | API data not used for training — but **Labs models may train regardless of opt-out**; check the privacy toggle; ZDR on Scale plan by request | [data location](https://help.mistral.ai/en/articles/347629-where-do-you-store-my-data-or-my-organization-s-data) · [controls](https://docs.mistral.ai/admin/monitor-comply/privacy-data-controls) |
 | Scaleway Generative APIs | EU alternative | Paris; open models on Scaleway infrastructure | ZDR by default (misuse/500 investigation up to 2 weeks); no training | [data privacy](https://www.scaleway.com/en/docs/generative-apis/reference-content/data-privacy/) |
 | TypeSafe AI Jev (evaluation model, via AI Gateway) | used by eve `auto` (renamed from `autoModel` in eve 0.60.0) and `experimental_decide` (`experimental_evaluate` before the AI SDK renamed evaluation to decisions); since 2026-09-21 also the Gateway's HTTP API (`POST /v1/evaluate`) or an existing TypeSafe client, so a non-TypeScript service reaches the same model | **US** — TypeSafe AI, Inc. (San Francisco, founded 2026); its privacy policy: *"The Services are hosted in the United States"*, with no mention of GDPR, a DPA, SCCs or the DPF and no company address (read 2026-09-17). Reached through AI Gateway the contract is Vercel's. The Gateway lists one endpoint for it, TypeSafe's own, with no region, and our function's region does not move it (2026-09-22). It is a US transfer **when the `state` holds personal data**, so record it and minimise the state; keep identity documents and special-category data out. An EU pin (`inferenceRegion: { scope: 'zone', geoRegion: 'eu' }`) should fail with HTTP 400 — not yet verified by a call. **Self-hostable in the EU:** Rizzo Flow (Apache-2.0, open weights, **TypeSafe-compatible API** — one base URL changes), for text that must not leave the perimeter. It is not free: Vercel has no GPU, so it is a separate always-on machine (Scaleway `L4-1-24G` ≈ €575/month, 2026-09-26), and a cloud GPU host is itself a sub-processor — only on-prem removes the row. Measured numbers and limits: `eve-agent/references/eve-patterns.md` §13 | Gateway catalog marks it `zdr: all`, `no_training: all`; the policy: *"We will not train or fine tune any artificial intelligence or machine learning models on your prompts or other Input"*; input retention not stated | [privacy policy](https://typesafe.ai/legal/privacy-policy) · [Gateway evaluation](https://vercel.com/docs/ai-gateway/modalities/evaluation) |
+
+> **Jev re-read 2026-11-05** (<https://typesafe.ai/privacy>), 49 days on, and the transfer finding **stands verbatim**: *"The Services are hosted in the United States"*. The absences stand too, and this pass widened the search — **no DPA, no Standard Contractual Clauses, no Data Privacy Framework, and the words "GDPR" and "European" do not appear in the policy at all**. One clause we had *not* recorded, and it is favourable: *"We will not train or fine tune any artificial intelligence or machine learning models on your prompts or other Input."* So the objection to Jev under `eu`/`eu-sovereign` is the **transfer**, not training — which is a narrower objection than this table implied, and the right one to put to the user when they decide.
+
 | OVHcloud AI Endpoints | EU alternative | Gravelines (FR) | *"never be used to train"*; zero retention except billing | [capabilities](https://docs.ovhcloud.com/en/guides/public-cloud/ai-machine-learning/ai-endpoints-capabilities) |
 
 The model call is the transfer that matters: self-hosting the eve runtime does not move inference.

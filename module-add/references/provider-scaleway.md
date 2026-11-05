@@ -272,7 +272,7 @@ export default defineAgent({
 });
 ```
 
-`npm install @ai-sdk/openai-compatible` (3.0.48, Apache-2.0, checked 2026-09-12). Model ids: the
+`npm install @ai-sdk/openai-compatible` (**3.0.85, Apache-2.0, re-checked 2026-11-05** — 37 patches on from the 3.0.48 of 2026-09-12, licence unchanged). Model ids: the
 open-weight families — Llama, Mistral, Qwen, Gemma, DeepSeek — `[VERIFY]` against the supported-models
 page, the list moves weekly.
 

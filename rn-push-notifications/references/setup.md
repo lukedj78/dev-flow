@@ -61,15 +61,20 @@ Then: iOS → production → Push Notifications → Generate (lets EAS handle th
 
 ## 5. Development build required
 
-What the Expo docs actually say, verbatim (re-read 2026-08-26): *"Push notifications (remote
-notifications) functionality provided by `expo-notifications` is unavailable in Expo Go **on Android**
-from SDK 53. **A development build is required to use push notifications.** Local notifications
-(in-app notifications) remain available in Expo Go."*
+What the Expo docs say, verbatim, **re-read 2026-11-05 — and the sentence has changed**:
+*"`expo-notifications` supports both push and local notifications. **You must use a development build
+to use push notifications since the capability is not built into Expo Go.** See in-app notifications
+on how to create and display a local notification."*
+(<https://docs.expo.dev/push-notifications/what-you-need-to-know/> — it moved: the quote is no longer
+on `/push-notifications/overview/`, which is now a navigation page.)
 
-⚠️ **This file used to add "iOS remote push still works in Expo Go" — that is our inference from the
-"on Android" qualifier, not something the page states**, and the sentence right after it says a
-development build is required without qualifying the platform. Don't plan an iOS-only Expo Go testing
-path on it. The operative advice is the same either way, and it *is* what the docs state:
+✅ **The ambiguity this section warned about is gone, and it resolved the way the warning predicted.**
+The 2026-08-26 wording was *"unavailable in Expo Go **on Android** from SDK 53"*, and this file
+flagged that reading "so iOS remote push still works in Expo Go" out of that qualifier was **our
+inference, not something the page stated**. Expo has since **dropped both the platform qualifier and
+the SDK gate**: the statement is now flat and unconditional, for both platforms. So the old caution is
+settled rather than merely still advisable — do not plan an iOS-only Expo Go testing path. The
+operative advice never changed, and it *is* what the docs state:
 
 ```bash
 eas build --profile development --platform ios

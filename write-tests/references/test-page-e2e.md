@@ -134,10 +134,15 @@ Only relevant when the project has opted in — **both** `cacheComponents` *and*
 **`@next/playwright`** that asserts what is visible **without waiting for the network** — i.e. the
 prefetched shell. Install it beside Playwright: `pnpm add -D @next/playwright @playwright/test`.
 
-⚠️ **Two corrections to what this section used to say** (checked 2026-08-26): 16.3 is **not** preview —
-`next@16.3.3` is `latest` — and `@next/playwright` is **not** preview-tag tooling either: its `latest`
-is `16.3.3`, versioned in lockstep with Next. (A `preview` tag exists, at `16.3.0-preview.10`; that is
-not what you get by default.)
+⚠️ **Two corrections to what this section used to say** (checked 2026-08-26, **re-checked 2026-11-05**):
+`@next/playwright` is **not** preview-tag tooling, and it is **versioned in lockstep with Next** — the
+mechanism held while every number moved. On 2026-08-26 both were `16.3.3`; today both are **`16.4.5`**,
+which is the lockstep claim re-proving itself rather than a figure to carry forward. The `preview` tag
+still exists and is **still pinned at `16.3.0-preview.10`**, now two minors behind, so "that is not what
+you get by default" is more obviously true than when it was written. ⚠️ And read the original wording
+carefully: *"16.3 is not preview"* was about a tag, not a support line — **16.3 is now a retired line**
+(see `references/contracts.md` § `nextjs_version`), so do not reuse that sentence as evidence that 16.3
+is safe to sit on.
 
 ```ts
 import { expect, test } from "@playwright/test";

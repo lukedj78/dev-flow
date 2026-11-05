@@ -1,6 +1,12 @@
 > Sources: https://supabase.com/docs/reference/javascript/introduction, internal opinion.
-> (the bare `reference/javascript/` path **404s** — checked 2026-08-26.)
-> Verified **2026-08-26** against `@supabase/supabase-js@2.112.4` — **still v2**, no v3 on npm. `[VERIFY]` on a major.
+> Re-checked **2026-11-05**: the bare `reference/javascript/` path **now resolves (200)** — it 404'd on
+> 2026-08-26 and the note saying so is gone, because a dead-link warning that outlives the dead link
+> sends the next reader to the wrong page.
+> Verified **2026-11-05** against `@supabase/supabase-js@2.119.0` — `latest` is **still v2** (2.112.4 on
+> 2026-08-26), and the majors published are only `0`, `1`, `2`. ⚠️ **But a v3 prerelease now exists**:
+> the `next` dist-tag is **`3.0.0-next.29`**, so "no v3 on npm" stopped being true somewhere in those
+> 71 days. Nothing to change yet — `npm i @supabase/supabase-js` still gives v2 — but this is the
+> `[VERIFY]` on a major going live, so read v3's breaking changes before the tag moves to `latest`.
 
 # Supabase — the default provider
 

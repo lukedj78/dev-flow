@@ -1,9 +1,12 @@
 > Sources: https://docs.expo.dev/develop/unit-testing/, jest-expo README, internal opinion.
-> **Verified 2026-08-26** against `@testing-library/react-native@14.0.1`, whose `package.json` states
-> every claim below in one place: `peerDependencies` = `jest >=29.0.0`, `react >=19.0.0`,
-> `react-native >=0.78`, **`test-renderer ^1.0.0`**; `engines.node` = **`^22.13.0 || >=24`**.
-> `test-renderer` is a real package (latest `1.2.0`, peer `react ^19.0.0`), published as `1.0.0` /
-> `1.1.0` / `1.2.0` — one line per React 19 minor, exactly as described below.
+> **Re-verified 2026-11-05** against `@testing-library/react-native@14.1.0` (was `14.0.1` on 2026-08-26),
+> whose `package.json` states every claim below in one place and states it **unchanged**:
+> `peerDependencies` = `jest >=29.0.0`, `react >=19.0.0`, `react-native >=0.78`,
+> **`test-renderer ^1.0.0`**; `engines.node` = **`^22.13.0 || >=24`**. A minor bump that moved none of
+> the contract — which is the useful outcome to record, not a reason to skip the check.
+> `test-renderer` is a real package, now at **`1.3.1`** (was `1.2.0`), published as `1.0.0` / `1.1.0` /
+> `1.2.0` / `1.3.0` / `1.3.1` — **one line per React 19 minor, and the pattern just gained its fourth
+> instance** (React 19.3 → `test-renderer` 1.3.x), so it is a rule of theirs rather than a coincidence.
 > ⚠️ **Only `jest-expo` is pinned by the SDK** (and `@react-native/jest-preset` is not either — see §1) (`~58.0.11` in `expo@58.0.14`'s `bundledNativeModules`);
 > `jest`, `@testing-library/react-native` and `test-renderer` are **not**, so `npx expo install` hands
 > you npm `latest` for those three. That is why the version ranges above are written by hand.

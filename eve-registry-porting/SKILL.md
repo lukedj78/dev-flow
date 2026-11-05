@@ -58,15 +58,19 @@ Go down a rung only when the one above has nothing. Porting trades "no dependenc
 
 ## The registries
 
-| Registry | URL | Install | Registry endpoint (checked 2026-08-26) |
+| Registry | URL | Install | Registry endpoint (checked 2026-08-26, all four re-checked 2026-11-05) |
 |---|---|---|---|
 | Atom Eve | https://www.atomeve.dev | `npx atom-eve create my-agent --agent <slug>` · `npx atom-eve add <slug>` | **no `/r/registry.json`** — own CLI only |
-| **evex** | https://www.evex.sh | `npx shadcn add @evex/<slug>` | **`/r/registry.json`, 13 items, `$schema: ui.shadcn.com/schema/registry.json`** — items at `/r/{name}.json`, `type: registry:item` |
+| ~~**evex**~~ | ~~https://www.evex.sh~~ | — | ⛔ **GONE, re-checked 2026-11-05.** Both apexes return Vercel's `DEPLOYMENT_NOT_FOUND`, not a 404 page — the deployment itself no longer exists, and no GitHub repository or npm package carries it on. It served `/r/registry.json` with 13 items on 2026-08-26 and 23 on 2026-10-03, which is the detail worth keeping: **it was still growing three weeks before it vanished**, so an active registry is not evidence of a durable one |
 | agentcn | https://agentcn.vercel.app | `npx shadcn add <url>` | `/r/registry.json`, 76 items — but **no `$schema` declared**, and item names are namespaced (`eve/claw` → `/r/eve/claw.json`, *not* `/r/claw.json`) |
 | eveagents | https://www.eveagents.dev | `npx @bergside/eveagents install <slug>` | not reachable at check time (HTTP 429) — own CLI anyway |
 
-**Only evex declares the shadcn registry schema**, which makes it the one that slots cleanly into
-`eve registry add @evex=https://www.evex.sh/r/{name}.json`. agentcn serves registry-shaped JSON without
+⚠️ **This paragraph used to end at evex, and evex is gone.** It said *"only evex declares the shadcn registry
+schema, which makes it the one that slots cleanly in"* — true on 2026-08-26, and by 2026-11-05 there was nothing
+at the URL. Re-checked the same day, the other three answer exactly as they did 71 days ago: **agentcn still
+serves 76 items**, Atom Eve still has no `/r/registry.json`, and eveagents still returns **429** — the same
+rate-limit, which at this distance reads as a door that stays shut rather than a bad moment. So the shape of this
+table held and its recommendation did not. agentcn serves registry-shaped JSON without
 declaring the schema *and* nests item names, so the `{name}` placeholder does not expand the way the
 table above would suggest — install it by URL. The other two ship their own installers, which is a
 decision they made, not an oversight to route around.

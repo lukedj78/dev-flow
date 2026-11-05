@@ -127,7 +127,7 @@ is yours (`sharp`, `pngjs`).
 `torus`/`icosphere`, `directionalLight`, `lambertMaterial`, `mesh`, `group`. A product configurator or
 a navigable room, which is a different job from an animated background.
 
-⚠️ **Two honest gaps, both checked 2026-08-26.** The compute API's examples in the generated docs all
+⚠️ **Two honest gaps, both checked 2026-08-26** (<https://vgpu.sh> still answers 200 on 2026-11-05; the gaps themselves were **not** re-tested, because confirming them means running `vgpu docs cat compute` against an installed CLI rather than fetching a URL — so treat both as unverified-since rather than re-confirmed).** The compute API's examples in the generated docs all
 import from **`vgpu/mock`** (the deterministic test entry), not from `vgpu` — good news for testability,
 but `[VERIFY]` the runtime entry with `vgpu docs cat compute` before copying an import. And the landing
 page advertises **MP4 at 60 fps** while the shipped docs contain **zero** occurrences of

@@ -62,9 +62,11 @@ npx shadcn@latest add @pdfcn/takumi/text       # Takumi base
 npx shadcn@latest add @pdfcn/forme/invoice-minimal   # a block = a whole template
 ```
 
-The registry holds **79 items** (checked 2026-09-10): 48 components — 24 mirrored across both
-bases — 20 blocks, 9 themes, 2 libs. Components declare their own dependencies, so adding one
-pulls the matching renderer and the shared theme utilities.
+The registry holds **101 items** (re-counted 2026-11-05 from `registry.json`): **48 `ui`** — 24
+mirrored across both bases — **40 `block`**, **9 `theme`**, **4 `lib`**. It was 79 on 2026-09-10, and
+the growth is all on the composite side: the component count has not moved, while blocks went 20 → 40.
+Components declare their own dependencies, so adding one pulls the matching renderer and the shared
+theme utilities.
 
 What the 24 cover, and why the list is the interesting part: `Text`, `Heading`, `Table`,
 `DataTable`, `KeyValue`, `List`, `Card`, `Alert`, `Badge`, `Divider`, `Section`, `Stack`,
@@ -151,11 +153,22 @@ loses depending on order.
 
 The renderers are clear: Forme **MIT**, Takumi **MIT OR Apache-2.0**.
 
-**pdfcn's own components are not.** The site states no licence, and no public repository was
-found (checked 2026-09-10). Since the shadcn model *copies source into your repo*, that source
-becomes part of the product. For anything commercial, resolve the licence before shipping —
-ask the maintainer, or treat the components as a reference implementation and write your own
-from the same registry JSON. `compliance-audit` should flag this if it appears in a project.
+**pdfcn's own components are MIT — and this paragraph used to say the opposite.** On 2026-09-10 the
+site stated no licence and no public repository was found, so this file told you to resolve the licence
+before shipping anything commercial. **Re-checked 2026-11-05: the source is
+[`shadcn-labs/pdfcn`](https://github.com/shadcn-labs/pdfcn), MIT, with a `LICENSE` file, 3,006 stars,
+created 2026-08-11 and pushed 2026-10-15.** The identification is not by name: the repo's
+`apps/web/public/r/takumi/data-table.json` is the exact path `https://www.pdfcn.dev/r/takumi/data-table.json`
+serves, and the repo's homepage is `pdfcn.dev`. So the shadcn model copying source into your repo is
+fine here, and **the commercial blocker is lifted**.
+
+⚠️ Two things that did *not* change. The registry JSON still declares **no `license` key** and the site
+still serves no `LICENSE`, so the licence is established by the repository, not by the thing you
+install — which means a future registry served from somewhere else would not inherit it. And
+`registry-intake` still governs the install either way: the lock records what you took, MIT or not.
+**The lesson for this file is the one worth keeping: a licence blocker is a claim with a date on it,
+and ours sat here for 56 days after it stopped being true, discouraging a library that was already
+free to use.**
 
 ## Recording the choice
 

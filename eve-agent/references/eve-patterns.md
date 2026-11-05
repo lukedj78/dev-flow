@@ -748,7 +748,7 @@ and keep specialist selection on descriptions that do not overlap (§7).
 - **It is a processor, and where it runs is TypeSafe's choice, not ours.** Jev is a proprietary model: no weights are
   published, and the Gateway catalog lists exactly one endpoint, `provider_name: "typesafe-ai"`, with no region
   (`GET /v1/models/typesafe-ai/jev/endpoints`, 2026-09-22). TypeSafe's privacy policy says *"The Services are
-  hosted in the United States"* and names no DPA, SCCs or DPF (read 2026-09-17). Where our own code runs does not
+  hosted in the United States"* and names no DPA, SCCs or DPF — **re-read 2026-11-05 and unchanged**, with "GDPR" and "European" absent from the policy entirely. The same re-read found the one clause that cuts the other way: *"We will not train or fine tune any artificial intelligence or machine learning models on your prompts or other Input."* The objection is the transfer, not training. Where our own code runs does not
   change that: an eve agent in `fra1` still sends the `state` through the Gateway to TypeSafe. So **it is a US
   transfer exactly when the `state` holds personal data**, and a request carrying ids, enums or already-anonymised
   values is not a transfer of personal data at all. That makes minimisation the control. Send the fields the question

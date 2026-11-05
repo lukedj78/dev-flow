@@ -17,7 +17,7 @@ them side by side.
 > the Fowler smell baseline are adapted from Matt Pocock's `code-review` skill
 > ([mattpocock/skills](https://github.com/mattpocock/skills), MIT — the skill now lives at
 > [`docs/engineering/code-review.md`](https://github.com/mattpocock/skills/blob/main/docs/engineering/code-review.md);
-> both paths checked 2026-08-26) and
+> both paths checked 2026-08-26, re-checked 2026-11-05) and
 > [the essay behind it](https://www.aihero.dev/skills-code-review). What's ours is the half his skill
 > has to search for: in a dev-flow project the spec and the standards are **at known paths**.
 

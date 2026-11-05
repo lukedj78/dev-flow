@@ -20,11 +20,24 @@ index line pointing here. The text is unchanged.
 
 # Merge conflicts in a dev-flow project
 
-The method is not ours. [`mattpocock/skills` → `resolving-merge-conflicts`](https://github.com/mattpocock/skills/blob/main/skills/engineering/resolving-merge-conflicts/SKILL.md)
+The method is not ours. [`mattpocock/skills` → `resolving-merge-conflicts`](https://github.com/mattpocock/skills/blob/main/docs/engineering/resolving-merge-conflicts.md)
 (MIT, read 2026-09-15) is five steps worth following as written: see the state; **find the primary
 sources** of each side before touching a hunk; preserve both intents where compatible, and where not,
 pick the side matching the merge's goal and *name what was dropped*; never invent behaviour; run the
 project's checks before finishing. It is in `external-skills.md`.
+
+> ⚠️ **Re-checked 2026-11-05: upstream archived it, and the link above had to be repointed.** The old
+> `skills/engineering/resolving-merge-conflicts/SKILL.md` path **404s**; the text now lives under
+> `docs/` and opens with: *"**Archived.** This skill was removed from the plugin in v1.3.0 and is no
+> longer maintained. Nothing replaces it: the agent works through a merge or rebase conflict without a
+> dedicated skill."* Their own FAQ had predicted it — *"at least one reader has predicted this is a
+> whole skill that becomes a no-op as models improve"* — and they acted on that prediction.
+>
+> **The method still stands and this file still earns its place**, because what it adds is the half
+> the upstream explicitly could not know: where intent lives in a dev-flow project, which files are
+> **derived and must be regenerated rather than merged**, and which checks prove the merge. But the
+> framing changes: these five steps are now a *borrowed method from a retired source*, not a live
+> dependency to track. Nothing upstream will update, so nothing upstream needs re-reading.
 
 This file is what that skill cannot know: **where intent lives in a dev-flow project, which files are
 derived and must be regenerated instead of merged, which checks prove the merge, and where its last step

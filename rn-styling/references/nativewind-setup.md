@@ -1,4 +1,4 @@
-> Sources: https://www.nativewind.dev/docs/getting-started/installation (was `/v4/getting-started/expo-router`, which 404s since the docs restructure — checked 2026-08-26)
+> Sources: https://www.nativewind.dev/docs/getting-started/installation (was `/v4/getting-started/expo-router`, which 404s since the docs restructure — checked 2026-08-26, re-checked 2026-11-05, still 404, while the page cited here answers 200)
 
 # NativeWind v4 setup for Expo Router
 

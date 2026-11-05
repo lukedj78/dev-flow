@@ -1,6 +1,6 @@
 # Node graphs — React Flow (`@xyflow/react`)
 
-Verified 2026-09-15 against `@xyflow/react@12.11.6` (types in `dist/esm/`) and reactflow.dev (theming,
+Verified 2026-09-15 against `@xyflow/react@12.11.6`, **re-checked 2026-11-05 at `12.12.1`** (types in `dist/esm/`) and reactflow.dev (theming,
 performance, layouting, SSR, accessibility, React Flow UI). MIT, maintained by xyflow. `[VERIFY]` prop
 names against the installed version before relying on them — the library moves every few weeks.
 
@@ -128,7 +128,7 @@ python3 <skills>/registry-intake/scripts/registry_intake.py allow <root> @reactf
 python3 <skills>/registry-intake/scripts/registry_intake.py review  <root> @reactflow/node-status-indicator
 ```
 
-Checked 2026-09-15: items are served at `https://ui.reactflow.dev/<name>` (no `.json`), without a
+Checked 2026-09-15 and **re-checked 2026-11-05, unchanged** — `https://ui.reactflow.dev/base-node` answers 200 and `…/base-node.json` 404s: items are served at `https://ui.reactflow.dev/<name>` (no `.json`), without a
 `$schema`, depend on `@xyflow/react`, and `labeled-group-node` pulls `base-node` by URL. The review of
 `node-status-indicator` came back low tier, clean (one R2 note: no `$schema`).
 

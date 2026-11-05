@@ -1,5 +1,5 @@
 > Sources: https://docs.expo.dev/app-signing/app-credentials/ and https://docs.expo.dev/app-signing/managed-credentials/
-> (the bare `/app-signing/` index **404s** — checked 2026-08-26).
+> (the bare `/app-signing/` index **404s** — checked 2026-08-26, re-checked 2026-11-05, still 404.)
 > CLI surface verified against **`eas-cli@22.6.0`**. `[VERIFY]` on a CLI major: EAS renames commands
 > without breaking them — `secret:*` below survived two renames while still printing results.
 

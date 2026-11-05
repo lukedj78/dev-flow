@@ -21,10 +21,23 @@ builds an `app/` it does not own.
 
 The reference implementation of the shape is
 [`sleekdotdesign/agent-skills`](https://github.com/sleekdotdesign/agent-skills)
-(MIT, read 2026-09-03): a design service published one 563-line SKILL.md and
-became drivable from Claude Code, Cursor and Codex without shipping an SDK for
-any of them. `references/anatomy.md` is what that file taught us, section by
-section.
+(MIT, read 2026-09-03, re-read 2026-11-05): a design service published its whole operating manual as
+an agent skill and became drivable from Claude Code, Cursor and Codex without
+shipping an SDK for any of them. `references/anatomy.md` is what that taught us,
+section by section.
+
+> **Re-read 2026-11-05 — and it has restructured, which is itself the lesson.**
+> On 2026-09-03 it was *one 563-line `SKILL.md`*, and this paragraph said so.
+> Today that file is **118 lines**, and the material moved into siblings beside
+> it: `designing.md`, `endpoints.md`, `implementing.md` and `styling/` (three
+> files, one per styling system). **About 60 KB in total, so nothing was cut —
+> it was split.** The repo is alive and MIT: ★596, pushed 2026-10-05.
+>
+> They converged on **progressive disclosure**, which is the shape this repo
+> already uses: a short SKILL.md that routes, with the weight in `references/`.
+> So the example did not drift away from `anatomy.md` — it moved toward it, and
+> the sentence worth carrying forward is not "one long file" but **"the whole
+> operating manual, published, in whatever number of files it takes"**.
 
 ## When this skill applies
 
