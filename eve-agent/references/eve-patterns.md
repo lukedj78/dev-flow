@@ -432,6 +432,79 @@ provider idempotency key where one exists, and where none does, pick deliberatel
 harmless, or reconcile the destination before retrying an ambiguous request. Deciding this *after*
 the first duplicate reaches a customer is not a decision, it's an incident.
 
+**Confirmed and completed 2026-11-05** against eve's own `docs/patterns/durable-cross-channel-notifications.md`,
+published after this section was written. It reaches the same conclusion — *"eve has no built-in queue for
+these messages"*, outbox first, at-least-once only — and supplies the mechanics this section argued for in
+the abstract:
+
+- **The hook key is `events: { "turn.settled" }` on the channel**, guarded with
+  `if (event.data.outcome !== "completed") return;`. Enqueue with a `key` such as
+  `` `github-review:${ctx.session.id}:${event.data.turnId}` ``.
+- 🔴 **`enqueue` must enforce a unique constraint on that key** — `INSERT … ON CONFLICT DO NOTHING` —
+  **because channel event handlers run at least once.** Not "may occasionally double-fire": at-least-once
+  is the contract, so the outbox is the only place deduplication can happen.
+- ⚠️ **On a built-in channel, an authored handler *replaces* the built-in handler for that event key.** So
+  attaching a notification to `turn.settled` on a channel whose built-in behaviour you rely on silently
+  removes that behaviour. Either pick an event with no built-in handler, or reproduce what you replaced.
+  This is the trap in "attach the side effect to the channel that caused it", and it is not obvious from
+  the outside.
+- **The dispatcher is one schedule**, `cron: "* * * * *"` with `run({ waitUntil })`, and the store owes
+  four operations: `enqueue` (insert once), `claim` (**atomically lease** pending rows so overlapping runs
+  never send the same row), `complete` (record the provider message id), `release` (record the error and
+  set `retryAt`). Expired leases return to pending.
+- **The ambiguity ladder, in order**: provider idempotency key → a stable marker in provider metadata you
+  can query before retrying → design the notification so a duplicate is harmless. And the failure mode to
+  name out loud: 🔴 **do not mark an ambiguous row complete just to avoid a duplicate — that loses
+  notifications the provider never accepted.** Silence is the worse error of the two.
+
+## 11bis. Fork a conversation into its own thread
+
+**New 2026-11-05** (`docs/patterns/fork-conversations-into-new-threads.md`). Forking copies a conversation
+into a **new session in a new thread**, after which the two never meet again: a later message in one does
+not reach the other. It is a tool, so the model calls it when someone says "split this off".
+
+The mechanism is the **same call as the cross-channel hand-off** — `ctx.to(channel, target).send(first, {
+auth, history, idempotencyKey })` — with the conversation so far passed as `history`. Three things make it
+a fork rather than a hand-off:
+
+1. 🔴 **The target must be one that always starts a new session.** A Slack target carrying **only a
+   `channelId`** does: the agent's first reply posts as a new top-level message, which becomes the thread.
+   ⚠️ **Many built-in channels reuse one session per chat**, so the same code against them appends the
+   whole transcript to the person's existing conversation instead of forking — a loud, embarrassing
+   failure rather than a quiet one.
+2. **You choose what to seed.** `ctx.messages` is what the model saw; map it to `{ role, text }` entries,
+   keeping only `user` and `assistant` roles and flattening content parts to text.
+3. **Guard the channel.** `isChannel(ctx.channel, slack)` narrows `ctx.channel.metadata` to Slack's, which
+   is where `channelId` lives. A call from a schedule or another channel returns `{ forked: false }` rather
+   than throwing — the right shape for a tool the model may call anywhere.
+
+Pass `auth: ctx.session.auth.current` so the fork inherits the caller, and an `idempotencyKey` of
+`` `${ctx.session.id}:${ctx.callId}` `` so a retried tool call does not open a second thread.
+
+## 11ter. Voice notes — the model does not transcribe audio
+
+**New 2026-11-05** (`docs/patterns/voice-notes.md`), and the first line is the one that surprises people:
+**audio attachments reach the agent as files in its sandbox, and the model does not transcribe them.** A
+voice note is therefore invisible unless you add a tool. It applies to every channel that delivers audio
+as a file — Photon/iMessage, Slack voice clips, the eve and Chat SDK channels.
+
+The tool reads the file from the sandbox and calls `transcribe()` from `ai` with a transcription model
+(`openai/whisper-1` in eve's example), and **`transcribe()` uses the same credentials as the agent** — no
+second key. Two details worth copying rather than reinventing:
+
+- 🔴 **Normalise the path and refuse anything outside the attachments directory**:
+  `posix.normalize(path)` then `if (!file.startsWith("/workspace/.eve/attachments/")) throw`. The path
+  comes from the model, which got it from a message, so it is attacker-reachable — without this check the
+  tool reads arbitrary sandbox files on request.
+- **Put the recovery instruction in the thrown error**, not only in the logs: *"Tell the user you couldn't
+  understand the voice note and ask them to type it."* The model receives a tool error as text and can act
+  on it, so the error message is the recovery UX.
+
+Then one line in `instructions.md` telling the agent to call it first on an `Attached file … (audio/…)`
+label and treat the transcript as what the user said. ⚠️ A file eve cannot download, **or one over the
+channel's upload limit (25 MB by default)**, arrives as a short note instead of a file — so the tool's
+"not found" branch is a real path, not a defensive stub.
+
 ## 11. Untrusted content — fence it, gate the writes, ground the answer
 
 Everything a tool returns lands in the model's context. A review, a ticket body, a scraped page, an

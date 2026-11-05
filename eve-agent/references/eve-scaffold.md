@@ -169,6 +169,89 @@ If `.workflow/meta.json` exists:
 
 If there is no `.workflow/`, skip this and tell the user the agent is scaffolded but not tracked in a dev-flow workflow.
 
+## The terminal UI — what `eve dev` actually gives you
+
+**Read 2026-11-05 against eve@0.91.0's `docs/guides/dev-tui.md`**, previously uncovered. `eve dev` is not
+only a server: it opens an interactive TUI where you talk to the agent, approve tool calls and answer its
+questions. Worth knowing before telling anyone to "run eve dev and check".
+
+**Slash commands**, and the two distinctions that bite: `/new` (alias `/reset`) starts a **fresh session**
+and clears the screen, while `/clear` cancels the running turn and every working task and then wipes the
+**model-message history of the session you keep**; `/cancel` cancels the turn but keeps the context of
+work that already finished, while `/compact` compacts the current context. Then `/model`, `/login`,
+`/add`, `/deploy`, `/traces`, `/loglevel`, `/info`, `/help`, `/exit`. ⚠️ **`/login`, `/model`, `/add`,
+`/deploy`, `/info` and `/traces` work only in local `eve dev`, never through `eve remote connect`.**
+
+**Credentials, which is the part worth being precise about in a shared repo:** eve stores API keys and its
+OAuth refresh credentials in the **OS secret store, never in project files**, and records only the
+non-secret connection and team in `.eve/provider.json`. The last successful login becomes the machine
+default, and a key chosen through `/login` **takes precedence over the same provider's key in your
+shell** — so a project that looks like it reads your env may not be. **Credential discovery runs only in
+local development**: a deployment needs `AI_GATEWAY_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or
+project OIDC credentials, and **ChatGPT subscription models are local-only** — a subscription cannot
+back a deployed agent.
+
+**Steering, which is a real capability and not just a nicety:** pressing `Enter` during a turn adds your
+message to the *running* turn. Before the agent starts writing its reply, steering stops the model and
+continues the turn with your message (running tools finish first); after the reply starts, the streamed
+text stays and your message joins at the next step. Slash commands run immediately, even mid-turn.
+
+**Display flags** are the renamed ones: `--show-tools`, `--show-reasoning`, `--show-subagents`
+(`collapsed` default, `full`, `hidden`), plus `--logs`, `--host`, `--port` and `--no-ui`. Every `eve dev`
+process writes diagnostics to `.eve/logs/` **regardless of the display mode**, so `/loglevel` filters what
+you see and never what is recorded — read the rest with `eve logs`. `EVE_TUI_RENDER_MARKDOWN=0` drops
+rendered Markdown.
+
+⚠️ **A "stranded" session refuses new messages and approvals**, and the TUI says why. `/new` ends it;
+**`/clear` is refused**, because it would keep the stranded session. See §Self-hosting below for what
+strands one.
+
+## Self-hosting — the two pages that decide whether `eve start` survives an upgrade
+
+**Read 2026-11-05 against `docs/guides/deployment/workflow-worlds.md` and `self-hosted-operations.md`**,
+both previously uncovered. Only relevant when a project runs `eve start` on its own infrastructure
+rather than deploying to Vercel — but when it does, these two facts decide the architecture.
+
+**A Workflow world is where sessions live.** eve runs every session as a Workflow SDK workflow, and the
+world stores its event log, step results, pending input and streams:
+
+| World | Storage | Processes | After an eve version upgrade |
+|---|---|---|---|
+| **Local** (default for `eve start`) | files under `.eve/.workflow-data` | **one** | existing sessions cannot resume |
+| **Postgres** (`@workflow/world-postgres`) | a PostgreSQL database | any number of replicas | existing sessions cannot resume |
+| **Vercel Workflow** | managed | managed | runs continue on their deployments; idle sessions can move |
+
+🔴 **Upgrading eve strands every session the previous version built.** Their history stays readable and
+they cannot resume — on the local *and* Postgres worlds alike; only Vercel Workflow carries runs across.
+A new message to the channel address starts a **replacement** session, with `ctx.session.predecessor`
+naming the stranded one. A new build on the *same* eve version resumes everything, so this is a cost of
+upgrading eve, not of deploying. For a product with long-lived sessions, that is a release-planning fact,
+not an ops detail.
+
+**Replicas need the Postgres world** — the local world serves one process, and pointing
+`WORKFLOW_LOCAL_BASE_URL` at a load balancer makes another replica reject forwarded messages with **401**.
+With Postgres: `pnpm add @workflow/world-postgres`, select it as `experimental.workflow.world` in
+`agent/agent.ts`, set `WORKFLOW_POSTGRES_URL` (it also reads `DATABASE_URL`), and run `bootstrap`
+**before the first start and again before any build that upgrades the package**. Two operational traps:
+**run schedules on one replica only** (`eve start --no-schedules` or `EVE_SCHEDULES_DISABLED=1` on the
+others, or they fire once per replica), and **give every replica access to the same sandboxes** — a
+Docker sandbox lives on its creating host's daemon, so a replica elsewhere either starts a fresh one
+without the earlier files or fails with `SandboxTemplateNotProvisionedError`. Use Vercel Sandbox or a
+custom provider across hosts.
+
+⚠️ **The Postgres world stores workflow inputs, outputs and stream contents unencrypted, and keeps
+finished runs until you delete them.** That is conversation content in a database you back up — it
+belongs in the GDPR register `compliance-audit` builds, and `agent-config` §run-data-retention is where
+the deletion policy lives. Also pool sizing, since the default fails under load: concurrency defaults to
+50 and the pool to 10, while Graphile Worker wants at least concurrency + 2, so set
+`WORKFLOW_POSTGRES_MAX_POOL_SIZE=52` and size the database for **every replica's** pool.
+
+**Callbacks will not work on a private network.** Outside `eve dev`, eve **refuses callback hosts that
+are, or resolve to, loopback, private, link-local or reserved addresses** — so remote agents and
+sign-in links between services over `127.0.0.1` or a private LAN simply do not work, and need a public
+callback origin. A world package must also match eve's `@workflow/*` major (currently **5.x**); eve
+checks at startup and fails with the version to install.
+
 ## Deploy (when asked)
 
 * `eve link` to attach the Vercel project + pull AI Gateway credentials, then `eve deploy` for production. Model usage bills through the Vercel AI Gateway.

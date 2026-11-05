@@ -2,6 +2,56 @@
 
 Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/` — the published package ships its full docs **and a CHANGELOG**, which is the only place the breaking-change history exists (eve.dev has no changelog page). `npm pack eve@<version>` is enough; you do not need to install it.
 
+> **Coverage pass 2026-11-05 (second session) against eve@0.91.0 — nine pages read, and 1.0 is still an RC.**
+> The session was asked for "the eve 1.0 migration". **1.0.0 stable does not exist**: npm `latest` is
+> `1.0.0-rc.5` (published 2026-11-05) and the newest stable is `0.91.0`, so migrating *to 1.0* would mean
+> writing our skills against a release candidate. The work split cleanly instead, because **all nine pages at
+> issue already exist at 0.91.0, the version we pin** — so this is coverage at our own version, not a bet on
+> the RC. (The only one absent from rc.5 is `prepare-for-1-0.md`, which makes sense: it is the guide for
+> getting *to* 1.0.)
+>
+> **① One claim of ours was wrong for three passes, and no pass caught it because every pass asked the wrong
+> question.** `SKILL.md` said eve's scaffold default is `openai/gpt-5.6-luna-fast` — a string with **zero
+> occurrences** in the `dist` of 0.80.1, 0.91.0 *or* rc.5. The shipped
+> `dist/src/shared/default-agent-model.d.ts` declares `DEFAULT_AGENT_MODEL_ID = "openai/gpt-6-luna-fast"` and
+> `DEFAULT_AGENT_REASONING = "high"`. The passes of 10-03, 10-19 and 11-05 all checked what eve had *removed
+> or renamed*; none checked what it **defaults to**, which is not a rename and so never appears in a changelog
+> diff. Also recovered: the default is **per connection** (Gateway and OpenAI → `gpt-6-luna-fast`, Anthropic →
+> `claude-sonnet-5`), a nuance the old line flattened.
+>
+> **② The largest gap was `evals/tool-stubs`, and its sharp edge is a default rather than an API.** Stubs fix
+> what a tool returns, for local *and* deployed agents, with no mock to deploy. **When no rule matches, eve
+> runs the real tool** — so a typo in `tool` produces a *passing* eval that quietly exercised production, and
+> eve's own warning about unmatched rules **does not fail the eval**. Plus the grant's real scope: the
+> `allowToolStubs` permission is checked **only at session creation**, after which anyone the channel admits to
+> that session can use its stubs — which makes it deployment-wide in effect, not caller-wide, and makes "a
+> separate eval deployment" the honest answer for a multi-tenant product.
+>
+> **③ A deliberate ⛔ was reversed, and the reversal is recorded rather than quietly flipped.**
+> `memory/custom-provider` had been declined as framework work no product asks for. Reading it showed the
+> judgement was right about provider-*building* and wrong about the page: four of its rules bind anyone who
+> merely uses a slot — recall is a **user-role message, never a system instruction** (memory is an injection
+> surface), a message **without an `id` accumulates a copy every turn** into every later model call, a
+> `capture["turn.completed"]` failure is **only logged**, and *include the scope key in the query itself, not
+> as a filter after a global search* is the multi-tenant rule in one sentence.
+>
+> **④ One pattern of ours was confirmed by eve and completed by it.** `eve-patterns.md` §10 had argued the
+> outbox case before eve documented it; eve's page reaches the same conclusion and supplies what we lacked —
+> and one trap we did not know: ⚠️ **on a built-in channel, an authored `events` handler replaces the built-in
+> handler for that event key**, so attaching a notification to `turn.settled` can silently remove behaviour you
+> depend on.
+>
+> **⑤ The self-hosting pair carries a release-planning fact, not an ops detail**: upgrading eve **strands every
+> session the previous version built**, on the local *and* Postgres worlds alike — history readable, cannot
+> resume, a new message starts a replacement with `ctx.session.predecessor`. Only Vercel Workflow carries runs
+> across. And the Postgres world stores inputs, outputs and stream contents **unencrypted**, which is a
+> `compliance-audit` register entry wherever it is used.
+>
+> **Still open, and still deliberately**: the 1.0 docs reorganisation (`overview.mdx` → `index.mdx`, channels
+> as directories, `tutorial/` deleted, `guides/evaluate` → `guides/decide.md`, `observability/*` under
+> `guides/instrumentation/`) is **RC-only** — at 0.91.0 the current paths stand, so the rows below resolve
+> today and break the day we take 1.0. **The pin stays `eve@0.91.0` until 1.0.0 ships stable.**
+
 > **Verification pass 2026-11-05 against eve@0.91.0 and 1.0.0-rc.5 — the pre-1.0 cleanup, and `latest` is now an RC.**
 > `npm pack` of **0.80.1, 0.91.0 and 1.0.0-rc.5**, the cumulative `CHANGELOG` from `vercel/eve` (**24 releases**
 > between them), `diff -rq` of the `docs/` trees, and the shipped `.d.ts` for every identifier below.
@@ -62,11 +112,15 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > 26 removed** between 0.80.1 and rc.5 — `overview.mdx` → `index.mdx` throughout, channels becoming directories,
 > `tutorial/` deleted in rc.1, `guides/evaluate` → `guides/decide.md`, `observability/*` folded under
 > `guides/instrumentation/`. **Most of that is 1.0-only**: at 0.91.0 the `overview.mdx` names still stand, so the
-> coverage rows below resolve against the version we pin and will break the day we take 1.0. New at 0.91.0 and
-> uncovered: `guides/prepare-for-1-0.md`, `guides/dev-tui.md`, `guides/deployment/self-hosted-operations.md`,
-> `guides/deployment/workflow-worlds.md`, `evals/tool-stubs.mdx`, `memory/custom-provider.md`,
-> `patterns/voice-notes.md`, `patterns/fork-conversations-into-new-threads.md`,
-> `patterns/durable-cross-channel-notifications.md`. **Baseline for the next pass: 0.91.0 stable / 1.0.0-rc.5.**
+> coverage rows below resolve against the version we pin and will break the day we take 1.0.
+> **Baseline for the next pass: 0.91.0 stable / 1.0.0-rc.5.**
+>
+> ✅ **Closed 2026-11-05 (same day, second session) — see the note above this one.** This list said nine pages
+> were "new at 0.91.0 and uncovered", and **two of those nine were already in the table**: the
+> `durable-cross-channel-notifications` row was ✅, and `memory/custom-provider` was a **deliberate ⛔**, not a
+> gap. The list was built by diffing the docs tree and never checked against the table it was describing, which
+> is the exact mistake this file exists to prevent. Six were genuinely missing, the seventh was a decision to
+> revisit (and it was reversed, with the reason in its row), and all nine now resolve.
 
 > **Verification pass 2026-10-19 against eve@0.80.1 — thirteen releases, a namespace, and a reversed security rule.**
 > `npm pack` of **0.75.1 and 0.80.1**, `diff -rq` of the two `docs/` trees (**49 pages differ, 1 new**:
@@ -655,7 +709,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/guides/evaluate` | `eve-concepts.md` §Agent config — `auto` (renamed from `autoModel`/`eve/experimental/evaluate` in eve 0.60.0; now `eve/models`, experimental, eve@0.63.0) | ✅ |
 | `/docs/guides/self-modification` — **new page, eve 0.71.0** | `eve-capabilities.md` §Extension → *The two extensions that ship inside `eve`* ② — mounted by `eve dev` by default, delegates to `self-modification__agent`, never in a production build, not added by `eve remote connect --url`, `--no-default-extensions` to disable the bundled set, `agent/extensions/self-modification/extension.ts` for the model. Successor to the removed `getLocalDevCapability()`. **Plus the part the page leaves to us**: its output is an authored-source change, so it can drift from this skill's own conventions — read the diff as a pull request | ✅ |
 | `/docs/code-extension` — **new page, eve 0.71.0** | `eve-capabilities.md` §Extension → *The two extensions that ship inside `eve`* ① — mounting and the filename namespace, what it contributes, `installCodeTooling` in `prepare` and the trap that **upgrading eve does not rebuild a prepared environment**, firewall-vs-command credential delivery (tokens never enter the sandbox; the `gh` token scoped per repository per invocation; the broker callback must preserve your other rules), and the benchmark read against its own overlapping 95% intervals — the defensible claim is "same band as `pi` on 12 tasks", not better or worse | ✅ |
-| `/docs/guides/dev-tui` | `eve-scaffold.md` / `eve-conventions.md` (`eve dev` / `eve dev <url>`) | ↪ |
+| `/docs/guides/dev-tui` | `eve-scaffold.md` §The terminal UI — the `/new` vs `/clear` vs `/cancel` distinction, the six commands that **only work in local `eve dev`**, credentials in the **OS secret store** with `/login` overriding a shell key, **credential discovery as local-only** (so ChatGPT-subscription models cannot back a deployment), steering mid-turn, `.eve/logs/` written regardless of `/loglevel`, and a **stranded session refusing `/clear`** | ✅ |
 
 ## Client, frontend, deployment
 | Page | Covered in | |
@@ -673,13 +727,18 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/reference/telemetry` | `eve-conventions.md` §eve's CLI phones home — what the CLI sends, `EVE_TELEMETRY_DEBUG=1` to inspect it, `eve telemetry disable` / `EVE_TELEMETRY_DISABLED=1`, and why it is an R3 question on a client project | ✅ |
 | `/docs/guides/instrumentation-providers` | `eve-conventions.md` §What each trace records — the page that **replaced** `guides/instrumentation.md`; it finally documents `tracePolicy` (6 mentions) plus provider slots, redaction and lifecycle events | ✅ |
 | `/docs/observability/agent-runs` — **new page, eve 0.71.0** | `eve-conventions.md` §Observability — the existing paragraph corrected (Beta, and the tab needs **team enablement**, not automatic; Always-on Tracing rates; 30-day retention), plus a new subsection on the thing the page buries: **the export is ON by default and `eve deploy` sets 100% sampling on a new project**, so a fresh agent traces every turn in full. The three positions (off / content-free / public-only), the `exportPolicy` semantics (`redact` implies emission and needs a direction; a throwing `span` drops the span), and the first-matching-rule asymmetry between new and existing projects. Consequences recorded where they bind: a **sub-processor row** in `dev-flow/references/eu-data-sovereignty.md` §4.9 and an **R7/R8/R3 audit signal** in `compliance-audit` | ✅ |
-| `/docs/memory/custom-provider` | ⛔ **deliberately not covered** — building a memory *provider* is framework extension work, not product work. `eve-capabilities.md` §Memory covers using the slots (`defineMemory`, `fileMemory()` + backends); write a provider and you are maintaining infrastructure the product did not ask for. Revisit if a project actually needs a store eve does not ship | ⛔ |
+| `/docs/memory/custom-provider` | **⛔ → ✅, reversed 2026-11-05, and the reversal is worth reading before trusting either call.** The ⛔ said provider-building is framework work a product never asks for — **still true, and the page was covered anyway**, because reading it showed most of its content is not about *building* a provider at all. Four of its rules bind anyone who merely **uses** a slot: recalled content is added as a **user-role message, never a system instruction** (so memory is an injection surface); a recall message **without an `id` accumulates a copy every turn**, forever, into every later model call; `capture["turn.completed"]` failures are **only logged**, so a broken write is invisible; and the tenant rule — *include the scope key in the query itself, not as a filter after a global search* — is the multi-tenant question in one line. Now in `eve-capabilities.md` §Writing a provider, with the contract table, the failure matrix and eve's size limits. **The earlier decision was not wrong about provider-building; it was wrong that the page was only about that.** | ✅ |
 
 ## Evals, patterns, reference
 | Page | Covered in | |
 |---|---|---|
 | `/docs/evals/{overview,cases,assertions,judge,targets,reporters,running}` | `eve-evals.md` (full) + `eve-capabilities.md` §Eval | ✅ |
 | `/docs/patterns/{multi-tenant-auth,multi-tenant-approvals,multi-tenant-memory,dynamic-scheduling}` | `eve-patterns.md` | ✅ |
+| `/docs/evals/tool-stubs` — **new** | `eve-evals.md` §Tool stubs — `{ id, tool, match?, outcome \| outcomes }`; **first match wins top-to-bottom**, and **no match runs the real tool**, so a typo in `tool` yields a *passing* eval that exercised production (eve warns and does not fail); `outcomes` is a sequence, not a database; a broken stub fails the eval even when the agent recovers. **Refused by default, including in development** — `eveVercelOidc` + `allowToolStubs: true` on the runner's subject, granted only by server config. 🔴 **The permission is checked only at session creation**, so anyone the channel admits to that session can use its stubs: isolate, or use a separate eval deployment. Plus `throw`, subagent paths, the persistent-tool rule, qualified connection names, and the limits | ✅ |
+| `/docs/guides/prepare-for-1-0` — **new** | **applied 2026-11-05**, see the pass note at the top of this file. 17 sections; the load-bearing discovery is *when* they apply — **the whole pre-1.0 cleanup landed at 0.84.0**, so pinning the last stable (0.91.0) does not avoid it. Nine identifiers of ours were wrong against the shipped `dist` and are fixed across `eve-concepts.md`, `eve-conventions.md`, `eve-patterns.md`, `eve-capabilities.md`, `eve-evals.md`, `ai-elements.md` and `eve-scaffold.md`. Five of its sections cost us nothing (we already use `defineMcpClientConnection`, `export default defineAgent(...)`, and never bare `workflow` imports, `client.info()` from a browser or `session.snapshot()`) | ✅ |
+| `/docs/guides/deployment/workflow-worlds` · `/self-hosted-operations` — **new** | `eve-scaffold.md` §Self-hosting — the three worlds and what each does on upgrade; 🔴 **upgrading eve strands every session the previous version built** on the local *and* Postgres worlds (history readable, cannot resume; `ctx.session.predecessor` names it), which is a release-planning fact for any product with long-lived sessions. Replicas need Postgres (`bootstrap` before first start **and** before any build that upgrades the package), schedules on **one** replica, shared sandbox access or `SandboxTemplateNotProvisionedError`, pool ≥ concurrency + 2 (so 52, not the default 10). ⚠️ **Postgres stores inputs, outputs and stream contents unencrypted and keeps finished runs** — a `compliance-audit` register entry. Callbacks are refused to loopback/private/link-local addresses outside `eve dev` | ✅ |
+| `/docs/patterns/fork-conversations-into-new-threads` — **new** | `eve-patterns.md` §11bis — the same `ctx.to().send()` as a hand-off, with `history`; what makes it a *fork* is a target that always starts a new session (Slack with **only** a `channelId`), and ⚠️ **many built-in channels reuse one session per chat**, so the same code appends the whole transcript to someone's existing conversation instead. `isChannel()` to narrow metadata, `auth: ctx.session.auth.current`, and an `idempotencyKey` so a retried tool call does not open a second thread | ✅ |
+| `/docs/patterns/voice-notes` — **new** | `eve-patterns.md` §11ter — **audio reaches the agent as a sandbox file and the model does not transcribe it**, so a voice note is invisible without a tool. `transcribe()` from `ai` on the agent's own credentials. 🔴 The path comes from the model, so normalise it and refuse anything outside `/workspace/.eve/attachments/`; put the recovery instruction **in the thrown error**, because that text is the model's recovery UX. A file over the channel limit (25 MB default) arrives as a note, not a file | ✅ |
 | `/docs/patterns/durable-cross-channel-notifications` | `eve-patterns.md` §10 — `to()` starts a turn, so a notification goes through the platform API plus an app-owned outbox; at-least-once and what that costs | ✅ |
 | `/docs/protocols/ucp` | `eve-capabilities.md` §Channel (`defineChannel` + route verbs) — a UCP profile is a JSON document served from `/.well-known/ucp` on a custom channel; the protocol itself is agentic commerce, out of dev-flow's remit | ↪ |
 | `/docs/reference/cli` | `eve-scaffold.md` §CLI quick reference + `eve-evals.md` (`eve eval` flags) | ↪ |

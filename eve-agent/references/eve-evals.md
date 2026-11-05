@@ -202,6 +202,91 @@ fixture agent* — and it **stays mocked when that agent is deployed as an eval 
 on an agent you built to be a fixture; put it in the real agent's `agent.ts` and the mock is what
 ships. The behaviour you actually want to gate on still needs a real model somewhere.
 
+## Tool stubs — fix what a tool returns, without deploying a mock
+
+`mockModel` above replaces the **model**. Tool stubs replace what a **tool returns**, and they are the
+other half of a deterministic eval: `mockModel` makes the agent's decisions predictable, stubs make the
+world it decides against predictable. They work *"against local and deployed agents, with no mock code to
+deploy"* — so unlike `mockModel`, nothing fixture-shaped ships in the agent.
+
+```ts
+const session = await t.session({
+  stubs: [
+    { id: "milk", tool: "complete_task",
+      match: { task_id: { const: "milk" } },
+      outcome: { response: { success: true } } },
+    { id: "other", tool: "complete_task", outcome: { response: { success: false } } },
+  ],
+});
+```
+
+A rule is `{ id, tool, match?, outcome | outcomes }`. `id` is a name unique in the session that tracks
+the rule's place in its sequence (traces never show it); `tool` is an **existing** tool's name;
+`match` is a JSON-Schema-subset constraint on the input, and omitting it matches any valid input.
+`outcome` repeats forever, `outcomes` is a non-empty array consumed in order whose **last entry then
+repeats** — use exactly one of the two. Each outcome holds exactly one of `response` (the JSON the tool
+returns) or `throw`. Stubs are plain JSON, so they live in a fixture file typed
+`satisfies readonly ToolStub[]` and are shared across evals; `ToolStub` and `ToolStubOutcome` are
+exported from **both** `eve/evals` and `eve/client`, and they check the JSON's shape without inferring
+your tool's response type.
+
+**Four behaviours decide whether an eval means anything.** All four are easy to get backwards:
+
+1. **First match wins, top to bottom.** Put the specific rule before the unconditional fallback. Written
+   the other way round, the fallback answers everything and the specific rule never fires — and nothing
+   errors.
+2. **No rule matches → eve runs the real tool.** The default is not "fail" and not "return nothing". A
+   typo in `tool` therefore produces a *passing* eval that silently exercised production behaviour. eve
+   warns after the run about rules that matched no calls, and **does not fail the eval for it**, so read
+   the warning. When a call must happen, assert it: `turn.calledTool(name, { count: 1 })`.
+3. **The sequence is not a database.** `outcomes` returns entry two on the second matching call whether or
+   not anything else happened in between. An eval that stubs a read *and* a write is asserting that the
+   agent asked for the write, never that the write took effect. To test a real update, use the real tool.
+4. **A broken stub fails the eval even when the agent recovers** — as does a failure while processing its
+   response, and neither falls back to the real tool. A deliberate `throw` is the opposite: an ordinary
+   tool failure the eval can assert on.
+
+⚠️ **Stubs are refused by default, including in development, and the grant is a deployment decision.**
+The target must permit tool replacement for the eval's caller: with Vercel OIDC that means `eveVercelOidc`
+(not `vercelOidc` — see `eve-conventions.md`) with `allowToolStubs: true` on the runner's `vercelSubject`.
+Only the target's **server configuration** grants it, after token verification: a request cannot grant it
+and a user never inherits a project's grant. The symptom when it is missing is a `403` with
+*"Tool stubbing is not permitted for this caller."*
+
+🔴 **And the grant has a scope we must not repeat as "the eval runner can stub":** eve checks the
+permission **only when it creates the session**. Afterwards the session is an ordinary session, so
+**anyone the channel admits to it can use its stubs** — i.e. anyone who can reach a stubbed session can
+make its tools return whatever those rules say. eve's own guidance is to isolate such sessions with the
+session-access policy, or to run evals against **a separate deployment of the same agent code**. For a
+multi-tenant product the second is the honest answer: the grant is deployment-wide in effect, not
+caller-wide.
+
+**Injecting errors.** `throw` takes a required `message` and an optional `name` (default `"Error"`), and
+eve raises a plain `Error`. `name: "TimeoutError"` fails the call immediately instead of waiting for a
+deadline. Ordinary tools and connection operations show the model only the message, so put what the model
+needs **in `message`**; workflow task errors keep the name. `{ response: { error: "timeout" } }` is just
+JSON — only `throw` raises. Note `noFailedCalls()` fails on an injected error, which is correct and often
+surprising: assert the failure explicitly instead, with `calledTool(name, { status: "failed" })`.
+
+**Subagents and connections.** Prefix with the subagent path to replace only that subagent's tool —
+`researcher/list_tasks`, `researcher/assistant/list_tasks`, and `agent/list_tasks` for the built-in
+`agent` — while a bare `researcher` replaces the whole subagent and a **root rule never matches a
+subagent's tool of the same name**. Persistent tools implemented with `serve`, the built-in `agent`
+among them, require an **unconditional** stub (no `match`, or `{}`), and real and stubbed calls to the
+same persistent tool cannot be mixed. Connections use the qualified name (`linear__list_issues`), and
+⚠️ **a stubbed connection must still be reachable**, because eve lists its tools to validate the
+operation and its arguments — a stub does not take the connection offline. A call routed through
+`eve__tool` matches by the name and input of the tool it *reaches*; `eve__search`, `eve__tool` and
+`eve__skill` cannot be stubbed, and neither can provider-hosted tools such as the provider's own web
+search (your own search tool can).
+
+**Limits, since hitting one fails setup rather than degrading:** 100 rules, 20,000 JSON nodes, nesting
+depth 32, about one million characters, and **10,000 tool calls per session** (split the eval when you
+reach it). `__proto__` is a reserved property name. Unsupported JSON Schema — `patternProperties`,
+`$ref`, formats, `multipleOf`, `minContains`/`maxContains`, `uniqueItems`, dependencies, and object or
+array values in `const`/`enum` — fails setup too, as do unknown tool names, invalid subagent paths and
+paths into remote agents. Remote agents receive no rules at all: replace the whole remote agent tool.
+
 ## Reporters
 
 - **Console** (default) — one line per eval, failed assertions shown.

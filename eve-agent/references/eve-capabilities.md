@@ -675,6 +675,72 @@ preview branches do not collide. A custom namespace is taken as complete; eve ap
 See `/docs/patterns/multi-tenant-memory` for the full scoped setup, and `eve-patterns.md` for how this
 composes with the other multi-tenant patterns.
 
+### Writing a provider — `defineMemoryProvider()`
+
+The slot above binds a provider; this is what writing one costs. **Read 2026-11-05 against eve@0.91.0's
+`docs/memory/custom-provider.md`**, which had no coverage here. A provider is three surfaces, two of
+them optional — `fileMemory()` ships with no `capture` at all:
+
+| Surface | Handlers | Responsibility |
+|---|---|---|
+| `recall` | `"turn.started"` — **required** | return messages to place in model context |
+| `capture` | `"turn.completed"`, `"compaction.requested"` | read the finished conversation and write to the store |
+| `tools` | one function | tools for the model, **bound to the slot's scope** |
+
+Every handler gets a `MemoryOperationContext`: `memory.scope.key` (an opaque, versioned digest of
+namespace + scope), `memory.scope.namespace` / `.value` / `memory.slot`, `messages`, `operationId`,
+`abortSignal` and `session`. `tools()` gets the narrower `MemoryToolsContext`.
+
+**Four requirements eve states, and each is a bug if you miss it:**
+
+1. 🔴 **Partition every read and write by `memory.scope.key`** — and for semantic retrieval, *"include
+   the key in the query itself, not as a filter after a global search."* That sentence is the whole
+   multi-tenant question in one line: a vector search that ranks globally and filters afterwards has
+   already read another tenant's rows to rank them, and a top-k cut can return nothing of your own while
+   the embedding bill says otherwise. It composes with the scope work in `eve-patterns.md`.
+2. **Treat `operationId` as an idempotency key.** It is stable per session, turn, step, phase and slot,
+   and eve *will* run a handler again — an interrupted step retrying is the normal case, not the
+   exception.
+3. **Enforce your own size and retention.** eve neither truncates nor expires provider content.
+4. 🔴 **Treat recalled content as user-controlled data.** eve adds each recalled message as a
+   **user-role message attributed to the slot, never as a system instruction** — which is the right
+   call and is also the reminder that memory is an injection surface: whatever a caller once got stored
+   comes back inside the next prompt.
+
+⚠️ **The `id` on a recall message is not cosmetic — it decides between replace and accumulate.**
+`{ content, id }` replaces what an earlier turn recalled under the same `id`; `{ content }` with no `id`
+**adds** a message that no later recall can replace or remove. So a provider that returns its current
+state every turn and omits `id` adds another copy every turn, and every copy counts toward every model
+call's context for the rest of the session. Give every message a stable `id` unless you mean to append.
+Returning `null`, `undefined` or `{ messages: [] }` changes nothing and keeps what earlier turns recalled.
+
+**Lifecycle and where failures land**, which differ per handler and matter for whether a bad store takes
+the turn down with it:
+
+- eve recalls **before the first model call of each turn**, and **again when the session's caller
+  changes**. Recalled messages live *outside* history, so compaction never summarises them; when
+  compaction summarises a turn, that turn's recalled messages move to just after the summary.
+- Before compaction rewrites history eve calls `capture["compaction.requested"]` **and waits**, so a
+  provider can keep detail the summary will lose.
+- A throwing or invalid **`recall`** or **`tools()`** fails the turn *before* the model call. A throwing
+  **`capture["turn.completed"]`** is only logged, after the response, and does not rewrite the turn — so
+  a write failure is invisible to the user and visible only in logs. A throwing
+  **`capture["compaction.requested"]`** fails the compaction, history stays as it was, and if it ran
+  during a turn the turn fails too.
+- `clear()` removes history and recalled messages but **not the provider's store**, so the next turn
+  recalls the same content again. A new scope starts over.
+
+`tools()` returns a `MemoryToolSet` — a map of `defineTool()` values, which is the type that **replaced
+the removed `MemoryToolDefinition`** (see `prepare-for-1-0`). eve qualifies each key as
+`<slot>__<key>`, so the model sees `notes__forget`; the qualified name must start with a letter, use
+letters, digits, underscores or dashes, and stay within 64 characters. **A tool keeps the scope it was
+created with, so the model cannot point it at another tenant or caller** — eve resolves the scope once
+per turn and caller, and calls `tools()` again with the same scope after a restart inside a turn.
+
+eve's own limits on what it passes and accepts: namespace 1,024 UTF-8 bytes, each scope component 1,024,
+a scope tuple 16 components, combined canonical namespace + scope 4,096 bytes, and a recall message `id`
+1,024 bytes.
+
 ## Extension — `agent/extensions/<name>.ts` (installable capability bundle)
 
 An **extension** is a *package* of eve capabilities — tools, connections, skills, instructions, and hooks — published to a package registry and installed like any other dependency, then versioned/upgraded with the project. Reach for one when a whole capability family (a CRM integration, browser-use tools, a memory / self-improvement layer) should be **reused across agents** instead of hand-copied. (Shipped 2026-07-22; core identifiers re-verified at 0.47.6 — `defineExtension` on `eve/extension`, `extension/extension.ts`, `eve extension init` / `build`. `[VERIFY]` the rest against `node_modules/eve/docs/` — this surface is still young.)
