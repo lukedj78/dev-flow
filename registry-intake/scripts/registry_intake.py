@@ -2744,6 +2744,53 @@ MODULE_SUFFIXES = (".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".sh", ".bash", 
 IMPORT_DEPTH = 4
 
 
+# design-md-to-app's write-time guard (golden rule 3, `setup_primitives_guard.py`). Its ESLint
+# module loads the project's preset from a path it reads out of `scripts/guard/guard.json` — a
+# computed import, H9's shape, so `check` blocked the guard the scaffold had just installed and the
+# phase gate refused `scaffolded` with no door (factory-fintech, 2026-11-05). Trusted the way
+# HOOK_COPY is, by CONTENT: only while the file is byte for byte the asset that skill ships. The
+# import is then no longer unknown — the presets guard.json names are what it loads, so they are
+# read as if it had named them. From the vendored copy this path does not exist and nothing is exempt.
+GUARD_ASSETS = Path(__file__).resolve().parents[2] / "design-md-to-app" / "assets" / "guard"
+
+
+def guard_presets(script: Path, root: Path) -> list[Path] | None:
+    """The presets a byte-identical design-md-to-app guard imports, or None when it is not one.
+
+    None also when guard.json cannot be read: then nobody knows what the import loads, which is
+    exactly the finding H9 reports. And None when the reference copy sits inside the project: the
+    vendored copy of this script resolves GUARD_ASSETS to `<root>/design-md-to-app/...`, a path
+    anyone who can write the repo can fill with their own "original"."""
+    assets = GUARD_ASSETS.resolve()
+    if assets.is_relative_to(root.resolve()):
+        return None
+    asset = assets / script.name
+    if not asset.is_file() or script.read_bytes() != asset.read_bytes():
+        return None
+    try:
+        units = json.loads((script.parent / "guard.json").read_text(encoding="utf-8"))["units"]
+        # Normalised, not resolved: the name stays the one the project uses (pinned as `p/ds.js`,
+        # not as a symlink's target), and `..` cannot walk out unseen. The target is pinned too.
+        return [Path(os.path.normpath(root / unit["preset"])) for unit in units]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def guard_edges(script: Path, root: Path) -> list[Path]:
+    """What a trusted guard loads besides its static imports: guard.json, and each preset inside the
+    project with what the preset imports. One helper for the files `review_hooks` reads and the
+    files `pinned_scripts` pins, so the reviewed set and the pinned set cannot drift apart."""
+    presets = guard_presets(script, root)
+    if presets is None:
+        return []
+    here = Path(os.path.normpath(root))
+    out = [script.parent / "guard.json"]
+    for preset in presets:
+        if preset.is_relative_to(here) and preset.resolve().is_relative_to(root.resolve()):
+            out += [preset, *(imported_files(preset, root) if preset.is_file() else [])]
+    return out
+
+
 def imported_files(script: Path, root: Path, _seen: set[str] | None = None,
                    _depth: int = 0) -> list[Path]:
     """Every file inside the project that `script` pulls in, transitively.
@@ -2859,7 +2906,9 @@ def pinned_scripts(root: Path, command: str) -> dict[str, dict[str, str]]:
     out: dict[str, dict[str, str]] = {}
     here = root.resolve()
     named = hook_scripts(root, command)[0]
-    for q in [*named, *(q for n in named if n.is_file() for q in imported_files(n, root))]:
+    files = [*named, *(q for n in named if n.is_file() for q in imported_files(n, root))]
+    files += [q for f in list(files) if f.is_file() for q in guard_edges(f, root) if q not in files]
+    for q in files:
         try:
             if not q.is_file():
                 continue
@@ -2984,6 +3033,17 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
             # say which file runs, so it is reported rather than guessed at. Here, after the
             # exemptions above, so our own vendored copy is not scanned for its own patterns.
             facts = python_facts(body) if script.suffix == ".py" else None
+            presets = guard_presets(script, root) if facts is None else None
+            for preset in presets or []:
+                if not (preset.is_relative_to(Path(os.path.normpath(root)))
+                        and preset.resolve().is_relative_to(root.resolve())):
+                    found.append(Finding("H9", "block", event,
+                                         HOOK_CODES["H9"] + " — the guard imports a preset outside the project",
+                                         f"{where}: {script.name}: {preset}"))
+            # Appended to the list being walked, so each preset (and what it imports) gets every
+            # rule below, and H8 when it is missing. guard.json is data: pinned, not scanned.
+            if presets is not None:
+                scripts += [q for q in guard_edges(script, root) if q.suffix != ".json" and q not in scripts]
             if facts is not None and not facts.parsed:
                 # Not silence and not a pass: whatever the interpreter makes of this file, we made
                 # nothing of it, and the rules below ran over text we could not read.
@@ -3000,7 +3060,7 @@ def review_hooks(root: Path, lock: dict | None = None) -> list[Finding]:
                 found.append(Finding("H9", "review", event,
                                      HOOK_CODES["H9"] + " — it imports a module that loads code by name",
                                      f"{where}: {script.name}: import {facts.loaders[0]}"))
-            elif facts is None and (m := JS_DYNAMIC.search(body)):
+            elif facts is None and presets is None and (m := JS_DYNAMIC.search(body)):
                 # JS and shell have no parser here, so they keep the pattern — and keep its known
                 # limit, which the SKILL records rather than implies.
                 found.append(Finding("H9", "block", event,
