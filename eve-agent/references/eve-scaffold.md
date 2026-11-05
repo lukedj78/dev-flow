@@ -57,7 +57,15 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
 ## 2. Initialize eve inside apps/agent
 
-* Read `node_modules/eve/docs/` for the current init flow, then run `npx eve@latest init apps/agent` (or `eve init .` from within `apps/agent`).
+* Read `node_modules/eve/docs/` for the current init flow, then run `npx eve@0.91.0 init apps/agent` (or `eve init .` from within `apps/agent`). **Not `eve@latest`:**🔴 **`eve@latest` is a release candidate as of 2026-11-05 — do not scaffold from it by accident.**
+  eve's npm tags are **`latest: 1.0.0-rc.5`** and a stale **`beta: 0.6.0-beta.20`**; there is no stable
+  `latest` any more. The last stable release is **`0.91.0`** (2026-10-30), and `1.0.0-rc.0` landed the
+  next day. So `npx eve@latest init` hands a new project a release candidate, while this skill still
+  describes pre-`0.84.0` contracts — the version where eve moved its public APIs to eve-owned types,
+  stopped exporting the legacy aliases, and published a **v27 upgrade guide**. **Scaffold from `eve@0.91.0`
+  explicitly** until the v27 pass lands (see `references/eve-docs-coverage.md`, 2026-11-05 note, for what
+  is already known to have changed). Taking the RC is a deliberate choice, not a default: it means doing
+  the v27 migration in the project by hand.
 * Keep the default HTTP channel (`agent/channels/eve.ts`) — the web app consumes it. The Next.js app supplies the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
 * Confirm the generated layout against the docs. Expect under `agent/`:
   * `agent.ts` — model & runtime config,
@@ -78,7 +86,8 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
   ```ts
   export default defineAgent({
     model: "anthropic/claude-sonnet-5",   // explicit pin — eve's own default has moved three times (0.36.0 zai/glm-5.2 → 0.47.2 openai/gpt-5.6-luna-fast → 0.63.0 spacexai/grok-4.7)
-    limits: { maxInputTokensPerSession: 100_000, maxOutputTokensPerSession: 20_000 },
+    // Since 0.82.0 the three token caps are replaced by one function (see eve-concepts.md §limits).
+    limits: { sessionUsage: ({ window }) => window.inputTokens - window.cacheReadTokens >= 100_000 },
   });
   ```
 

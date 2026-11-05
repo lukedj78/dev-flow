@@ -129,9 +129,20 @@ Goal: a running eve agent at `apps/agent`, wired into the monorepo, exposing its
 Follow `references/eve-scaffold.md` for the full procedure. In short:
 
 1. Read `node_modules/eve/docs/` (install eve first if needed) and run `eve info` / `npx eve --help` to confirm the current init flow and folder layout.
-2. Initialize the agent inside `apps/agent` (`npx eve@latest init apps/agent`, or `eve init .` from within it). Keep the default HTTP channel (`agent/channels/eve.ts`) — that is what the web app consumes. The Next.js app provides the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
+2. Initialize the agent inside `apps/agent` (`npx eve@0.91.0 init apps/agent`, or `eve init .` from within it — **not `eve@latest`, which is a 1.0 release candidate; see the warning below**). Keep the default HTTP channel (`agent/channels/eve.ts`) — that is what the web app consumes. The Next.js app provides the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
 3. Pin the model in `agent/agent.ts` — our default choice is `anthropic/claude-sonnet-5` via the Vercel AI Gateway; that is **not** eve's own scaffold default (`openai/gpt-5.6-luna-fast` since 0.47.2, `zai/glm-5.2` before it — it has moved twice, which is why we pin) — and write a real `agent/instructions.md`. The model can also be `defineDynamic({ events })` (no `fallback` since 0.33.0 — every handler must return a concrete model). Document the model choice in a comment. For an OpenAI/Gemini model you can also opt into an AI Gateway **service tier** (`priority`/`flex`/`default`) to tune latency vs. cost — see `references/eve-scaffold.md` §3.
 4. Set the channel auth in `agent/channels/eve.ts`: `localDev()` for development, a real authenticator (`vercelOidc()` / `jwtHmac()` / `httpBasic()`) for production. eve **fails closed** in prod — browser traffic is rejected unless an authenticator accepts it.
+
+> 🔴 **`eve@latest` is a release candidate as of 2026-11-05 — do not scaffold from it by accident.**
+> eve's npm tags are **`latest: 1.0.0-rc.5`** and a stale **`beta: 0.6.0-beta.20`**; there is no stable
+> `latest` any more. The last stable release is **`0.91.0`** (2026-10-30), and `1.0.0-rc.0` landed the
+> next day. So `npx eve@latest init` hands a new project a release candidate, while this skill still
+> describes pre-`0.84.0` contracts — the version where eve moved its public APIs to eve-owned types,
+> stopped exporting the legacy aliases, and published a **v27 upgrade guide**. **Scaffold from `eve@0.91.0`
+> explicitly** until the v27 pass lands (see `references/eve-docs-coverage.md`, 2026-11-05 note, for what
+> is already known to have changed). Taking the RC is a deliberate choice, not a default: it means doing
+> the v27 migration in the project by hand.
+
 5. Add at least one baseline eval in `evals/` (sibling of `agent/`) so `eve eval` has a gate to enforce in CI.
 6. Wire `apps/agent` into the pnpm workspace and `turbo.json` pipelines (`dev`, `build`, `lint`, `typecheck`, plus an `eval` task that runs `eve eval`).
 7. Create / update `packages/types` so it **re-exports eve's** session request + stream-event types — do not hand-roll a parallel contract (see `references/eve-web-integration.md`). If `packages/types` doesn't exist yet, don't assume it — create it first via **`monorepo-add-shared-package`**, then populate it.

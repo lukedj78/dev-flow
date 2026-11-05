@@ -102,7 +102,16 @@ export default defineTool({
 ```
 
 `approval` also accepts a **custom policy** when the decision depends on the input or the
-caller. It receives the session context plus `{ toolName, toolInput, approvedTools, callId }`
+caller. It receives the session context plus `{ toolName, toolInput, toolAnnotations, callId, abortSignal }`
+(⚠️ **`approvedTools` and `approvalKey` are gone since 0.84.0** — verified against the shipped `.d.ts`:
+`approvedTools` appears in 14 files at 0.80.1 and none at 0.91.0. To reuse a prior consent, return
+`once()`'s decision unchanged rather than inspecting a list.)
+**`toolAnnotations` is new and is the useful half**: for a *connection's* tool it carries the server's own
+MCP `ToolAnnotations` — `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` — so a policy
+can require a person only for calls the server itself calls destructive, instead of matching tool names by
+hand. It is **absent for authored tools** and for servers that declare none, and eve's own type says the
+quiet part: *hints are only as trustworthy as the server*. Treat a missing or `readOnlyHint: true`
+annotation from a third-party server as unknown, never as safe.
 and returns `"user-approval"` (pause for a person), `"not-applicable"` (continue),
 or `"approved"`/`"denied"` (decide automatically; use `{ type, reason }` to tell the model
 why). Booleans are the legacy predicate shape and still work. Guard `toolInput` — it can be

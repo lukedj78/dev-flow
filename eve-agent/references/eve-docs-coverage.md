@@ -2,6 +2,72 @@
 
 Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpose: prove and *maintain* full coverage — when eve adds a docs page, add a row and point it at a reference. The golden rule still holds: this skill encodes the **workflow + conventions**, not a frozen copy — always `[VERIFY]` against `node_modules/eve/docs/` — the published package ships its full docs **and a CHANGELOG**, which is the only place the breaking-change history exists (eve.dev has no changelog page). `npm pack eve@<version>` is enough; you do not need to install it.
 
+> **Verification pass 2026-11-05 against eve@0.91.0 and 1.0.0-rc.5 — the pre-1.0 cleanup, and `latest` is now an RC.**
+> `npm pack` of **0.80.1, 0.91.0 and 1.0.0-rc.5**, the cumulative `CHANGELOG` from `vercel/eve` (**24 releases**
+> between them), `diff -rq` of the `docs/` trees, and the shipped `.d.ts` for every identifier below.
+>
+> **① `latest` is `1.0.0-rc.5`; there is no stable `latest` any more.** eve's only other npm tag is a stale
+> `beta: 0.6.0-beta.20`. The last stable is **0.91.0** (2026-10-30); `1.0.0-rc.0` landed the next day and rc.5
+> the day of this pass. Our scaffold said `npx eve@latest init`, so **from 2026-10-31 it would have handed every
+> new project a release candidate** — now pinned to `eve@0.91.0` in `SKILL.md`, `eve-scaffold.md` and
+> `eve-capabilities.md`. This is the first time `latest` has not been the version to build on, and it makes
+> `@latest` in a scaffold command a standing hazard rather than a convenience.
+>
+> **② eve ships its own migration guide, and we had not read it: `docs/guides/prepare-for-1-0.md` (277 lines,
+> 17 sections).** The important discovery is *when* its contents apply. Checked identifier by identifier against
+> both `dist` trees: **`streamReconnectPolicy`, `retryableErrorStatuses`, `MemoryToolDefinition` and
+> `EVE_SESSION_NOT_ACTIVE` are already absent at 0.91.0**, and `eveVercelOidc`, `retryableStatuses`, `EveError`,
+> `info_forbidden`, `allowAgentInfo`, `defineMcpClientConnection`, `MemoryToolSet` and `--show-tools` are already
+> present. **So the whole pre-1.0 cleanup landed in the 0.84.0 wave — pinning 0.91.0 does not avoid it.** That
+> corrects the obvious assumption: the breaking surface is not "1.0", it is 0.84.0, which we are already past.
+>
+> **③ Nine identifiers of ours were wrong against the shipped `dist`, not merely aged.** Each verified by counting
+> occurrences in both trees rather than trusting the changelog: `approvedTools` (14 files at 0.80.1 → **0**, with
+> `approvalKey`, when tools and connections merged onto one `Approval` contract), `maxInputTokensPerSession` /
+> `maxOutputTokensPerSession` / `maxTokenCostUsdPerSession` (13 → **0** each, replaced by one `limits.sessionUsage`
+> **function** whose default — read from `agent-definition.d.ts` — is
+> `({ window }) => window.inputTokens - window.cacheReadTokens >= 40_000_000`, so **cache reads no longer count**),
+> `calledSubagent` → `calledAgent`, `loadedSkill` → `calledSkill`, `noFailedActions` → `noFailedCalls`, and
+> `remoteUrl`, which at 0.91.0 survives only inside a vendored third-party SDK — an eval still carrying it does not
+> fail loudly, it just never matches.
+>
+> **④ The changelog was wrong twice and the `dist` settled it, in both directions.** It says `decide` takes `signal`
+> *instead of* `abortSignal`, which reads as a removal: `abortSignal` is in **122 files** at 0.91.0 and is still a
+> field of `ApprovalContext`, so only `decide`'s own parameter moved. And `thresholdPercent` is still in the `dist`
+> (46 occurrences) while the **authored** field is `compaction.threshold` — the old name survives in the internal
+> and compiled types and in a dynamic subagent's serialized config, and authoring it *fails validation*. Counting
+> occurrences is not enough on its own; the question is which surface the name is on.
+>
+> **⑤ Two changes whose names did not move, which is the dangerous kind.** `limits.sessionTimeoutMs` became an
+> **idle** timeout in 0.82.0 — the window restarts each time a turn settles and never fires while a turn is open —
+> so our "30 days from creation" was describing different behaviour under the same field. And `once()` now remembers
+> the latest approval *or denial* per resolved tool, which a custom policy must return **unchanged** to reuse consent.
+>
+> **⑥ One addition worth more than the corrections: `ApprovalContext.toolAnnotations`.** For a *connection's* tool it
+> carries the server's own MCP `ToolAnnotations` — `readOnlyHint`, `destructiveHint`, `idempotentHint`,
+> `openWorldHint` — so an approval policy can demand a person only for what the server itself calls destructive,
+> instead of matching tool names by hand. eve's own type states the limit: *hints are only as trustworthy as the
+> server*, and they are absent for authored tools. Written up in `eve-conventions.md` with that caveat attached,
+> because a `readOnlyHint: true` from a third party is unknown, never safe.
+>
+> **Also applied**: `agent.reset()` → **`agent.newSession()`** in `ai-elements.md` (and the reason — `end()` retires
+> the session server-side, which eve's guide says is the wrong call behind a New-chat button, while `clear()` wipes
+> context inside the same session); `source.reset()` → `source.end()`. **Verified unaffected**: we already prescribe
+> `defineMcpClientConnection` and `export default defineAgent(...)`, and we nowhere do bare `workflow` imports,
+> `client.info()` from a browser, `MemoryToolDefinition`, `streamReconnectPolicy` or `session.snapshot()` — five of
+> the guide's 17 sections cost us nothing. `eve set --reasoning` is **correct as written**: the guide renames the
+> *display* flags (`--tools` → `--show-tools`) and says model-effort `--reasoning` is unchanged.
+>
+> **Deliberately not done, and this is the next deep item**: the docs tree moved **87 pages changed, 32 new,
+> 26 removed** between 0.80.1 and rc.5 — `overview.mdx` → `index.mdx` throughout, channels becoming directories,
+> `tutorial/` deleted in rc.1, `guides/evaluate` → `guides/decide.md`, `observability/*` folded under
+> `guides/instrumentation/`. **Most of that is 1.0-only**: at 0.91.0 the `overview.mdx` names still stand, so the
+> coverage rows below resolve against the version we pin and will break the day we take 1.0. New at 0.91.0 and
+> uncovered: `guides/prepare-for-1-0.md`, `guides/dev-tui.md`, `guides/deployment/self-hosted-operations.md`,
+> `guides/deployment/workflow-worlds.md`, `evals/tool-stubs.mdx`, `memory/custom-provider.md`,
+> `patterns/voice-notes.md`, `patterns/fork-conversations-into-new-threads.md`,
+> `patterns/durable-cross-channel-notifications.md`. **Baseline for the next pass: 0.91.0 stable / 1.0.0-rc.5.**
+
 > **Verification pass 2026-10-19 against eve@0.80.1 — thirteen releases, a namespace, and a reversed security rule.**
 > `npm pack` of **0.75.1 and 0.80.1**, `diff -rq` of the two `docs/` trees (**49 pages differ, 1 new**:
 > `guides/frontend/tanstack`), the `CHANGELOG` from 0.76.0 forward, and the shipped `.d.ts`, `dist` and

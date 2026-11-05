@@ -1,6 +1,13 @@
 # DESIGN.md → shadcn/ui mapping
 
-> **`shadcn` CLI 4.21.1 → 4.21.4 (2026-10-01 → 10-07): all internal, with one behaviour worth knowing.**
+> **`shadcn` CLI 4.21.1 → 4.23.0 (2026-10-01 → 10-27): all internal, with one behaviour worth knowing.**
+> Re-checked 2026-11-05 at **4.23.0**: `add`'s flags (`--overwrite`, `--view`, `--diff`, `--dry-run`, `--all`,
+> `--path`, `--cwd`, `--yes`) are byte-for-byte the same count as 4.21.4, and `init`, the registry resolution and
+> the item format are unchanged — **nothing of ours was wrong**. One dependency change only, and it is in the MCP
+> surface: `@modelcontextprotocol/sdk` + `zod-to-json-schema` out, `@modelcontextprotocol/server` in. That is the
+> **third** dependency swap since `registry-intake` pinned its lock at `4.21.0`, which is now a reason to review
+> that pin rather than a curiosity — the pin itself stays deliberate.
+>
 > The patches drop `ts-morph` and replace `cosmiconfig` with a smaller reader, fix `ERR_REQUIRE_CYCLE_MODULE`
 > under `pnpm dlx` on Windows, accept a UTF-8 BOM in `components.json` / `package.json`, and skip
 > `npm audit` and the funding check on npm installs. Nothing about `add`, `init`, registries or the
@@ -753,7 +760,12 @@ Tailwind v4 reads `--font-X` directly to generate `font-X` utilities. **Always i
 keeps Tailwind's default line-height while the design system talks to nobody.
 
 > **And there is a second reason, mechanical and worse: `cn()` silently drops one of the two classes.**
-> Verified on 2026-10-09 by running `cn@0.4.0`, after shadcn's own skill flagged it:
+> Verified on 2026-10-09 by running `cn@0.4.0`, after shadcn's own skill flagged it, and **re-run on 2026-11-05 at
+> `cn@0.5.2`** — unchanged, although `cn` was rewritten in between (zero runtime dependencies now, with
+> `tailwind-merge` inlined and new `./engine` / `./compiler` entries). The re-run also measured the half that
+> makes this a rule rather than a warning: **the numeric scale is immune in both write orders** —
+> `cn("text-2xl text-muted-foreground")` and `cn("text-muted-foreground text-2xl")` both keep the two classes —
+> while the semantic name loses one either way round:
 >
 > ```
 > cn("text-display-lg text-muted-foreground")  →  "text-muted-foreground"   // the size vanishes

@@ -337,7 +337,7 @@ const source = from(threadId);
 const session = await source.send("Hello", { auth });   // positional message, then options
 await source.respond(inputResponses, { auth });          // HITL answers — a SEPARATE call
 await source.cancel({ turnId });
-await source.reset({ reason: "Start over" });
+await source.end({ reason: "Start over" }); // `reset()` → `end()` in the pre-1.0 cleanup
 
 const s = attachSession(sessionId);
 await s.getEventStream({ startIndex: 12 });
@@ -543,8 +543,9 @@ and `streamPath`). A hook that filtered on completion now subscribes `task.settl
 `event.data.status === "completed"`. `ctx.session.id` is still the **parent** session, for typed and `*`
 handlers alike and even between parent turns, so an audit sink files child activity under the session a
 person can actually find. To follow a child's own events, `session.streamSubagent()` is now
-`session.agent(started).stream()` and takes the `agent.started` event. The eval assertion
-`t.calledSubagent(name, { status })` keeps its API and reads task events.
+`session.agent(started).stream()` and takes the `agent.started` event. The eval assertion kept its
+behaviour and lost its name: it is **`t.calledAgent(name, { status })` since 0.84.0** (`calledSubagent`
+is in nine files of the shipped `dist` at 0.80.1 and none at 0.91.0) and still reads task events.
 
 **Observability sink (external), the way worldcup-eve does it** — `turn.completed` + `session.failed`
 posting to an external store. Two rules learned the hard way:
@@ -596,8 +597,9 @@ Add a negative case (`t.notCalledTool` / `t.usedNoTools` / `t.maxToolCalls`). De
 assertions are hard gates; the LLM judge (`t.judge(...)` — the `t.judge.autoevals.*` graders
 it replaced in eve 0.62.0 are gone) is soft by default — enforce with `.atLeast()` or `.gate()`. The eval suite
 is the deploy gate; new capabilities without evals erode it. **Full API** — the complete
-assertion set (`toolOrder` / `eventOrder` / `calledSubagent` / `loadedSkill` / `noFailedActions`
-/ structured-output / preconditions), the matchers, judge model resolution, targets
+assertion set (`toolOrder` / `eventOrder` / `calledAgent` / `calledSkill` / `noFailedCalls`
+/ structured-output / preconditions — **all three of those names changed in 0.84.0**, from
+`calledSubagent`, `loadedSkill` and `noFailedActions`; see `eve-evals.md`), the matchers, judge model resolution, targets
 (`t.target.fetch` / `dispatchSchedule` / `attachSession`), reporters (Console / JUnit /
 Braintrust), and every `eve eval` flag + exit code — is in **`references/eve-evals.md`**.
 
@@ -689,7 +691,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 * The extension declares a **config schema** (Zod / any Standard Schema); pass config as the default-export call argument. Read secrets from `process.env` in this trusted runtime — never hardcode.
 * Tune what it exposes without forking it: `disableTool()` in the matching slot to remove a bundled tool (hooks and instruction fragments are **additive and cannot be replaced**; a dynamic definition in the same slot beats a static one), and `toolResultFrom` (from `eve/tools`) inside a hook to narrow a bundled tool's result type — ⚠️ it matches on **the imported definition, not the namespaced string**: pass the extension's own `search` definition, not `"crm__search"`. Both confirmed at 0.45.0.
 
-**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@latest extension init <name>`, which lays out the package:
+**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@0.91.0 extension init <name>` (**not `eve@latest` — it is a 1.0 release candidate since 2026-10-31; see `SKILL.md`**), which lays out the package:
 
 ```
 @acme/crm/

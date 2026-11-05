@@ -117,7 +117,7 @@ package; you write the ~15-line mapping yourself.
 | `stop()` | `agent.cancel()` | eve renamed `stop()` → `cancel()` on frontend agent bindings in **0.38.0**; not 1:1 in name, same role |
 | `error` | `agent.error` | 1:1 |
 | `regenerate()` | *(none)* | re-`send` the previous user text yourself |
-| `setMessages([])` | `agent.reset()` | also clears events + the local session cursor |
+| `setMessages([])` | `agent.newSession()` | also clears events + the local session cursor. **Not `agent.reset()`** (gone) and **not `agent.end()`**: `end()` retires the session *on the server*, which eve's own guide says explicitly is the wrong call behind a New-chat button. `newSession()` clears local state and the cursor; `clear()` wipes the model's context inside the *same* session |
 | — | `agent.session` / `agent.events` | eve-only: the resumability cursor + raw log |
 
 Message items: eve's `EveMessage` follows the **AI SDK `UIMessage` convention** (`role` + `parts`), so

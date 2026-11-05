@@ -400,7 +400,7 @@
         "nuqs.md"
       ],
       "scripts": [],
-      "skill_md_lines": 444,
+      "skill_md_lines": 466,
       "bundle": "dist/data-fetching.skill"
     },
     {
@@ -683,7 +683,7 @@
         "rollback-runbook.md"
       ],
       "scripts": [],
-      "skill_md_lines": 308,
+      "skill_md_lines": 313,
       "bundle": "dist/vercel-deploy.skill"
     },
     {
@@ -757,7 +757,7 @@
       "scripts": [
         "check_eve_state.py"
       ],
-      "skill_md_lines": 199,
+      "skill_md_lines": 210,
       "bundle": "dist/eve-agent.skill"
     },
     {

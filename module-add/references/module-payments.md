@@ -81,14 +81,18 @@ import { env } from "@/lib/env";
  * The apiVersion is pinned. Stripe rolls forward; pinning protects you from
  * silent webhook payload changes. Bump deliberately when you're ready.
  *
- * The current SDK default is "2026-09-30.endive" (stripe-node 23.0.0, 2026-09-30)
- * — a fresh `stripe` install ships Endive types, so pinning an older literal like
- * "2026-08-26.dahlia" can throw a TS mismatch against the bundled types. Match
- * the pin to the installed SDK's types (or `stripe listen --latest-api-version`
- * to confirm your account). [VERIFY] on install.
+ * The current SDK default is "2026-10-28.endive" (stripe-node 23.1.0, 2026-10-29),
+ * read from the shipped `esm/apiVersion.js` — 23.0.0 bundled "2026-09-30.endive".
+ * ⚠️ The dated API version moves inside a MINOR npm release, with the major name
+ * ("endive") unchanged, so `23.0.0 → 23.1.0` looks like patch drift and is not: a
+ * fresh install ships types for the newer date, and a pin one date behind can throw
+ * a TS mismatch against them — the trap this comment already warned about, now with
+ * a second instance. Take the literal from `node_modules/stripe/esm/apiVersion.js`
+ * rather than from a changelog (or `stripe listen --latest-api-version` for the
+ * account). [VERIFY] on install.
  */
 export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2026-09-30.endive",
+  apiVersion: "2026-10-28.endive",
   typescript: true,
 });
 ```

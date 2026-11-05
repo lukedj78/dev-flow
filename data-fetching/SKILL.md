@@ -293,6 +293,28 @@ const nextConfig: NextConfig = { cacheComponents: true, partialPrefetching: true
 
 Doc-grounded against <https://nextjs.org/docs/app/guides/instant-navigation> (page states `version: 16.3.0`). Not preview — 16.3.0 is the `latest` npm tag. Still **opt-in**: it rides on `cacheComponents: true`, which Vercel says will become a default in a future major.
 
+🔴 **Security, not a footnote: Cache Components is the surface the 2026-10-14 and 2026-11-03 advisories
+landed on, and the floor for using it at all is `16.4.5`.** Four things changed how this section should
+be read (full detail in `references/contracts.md` § `nextjs_version`):
+
+- **A `'use cache'` function returning multiple typed arrays was an unauthenticated RCE** up to `16.4.0`
+  ([GHSA-673q-mjm6-r5xr](https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr), critical,
+  **no workaround**). The advisory says to upgrade *even if the app has no such function* — so this is not
+  a per-project judgement call.
+- **Binary arguments collide in the cache key.** Passing a `Uint8Array` or a `Blob` to a `'use cache'`
+  function produced the **same key for distinct values** up to `16.4.2`
+  ([GHSA-rhh4-g77r-r9qj](https://github.com/vercel/next.js/security/advisories/GHSA-rhh4-g77r-r9qj)), so one
+  caller's cached result was served to another. Never cache on raw bytes: key on a digest you compute, and
+  never pass a `Blob` straight into a cached function.
+- **`partialPrefetching: true` is now also a mitigation**, not only the performance half. Without it, a
+  blocking fallback shell can be poisoned with request-supplied placeholder route params
+  ([GHSA-vvgp-ww4w-46vf](https://github.com/vercel/next.js/security/advisories/GHSA-vvgp-ww4w-46vf)). The two
+  flags above were already prescribed together; now turning on one without the other is a hole, not a taste.
+- **Root params keep leaking across cache entries** — three advisories in five weeks, all on the shape golden
+  rule ② creates (`[locale]` in the root segment, read with `next/root-params`). One of them has a complete
+  workaround worth memorising: **never nest `'use cache'` inside `unstable_cache()`**, which already throws
+  outside the race condition.
+
 **Definition.** A navigation is *instant* when the browser starts rendering the moment the user clicks: static/cached/fallback content appears immediately while the server streams the rest into its fallbacks. (Assumes warm caches — a cold cache still computes once.)
 
 **The distinction that explains everything:** a direct visit and a client navigation produce **different initial UI**.

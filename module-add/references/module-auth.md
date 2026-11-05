@@ -467,6 +467,20 @@ documents an API *for* coding agents: that one writes the runbook, this one issu
 
 ## Known caveats
 
+- 🔴 **Never set the session cookie on an Edge-runtime route.** Up to `next@16.4.2`, cookies written
+  through `NextResponse` on an Edge route handler were duplicated into a **public
+  `x-middleware-set-cookie` response header**, value and attributes included
+  ([GHSA-f3mh-rxg3-f5g2](https://github.com/vercel/next.js/security/advisories/GHSA-f3mh-rxg3-f5g2),
+  CVE-2026-119346, medium, fixed in `16.4.5` / `15.5.29`). The consequence is specific and bad: a
+  better-auth session cookie is `HttpOnly` precisely so page JavaScript cannot read it, and this header
+  hands that same value to any same-origin script — the flag is still set and no longer protects
+  anything. The exposure follows from **the route's runtime**, not from the auth library, so it is not
+  something better-auth can fix or detect for you. Two rules: patch to the floor in
+  `references/contracts.md` § `nextjs_version`, and keep auth routes on the **Node.js runtime**
+  (the default — the risk arrives the day someone adds `export const runtime = "edge"` to speed a
+  handler up). Audit with `grep -rn 'runtime.*edge' app/` before shipping, and check it against
+  wherever `auth.handler` is mounted.
+
 - ⚠️ **Wiring auth into a second process is what makes `module-add db`'s PGlite
   warning bite.** That reference says the embedded fallback is single-process and
   safe "as long as only one process touches the database". Auth is the thing that

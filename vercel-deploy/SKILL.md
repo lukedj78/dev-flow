@@ -109,20 +109,25 @@ The five gates read the *code*. `app-security`'s dependency scan sees `next` amo
 pnpm ls next --depth 0        # or: node -p "require('next/package.json').version"
 ```
 
-Compare against the floor in `references/contracts.md` § `nextjs_version` (**`16.3.8`** Active LTS or **`15.5.27`** Maintenance LTS, as of 2026-10-03). Below it, say so in one line naming the CVEs that apply to *this* project. The sets, newest first: **2026-09-30** is eight CVEs, of which the one to read first is the **high SSRF in Image Optimization** (conditional on `images.remotePatterns` existing at all) and the one most likely to be ours is the medium **`'use cache'` root-param cache leak** — with `cacheComponents: true` it can serve a page cached for one `[locale]` under another, has **no workaround**, and sits exactly on golden rule ② plus `next/root-params`. **2026-09-22** is a **critical RCE in `next/og` ImageResponse** (`>= 16.2.0 < 16.3.6`). The August set is two critical unauthenticated RCEs (attacker-supplied **AVIF**, which the patch disables outright; **Windows** hosts mixing Pages and App Router), and the July set includes a DoS through **any** Server Action and an SSRF through request-derived `rewrites()`, so most projects we scaffold are in scope of something.
+Compare against the floor in `references/contracts.md` § `nextjs_version` (**`16.4.5`** Active LTS or **`15.5.29`** Maintenance LTS, as of 2026-11-05). Below it, say so in one line naming the CVEs that apply to *this* project. The sets, newest first:
+
+- **2026-11-03**, seven medium. Two to read first because they are ours by construction: the **binary-argument `use cache` key collision** (a `Uint8Array` or `Blob` argument makes distinct calls share a cache entry, so one user's result reaches another — the shape of any per-file pipeline), and **HttpOnly cookies leaking through `x-middleware-set-cookie`** on **Edge** route handlers, which defeats the one flag protecting a `better-auth` session cookie. Also the third and fourth root-param × `use cache` leaks, and `partialPrefetching: true` turning out to be the *mitigation* for a fallback-shell poisoning.
+- **2026-10-14**, two critical unauthenticated RCEs and a high DoS, **and this set retired the 16.3 line**: all three are fixed in `16.4.1` with nothing published for 16.3. The SVG/Image one is a bug in an upstream library **under `sharp`** — so check the *resolved* `sharp` (`>= 0.35.5`), because a lockfile can hold an old one under a patched Next. The `use cache` typed-array RCE has **no workaround** and its advisory says to upgrade even if the app has no such function. The DoS needs **one Server Action**, which `forms` mandates everywhere, so every project we scaffold is in scope.
+- **2026-09-30** is eight CVEs, of which the one to read first is the **high SSRF in Image Optimization** (conditional on `images.remotePatterns` existing at all) and the one most likely to be ours is the medium **`'use cache'` root-param cache leak** — with `cacheComponents: true` it can serve a page cached for one `[locale]` under another, has **no workaround**, and sits exactly on golden rule ② plus `next/root-params`. **2026-09-22** is a **critical RCE in `next/og` ImageResponse** (`>= 16.2.0 < 16.3.6`). The August set is two critical unauthenticated RCEs (attacker-supplied **AVIF**, which the patch disables outright; **Windows** hosts mixing Pages and App Router), and the July set includes a DoS through **any** Server Action and an SSRF through request-derived `rewrites()`, so most projects we scaffold are in scope of something.
 
 Two things not to get wrong:
 
 - **Move to the current patch of a line that is still patched — and check which line that is.** In July, `16.2.x` was Active LTS and telling someone to jump to 16.3 was wrong. In August the label moved: 16.2 stopped at `16.2.12`, the criticals were fixed in `16.3.3`, and a project still on 16.2 is now unpatched. Read the line labels in the latest release post; never carry them from memory.
 - **Hosting on Vercel is not a patch.** Vercel has deployed global WAF rules for past Next.js CVEs, and said in the same breath that they "should not be considered a complete substitute for upgrading". Report the floor for Vercel-hosted and self-hosted projects alike.
 
-Then re-check the floor itself before quoting a number — it moves monthly. **Checked 2026-10-03: the
-floor moved.** `16.3.8` is both the newest `16.3.x` and the newest 16.x stable (it is `latest`), and
-`15.5.27` is the newest `15.5.x`. The previous record, `16.3.3`/`15.5.24`, had stood since 2026-08-25
-through five releases and nine CVEs — **which is the argument for reading the advisory database and not
-the version number**: `16.3.4` → `16.3.8` looks like ordinary patch drift and is not. The command for
-that is `gh api repos/vercel/next.js/security-advisories`, and it answers from this session where
-`nextjs.org` does not.
+Then re-check the floor itself before quoting a number — it moves monthly. **Checked 2026-11-05: the
+floor moved again, and the line moved with it.** `16.4.5` is the newest `16.4.x` and `latest` on npm;
+`15.5.29` is the newest `15.5.x`. **`16.3.8` is not a patch level any more, it is the end of a line**:
+the 2026-10-14 criticals are ranged `<= 16.4.0` and fixed in `16.4.1`, and no `16.3.9` was ever
+published — so a project on the previous floor cannot patch without changing minor. 16.2 was retired
+the same way. **Never read "which line is maintained" off a label; read it off whether that line
+received the last patch set.** The command is `gh api repos/vercel/next.js/security-advisories`, and it
+answers from this session where `nextjs.org` does not.
 
 ⚠️ **Several of the September advisories give their patched version as a literal `16.3.?`.** Do not
 parse it and do not treat an unparseable range as "not affected" — take the floor from the newest

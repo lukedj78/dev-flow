@@ -327,7 +327,7 @@ export const saveArtifactTool = () => defineTool({
 ```ts
 // agent/subagents/content-marketer/agent.ts
 export default defineAgent({
-  compaction: { thresholdPercent: 0.9 },
+  compaction: { threshold: 0.9 }, // `thresholdPercent` is the internal name and fails validation
   description:
     "Write and edit long-form marketing content: blog posts, landing pages, case studies… " +
     "The caller passes the brief, the audience, the format, source material, and the destination " +
@@ -599,7 +599,9 @@ resolves. eve 0.62.0 replaced `t.judge.autoevals.*` with **`t.judge(...)`**. Bot
 place eve calls an evaluation model for you.
 
 **b. A risk-scored approval policy.** eve's `approval` accepts a policy that *"returns an AI SDK 7 approval status
-synchronously or as a promise"*, receives `{ toolName, toolInput, approvedTools, callId }` plus the session, and may
+synchronously or as a promise"*, receives `{ toolName, toolInput, toolAnnotations, callId, abortSignal }` plus the session (**`approvedTools`
+removed in 0.84.0 — see `eve-conventions.md`**; `toolAnnotations` arrived in its place and carries a
+connection server's `destructiveHint`, which is a better score input than a name match), and may
 return `"user-approval"`, `"not-applicable"`, `"approved"`, `"denied"` or `{ type, reason }`
 (`docs/tools/human-in-the-loop.md`). That promise is where a score goes:
 
