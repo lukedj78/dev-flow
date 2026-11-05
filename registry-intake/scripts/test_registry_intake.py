@@ -1380,6 +1380,21 @@ class Hooks(unittest.TestCase):
             pinned = ri.pinned_scripts(root, command[1])
         self.assertIn("p/ds.js", pinned)
         self.assertIn("scripts/guard/guard.json", pinned)
+        # The review must read what the guard loads. Node keeps the root in front of an absolute
+        # preset (`path.join`), Python drops it, so an absolute preset is refused, not compared.
+        # The dangerous case points INSIDE the project: Python would read <root>/p/ds.js while Node
+        # loads <root>/<root>/p/ds.js, a file this review never saw.
+        root = self.project(command, scripts={"scripts/guard/eslint.guard.mjs": guard, "p/ds.js": preset})
+        write(root, "scripts/guard/guard.json", {"units": [{"preset": str(root / "p" / "ds.js")}]})
+        with mock.patch.object(ri, "GUARD_ASSETS", assets):
+            self.assertIn(("H9", "block"), [(f.code, f.level) for f in ri.review_hooks(root)])
+            # A copy outside scripts/guard/ still reads the root's guard.json at run time, so a
+            # guard.json planted beside it is not what the guard uses: no trust there either.
+            elsewhere = self.codes(("PreToolUse", 'node "$CLAUDE_PROJECT_DIR"/tools/eslint.guard.mjs pre'),
+                                   scripts={"tools/eslint.guard.mjs": guard,
+                                            "tools/guard.json": {"units": [{"preset": "p/ds.js"}]},
+                                            "p/ds.js": preset})
+            self.assertIn(("H9", "block"), elsewhere)
         # A reference copy inside the project is no reference: the vendored hook resolves
         # GUARD_ASSETS to <root>/design-md-to-app/..., which anyone with the repo can fill.
         write(root, "design-md-to-app/assets/guard/eslint.guard.mjs", guard)

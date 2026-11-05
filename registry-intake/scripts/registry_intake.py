@@ -2750,30 +2750,51 @@ IMPORT_DEPTH = 4
 # phase gate refused `scaffolded` with no door (factory-fintech, 2026-11-05). Trusted the way
 # HOOK_COPY is, by CONTENT: only while the file is byte for byte the asset that skill ships. The
 # import is then no longer unknown — the presets guard.json names are what it loads, so they are
-# read as if it had named them. From the vendored copy this path does not exist and nothing is exempt.
+# read as if it had named them. From the vendored copy this path falls inside the project, and
+# `guard_presets` refuses it, so nothing is exempt there.
 GUARD_ASSETS = Path(__file__).resolve().parents[2] / "design-md-to-app" / "assets" / "guard"
+# Where the guard looks for its config at run time: `primitives-guard.mjs` reads
+# `path.join(root, "scripts/guard/guard.json")`, never a file beside whichever copy is running.
+GUARD_DIR = "scripts/guard"
+
+
+def node_join(root: Path, rel: str) -> Path:
+    """`path.join(root, rel)` as Node computes it, which is what the guard imports.
+
+    Python's `root / "/abs"` drops `root`; Node keeps it (`path.join("/r", "/abs")` is `/r/abs`). The
+    difference let an absolute preset name one file to this review and another to the guard."""
+    return Path(os.path.normpath(f"{root}{os.sep}{rel}"))
 
 
 def guard_presets(script: Path, root: Path) -> list[Path] | None:
     """The presets a byte-identical design-md-to-app guard imports, or None when it is not one.
 
-    None also when guard.json cannot be read: then nobody knows what the import loads, which is
-    exactly the finding H9 reports. And None when the reference copy sits inside the project: the
-    vendored copy of this script resolves GUARD_ASSETS to `<root>/design-md-to-app/...`, a path
-    anyone who can write the repo can fill with their own "original"."""
+    None also when the review and the guard could disagree about what is loaded, which is exactly
+    the finding H9 reports:
+    - the reference copy sits inside the project (the vendored copy of this script resolves
+      GUARD_ASSETS to `<root>/design-md-to-app/...`, a path anyone with the repo can fill);
+    - the guard is not where it runs from (`<root>/scripts/guard/`): a copy elsewhere still reads
+      the root's guard.json, so a guard.json planted beside it would be a different config;
+    - guard.json cannot be read, or names a preset by an absolute path."""
     assets = GUARD_ASSETS.resolve()
     if assets.is_relative_to(root.resolve()):
         return None
     asset = assets / script.name
     if not asset.is_file() or script.read_bytes() != asset.read_bytes():
         return None
+    if script.parent.resolve() != (root / GUARD_DIR).resolve():
+        return None
     try:
-        units = json.loads((script.parent / "guard.json").read_text(encoding="utf-8"))["units"]
-        # Normalised, not resolved: the name stays the one the project uses (pinned as `p/ds.js`,
-        # not as a symlink's target), and `..` cannot walk out unseen. The target is pinned too.
-        return [Path(os.path.normpath(root / unit["preset"])) for unit in units]
+        units = json.loads((root / GUARD_DIR / "guard.json").read_text(encoding="utf-8"))["units"]
+        presets = [unit["preset"] for unit in units]
     except (OSError, ValueError, KeyError, TypeError):
         return None
+    if not all(isinstance(p, str) and p and not p.startswith(("/", "\\")) and not Path(p).is_absolute()
+               and not re.match(r"^[A-Za-z]:", p) for p in presets):
+        return None
+    # Normalised, not resolved: the name stays the one the project uses (pinned as `p/ds.js`, not as
+    # a symlink's target), and `..` cannot walk out unseen. The target is pinned too.
+    return [node_join(root, p) for p in presets]
 
 
 def guard_edges(script: Path, root: Path) -> list[Path]:
@@ -2784,7 +2805,7 @@ def guard_edges(script: Path, root: Path) -> list[Path]:
     if presets is None:
         return []
     here = Path(os.path.normpath(root))
-    out = [script.parent / "guard.json"]
+    out = [root / GUARD_DIR / "guard.json"]
     for preset in presets:
         if preset.is_relative_to(here) and preset.resolve().is_relative_to(root.resolve()):
             out += [preset, *(imported_files(preset, root) if preset.is_file() else [])]
