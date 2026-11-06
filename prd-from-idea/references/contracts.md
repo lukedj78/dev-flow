@@ -333,6 +333,66 @@ part — never clean. `sources` is `fresh | partial | stale | missing | not chec
 `history` entry (`{skill: "dev-flow", action: "debt-audit"}`). `show_state.py` proposes it from `deployed`, and again
 after a material change. How-to `dev-flow/references/debt-audit.md`.
 
+### `release` field (optional, owned by `release-intelligence`)
+
+The stretch between "the code is done" and "production is healthy": a Release Manifest per release,
+its measured risk floor, the exposure it has reached and who agreed to it. Written only through
+`release-intelligence/scripts/release.py`, through `meta_io`'s lock:
+
+```json
+"release": {
+  "enabled": true,
+  "autonomy": "disabled | advisory | assisted | automated",
+  "flag_provider": "launchdarkly | openfeature | edge-config | posthog | …" | null,
+  "observability_provider": "sentry | glitchtip | vercel" | null,
+  "deploy_provider": "vercel" | null, "scm_provider": "github" | null,
+  "rollout_strategy": { "stages": [1, 5, 25, 50, 100] },
+  "thresholds": { "error_rate_pct": 1.0, "p95_ms": 1200, "min_observation_minutes": 30, "rollback_multiple": 2.0 },
+  "risk_policy": { "paths": { "api": "high", "ci": null }, "size_bands": { "medium": 30, "high": 120 } },
+  "required_approvals": { "rollout_advance": "approval" },
+  "cleanup_policy": { "min_days_at_100": 7 },
+  "migration_policy": "expand-contract",
+  "releases": [{
+    "id": "REL-2026-11-06-01", "feature": "US-7", "environment": "production",
+    "commit": "abc1234", "pr": 42,
+    "risk": "low | medium | high | critical", "risk_floor": "<the measured level>",
+    "risk_raised": { "from": "low", "to": "high", "reason": "…" } | null,
+    "risk_signals": ["auth", "size"], "not_checked": ["…"],
+    "reversible_by_deployment_rollback": true, "destructive_migration": false,
+    "approval": { "required": true, "granted_by_user": true, "quote": "<the user's words>", "at": "<ISO-8601 UTC>" },
+    "flag": { "key": "us-7-new-checkout", "provider": "launchdarkly", "created": false } | null,
+    "rollout": { "stages": [1, 5, 25, 50, 100], "current_percent": 25,
+                 "steps": [{ "at": "…", "to_percent": 25, "verdict": "continue", "why": "…", "evidence": {} }] },
+    "status": "planned | approved | rolling | paused | complete | rolled_back | abandoned",
+    "planned_at": "<ISO-8601 UTC>", "verified_at": "<ISO-8601 UTC>" | null,
+    "events": [{ "at": "…", "event": "approved | paused | rollback:flag | stage_refused:insufficient | verified", "…": "…" }]
+  }]
+}
+```
+
+**Applies only when present and `enabled`.** A project without the field — every project until
+someone runs `release.py enable` — is untouched: no gate applies, nothing is proposed, and every
+other skill behaves exactly as before. `release.py disable` lifts the gate and leaves the decision in
+the file.
+
+`risk` is a **floor** measured by `release-intelligence/scripts/risk.py` from the diff and from what
+`security`, `debt_audit` and `spec_review` already recorded. The agent may **raise** it with a reason
+(`risk_raised`); nothing lowers it. `not_checked` lists what the scan could not see and is never a
+pass — a release graded `low` because nothing could be read is the failure mode the field exists to
+make visible.
+
+**Two rules no configuration relaxes** (`release-intelligence/scripts/policy.py`): pausing and
+aborting a rollout are automatic in every mode, because a safety control that waits for a sleeping
+human is not one; and a destructive database migration, a flag deletion and a production data change
+are **never** automatic at any risk level — `required_approvals` may only tighten a row, and an entry
+that would loosen one is ignored and reported.
+
+**`update_meta.py set-phase` (and `append-history --phase-after`) refuses to cross into `deployed`**,
+on an enabled project, without a Release Manifest covering production — and refuses a `high` or
+`critical` release whose `approval.granted_by_user` is not `true` with the user's own words
+(`dev-flow/scripts/release_gate.py`). Never bumps `phase`; always a `history` entry. How-to:
+`release-intelligence/SKILL.md`.
+
 ### `phase` enum (canonical)
 
 The `phase` field tracks the project's progress through the pipeline. Every skill must set this correctly.

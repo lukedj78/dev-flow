@@ -161,6 +161,7 @@ SKILLS=(
   spec-review
   product-to-agent-skill
   registry-intake
+  release-intelligence
 
   # Web stack (Next.js 16 App Router + shadcn / Base UI / MUI)
   figma-to-design-md

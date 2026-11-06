@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 56,
+  "skill_count": 57,
   "families": {
     "core": [
       "app-security",
@@ -14,6 +14,7 @@
       "product-to-agent-skill",
       "project-infra-setup",
       "registry-intake",
+      "release-intelligence",
       "scrum",
       "spec-review",
       "wireframe-canvas"
@@ -170,6 +171,7 @@
         "phases.py",
         "primitives_guard_gate.py",
         "registry_intake_gate.py",
+        "release_gate.py",
         "research.py",
         "show_state.py",
         "surfaces.py",
@@ -185,6 +187,7 @@
         "test_meta_validation.py",
         "test_phases.py",
         "test_primitives_guard_gate.py",
+        "test_release_gate.py",
         "test_research.py",
         "test_show_state.py",
         "test_surfaces.py",
@@ -193,7 +196,7 @@
         "update_meta.py",
         "wireframes_gate.py"
       ],
-      "skill_md_lines": 339,
+      "skill_md_lines": 340,
       "bundle": "dist/dev-flow.skill"
     },
     {
@@ -293,6 +296,38 @@
       ],
       "skill_md_lines": 817,
       "bundle": "dist/registry-intake.skill"
+    },
+    {
+      "name": "release-intelligence",
+      "family": "core",
+      "role": "operative",
+      "description": "Govern what happens between \"the code is done\" and \"production is healthy\": a Release Manifest with a measured risk floor, a feature-flag strategy, progressive exposure that advances only on measured health, pause and rollback, verification, and flag cleanup. Optional per project and off by default;...",
+      "skill_file": "release-intelligence/SKILL.md",
+      "references": [
+        "contracts.md",
+        "database-migrations.md",
+        "feature-flags.md",
+        "incident-recovery.md",
+        "progressive-delivery.md",
+        "provider-contracts.md",
+        "provider-launchdarkly.md",
+        "release-cleanup.md",
+        "release-health.md",
+        "release-lifecycle.md",
+        "risk-assessment.md",
+        "security-and-approvals.md"
+      ],
+      "scripts": [
+        "meta_io.py",
+        "policy.py",
+        "release.py",
+        "risk.py",
+        "test_policy.py",
+        "test_release.py",
+        "test_risk.py"
+      ],
+      "skill_md_lines": 188,
+      "bundle": "dist/release-intelligence.skill"
     },
     {
       "name": "scrum",

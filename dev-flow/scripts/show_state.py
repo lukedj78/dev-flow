@@ -332,6 +332,38 @@ def debt_line(meta: dict, root: Path) -> str | None:
     return None
 
 
+def release_line(meta: dict) -> str | None:
+    """The state of an opted-in release, or None. Silent on every project that never enabled the capability —
+    `release-intelligence` is opt-in, and a note proposing it to a brochure site would be the thing it exists
+    not to be. So this reports what is in flight; it never suggests enabling."""
+    block = meta.get("release")
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        return ("Release:  meta.json#release is not an object — release-intelligence/scripts/release.py "
+                "<root> status says what is wrong")
+    if block.get("enabled") is not True:
+        return None  # disabled on purpose, and recorded: nothing to say every time the state is printed
+    rels = [r for r in (block.get("releases") or []) if isinstance(r, dict)]
+    head = f"Release:  on · autonomy {block.get('autonomy')}"
+    if not rels:
+        return head + " · no manifest yet — release.py <root> plan --feature <US-N> (the gate into `deployed` asks for one)"
+    last = rels[-1]
+    exposure = (last.get("rollout") or {}).get("current_percent", 0)
+    line = (f"{head} · {last.get('id')} {last.get('status')} · risk {last.get('risk')} · "
+            f"exposure {exposure}% · feature {last.get('feature')}")
+    approval = last.get("approval") if isinstance(last.get("approval"), dict) else {}
+    if last.get("risk") in ("high", "critical") and approval.get("granted_by_user") is not True:
+        line += "\n  ⚠ not approved — `deployed` is refused until someone says yes (release.py approve … --user-said)"
+    if last.get("destructive_migration") is True:
+        line += "\n  ⚠ destructive migration: a deployment rollback will not undo it"
+    if last.get("status") == "paused":
+        line += "\n  paused — decide: more evidence, or rollback (release-intelligence/references/incident-recovery.md)"
+    if last.get("status") == "complete" and last.get("verified_at"):
+        line += "\n  verified — release.py <root> cleanup-due tells you when the flag can come out"
+    return line
+
+
 def founder_labels(founder: dict) -> list[str] | None:
     if not FOUNDER_SCRIPT.is_file():
         return None
@@ -537,6 +569,9 @@ def main() -> int:
         print("  \"none\" with stack_config.design_lint_reason.")
         print()
 
+    if (note := release_line(meta)):
+        print(note)
+        print()
     if (note := verification_line(meta, root)):
         print(note)
         print()

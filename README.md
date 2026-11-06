@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **56 skills (13 core + 19 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **57 skills (14 core + 19 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 56. Restart Claude Code if you don't see them in /skills.
+# Should print 57. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -966,6 +966,23 @@ npm facts are read with the history a name hides. A name that **changed hands** 
 **The agent always stops and asks before `allow` and `approve`**: it runs the read-only review, shows the report, and waits for a yes to the registry and a yes to the item, whatever the tier and however hurried the prompt. `--by` names the person who said yes, never the agent or the OS login. This was measured, not assumed. With a looser wording, [`evals/compliance`](./evals/compliance/README.md) caught the agent allowlisting and approving itself in two sessions out of three, writing the operator's login into `--by`, so the lock recorded an approval nobody gave. The hook now answers `"ask"` on both commands, so the user gets a permission prompt even when the agent skipped the question.
 
 Four barriers, each mechanical: an **allowlist** (a new registry is the user's decision, with a reason); a **review** of the item's whole closure — config/tooling targets, host process execution, obfuscation, env vars, theme tokens (DESIGN.md owns them), npm existence, licence, install scripts and age, and for eve code the tool keys the *installed* eve accepts, ungated side effects, global credentials, a shared store, US-shaped PII regexes; a **snapshot** installed with `shadcn@4.21.0` instead of the URL (local items and root-relative `registryDependencies` verified on that version); and **nothing around it** — the hook denies every other `shadcn add @…`, URL install, `eve add @…` and `eve registry add` using the documented `permissionDecision: "deny"` contract, while `check` catches edited snapshots, stray vendor files, unlisted registries in any `components.json`, and a design-lint `--max-warnings` raised to make room for imported code. Blocking findings are fixed, ported by hand (`eve-registry-porting`), or accepted one by one with a written reason — never waved through. `@coss` is the one registry trusted live, and only when `stack.ui = "coss"`. The rules are heuristics over source text, stated as such: typecheck, the capped lint, `eve build` and tests still run after install. 30 tests, no network, in CI.
+
+### `release-intelligence` — from code complete to production confidence (optional, off by default)
+
+**Input**: an **existing** dev-flow project at `feature_complete` or `deployed` that has explicitly opted in (`scripts/release.py <root> enable`) + the diff + what the pre-deploy gates already recorded in `meta.json`.
+**Output**: `meta.json#release` — a Release Manifest per release (feature, commit, PR, risk floor and what raised it, what the scan could not see, whether a deployment rollback reaches it, the flag, every exposure stage with the evidence that cleared it, the approval with the user's own words), plus the rollout plan, the health verdict and the cleanup list. Never bumps `phase`.
+
+**The gap it fills**: dev-flow's `deployed` row said *"telemetry monitoring"* and nothing owned it. Searched 2026-11-06: **the suite had zero mentions of feature flags as a capability**, and the only progressive-delivery knowledge anywhere was two paragraphs on `vercel rolling-release` inside `vercel-deploy`.
+
+**It decides and routes; it does not re-implement.** The deploy, `vercel rollback` and `rolling-release` stay `vercel-deploy`'s; the error tracker stays `module-add observability`'s; the five audits keep their questions and this skill *reads their verdicts* instead of re-scanning.
+
+**Provider-agnostic on somebody else's tested abstraction.** The flag contract is the **Vercel Flags SDK** (`flags@4.4.0`, MIT, two runtime deps) and its nine MIT adapters — LaunchDarkly, OpenFeature, Edge Config, PostHog, Statsig, GrowthBook, Hypertune, Optimizely, Split — so changing provider is the `adapter:` line, and we wrote no interface of our own. LaunchDarkly is the first reference integration, transcribed from **its own OpenAPI** (`app.launchdarkly.com/api/v2/openapi.json`, read 2026-11-06): the exact paths, the 52 semantic-patch instructions, its native `releases` and `approval-requests` resources, and the trap that `rolloutWeights` are **thousandths of a percent** — `15000` is 15%, and writing `15` ships a stage that serves almost nobody and reports perfect health.
+
+**Three refusals in code, each with its own test.** `stage` never advances on elapsed time — it requires evidence, and no numbers, a short window, a provider error or an explicit `sufficient: false` all read as `insufficient`, which is a refusal, because missing telemetry has never been proof that a release is healthy. `approve` requires the user's own words, like `founder-intelligence`'s Playbook. And **`rollback --kind database` executes nothing**: a deployment rollback restores code and leaves the schema, turning a flag off does not undo a migration, and `policy.py` keeps destructive migrations, flag deletion and production data changes in `NEVER_AUTO` at every risk level — `required_approvals` may only tighten a row, and an entry that would loosen one is ignored and reported, because a file in the repo is not a person's decision.
+
+**The risk level is a floor, not a score.** `scripts/risk.py` matches a fixed signal table against the diff (migrations and destructive SQL judged *per statement* and only on added lines, auth, payments, schema, routes, platform config, size bands) and against `security.findings.open`, `debt_audit.bands.before_release` and `spec_review.level` — then returns the highest. The agent may **raise** it with a reason; nothing lowers it. Everything the scan could not see is printed under `NOT CHECKED` and copied into the manifest, because a release graded `low` because nothing could be read is the one failure mode that matters.
+
+**Optional means invisible.** A project with no `release` block behaves exactly as it did before this skill existed — no gate, no proposal, no changed behaviour, and `release_gate.py`'s first test is that all three of absent, `null` and disabled pass without reading anything else. Once enabled, `set-phase deployed` refuses without a manifest covering production, and refuses a `high`/`critical` release nobody approved. 89 tests, no network, in CI.
 
 ### `compliance-audit` — GDPR + EU AI Act audit & remediation
 

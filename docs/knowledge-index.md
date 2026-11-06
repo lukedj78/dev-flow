@@ -68,6 +68,23 @@ when any of them moves:
 | **eve tool definition** | `node_modules/eve/dist/src/internal/authored-definition/schema-backed.js` | the key list passed to `expectOnlyKnownKeys` — read from the installed eve; fallback list from **0.55.0** |
 | **Claude Code hooks** | <https://code.claude.com/docs/en/hooks-guide> | PreToolUse stdin `tool_input.command` + `cwd`; stdout `hookSpecificOutput.permissionDecision: "deny"` |
 
+## Release — flags, exposure and health (optional)
+
+`release-intelligence/SKILL.md`. Opt-in per project; the how-tos are doc-grounded against the shipped
+artefacts, not the vendors' landing pages.
+
+| Surface | How-to | Upstream (source of truth) | What depends on it |
+|---|---|---|---|
+| **Flag declaration + the provider abstraction** | `release-intelligence/references/provider-contracts.md` | `flags@4.4.0`'s shipped `dist/types-*.d.ts` (the `Adapter` interface) · <https://flags-sdk.dev> | the `adapter:` line is the only thing that changes per provider; `precompute` keeps a flagged page statically served |
+| **LaunchDarkly management API** | `release-intelligence/references/provider-launchdarkly.md` | <https://app.launchdarkly.com/api/v2/openapi.json> (read 2026-11-06, OpenAPI 3.0.3) | the exact paths, the 52 semantic-patch instruction kinds, `releases` / `approval-requests` / `migration-safety-issues`, and 🔴 `rolloutWeights` in **thousandths of a percent** |
+| **Traffic-level progressive delivery** | `vercel-deploy/SKILL.md` + `references/rollback-runbook.md` | <https://vercel.com/docs/rolling-releases> · <https://vercel.com/docs/instant-rollback> | this skill routes here and never re-documents it |
+| **Release health evidence** | `release-intelligence/references/release-health.md` | what `module-add observability` wired (Sentry / GlitchTip), checked by `module-add/scripts/observability_check.py` | the `--evidence` shape; nothing here holds a token |
+| **Expand/contract migrations** | `release-intelligence/references/database-migrations.md` | <https://orm.drizzle.team> · <https://neon.tech/docs> (branching as the rehearsal) | `risk.py`'s destructive-SQL rules; the one operation the skill never executes |
+
+⚠️ Adding a flag provider adds a **sub-processor** — register it per
+`dev-flow/references/eu-data-sovereignty.md`, and note that LaunchDarkly's EU host
+(`app.eu.launchdarkly.com`) is **not** in the `servers` list of its own OpenAPI spec.
+
 ## Pre-deploy gates (third-party CLIs)
 
 Five gates run at `feature_complete` — legal, cost, UI, commercial readiness, code security. Two of them wrap an **external CLI whose flags and

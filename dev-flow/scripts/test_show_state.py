@@ -509,3 +509,74 @@ class Observability(unittest.TestCase):
     def test_present_is_silent(self) -> None:
         self.web()
         self.assertIsNone(ss.observability_line({"phase": "deployed", "stack": {"framework": "next", "observability": ["errors"]}}, self.root))
+
+
+class Release(unittest.TestCase):
+    """release_line reports an opted-in release and says nothing on every other project.
+
+    The first three tests are the load-bearing ones: `release-intelligence` is opt-in, and the way an
+    optional capability goes wrong is by appearing on the projects that never asked for it.
+    """
+
+    def on(self, *releases, **block):
+        return {"release": {"enabled": True, "autonomy": "assisted", "releases": list(releases), **block}}
+
+    def test_silent_without_the_field(self) -> None:
+        self.assertIsNone(ss.release_line({"phase": "deployed"}))
+
+    def test_silent_with_a_null_field(self) -> None:
+        self.assertIsNone(ss.release_line({"release": None}))
+
+    def test_silent_when_disabled(self) -> None:
+        self.assertIsNone(ss.release_line({"release": {"enabled": False, "releases": []}}))
+
+    def test_a_hand_edited_block_is_reported(self) -> None:
+        out = ss.release_line({"release": "on"})
+        self.assertIn("not an object", out)
+
+    def test_enabled_with_no_manifest_points_at_plan(self) -> None:
+        out = ss.release_line(self.on())
+        self.assertIn("no manifest yet", out)
+        self.assertIn("plan", out)
+
+    def test_a_rolling_release_shows_its_exposure(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-1", "status": "rolling", "risk": "low",
+                                       "feature": "US-7", "rollout": {"current_percent": 25}}))
+        self.assertIn("REL-1 rolling", out)
+        self.assertIn("exposure 25%", out)
+
+    def test_an_unapproved_high_risk_release_warns_about_the_gate(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-2", "status": "planned", "risk": "high",
+                                       "rollout": {"current_percent": 0}}))
+        self.assertIn("not approved", out)
+
+    def test_an_approved_high_risk_release_does_not_warn(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-2", "status": "approved", "risk": "high",
+                                       "approval": {"granted_by_user": True, "quote": "vai"},
+                                       "rollout": {"current_percent": 0}}))
+        self.assertNotIn("not approved", out)
+
+    def test_a_destructive_migration_is_named(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-3", "status": "planned", "risk": "critical",
+                                       "destructive_migration": True,
+                                       "approval": {"granted_by_user": True, "quote": "ok"},
+                                       "rollout": {"current_percent": 0}}))
+        self.assertIn("destructive migration", out)
+
+    def test_a_paused_release_asks_for_a_decision(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-4", "status": "paused", "risk": "low",
+                                       "rollout": {"current_percent": 5}}))
+        self.assertIn("paused", out)
+
+    def test_a_verified_release_points_at_cleanup(self) -> None:
+        out = ss.release_line(self.on({"id": "REL-5", "status": "complete", "risk": "low",
+                                       "verified_at": "2026-11-01T00:00:00Z",
+                                       "rollout": {"current_percent": 100}}))
+        self.assertIn("cleanup-due", out)
+
+    def test_the_newest_release_is_the_one_reported(self) -> None:
+        out = ss.release_line(self.on(
+            {"id": "REL-OLD", "status": "complete", "risk": "low", "rollout": {"current_percent": 100}},
+            {"id": "REL-NEW", "status": "rolling", "risk": "low", "rollout": {"current_percent": 5}}))
+        self.assertIn("REL-NEW", out)
+        self.assertNotIn("REL-OLD", out)

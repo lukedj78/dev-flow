@@ -60,6 +60,7 @@ SKILLS=(
   spec-review
   product-to-agent-skill
   registry-intake
+  release-intelligence
 
   # Web stack
   figma-to-design-md

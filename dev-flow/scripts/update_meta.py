@@ -227,6 +227,26 @@ def wireframes_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, curre
     )
 
 
+def release_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
+    """On a project that opted into release-intelligence, no `deployed` without a Release Manifest — and
+    no `high`/`critical` release without a person's recorded yes. Checked at the crossing into `deployed`,
+    through both doors. A project without meta.json#release (every project until someone enables it) passes
+    without looking further; `release.py disable` lifts the gate and leaves the decision in the file."""
+    if not cur_idx < PHASES.index("deployed") <= new_idx:
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import release_gate
+
+    passed, why = release_gate.verify(root, meta)
+    if passed:
+        return None
+    return (
+        f"Phase change refused: {current!r} → {requested!r} needs a Release Manifest, approved where the risk asks for it.\n"
+        + "".join(f"  {line}\n" for line in why.splitlines())
+        + release_gate.remedy(root) + "\n"
+    )
+
+
 def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: str, requested: str) -> str | None:
     """Every phase gate, in order. The first refusal is returned; None means the move may happen.
 
@@ -284,7 +304,8 @@ def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: st
             if refusal:
                 return refusal
 
-    return wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+    return (wireframes_refusal(root, meta, cur_idx, new_idx, current, requested)
+            or release_refusal(root, meta, cur_idx, new_idx, current, requested))
 
 
 def unknown_phase_refusal(current: object, action: str) -> str:

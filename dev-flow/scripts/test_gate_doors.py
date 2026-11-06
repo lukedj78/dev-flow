@@ -28,7 +28,7 @@ sys.path.insert(0, str(HERE))
 import update_meta  # noqa: E402
 
 GATES = ["founder_gate", "inventory_gate", "wireframes_gate", "data_residency_gate", "design_lint_gate",
-         "registry_intake_gate", "primitives_guard_gate"]
+         "registry_intake_gate", "primitives_guard_gate", "release_gate"]
 
 
 def stub(name: str, passes: bool) -> types.ModuleType:
