@@ -8,6 +8,11 @@ Three things live here now, answering different questions.
   checks over a *generated app*, asking whether the generation followed the rules the
   skill that produced it states. Different target, different failure mode, its own
   self-test; start from its README.
+- **[`review-quality/score_review.py`](./review-quality/README.md)** — does the *review* find the
+  defect, and stay quiet about the thing that only looks like one? Deterministic matching against
+  cases taken from this repo's own incidents, each with **traps** a review must not fire on;
+  firing on one fails the case even when every expectation was found. Its 12 self-checks run in CI;
+  the judge half (`review-quality/rubric.md`) needs a model and grades reasoning, never the count.
 - **[`compliance/comply.py`](./compliance/README.md)** — real `claude -p` sessions in a
   throwaway dev-flow project at three levels of prompt support, graded on what the agent *did*:
   does it follow golden rule 3, registry intake and the data-residency step when nobody

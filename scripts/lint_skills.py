@@ -762,7 +762,7 @@ VENDORED_SOURCE = [
     # if all writers take the same one, which is why the copies must not drift.
     *(("dev-flow/scripts/meta_io.py", f"{skill}/scripts/meta_io.py")
       for skill in ("app-verification", "design-md-to-app", "forms", "founder-intelligence", "registry-intake",
-                    "release-intelligence", "scrum", "wireframe-canvas")),
+                    "release-intelligence", "scrum", "spec-review", "wireframe-canvas")),
     # What a project is made of (web, mobile, agent, api, cli, other). One answer for every skill: app-security
     # had its own Next/Expo detection and missed Expo configured by app.config.ts (2026-10-18).
     *(("dev-flow/scripts/surfaces.py", f"{skill}/scripts/surfaces.py") for skill in ("app-security", "app-verification", "module-add")),

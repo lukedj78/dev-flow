@@ -53,13 +53,21 @@ The level is mechanical (`contracts.md`): command-verified criteria plus zero fi
 findings already fixed is 2; anything needing a decision is 3; a diff that exceeds its spec is 4. It is
 not a feeling about the diff.
 
+**If the pass found something worth a second look**, the cycle is
+`spec-review/references/review-cycle.md`: findings as data, a depth profile, and an iteration cap that
+sends what will not converge to the user rather than looping. A clean pass closes here and stops —
+running a second round on a review with nothing open is how this step becomes the wall the last
+section warns about.
+
 ## 5. Act on the level, and only on the level
 
 - **Level 1** — merge, then say what was merged and link the output that justified it.
 - **Level 2** — list the findings and the fixes already applied, then merge unless the user objects.
 - **Level 3** — ask the specific questions, one per finding, and **wait**. Each answer is either a fix
   or an acceptance written into the PR. An accepted trade that is not written down is not accepted;
-  it is forgotten.
+  it is forgotten — which is why `findings.py resolve --as accepted` requires the user's own words,
+  and why `spec-review/references/pr-documentation.md` puts every acceptance in the body where a reviewer of the
+  PR can actually see it.
 - **Level 4** — stop and explain. The diff and the spec disagree, and that is the user's to settle:
   change the PRD through `prd-from-idea/references/scope-check.md`, or remove the code.
 

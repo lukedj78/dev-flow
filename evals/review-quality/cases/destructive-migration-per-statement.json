@@ -1,0 +1,33 @@
+{
+  "id": "destructive-migration-per-statement",
+  "source": "this repo, 2026-11-06 — the bug release-intelligence/scripts/risk.py had on its first draft, caught by its own test",
+  "why_this_case_exists": "Two migration statements that look alike and are not. `ADD COLUMN ... NOT NULL` with no DEFAULT is rejected by Postgres on a non-empty table: a failed deploy. The same statement WITH a DEFAULT is safe and routine. A reviewer that cannot tell them apart either misses the broken one or blocks every additive migration, and both make it useless.",
+  "profile": "strict",
+  "expected": [
+    {
+      "id": "E1",
+      "axis": "risk",
+      "file": "drizzle/0007_add_tier.sql",
+      "line": 1,
+      "severity": "critical",
+      "must_mention": ["not null", "default"],
+      "why": "ADD COLUMN ... NOT NULL with no DEFAULT fails on a non-empty table"
+    },
+    {
+      "id": "E2",
+      "axis": "risk",
+      "severity": "high",
+      "must_mention": ["rollback"],
+      "why": "a deployment rollback restores the code and leaves the schema — the change is not reversible by a revert"
+    }
+  ],
+  "traps": [
+    {
+      "id": "T1",
+      "axis": "risk",
+      "file": "drizzle/0008_add_currency.sql",
+      "must_mention": ["destructive"],
+      "why": "ALTER TABLE invoices ADD COLUMN currency text NOT NULL DEFAULT 'EUR' is safe and additive. Flagging it is the false positive that makes a migration reviewer get switched off"
+    }
+  ]
+}

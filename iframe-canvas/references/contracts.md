@@ -333,6 +333,72 @@ part — never clean. `sources` is `fresh | partial | stale | missing | not chec
 `history` entry (`{skill: "dev-flow", action: "debt-audit"}`). `show_state.py` proposes it from `deployed`, and again
 after a material change. How-to `dev-flow/references/debt-audit.md`.
 
+### `spec_review` field (owned by `spec-review`)
+
+The review of a **change** — three axes, never merged — and, when one pass was not enough, the cycle
+that iterated on it. Written only through `spec-review/scripts/findings.py` (the cycle) and by the
+skill itself (the axes' results), through `meta_io`'s lock:
+
+```jsonc
+"spec_review": {
+  "last_run_at": "<ISO-8601 UTC>",
+  "fixed_point": "main",              // what HEAD was compared against
+  "commits": 7,
+  "spec_sources": ["tasks.md#T12-T15", "PRD.md#3.2"],
+  "spec_findings": { "missing": 1, "scope_creep": 2, "wrong": 0 },
+  "standards_findings": { "hard": 1, "judgement": 4 },
+  "risk": {                           // the third axis; verdicts are ⚠️/👀/✅, never a score
+    "verdicts": { "alignment": "✅", "impact": "👀", "verification": "⚠️",
+                  "rollback": "⚠️", "error_detection": "✅" },
+    "one_way_doors": ["migration drops client_choice", "vendored into 7 projects"],
+    "sixth_question": "<the answer, or the sentence saying it is empty>",
+    "accepted": { "verification": "12 orphan rows a year, accepted by luca on the PR" }
+  },
+  "level": 3,                         // §Intervention levels — who can check, not how clean
+  "axes_not_run": [],                 // e.g. ["spec"] with no PRD — say so, never infer it
+
+  // The cycle. Absent on a single-pass review, which is the default and the common case.
+  "profile": "light | standard | strict",   // review DEPTH (1 / 3 / 5 rounds) — never subtracts a check
+  "max_iterations": 3, "iteration": 2,
+  "reopened": 1,                      // a finding that came back after being closed
+  "rounds": [{ "round": 1, "closed_at": "<ISO>", "found": 4, "resolved": 3, "open_at_close": 1 }],
+  "findings": [{
+    "id": "F3", "fingerprint": "9f2c1a…",    // (axis, category, file, line, summary) — not the wording
+    "axis": "spec | standards | risk", "severity": "critical | high | medium | low | info",
+    "category": "rollback", "file": "lib/db/schema.ts", "line": 42,
+    "summary": "…", "evidence": "…", "impact": "…", "suggestion": "…",
+    "confidence": "high | medium | low",      // separate from severity: consequence vs certainty
+    "needs_human": true,                      // a round cannot close while this is open
+    "resolution": "open | fixed | rejected | accepted | deferred",
+    "resolution_note": "…",                   // required to reject
+    "resolution_quote": "<the user's words>", // required to accept
+    "resolution_sha": "abc1234",
+    "found_in_round": 1, "resolved_in_round": 2, "reopen_count": 0
+  }]
+}
+```
+
+**The three axes are never merged into one verdict**, and the third exists because the first two can
+both pass on a change that should not be merged (§Intervention levels records the measurement). An
+**unrun axis and a clean axis must never look the same**: `axes_not_run` says which, and nothing infers
+a pass from silence.
+
+**The cycle's three refusals are in code, not in prose** (`findings.py`): `iterate` refuses while any
+open finding has `needs_human`, because a disagreement about a product decision or an ambiguous
+requirement is the user's and inventing a resolution is the failure it guards; `iterate` refuses past
+`max_iterations` and sends the open findings to the user with the level, because a review that has not
+converged in three rounds has found something a fourth will not settle; and a resolved finding that
+reappears is **restored and counted** in `reopened` rather than filed again, which is how a reviewer
+re-reporting what the implementer argued away becomes visible instead of infinite. `close --level 1|2`
+refuses while a `critical` or `high` finding is open — levels 1 and 2 mean the agent merges. `accepted`
+requires the user's own words; `rejected` requires a reason.
+
+**`profile` is depth, never subtraction.** It sets rounds and brief depth; it does not drop an axis,
+lower a severity or skip a check because a diff is small — a level is defined by *who can check a
+finding*, which a diff's size cannot change. Never bumps `phase`; always a `history` entry. How-to
+`spec-review/SKILL.md`; the cycle `spec-review/references/review-cycle.md`; the PR body
+`spec-review/references/pr-documentation.md`; the review's own measurement `evals/review-quality/`.
+
 ### `release` field (optional, owned by `release-intelligence`)
 
 The stretch between "the code is done" and "production is healthy": a Release Manifest per release,

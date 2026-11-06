@@ -361,14 +361,21 @@
       "name": "spec-review",
       "family": "core",
       "role": "operative",
-      "description": "Review a diff on the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack`). Two parallel sub-agents, reported side by side and never merged, with...",
+      "description": "Review a diff on the three axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`PRD.md` + `tasks.md`), the **contract** it was built under (golden rules, `meta.json#stack`), and the **risk** if it is wrong — alignment, impact, verification, rollback cost...",
       "skill_file": "spec-review/SKILL.md",
       "references": [
         "contracts.md",
-        "risk.md"
+        "pr-documentation.md",
+        "review-cycle.md",
+        "risk.md",
+        "self-improvement.md"
       ],
-      "scripts": [],
-      "skill_md_lines": 271,
+      "scripts": [
+        "findings.py",
+        "meta_io.py",
+        "test_findings.py"
+      ],
+      "skill_md_lines": 312,
       "bundle": "dist/spec-review.skill"
     },
     {

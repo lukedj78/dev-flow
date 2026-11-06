@@ -1,6 +1,6 @@
 ---
 name: spec-review
-description: 'Review a diff on the two axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`.workflow/PRD.md` + `tasks.md`) and the **contract** it was built under (golden rules, `meta.json#stack`). Two parallel sub-agents, reported side by side and never merged, with a Fowler smell baseline as the floor. Use when the user says "review this branch", "spec review", "review since <ref>", "does this match the PRD?", "controlla il diff contro la spec", or dev-flow proposes it after a feature lands. Requires `.workflow/`; without one use the built-in `/code-review`. Records `meta.json#spec_review`; no phase bump. Not for: generic review with no spec (built-in `/code-review`), UI quality (`shadscan`), legal (`compliance-audit`), Vercel cost (`vercel-doctor`), or running tests (`write-tests`).'
+description: 'Review a diff on the three axes a dev-flow project can check that a generic reviewer cannot: the **spec** it was built from (`PRD.md` + `tasks.md`), the **contract** it was built under (golden rules, `meta.json#stack`), and the **risk** if it is wrong — alignment, impact, verification, rollback cost, error detection, plus a sixth question the five miss. Three parallel sub-agents, never merged, verdicts and never a score, closing with an intervention level. Use when the user says "review this branch", "spec review", "merge risk", "is this safe to merge?", "does this match the PRD?", "controlla il diff contro la spec", or dev-flow proposes it after a feature lands. Requires `.workflow/`; records `meta.json#spec_review`; never blocks. Not for: review with no spec (`/code-review`), UI quality (`shadscan`), legal (`compliance-audit`), or the release (`release-intelligence`).'
 ---
 
 # spec-review — did we build what the PRD asked, the way the contract says?
@@ -237,7 +237,13 @@ report that is right.
     "accepted": { "verification": "12 orphan rows a year, accepted by luca on the PR" }
   },
   "level": 3,                         // contracts.md, "Intervention levels" — who can check, not how clean
-  "axes_not_run": []                  // e.g. ["spec"] when there is no PRD — say so, never infer it
+  "axes_not_run": [],                 // e.g. ["spec"] when there is no PRD — say so, never infer it
+
+  // Only on an iterated review; written by scripts/findings.py. Full shape in the contract.
+  "profile": "standard", "max_iterations": 3, "iteration": 2, "reopened": 1,
+  "rounds": [{ "round": 1, "closed_at": "<ISO>", "found": 4, "resolved": 3, "open_at_close": 1 }],
+  "findings": [{ "id": "F3", "axis": "risk", "severity": "high", "needs_human": true,
+                 "resolution": "open", "…": "…" }]
 }
 ```
 
@@ -259,13 +265,48 @@ running app is proved with the project's verification manual (`.claude/skills/ve
 - **Not generic code review** — no `.workflow/`, no run; use the built-in `/code-review`.
 - **Doesn't run tests, lint or typecheck** — it reads their results and skips what they cover.
 - **Doesn't fix anything.** It reports. Fixes go to the owning skill (`forms`, `data-fetching`, …).
-- **Doesn't merge the two axes**, and doesn't pick a winner between them.
+- **Doesn't merge the three axes**, and doesn't pick a winner between them.
 
 ## Reference files
 
+- `references/risk.md` — the **third axis**: the five categories, the sixth question, the one-way doors
+  in our stack by name, and the two departures from the original (no score; stricter verification).
+  Pasted into the Risk sub-agent's brief in full.
+- `references/review-cycle.md` — **iterating without looping**: the implementer/reviewer split, the
+  structured findings, the three refusals (a round cannot close while a finding needs a human; the
+  iteration cap is real; a finding that comes back is counted, not re-filed), and what reaches GitHub.
+- `references/pr-documentation.md` — the twelve PR sections, which ones may be left out, and the rule
+  that *"not assessed"* is a legitimate final answer while an empty section is not.
+- `references/self-improvement.md` — the measure → propose → test → **human approves** cycle, and why
+  nothing promotes itself.
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).
+
+## Iterating, when one pass is not enough
+
+Three axes in one pass is the default and the right one. When the first pass finds something worth a
+second look, the loop lives in `references/review-cycle.md` and its state in
+`meta.json#spec_review`, written through `scripts/findings.py`:
+
+```bash
+python3 spec-review/scripts/findings.py <root> open --fixed-point main --profile standard
+python3 spec-review/scripts/findings.py <root> add --axis risk --severity high --file lib/db/schema.ts \
+    --line 42 --summary "the migration drops client_choice with no backfill" --needs-human
+python3 spec-review/scripts/findings.py <root> iterate        # refuses while anything needs a human
+python3 spec-review/scripts/findings.py <root> close --level 3
+```
+
+**The profile sets depth, never subtraction** — `light` 1 round, `standard` 3, `strict` 5 — and it does
+not drop an axis or lower a severity because a diff is small. `close --level 1|2` refuses while a
+`critical` or `high` finding is open, because levels 1 and 2 mean the agent merges.
+
+A clean first pass closes and stops. Running a second round on a review with nothing open is how a
+cycle becomes a ritual.
 
 ## Sources
 
 - <https://www.aihero.dev/skills-code-review> · [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) — the two-axis structure and the smell baseline. Both 200 on 2026-08-26; upstream has since moved its skills under `docs/engineering/`, where `code-review.md` still lives.
+- [warpdotdev/common-skills `merge-risk`](https://github.com/warpdotdev/common-skills/blob/main/.agents/skills/merge-risk/SKILL.md)
+  (MIT, credits Matt Pocock's `pr`) — the five risk categories of the third axis. Its weighted
+  score is deliberately **not** adopted; `references/risk.md` §Two departures says why, with the
+  measurement that settled it.
 - Fowler, *Refactoring* (2nd ed.), ch. 3 — the smell catalogue.

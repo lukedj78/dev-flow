@@ -1,0 +1,38 @@
+{
+  "id": "ask-gate-false-positive-rate",
+  "source": "this repo, 2026-10-20 — recorded in dev-flow/references/contracts.md §Intervention levels and spec-review/references/risk.md §3",
+  "why_this_case_exists": "The canonical case for the whole subsystem. A gate was added that asked the user for confirmation; the commits were small, added tests, the suite was green, and the revert was one line. Run through the five risk categories, every one scores good. The defect was that it asked on 72% of commands, and nothing in the five categories asks how often a gate fires on ordinary work. A review that scores this change clean is a review that would have shipped it.",
+  "profile": "standard",
+  "expected": [
+    {
+      "id": "E1",
+      "axis": "risk",
+      "file": ".claude/settings.json",
+      "severity": "high",
+      "must_mention": ["how often"],
+      "why": "the gate's firing rate on ordinary work was never measured — a test that the bad case is caught is half a verification"
+    },
+    {
+      "id": "E2",
+      "axis": "risk",
+      "severity": "high",
+      "must_mention": ["every tool call"],
+      "why": "a hook in .claude/settings.json runs before every tool call in every session, so its blast radius is not its diff"
+    }
+  ],
+  "traps": [
+    {
+      "id": "T1",
+      "axis": "standards",
+      "file": ".claude/settings.json",
+      "must_mention": ["test"],
+      "why": "the change DID add tests for the bad case. Reporting 'no tests' is a false positive, and it is the finding a reviewer reaches for when it cannot see the real one"
+    },
+    {
+      "id": "T2",
+      "axis": "risk",
+      "must_mention": ["revert"],
+      "why": "the rollback genuinely is one revert. A rollback-cost finding here is noise, and the real cost is in the firing rate, not the reversibility"
+    }
+  ]
+}

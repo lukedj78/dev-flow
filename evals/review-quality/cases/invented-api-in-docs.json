@@ -1,0 +1,24 @@
+{
+  "id": "invented-api-in-docs",
+  "source": "this repo, 2026-11-06 — provider-contracts.md shipped `launchDarkly.variation()`, which does not exist; the shipped package exports `ldAdapter`",
+  "why_this_case_exists": "Rule zero of this repo is never to invent an API. The failure is invisible to every test, every lint and every diff read: the prose is well-formed, internally consistent, and wrong. The only way to find it is to compare the claim with the shipped artefact, which is precisely the check a reviewer skips on documentation.",
+  "profile": "light",
+  "expected": [
+    {
+      "id": "E1",
+      "axis": "standards",
+      "file": "release-intelligence/references/provider-contracts.md",
+      "severity": "high",
+      "must_mention": ["does not exist"],
+      "why": "the documented export is not in the package: rule zero says a claim is grounded in the shipped source, not in memory"
+    }
+  ],
+  "traps": [
+    {
+      "id": "T1",
+      "axis": "spec",
+      "must_mention": ["scope creep"],
+      "why": "documenting the adapter was in scope. A scope finding here is the reviewer substituting an axis it can judge for the one it cannot"
+    }
+  ]
+}
