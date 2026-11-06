@@ -326,7 +326,7 @@
         "test_release.py",
         "test_risk.py"
       ],
-      "skill_md_lines": 210,
+      "skill_md_lines": 217,
       "bundle": "dist/release-intelligence.skill"
     },
     {
@@ -586,6 +586,7 @@
         "module-db.md",
         "module-deploy.md",
         "module-email.md",
+        "module-flags.md",
         "module-mcp.md",
         "module-motion.md",
         "module-observability.md",
@@ -600,11 +601,13 @@
       ],
       "scripts": [
         "fake_ingest.py",
+        "flags_check.py",
         "observability_check.py",
         "surfaces.py",
+        "test_flags_check.py",
         "test_observability.py"
       ],
-      "skill_md_lines": 181,
+      "skill_md_lines": 182,
       "bundle": "dist/module-add.skill"
     },
     {

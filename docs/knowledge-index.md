@@ -75,6 +75,7 @@ artefacts, not the vendors' landing pages.
 
 | Surface | How-to | Upstream (source of truth) | What depends on it |
 |---|---|---|---|
+| **Installing the flag library** | `module-add/references/module-flags.md` | the shipped `assertEnv` calls of `flags@4.4.0` and each `@flags-sdk/*` adapter | 🔴 `FLAGS_SECRET` is 32 bytes and `precompute` needs it; LaunchDarkly's connection string is `EXPERIMENTATION_CONFIG`, wants a `clientSideId`, and the Vercel integration is a prerequisite. `module-add/scripts/flags_check.py` checks it |
 | **Flag declaration + the provider abstraction** | `release-intelligence/references/provider-contracts.md` | `flags@4.4.0`'s shipped `dist/types-*.d.ts` (the `Adapter` interface) · <https://flags-sdk.dev> | the `adapter:` line is the only thing that changes per provider; `precompute` keeps a flagged page statically served |
 | **LaunchDarkly management API** | `release-intelligence/references/provider-launchdarkly.md` | <https://app.launchdarkly.com/api/v2/openapi.json> (read 2026-11-06, OpenAPI 3.0.3) | the exact paths, the 52 semantic-patch instruction kinds, `releases` / `approval-requests` / `migration-safety-issues`, and 🔴 `rolloutWeights` in **thousandths of a percent** |
 | **Traffic-level progressive delivery** | `vercel-deploy/SKILL.md` + `references/rollback-runbook.md` | <https://vercel.com/docs/rolling-releases> · <https://vercel.com/docs/instant-rollback> | this skill routes here and never re-documents it |

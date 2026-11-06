@@ -106,6 +106,20 @@ with its own availability, and on an `eu`/`eu-sovereign` project a new sub-proce
 Config via `@flags-sdk/edge-config` avoids both, and for a project that only needs on/off switches it
 is the smaller answer.
 
+## Installing the library is not this skill's job
+
+`module-add flags` does it: the packages, `FLAGS_SECRET`, the provider's environment variables,
+`lib/flags.ts`, the discovery endpoint, the sub-processor entry, and `flags_check.py` to verify it.
+Read `module-add/references/module-flags.md` before wiring anything by hand — it carries the four
+facts that are easy to get wrong and silent when you do: that LaunchDarkly's connection string lives
+in a variable called **`EXPERIMENTATION_CONFIG`**, that it wants a **`clientSideId`** and not a server
+SDK key, that the **Vercel integration is a prerequisite** because the adapter reads flag state out of
+Vercel's config store rather than calling LaunchDarkly per request, and that **`FLAGS_SECRET` must be
+32 bytes** or `precompute` throws.
+
+`meta.json#stack.flags` records what was installed; `meta.json#release.flag_provider` records what a
+release plans to use. They are normally the same, and when they differ the plan is ahead of the code.
+
 ## In the codebase
 
 One declaration file, server-side, like every other shared concern in

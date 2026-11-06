@@ -145,6 +145,13 @@ Not every change does, and `references/feature-flags.md` opens with the cases th
 one**. A flag is a branch in production that somebody has to delete later; creating one per commit
 buys a permanent maintenance cost to avoid a one-line revert.
 
+**If the answer is yes and the project has no flag library yet, that is `module-add flags`** — it
+installs `flags` plus the chosen `@flags-sdk/*` adapter, `FLAGS_SECRET`, the provider's own
+environment variables, `lib/flags.ts`, the discovery endpoint and the sub-processor entry, and
+`module-add/scripts/flags_check.py` says whether it is really wired. This skill decides *which* flag
+and *how to open it*; it installs nothing. Check `meta.json#stack.flags` before planning a flagged
+release — a manifest naming a flag the project cannot evaluate is a plan with a hole in it.
+
 ⚠️ **A feature flag is not an access control.** It decides what the UI offers, not what the server
 permits. Every flagged endpoint still checks the session and the tenant, and `app-security` still has
 to pass. A flag used as authorization is a vulnerability with a dashboard.
