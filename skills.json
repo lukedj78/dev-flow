@@ -326,7 +326,7 @@
         "test_release.py",
         "test_risk.py"
       ],
-      "skill_md_lines": 188,
+      "skill_md_lines": 210,
       "bundle": "dist/release-intelligence.skill"
     },
     {

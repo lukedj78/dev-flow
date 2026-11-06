@@ -43,6 +43,28 @@ they are the asymmetry the whole capability rests on:
 - **A destructive database operation is never automatic**, in any mode, at any risk level. The
   verdict is "ask the user" at best. See `references/database-migrations.md`.
 
+## 🔴 Every command on this page is the agent's. The user types none of them.
+
+Written down because it was not obvious the first time it was explained: the scripts below are **this
+skill's own interface to itself**, plus the audit trail they leave in `meta.json`. They are not a UI,
+and a user who has to assemble `--evidence '{"window_minutes":60,…}'` by hand is being handed the
+agent's job.
+
+| The user says | The agent does |
+|---|---|
+| *"is this safe to ship?"* | `risk.py`, then reports the level, the signals **and the `NOT CHECKED` list**, in prose |
+| *"go ahead"* | `plan`, then `stage` one step at a time, reading the health numbers between them |
+| *"something is broken"* | checks whether it is even the release (`references/incident-recovery.md` §1), then `pause`, then names which of the three rollbacks applies |
+| *"how did it go?"* | `status`, reported as exposure, health and what is still open |
+
+**Exactly two things need the user, and neither is a command.** A `high`/`critical` release needs
+their yes, recorded in their own words (`approve --user-said`). And anything that touches production
+data is described and **not executed**, in every mode.
+
+Everything else — the manifest, the stages, the pauses, the verification, the cleanup list — the
+agent does and then **reports in sentences**. Never paste a command list at the user as if it were
+instructions; if a number or a decision is needed from them, ask for that one thing in one line.
+
 ## Scope — what this skill does not own
 
 | Concern | Owner |
