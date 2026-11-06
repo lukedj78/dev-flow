@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,6 +66,17 @@ BLOCKING = ("critical", "high")
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def head_sha(root: Path) -> str | None:
+    """The commit the review actually looked at. Without it nothing can count what landed since —
+    which is how archistudio reached 200 merged PRs with no review and a healthy-looking state."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True,
+                           text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() or None if r.returncode == 0 else None
 
 
 def fingerprint(f: dict) -> str:
@@ -150,6 +162,8 @@ def cmd_open(root: Path, a) -> tuple[int, str]:
         b["profile"] = a.profile
         b["max_iterations"] = a.max_iterations or PROFILES[a.profile]
         b["iteration"] = 1
+        b["head_sha"] = head_sha(root)
+        b.pop("skipped", None)        # a real run replaces a recorded skip
         b.setdefault("findings", [])
         b.setdefault("rounds", [])
         b.setdefault("reopened", 0)
@@ -349,6 +363,7 @@ def cmd_close(root: Path, a) -> tuple[int, str]:
     def mutate(blk: dict) -> list[str]:
         blk["level"] = a.level
         blk["closed_at"] = now()
+        blk["head_sha"] = head_sha(root)
         blk.setdefault("rounds", []).append({
             "round": int(blk.get("iteration", 1)), "closed_at": now(), "final": True,
             "open_at_close": len(open_findings(blk)),
@@ -361,10 +376,40 @@ def cmd_close(root: Path, a) -> tuple[int, str]:
     return 0, f"review closed at level {a.level}. {render(load(root))}"
 
 
+def cmd_skip(root: Path, a) -> tuple[int, str]:
+    """Record that the review was NOT run, with who said so. `finishing-a-feature.md`: an unrun review
+    and a clean review must never look the same — and relying on the agent to remember to write that
+    down is what left archistudio with 200 unreviewed PRs."""
+    if not (a.user_said or "").strip():
+        return 2, ("--user-said is required: a skipped review is the user's decision, and recording it "
+                   "without their words makes it indistinguishable from the agent deciding to skip itself")
+
+    sha = head_sha(root)
+
+    def mutate(b: dict) -> list[str]:
+        b["skipped"] = {"at": now(), "head_sha": sha, "quote": a.user_said.strip(),
+                        "reason": (a.reason or "").strip() or None}
+        b["last_run_at"] = None
+        b.pop("level", None)
+        return []
+
+    problems = save(root, mutate)
+    if problems:
+        return 2, "\n".join(problems)
+    return 0, (f"review recorded as SKIPPED on {sha[:7] if sha else '<no sha>'}, by the user.\n"
+               "  Write it on the PR too — the next session must be able to tell an unread diff "
+               "from a clean one.")
+
+
 def render(meta: dict) -> str:
     b = block_of(meta)
     if b is None:
         return "no review recorded on this project"
+    if isinstance(b.get("skipped"), dict) and not b.get("findings"):
+        s = b["skipped"]
+        return (f"review SKIPPED on {str(s.get('head_sha') or '')[:7]} — “{s.get('quote')}”"
+                + (f" ({s['reason']})" if s.get("reason") else "")
+                + "\n  This diff was never read. An unrun review and a clean review must not look the same.")
     fs = findings_of(b)
     by_axis = {ax: [f for f in fs if f.get("axis") == ax] for ax in AXES}
     lines = [f"review: round {b.get('iteration', 1)}/{max_iterations(b)} · profile "
@@ -428,6 +473,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("iterate")
 
+    p = sub.add_parser("skip", help="record that the user chose not to run the review")
+    p.add_argument("--user-said", default=None)
+    p.add_argument("--reason", default=None)
+
     p = sub.add_parser("close")
     p.add_argument("--level", type=int, required=True)
 
@@ -440,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
     handler = {"open": cmd_open, "add": cmd_add, "resolve": cmd_resolve, "iterate": cmd_iterate,
-               "close": cmd_close, "status": cmd_status}[a.cmd]
+               "close": cmd_close, "status": cmd_status, "skip": cmd_skip}[a.cmd]
     code, message = handler(root.resolve(), a)
     print(message, file=sys.stderr if code else sys.stdout)
     return code

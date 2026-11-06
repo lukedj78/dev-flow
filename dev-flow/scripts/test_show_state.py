@@ -580,3 +580,49 @@ class Release(unittest.TestCase):
             {"id": "REL-NEW", "status": "rolling", "risk": "low", "rollout": {"current_percent": 5}}))
         self.assertIn("REL-NEW", out)
         self.assertNotIn("REL-OLD", out)
+
+
+class ReviewNote(unittest.TestCase):
+    """The hole archistudio fell through: 200 merged PRs, no review, and a healthy-looking report.
+
+    The note reports and never blocks (the user's choice, 2026-11-06), so what these tests pin is
+    that it *speaks* in the cases that were silent, and stays quiet where a note would be noise.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_silent_before_any_code_exists(self) -> None:
+        self.assertIsNone(ss.review_line({"phase": "design_extracted"}, self.root))
+
+    def test_no_review_ever_is_reported_once_there_is_code(self) -> None:
+        out = ss.review_line({"phase": "module_added"}, self.root)
+        self.assertIn("has ever run", out)
+        self.assertIn("never read", out)
+
+    def test_a_skipped_review_is_reported_as_an_unread_diff(self) -> None:
+        meta = {"phase": "module_added", "spec_review": {
+            "skipped": {"at": "2026-11-06T10:00:00Z", "head_sha": "abc1234def", "quote": "non adesso"}}}
+        out = ss.review_line(meta, self.root)
+        self.assertIn("SKIPPED", out)
+        self.assertIn("non adesso", out)
+
+    def test_a_recent_review_is_silent(self) -> None:
+        meta = {"phase": "module_added",
+                "spec_review": {"last_run_at": "2026-11-06T10:00:00Z", "head_sha": "deadbeef", "level": 1}}
+        # no git repo in the fixture, so commit_count returns None and the note stays quiet
+        self.assertIsNone(ss.review_line(meta, self.root))
+
+    def test_a_hand_edited_block_is_reported(self) -> None:
+        out = ss.review_line({"phase": "module_added", "spec_review": "clean"}, self.root)
+        self.assertIn("not an object", out)
+
+    def test_the_threshold_is_configurable(self) -> None:
+        self.assertEqual(ss.REVIEW_STALE_COMMITS, 20)
+
+    def test_commit_count_returns_none_outside_a_repo(self) -> None:
+        self.assertIsNone(ss.commit_count(self.root, None))

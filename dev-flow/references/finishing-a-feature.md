@@ -35,14 +35,30 @@ review hangs off the *intention to merge*, which is a moment that exists, rather
 
 If the answer is no — the work continues, or waits — stop here. Nothing below runs.
 
-## 3. Run the full review?
+## 3. The review — who starts it depends on who merges
 
-Say what it costs and what it looks at: three axes on the diff between the branch and the fixed point
-(`spec-review`), a few thousand tokens, no changes to the code. Then ask.
+Read `meta.json#stack_config.review_policy`.
 
-If the answer is no, record that in the PR or the history — *"review skipped, by the user, on <sha>"* —
-so the next session knows the diff was never read rather than read and found clean. **An unrun review
-and a clean review must never look the same.**
+**`"on_merge"`** — the agent is the one merging, so the review is **part of merging** and it runs
+without asking. Say that it is running and what it looks at (three axes on the diff between the branch
+and the fixed point, a few thousand tokens, no changes to the code). The user can stop it.
+
+**`"on_request"`**, or the field absent — say what it costs and what it looks at, then **ask**.
+
+🔴 **Why the default depends on the policy, and is not simply "ask".** The question *"run the full
+review?"* only makes sense when the person being asked is the one who will merge, deciding how to
+spend the agent's tokens. **Where the agent merges, asking permission to check its own work has one
+cheap answer**, and the archistudio measurement is what that produces: 200 merged PRs, 94 branches,
+`spec-review` never run once, because nothing ever asked.
+
+Either way, **if it does not run, record that** — `findings.py skip --user-said "<their words>"`, plus
+a line on the PR. Not a note the agent means to write later: the command, which also stores the sha
+that was never read. **An unrun review and a clean review must never look the same**, and from
+`page_generated` on `show_state.py` reports a project where no review ever ran, a last review that was
+skipped, and work piling up past the staleness threshold.
+
+It still **never blocks** the merge (the user's decision, 2026-11-06). What changed is who starts it,
+and that forgetting is now visible.
 
 ## 4. Run it, and report three columns
 

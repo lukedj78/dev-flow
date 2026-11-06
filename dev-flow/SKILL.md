@@ -198,7 +198,7 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 - **Project management** — every project runs with agile scrum on the tracker chosen at design time (Linear unless the project or client already uses Jira or GitHub); bugs go through `scrum` Triage, by severity.
 - **Compliance** — `compliance-audit` any time, and as a pre-deploy gate.
 - **Cost/perf** — `vercel-doctor`, the pre-deploy gate for web projects on Vercel.
-- **Review** — `spec-review` on every change that lands, whatever the phase.
+- **Review** — `spec-review` on every change that lands, whatever the phase. **Who starts it follows `stack_config.review_policy`**: `on_merge` (the agent runs it as part of merging) or `on_request` (propose and ask, the default). A review that does not run is recorded with the user's words, and `show_state.py` reports a project where none ever did. Never blocks.
 - **Parallel builds** — the brief every sub-agent gets and the checks its diff passes before it is accepted.
 - **UI quality** — `shadscan`, one of the five pre-deploy gates.
 - **Security** — `app-security`, the fifth pre-deploy gate: any time, any stack, and after every material change.

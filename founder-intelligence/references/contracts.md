@@ -358,6 +358,9 @@ skill itself (the axes' results), through `meta_io`'s lock:
   "axes_not_run": [],                 // e.g. ["spec"] with no PRD — say so, never infer it
 
   // The cycle. Absent on a single-pass review, which is the default and the common case.
+  "head_sha": "abc1234…",             // the commit the review actually looked at — what `show_state.py`
+                                      // counts from, and without it nothing can see what landed since
+  "skipped": { "at": "<ISO>", "head_sha": "…", "quote": "<the user's words>", "reason": "…" },
   "profile": "light | standard | strict",   // review DEPTH (1 / 3 / 5 rounds) — never subtracts a check
   "max_iterations": 3, "iteration": 2,
   "reopened": 1,                      // a finding that came back after being closed
@@ -392,6 +395,8 @@ reappears is **restored and counted** in `reopened` rather than filed again, whi
 re-reporting what the implementer argued away becomes visible instead of infinite. `close --level 1|2`
 refuses while a `critical` or `high` finding is open — levels 1 and 2 mean the agent merges. `accepted`
 requires the user's own words; `rejected` requires a reason.
+
+**A skipped review is recorded, never inferred.** `findings.py skip --user-said` writes `skipped` with the user's own words and the sha that was not read, and clears `level`. Relying on the agent to remember to write that down is what left archistudio with 200 unreviewed PRs and a healthy-looking state report. `show_state.py` reports, from `page_generated` on: a project where no review ever ran, a last review that was skipped, and more than `stack_config.review_staleness_commits` commits since `head_sha`. It reports and never blocks.
 
 **`profile` is depth, never subtraction.** It sets rounds and brief depth; it does not drop an axis,
 lower a severity or skip a check because a diff is small — a level is defined by *who can check a
@@ -579,6 +584,8 @@ Captures user choices that downstream skills need. Keys:
 - `i18n` (frontend, **golden rule 2**): `"next-intl"` (web canonical default) | `"i18next"` | `"react-i18next"` | `null`. Every frontend has i18n — do not leave `null` for a frontend. Web new projects default to `"next-intl"`; mobile uses the RN i18n stack.
 - `locales` (frontend, **golden rule 2**): array of BCP-47 codes, first entry = default locale. **Minimum `["en", "it"]`**; a project may add more (e.g. `["en", "it", "fr"]`). Set at scaffold, not asked.
 - `maps` (frontend, optional — only when the product shows maps): `"mapcn"` (web, MapLibre GL — how-to `design-md-to-app/references/maps-mapcn.md`) | `"mapcn-rn"` (mobile, MapLibre/Mapbox RN — how-to `rn-components-apis/references/maps-mapcn-rn.md`) | `null`. Ecosystem-first default when a project needs a map. `null` when the product has no maps.
+- `review_policy` (all stacks, optional): `"on_merge"` | `"on_request"` | `null`. **Who starts the review.** `"on_merge"` — the agent runs `spec-review` as part of performing a merge, without asking first; the user can stop it, and the skip is recorded with their words. `"on_request"` (the historical behaviour, and the default when the field is absent) — the agent proposes and asks. **The field exists because the question *"run the full review?"* only makes sense when the person being asked is the one merging**: where the agent merges, asking permission to check its own work has one cheap answer, and archistudio is the measurement (200 merged PRs, 94 branches, `spec-review` never run once). Decided once, like the tracker. It changes **who starts** the review and nothing else: `spec-review` still never blocks a merge, a phase or a deploy (the user's decision, 2026-11-06).
+- `review_staleness_commits` (all stacks, optional): an integer, default **20**. How many commits may land after the last recorded review before `show_state.py` says so. A starting point, not a truth — a repo that commits in small steps wants a higher number. The note reports and never blocks.
 - `graphs` (web, optional — only when a screen is an interactive node graph): `"react-flow"` | `null`. How-to `design-md-to-app/references/react-flow.md`. A read-only diagram that fits the screen is not a reason to set it. If the project hides React Flow's attribution, `stack_config.react_flow_subscription` records the subscription that allows it.
 - `shaders` (web, optional — only when a WebGPU shader actually ships): `"vgpu"` | `null`. [`vgpu`](https://vgpu.sh) (Vercel Labs, MIT) as the **Tier 4** rung of `transitions` — how-to `vgpu-shaders`. ⚠️ Set it only when a shader renders in production: it commits the project to a GPU device, a compile step and a render loop. Record alongside it how the **reduced-motion** path is served and what a **no-WebGPU** visitor sees; neither has a default, and the library documents neither.
 - `monorepo` (only when `framework = "monorepo"`): the per-side sub-object. `monorepo.web.*` and `monorepo.mobile.*` are defined in `dev-flow/references/stack-monorepo.md` (the canonical monorepo reference); the contract adds one key here because it is not per-side:

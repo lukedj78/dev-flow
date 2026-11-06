@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -364,6 +365,70 @@ def release_line(meta: dict) -> str | None:
     return line
 
 
+REVIEW_STALE_COMMITS = 20   # a starting point, not a truth: override per project in stack_config
+
+
+def review_line(meta: dict, root: Path) -> str | None:
+    """A note when work has landed that no review ever read, or when a recorded review is far behind.
+
+    This is the hole archistudio fell through: 200 merged PRs, 94 branches, `spec-review` never run
+    once — and nothing anywhere said so, because the state report never looked. It reports; it never
+    blocks, and `spec-review` stays a proposal (the user's choice, 2026-11-06).
+    """
+    idx = phases.index(meta.get("phase"))
+    if idx is None or idx < phases.PHASES.index("page_generated"):
+        return None                     # nothing built yet: nothing to have reviewed
+    block = meta.get("spec_review")
+    if block is not None and not isinstance(block, dict):
+        return ("Review:   meta.json#spec_review is not an object — "
+                "spec-review/scripts/findings.py <root> status says what is wrong")
+
+    cfg = meta.get("stack_config") or {}
+    policy = cfg.get("review_policy")
+    limit = cfg.get("review_staleness_commits")
+    limit = limit if isinstance(limit, int) and limit > 0 else REVIEW_STALE_COMMITS
+
+    if not isinstance(block, dict) or not (block.get("last_run_at") or block.get("skipped")):
+        n = commit_count(root, None)
+        where = f" ({n} commits on this branch)" if n else ""
+        return (f"Review:   no spec-review has ever run on this project{where} — the diff that landed "
+                f"was never read against the PRD or the contract.\n"
+                f"  spec-review on the work since the last release, then record it. "
+                f"`dev-flow/references/finishing-a-feature.md` is the step it belongs to.")
+
+    if isinstance(block.get("skipped"), dict) and not block.get("findings"):
+        s = block["skipped"]
+        return (f"Review:   last review was SKIPPED on {str(s.get('head_sha') or '')[:7]} — "
+                f"“{s.get('quote')}”. That diff was never read.")
+
+    since = block.get("head_sha")
+    n = commit_count(root, since)
+    if n is None:
+        return None                     # no git, or the sha is gone: say nothing rather than guess
+    if n >= limit:
+        extra = "" if policy != "on_merge" else " — and this project's policy is `on_merge`"
+        return (f"Review:   {n} commits since the last recorded review "
+                f"({str(since or '')[:7]}, level {block.get('level')}){extra}. "
+                f"The threshold is {limit}; raise it with stack_config.review_staleness_commits.")
+    return None
+
+
+def commit_count(root: Path, since: object) -> int | None:
+    """Commits on HEAD after `since`, or all of them when `since` is None. None when git cannot answer."""
+    rev = f"{since}..HEAD" if isinstance(since, str) and since else "HEAD"
+    try:
+        r = subprocess.run(["git", "rev-list", "--count", rev], cwd=root,
+                           capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return int(r.stdout.strip())
+    except ValueError:
+        return None
+
+
 def founder_labels(founder: dict) -> list[str] | None:
     if not FOUNDER_SCRIPT.is_file():
         return None
@@ -569,6 +634,9 @@ def main() -> int:
         print("  \"none\" with stack_config.design_lint_reason.")
         print()
 
+    if (note := review_line(meta, root)):
+        print(note)
+        print()
     if (note := release_line(meta)):
         print(note)
         print()
