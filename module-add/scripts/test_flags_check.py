@@ -223,3 +223,52 @@ class EnvNamesAreTheShippedOnes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VercelIsTheDefault(Project):
+    """Vercel Flags needs no env var at all, and that empty matrix is the reason it is the default.
+
+    Added 2026-11-07, after the first draft of module-flags.md listed nine adapters and omitted the
+    one for the platform the projects actually deploy to — an ecosystem-first miss, found by the user
+    asking whether Vercel could replace LaunchDarkly.
+    """
+
+    def vercel(self) -> None:
+        self.meta({"stack": {"framework": "next", "flags": "vercel"}})
+        self.write("package.json", json.dumps({
+            "dependencies": {"next": "16.4.5", "flags": "4.4.0", "@flags-sdk/vercel": "1.6.0"}}))
+        self.write(".env.example", f"FLAGS_SECRET={GOOD_SECRET}\n")
+        self.write("lib/flags.ts", (
+            'import { flag } from "flags/next";\n'
+            'import { vercelAdapter } from "@flags-sdk/vercel";\n\n'
+            'export const marketingBanner = flag({\n'
+            '  key: "marketing-banner",\n'
+            '  defaultValue: false,\n'
+            '  adapter: vercelAdapter(),\n'
+            '});\n'))
+
+    def test_a_vercel_install_is_clean_with_no_provider_env_vars(self) -> None:
+        self.vercel()
+        found = [f for f in fc.check(self.root) if f.status == "found"]
+        self.assertEqual(found, [], [f.detail for f in found])
+
+    def test_vercel_needs_no_subprocessor_entry(self) -> None:
+        """Same platform, same DPA — and on an `eu-sovereign` project that is the whole argument."""
+        self.vercel()
+        (self.root / "docs" / "compliance" / "subprocessors.md").unlink()
+        self.assertEqual(self.status("subprocessor"), "not applicable")
+
+    def test_vercel_has_an_empty_env_matrix(self) -> None:
+        self.assertEqual(fc.PROVIDER_ENV["vercel"], ())
+        self.assertEqual(fc.PROVIDER_PACKAGE["vercel"], "@flags-sdk/vercel")
+
+    def test_flags_secret_is_still_required_on_vercel(self) -> None:
+        """It belongs to `flags` core, not to the provider: precompute/serialize throw without it."""
+        self.vercel()
+        self.write(".env.example", "\n")
+        self.assertEqual(self.status("flags-secret"), "found")
+
+    def test_the_adapter_package_is_still_checked(self) -> None:
+        self.vercel()
+        self.write("package.json", json.dumps({"dependencies": {"next": "16.4.5", "flags": "4.4.0"}}))
+        self.assertEqual(self.status("adapter-package"), "found")

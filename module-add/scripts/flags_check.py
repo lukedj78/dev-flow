@@ -23,6 +23,8 @@ What it checks, and why each one is here rather than being assumed:
    secret is not "no explorer", it is a crash or a statically-served page that stopped being one.
 3. **The provider's own variables.** Read from the shipped adapters' `assertEnv` calls, which throw
    on a missing value. LaunchDarkly's is `EXPERIMENTATION_CONFIG`, which contains no hint of the word.
+   **Vercel Flags has none** — `vercelAdapter()` uses the deployment's OIDC token — so for the default
+   provider this check has nothing to say, which is the point of choosing it.
 4. **`lib/flags.ts` exists, declares a flag, and every flag has an explicit `defaultValue`** — the
    value every user gets when the provider is unreachable.
 5. **No flag is declared in a `"use client"` file.** A flag evaluated client-side ships its
@@ -56,6 +58,11 @@ ENV_FILES = (".env.example", ".env.local", ".env.development.local", ".env.produ
 #: Read from each adapter's shipped `dist` on 2026-11-06 — the literal strings it passes to its own
 #: `assertEnv`, which throws when the value is missing. Not from any quickstart.
 PROVIDER_ENV: dict[str, tuple[str, ...]] = {
+    # The default for our stack, and its empty tuple is the whole argument: `vercelAdapter()`
+    # authenticates with the OIDC token the platform injects, so there is nothing to set, nothing to
+    # leak and nothing to forget. Verified by grepping its shipped dist for process.env / assertEnv
+    # on 2026-11-07: zero hits.
+    "vercel": (),
     "launchdarkly": ("EXPERIMENTATION_CONFIG", "LAUNCHDARKLY_CLIENT_SIDE_ID", "LAUNCHDARKLY_PROJECT_SLUG"),
     "edge-config": ("EDGE_CONFIG",),
     "posthog": ("POSTHOG_PROJECT_API_KEY", "POSTHOG_HOST"),
@@ -276,10 +283,14 @@ def check(root: Path, provider: str | None = None) -> list[Finding]:
         findings.append(Finding("client-declaration", "ok", "no flag declared in a client component"))
 
     reg = root / "docs" / "compliance" / "subprocessors.md"
-    if provider in (None, "edge-config"):
+    # Vercel Flags and Edge Config are the platform the project already deploys to: same vendor, same
+    # DPA, no new processor to register. Every other provider is a third party on the request path.
+    SAME_PLATFORM = ("vercel", "edge-config")
+    if provider is None or provider in SAME_PLATFORM:
         findings.append(Finding("subprocessor", "not applicable",
-                                "edge-config is Vercel's own store: no new sub-processor"
-                                if provider == "edge-config" else "no provider to register"))
+                                f"{provider} is the platform this project already deploys to: "
+                                "no new sub-processor" if provider in SAME_PLATFORM
+                                else "no provider to register"))
     elif not reg.is_file():
         findings.append(Finding("subprocessor", "found",
                                 "docs/compliance/subprocessors.md does not exist — a hosted flag provider is on "

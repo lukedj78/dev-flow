@@ -12,6 +12,7 @@ All versions below read from npm on **2026-11-06**.
 | Package | Version | Licence | Role |
 |---|---|---|---|
 | `flags` | **4.4.0** | MIT | the declaration layer and the `Adapter` contract |
+| **`@flags-sdk/vercel`** | **1.6.0** | MIT | **Vercel Flags — the default for our stack** (+ `@vercel/flags-core@1.11.0`) |
 | `@flags-sdk/launchdarkly` | 1.1.1 | MIT | LaunchDarkly |
 | `@flags-sdk/openfeature` | 0.1.3 | MIT | **anything OpenFeature speaks** — the escape hatch |
 | `@flags-sdk/edge-config` | 0.2.0 | MIT | Vercel Edge Config, no third party at all |
@@ -27,7 +28,22 @@ All versions below read from npm on **2026-11-06**.
 `package.json`: `.`, `./next`, `./react`, `./analytics`, `./sveltekit`.
 
 ⚠️ **v4 ships no adapters itself.** Every provider is a separate package, which is what makes the
-dependency honest: a project that uses Edge Config never installs a LaunchDarkly SDK.
+dependency honest: a project on Vercel Flags never installs a LaunchDarkly SDK.
+
+🔴 **The default is `@flags-sdk/vercel`, and this table's first draft omitted it** — nine third-party
+adapters listed, and not the one for the platform the projects deploy to. Corrected 2026-11-07, after
+the user asked whether Vercel could replace LaunchDarkly. Three checkable reasons, in
+`module-add/references/module-flags.md` in full: it reads **zero environment variables** (OIDC,
+verified by grepping its shipped `dist`), it adds **no sub-processor** (same vendor, same DPA — which
+settles it alone on an `eu`/`eu-sovereign` project), and Vercel's build **bundles the flag definitions
+into the deployment** as a runtime fallback if the flags service is unreachable. It is a full provider:
+entities, targeting rules, segments, splits, drafts, a `vercel flags` CLI — and
+`@vercel/flags-core/openfeature` ships an OpenFeature provider, so the exit is a standard.
+
+**LaunchDarkly stays documented for what it has and Vercel does not**: provider-enforced **approval
+requests** (reviews plus an explicit apply — Vercel's *"Review and save"* is a change record, not a
+gate), the **`migration-safety-issues`** pre-flight, and **stale-flag detection** with
+`dependent-flags`. Those are real reasons; "it is the industry standard" is not.
 
 ### The contract, from the shipped `dist/types-*.d.ts`
 
@@ -45,16 +61,23 @@ interface Adapter<ValueType, EntitiesType> {
 A flag is declared once, server-side, and the adapter is swapped without touching call sites:
 
 ```ts
-// lib/flags.ts
+// lib/flags.ts — the default provider
 import { flag } from "flags/next";
-import { ldAdapter, type LDContext } from "@flags-sdk/launchdarkly";
+import { vercelAdapter } from "@flags-sdk/vercel";
 
-export const newCheckout = flag<boolean, LDContext>({
+export const newCheckout = flag({
   key: "us-7-new-checkout",
-  adapter: ldAdapter.variation(),
-  identify: async ({ cookies }) => ({ key: cookies.get("visitor")?.value ?? "anonymous" }),
+  adapter: vercelAdapter(),        // OIDC: no SDK key, no env var
+  identify: async () => ({ user: { id: await currentUserId() } }),
   defaultValue: false,   // what it serves when the provider is unreachable — see below
 });
+```
+
+The same declaration on LaunchDarkly, to show that the swap really is one line:
+
+```ts
+import { ldAdapter, type LDContext } from "@flags-sdk/launchdarkly";
+//                                          adapter: ldAdapter.variation(),
 ```
 
 **Changing provider is the `adapter:` line.** That is the provider independence the spec asks for,

@@ -39,10 +39,20 @@ python3 release-intelligence/scripts/release.py <root> stage REL-… --to 5 \
   --evidence '{"window_minutes":60,"error_rate_pct":0.2,"p95_ms":430,"sufficient":true}'
 ```
 
-Where the provider has a native release primitive, **use it instead of this loop** —
-LaunchDarkly's `POST …/releases` takes phases and their step schedule in one call, and its `…/stop`
-resolves pending phases properly (`references/provider-launchdarkly.md`). The loop here is for
-providers with no equivalent, and for the decision record either way.
+🔴 **Both providers ship a native progressive rollout, and both advance on elapsed time** — which is
+the one thing this loop refuses. Verified 2026-11-07:
+
+| Provider | What its native rollout does |
+|---|---|
+| **Vercel Flags** | `vercel flags rollout` — *"a progressive rollout follows a predefined schedule that gradually shifts the traffic percentage"*, each stage being **a target percentage and a duration** (changelog 2026-05-11). Pause, rollback and bucketing stability are not documented |
+| **LaunchDarkly** | `POST …/releases` — phases, each with the **schedule** of allocations at which its rule serves the target variation; `…/stop` resolves pending phases by a `resolution` |
+
+So the provider is where you **set** the percentage. **When** it moves is this loop's decision, taken
+on measured health. Driving a provider's scheduled rollout and then claiming the release was watched
+is the failure this file exists to prevent: the stages advance whether anyone looked or not.
+
+Use the provider's primitive when you want *its* audit trail of the change, and set each stage from
+here rather than handing it a schedule.
 
 ### The stages are not a default, they are a parameter
 

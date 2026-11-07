@@ -1,4 +1,13 @@
-# LaunchDarkly — the first provider, verified against its own OpenAPI
+# LaunchDarkly — what it has that Vercel Flags does not, verified against its own OpenAPI
+
+> **Read this only when one of three things is the reason.** The default provider for our stack is
+> **Vercel Flags** (`@flags-sdk/vercel`, zero env vars, no new sub-processor — see
+> `module-add/references/module-flags.md`). LaunchDarkly earns a project when it needs its
+> **approval requests** (reviews plus an explicit apply, enforced provider-side, where Vercel's
+> *"Review and save"* is a change record and not a gate), its **`migration-safety-issues`**
+> pre-flight, or its **stale-flag detection** and `dependent-flags`. Those three are below, and they
+> are not available by paying more elsewhere. "We already use LaunchDarkly" is also a reason; "it is
+> the industry standard" is not.
 
 Everything on this page was read from **`https://app.launchdarkly.com/api/v2/openapi.json`** on
 **2026-11-06** (OpenAPI 3.0.3, `info.version` `2.0`, 3.1 MB), not from a tutorial and not from
