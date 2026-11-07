@@ -47,7 +47,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 
 ## Agent engine (eve)
 
-`eve-agent/references/` is a complete mirror of the eve docs surface — `eve-docs-coverage.md` maps **every** page of <https://eve.dev/docs> to the reference that covers it. Highlights: `eve-scaffold.md` (init/deploy), `eve-capabilities.md` (tools/skills/channels/connections/extensions + the `eve add` registry CLI), `eve-concepts.md` (sandbox, durability, HITL), `eve-patterns.md` (multi-tenant, audit hook, read-vs-egress), `eve-evals.md`, `eve-web-integration.md` (+ `ai-elements.md` as the opt-in UI kit).
+`eve-agent/references/` is a complete mirror of the eve docs surface — `eve-docs-coverage.md` maps **every** page of <https://eve.dev/docs> to the reference that covers it. Highlights: `eve-scaffold.md` (init/deploy), `eve-capabilities.md` (tools/skills/channels/connections/extensions + the `eve add` registry CLI), `eve-concepts.md` (sandbox, durability, HITL), `eve-patterns.md` (multi-tenant, audit hook, read-vs-egress), `eve-evals.md`, `eve-web-integration.md` (+ `ai-elements.md` as the opt-in UI kit), and `eve-channels.md` for the per-surface channels — including **what an agent's reply looks like on a client that is not ours** (§json-render).
 
 ## UI system
 

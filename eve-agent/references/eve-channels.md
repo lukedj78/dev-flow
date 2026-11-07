@@ -218,11 +218,19 @@ WhatsApp has no first-class eve channel and nothing under `eve add channel/…` 
 rides the **Chat SDK** (see `eve-capabilities.md` §Channel → Chat SDK for the shared shape and
 the Resend worked example) with a WhatsApp adapter, authored by hand like the Resend example.
 
-⚠️ **Version floor (eve 0.80.0): `chat` and the `@chat-adapter/*` packages at `^4.42.0`.** eve
-vendors chat 4.42.0 and declares the optional `chat` peer at `^4.42.0` (read in the shipped
-`package.json`); **chat 4.41 broke Workflow DevKit workflows in host apps** (vercel/chat#969). The
-4.39.0 line recorded in the 0.47.6 note above is below the floor — pin the adapters to the same
-minor as `chat`.
+⚠️ **Version floor: `chat` and the `@chat-adapter/*` packages at `^4.42.0`.** eve declares `chat`
+as an **optional peer** at `^4.42.0` and never as a dependency — checked on both eve 0.80.0 and
+0.91.0 — so the host app owns the only copy. **chat 4.41 broke Workflow DevKit workflows in host
+apps** (vercel/chat#969), which is what the floor is for. The 4.39.0 line recorded in the 0.47.6
+note above is below it — pin the adapters to the same minor as `chat`.
+
+🔴 **The floor is a minimum, and `^4.42.0` no longer resolves to 4.42.0.** Read on npm 2026-11-07:
+`chat` and the whole `@chat-adapter/*` line are at **4.44.0**, while eve pins **exactly 4.42.0** in
+its own `devDependencies` (`chat`, `@chat-adapter/slack`, `@chat-adapter/twilio`,
+`@chat-adapter/state-memory`) — that is the minor eve is tested against. So a fresh `pnpm add chat`
+installs two minors above it. This is not a reason to pin backwards; it is a reason to **say which
+minor is installed** when a Chat SDK channel misbehaves, because on this line a minor has already
+broken a host app once.
 
 ```ts
 // agent/channels/whatsapp.ts
@@ -274,3 +282,43 @@ derived from before you build on it, not after.
 The mirror-image trap: a Chat SDK proactive send (`channel.receive()`) **starts an agent
 session**. Templated transactional messages that must not run the model need a raw delivery path
 instead — see the two Telegram send paths above for the shape of that distinction.
+
+---
+
+## json-render — a native card instead of markdown, when the client is not ours
+
+A Chat SDK channel answers in text. **json-render** is the layer that lets the model answer in
+**components the platform draws natively**: Block Kit on Slack, Adaptive Cards on Teams. The agent
+emits a JSON spec from a **typed catalog**, so it composes from a declared set and cannot invent an
+element — golden rule 3, applied to the model's output at runtime instead of to our code.
+
+⚠️ **Read from Vercel's changelog (2026-11-06) and npm metadata, not from the packages' `dist`.**
+The names below are the changelog's. Read each one out of the shipped package before building on it,
+as `release-intelligence/references/provider-contracts.md` had to after documenting an export that
+did not exist.
+
+| Package | Version | Licence | First published |
+|---|---|---|---|
+| `@json-render/core` | 0.22.0 | Apache-2.0 | 2026-01-14 |
+| `@json-render/chat` | 0.22.0 | Apache-2.0 | **2026-11-04** |
+| `@json-render/react` | 0.22.0 | Apache-2.0 | 2026-01-14 |
+
+The shape, as the changelog gives it: `defineCatalog` (`@json-render/core`) declares the components;
+`schema`, `standardComponentDefinitions`, `toCard`, `streamCard` and `CardSpecError`
+(`@json-render/chat`) validate and post. `catalog.prompt()` goes into the model's system prompt, and
+`await streamCard(thread, result.textStream)` streams the card into the thread the bot was mentioned
+in — the same `bot.onNewMention` handler as the WhatsApp example above.
+
+🔴 **Pass `limits`, or the degradation is silent.** Every platform caps a single message, and past
+that cap an adapter degrades on its own: the changelog's own example is the Slack adapter turning a
+second table into a code block. A silent downgrade reads as success, which is the one thing refused
+everywhere else in this suite — `limits` makes the card **fail** instead, and a refusal is the answer
+we want. Two more facts before promising live updates: edits are throttled to at most one every
+**500 ms**, and the **final validated card exists only once the stream has ended**. `CardSpecError`
+carries one readable issue per problem, so the natural recovery is to hand it back to the model.
+
+**Not adopted (2026-11-07):** `@json-render/chat` is three days old. The row in
+`dev-flow/references/resources.md` records why it is worth knowing anyway — it is the only answer we
+have to *what an agent's reply looks like on a surface where our own components cannot run*, which is
+most of the channels on this page. The web-chat half of that question is the `OpenUI` row beside it,
+and the step that would decide between them is still unwritten.
