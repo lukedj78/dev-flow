@@ -61,8 +61,22 @@ step and the one most often skipped. It is also the one that saves the most work
 **On free tiers the second half of the question is the one that bites: where does the plan stop?**
 A capability included up to a ceiling is still included — until the ceiling, which is where a
 project quietly starts building what it already had. Write the ceiling into the plan beside the
-capability (`Vercel cron: yes, 2 jobs on Hobby`), because that number, not the feature, is what the
-decision rests on.
+capability, because that number, not the feature, is what the decision rests on.
+
+🔴 **Read the ceiling off the vendor's limits page, not off a sentence like this one.** The example
+that used to sit here was *"Vercel cron: yes, 2 jobs on Hobby"*, and both halves were wrong: Vercel
+allows **100 cron jobs per project on every plan** — there is a changelog titled exactly that — and
+the primitive itself has been superseded, because **Cron Jobs are now *"a legacy feature [that] will
+be migrated to Schedules"***, so the capability to inventory is **Vercel Schedules** (read
+2026-11-07). A number this file carried for months had never been checked against the page that owns
+it, which is this very step skipped one level up.
+
+**Then ask which *kind* of ceiling it is, because they fail differently.** A **count** ceiling fails
+loudly the moment you cross it: on Hobby a deployment declaring more than 100 static schedules
+simply fails to build. A **run** ceiling fails silently mid-period: past Hobby's **5,000 schedule
+runs per billing period** the schedules are still listed and still enabled, and Vercel skips them
+until the period resets. The second kind is the one to write into the plan, together with what
+happens on the day the runs stop — `module-add/references/module-deploy.md` has the full table.
 
 And when a plan's terms turn on **commercial use**, that is a condition, not a footnote: it holds
 only while nothing ships commercially, and the day one does it is a licensing decision taken before

@@ -151,6 +151,15 @@ export interface MemoryStore {
 
 ## 4. Dynamic scheduling — tenant-owned schedules created at runtime
 
+> 🔴 **Before weighing it: on Vercel you cannot turn it on.** `defineDynamicSchedules`' own page
+> opens with *"Dynamic schedules on Vercel are gated by an organization-level feature flag. Contact
+> your Vercel representative to have the feature enabled for your organization."* — and it is
+> **production-only**, because the default provider rejects preview deployments. Read 2026-11-07 in
+> eve 0.91.0's shipped `docs/experimental/dynamic-schedules.mdx`. So the comparison below is not
+> "experimental versus proven": until somebody enables the flag, the recipe in this section is the
+> only one that runs. Everything that follows about the primitive is **what to verify the day the
+> flag arrives**, not a choice available now.
+>
 > **⚠️ 0.74.0 added a first-party primitive for exactly this, and it is experimental.**
 > **`defineDynamicSchedules`** gives direct operation tools, an optional `preparePayload` preparation
 > step, **top-level per-operation approval**, and **creator-bound execution**; the create approval

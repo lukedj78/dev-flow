@@ -467,8 +467,28 @@ tenant-created case there is now an experimental first-party primitive — `defi
 see `eve-patterns.md` §4, which weighs it against the hand-rolled dispatcher.
 
 `eve dev` does **not** fire schedules on cadence; trigger manually in dev via
-`POST /eve/v1/dev/schedules/<name>`. On Vercel they become Cron Jobs; self-hosted needs the
-Nitro task runner under `eve start`.
+`POST /eve/v1/dev/schedules/<name>`. Self-hosted needs the Nitro task runner under `eve start` — a
+process manager or preset that only serves HTTP builds the schedules and never fires them.
+
+🔴 **A static `defineSchedule` becomes a Vercel *Cron Job*, and that is the legacy primitive.**
+eve 0.91.0's own docs: *"Hosted Vercel builds turn every schedule into a Vercel Cron Job entry in
+`.vercel/output/config.json`"*, and under `withEve()` each agent's schedules are added to the
+project's cron entries — confirm them under **Settings → Cron Jobs**, history under
+**Observability → Cron Jobs**. Vercel meanwhile calls Cron Jobs *"a legacy feature [that] will be
+migrated to Schedules"*, and the Build Output API now accepts a `schedules` object as well (read
+2026-11-07). So an eve agent's static schedules inherit the **legacy** plan limits — on Hobby **once
+per day, ±59 minutes of precision**, not Schedules' every-15-minutes with a named timezone.
+`module-add/references/module-deploy.md` has both tables. Re-check on the next eve upgrade: this is
+exactly the kind of thing that moves in a minor.
+
+🔴 **The dynamic half is not ours to switch on.** `defineDynamicSchedules` does run on Vercel
+Schedules — occurrences delivered through **Vercel Queues** — but its own page opens with *"Dynamic
+schedules on Vercel are gated by an organization-level feature flag. Contact your Vercel
+representative to have the feature enabled for your organization."* It is **production-only** too:
+the default provider rejects preview deployments (*"Vercel Schedules currently supports production
+deployments only. Deploy with `vercel --prod`."*). So on our accounts it is not an option to weigh
+against the hand-rolled dispatcher — it is unavailable until somebody enables it, and the recipe in
+`eve-patterns.md` §4 is what runs today.
 
 Handler-form gotchas (`run({ receive, waitUntil, appAuth })`), learned the hard way:
 

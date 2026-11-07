@@ -51,7 +51,7 @@ That promotes the deployment *and* re-enables auto-assignment of production doma
 Because there is no rebuild, the rolled-back deployment comes back exactly as it was built:
 
 - **Environment variables are not re-applied.** Changing a var in project settings and rolling back does not combine into "old code, new secrets". The deployment keeps the values it was built and deployed with.
-- **Cron jobs revert** to the state of the rolled-back deployment.
+- **Scheduled jobs revert** to the state of the rolled-back deployment — both legacy cron entries and `schedules`, because Vercel applies a deployment's static schedules when it becomes the current deployment *"including promotions and rollbacks"* (read 2026-11-07). So a rollback taken to fix a bug also **removes any job added since** that deployment, silently: nothing fails, the job just stops existing. Check `vercel.json#schedules` against the dashboard after a rollback you intend to keep.
 - **Configuration may be stale** in general — treat the whole deployment as a snapshot, not as "current code minus one commit".
 - **Custom aliases set with `vercel alias` are not included**, because they are not part of the project's domain settings. They come back only if they were on the previous production deployment.
 - **External state does not roll back.** A database migration that ran during the bad deploy is still applied. If the release included a destructive migration, a rollback restores the code and leaves the schema — decide that before you press it.

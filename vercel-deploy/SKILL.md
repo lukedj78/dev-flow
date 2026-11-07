@@ -281,7 +281,7 @@ Commit: `release: deploy <version> to production on Vercel`.
 - ❌ `--prebuilt` for a Next.js app whose build reads System Environment Variables — they are missing at build time with that flag.
 - ❌ `vercel link` from this skill. Linking belongs to `module-add deploy`.
 - ❌ `phase = "deployed"` before the production domain actually serves the deployment.
-- ❌ Assuming a rollback restores environment variables. It does not rebuild: env vars and cron jobs revert to the state of the rolled-back deployment.
+- ❌ Assuming a rollback restores environment variables. It does not rebuild: env vars and scheduled jobs — cron entries and `schedules` alike — revert to the state of the rolled-back deployment, so a job added since it disappears.
 - ❌ Leaving a project in a rolled-back state without telling the user that pushes to the production branch no longer go live.
 - ❌ Hardcoding a `*.vercel-dns-*.com` CNAME target. It is per project.
 - ❌ Deploying an app whose only route is the scaffold's default page. A green checkmark on an empty app proves nothing.

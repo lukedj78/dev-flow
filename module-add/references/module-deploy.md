@@ -71,29 +71,12 @@ That's it for a single-app project. `$schema` gives editor autocomplete and vali
 | `functions` | one route needs a different region, memory or `maxDuration` than the rest |
 | `functionFailoverRegions` | Enterprise, and you need multi-region redundancy. Must differ from `regions` |
 | `headers` | security headers (CSP, HSTS) that Next's `next.config` isn't already emitting |
-| `crons` | the app has scheduled jobs — **check the plan limit first**, see below |
+| `schedules` | the app has scheduled jobs — **this is the current primitive**, see below |
+| `crons` | ⚠️ **legacy.** Vercel's own words: *"Cron Jobs are a legacy feature and will be migrated to Schedules"* — use `schedules` for anything new |
 | `redirects` / `rewrites` | prefer Next's `next.config.ts` for app-level routing; use `vercel.json` only for platform-level cases |
 | `installCommand` | monorepo filtered installs (see Step 5) |
 | `relatedProjects` | a frontend project that must reference a sibling backend project's preview URL |
 | `ignoreCommand` | the built-in "skip unaffected projects" doesn't cover your repo |
-
-**⚠️ Cron frequency is plan-gated, and it fails at deploy time, not at run time.** On the Hobby plan
-Vercel accepts **one run per day per entry** and *rejects a more frequent expression when the deployment
-is created* — the build never starts and the PR check fails with a link to the pricing doc, which reads
-like a broken build. Verified 2026-09-16 (Hostitaly, a 15-minute compliance sweeper) — **an observation from one of our own projects, so the 2026-11-05 date sweep deliberately left it alone: re-confirming it means running that project again, not reading a page.** Decide before
-writing the entry:
-
-- the schedule is genuinely daily → write it and move on;
-- the product needs a tighter cadence and the budget allows it → Pro (~24 €/mo at the time of writing);
-- the budget does not allow it → keep a **daily Vercel entry as the fallback** and drive the real cadence
-  from an external scheduler that calls the route with a shared secret. Make the handler accept **both**
-  callers (Vercel's own cron header *and* a bearer `CRON_SECRET`), compare the secret in constant time,
-  fail closed, and record the external service as a sub-processor receiving technical data only. Do not
-  use GitHub Actions as the scheduler on a private repo: a 15-minute schedule is ~2 900 billed minutes a
-  month against a 2 000-minute free quota.
-
-Never slow a legally-binding job to make a check go green — a daily sweep cannot carry a 24-hour
-deadline.
 
 Per-function overrides look like this — the shape is worth knowing even if you don't write it now:
 
@@ -112,6 +95,93 @@ A per-function `regions` **completely overrides** the project-level value for th
 Every `redirect`, `rewrite` and `header` entry counts against the **2048 routes per deployment** limit. A programmatic redirect table will hit it.
 
 There is also a `vercel.ts` variant (same properties, evaluated at build time, useful for generating config from env). **One config file per project** — you cannot have both.
+
+### Scheduled jobs — use `schedules`, and the workaround this file used to prescribe is gone
+
+🔴 **The Hobby cron limit that justified an external scheduler no longer applies, because the
+primitive changed.** Read 2026-11-07 against Vercel's own limits pages:
+
+| | legacy **Cron Jobs** (`crons`) | **Schedules** (`schedules`) |
+|---|---|---|
+| Status | *"a legacy feature and will be migrated to Schedules"* | current; **in beta**, so limits may still move |
+| Shortest interval on **Hobby** | **once per day** | **every 15 minutes** |
+| Timing precision on Hobby | per-hour: `0 1 * * *` fires anywhere in 1:00–1:59 | within the jitter window (Hobby: always 15 min) |
+| Pro / Enterprise | once per minute | once per minute, 1-minute jitter |
+| Count per project | 100 on every plan | Hobby: 100 static per deployment |
+| Timezone | **UTC only** | any IANA timezone, per schedule, DST-aware |
+| Target | HTTP `GET` to a **public** path | a **private** function, a path, or a Queues topic |
+| Environments | production only | production, Preview branches, custom environments |
+| Pause one job | no — all or nothing | enable / disable / run each one |
+
+So the three-way decision this section used to present — daily, or pay for Pro, or drive the cadence
+from an external scheduler with a shared `CRON_SECRET`, a constant-time compare and a sub-processor
+entry — **was written for a 15-minute sweeper on Hobby, which Schedules now does natively.** That
+workaround is retired. It was measured on one of our own projects (Hostitaly, 2026-09-16) and it was
+true of `crons`; it is simply no longer the cheapest answer. Reach for an external scheduler only if
+you need **tighter than 15 minutes on Hobby**, or you are not deploying to Vercel at all.
+
+Never slow a legally-binding job to make a check go green — a daily sweep cannot carry a 24-hour
+deadline. That rule is why the old workaround existed, and it is the one line of it that still holds.
+
+**The ceiling that bites on Hobby is a *run* ceiling, not a count.** Per billing period: **500**
+dynamic schedules created and **5,000 runs** (manual runs count too). Past it, creating or enabling
+fails with `feature_blocked` and 🔴 **Vercel simply skips the scheduled runs** until the period
+resets — the schedules are still listed, still enabled, and quietly stop firing. Team totals:
+**1,000** on Hobby, 10,000 on Pro, 100,000 on Enterprise. Execution history is 90 days on every plan.
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/cleanup.ts": { "experimentalTriggers": [{ "type": "schedule/v1beta" }] }
+  },
+  "schedules": {
+    "cleanup":      { "schedule": "0 * * * *", "timezone": "Europe/Rome", "jitter": 5, "function": "api/cleanup" },
+    "daily-report": { "schedule": "0 9 * * *", "path": "/api/daily-report", "requestMethod": "GET" },
+    "nightly-export": { "schedule": "0 2 * * *", "topic": "exports" }
+  }
+}
+```
+
+**Four traps, each read from the reference rather than guessed:**
+
+1. 🔴 **`requestMethod` defaults to `POST`.** Cron Jobs always sent `GET`. So migrating a cron route
+   to a `path` schedule and omitting `requestMethod: "GET"` points a POST at a handler that only
+   exports `GET` — a 405 on a job that used to work.
+2. 🔴 **A name collision with a dynamic schedule makes the deployment skip it and still succeed.**
+   Static and dynamic schedules share the `default` namespace. If a dynamic schedule already holds
+   the name, *"Vercel skips that static schedule. The deployment still succeeds"* — the job does not
+   exist and the deploy is green. Create dynamic schedules in their own namespace, never `default`.
+3. **`function` is the build-output path, not the source file** — `api/cleanup.ts` →
+   `.vercel/output/functions/api/cleanup.func` → `"api/cleanup"` — and the function must declare
+   `schedule/v1beta` as its **only** trigger, which is what makes it private (no public URL, so no
+   shared secret to compare). A mismatch **fails the deployment**, which is the good kind of failure.
+4. **Renaming a schedule is a delete plus a create**, with new state and empty execution history;
+   and a name declared both by the framework's build output and by `vercel.json` fails the build with
+   `SCHEDULE_NAME_CONFLICT`.
+
+**Two behaviours to design the handler around**, both from the Concepts page:
+
+- **No retries on `function` and `path` targets** — Vercel does not retry a run that throws, errors
+  or times out. *"If a failed run must be retried, target a queue topic."* That is the deciding
+  factor for anything that must not be lost.
+- **Delivery is at-least-once and catches up.** Every occurrence that has not expired is delivered
+  when delivery resumes, so an every-minute schedule stalled for two hours *"runs up to 12 times"*.
+  Each run carries an **execution ID** that is stable across deliveries — key idempotency on it, and
+  compare the scheduled time to now if the work is only valid near its slot.
+  `release-intelligence/references/progressive-delivery.md` has the same warning for a rollout loop.
+
+⚠️ **A rollback changes your schedules.** Static schedules are applied by whichever deployment is
+current, *"including promotions and rollbacks"* — rolling back production restores the schedules of
+the deployment you rolled back to. A rollback taken to fix a bug can therefore remove a job added
+since, which is worth a line in `vercel-deploy/references/rollback-runbook.md`'s checklist. Static
+schedules start **Active** in production and **Inactive** on Preview branches, so a preview cannot
+fire a production job by accident.
+
+**The official agent skill**: `npx skills add vercel/vercel-plugin --skill vercel-schedules` — it
+covers choosing static vs dynamic, picking a target, and migrating from Cron Jobs. It goes through
+`registry-intake skill-review` before installation, like any third-party agent skill, and the user
+runs the install.
 
 ## Step 3 — Region (the GDPR-relevant decision)
 
