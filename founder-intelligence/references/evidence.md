@@ -8,6 +8,7 @@ claim carries one of five classes; every fact has a row in `.workflow/founder/so
 | `[source]` | a verified fact, with URL and the date it was read | a competitor's public price |
 | `[founder]` | stated by the founder | "I can reach 40 law firms" |
 | `[interview]` | from notes of real interviews in `interviews/` | "3 of 5 reconcile by hand every Friday" |
+| `[review]` | a **public** review of an existing product, quoted verbatim with its URL | "cancelling took me four emails" — App Store, 2026-09 |
 | `[estimate]` | a calculation from stated inputs, shown | SOM = segment × assumed penetration |
 | `[hypothesis]` | to be tested | "they would pay €50 a month" |
 
@@ -25,6 +26,15 @@ claim carries one of five classes; every fact has a row in `.workflow/founder/so
   come from the data, or from what was hoped?
 - **Never simulated.** Interviews, survey results, testimonials, sign-ups, purchases and letters of intent
   exist only if the founder provides them.
+- **`[review]` is the rung below `[interview]`, never a replacement for it.** A review is cheap, public and
+  already written; an interview is expensive, scarce and answers the question you actually asked. Reviews
+  tell you what people complain about *unprompted*, which is a different and useful thing — but nobody in a
+  review was asked whether they would pay. A Playbook whose §5 rests on reviews alone says so in §5.
+- **A theme is thin until three reviews from two sources say it.** One angry thread is one angry person.
+  Mark thin themes as thin and keep them; they are leads for the interview kit, not findings.
+- **Verbatim and linked, or it does not exist.** Every `[review]` carries the exact words and the URL of the
+  review itself, not of the product page. A paraphrase is `[hypothesis]` wearing a quotation mark.
+- **Reviewers are not testimonials.** Their words are research and they never appear on a landing page.
 - **No tools, say so.** Without web search, the Playbook's header says it, and every `[source]` that could not
   be verified becomes `[hypothesis]`.
 

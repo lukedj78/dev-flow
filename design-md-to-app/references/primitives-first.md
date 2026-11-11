@@ -38,9 +38,22 @@ before/after proof, so the conversion cannot change what the user sees:
    Playwright `page.screenshot({ fullPage: true, animations: "disabled" })`.
 2. Convert to primitives. Where a primitive renders differently, tune it (rule 2) — not the call site.
 3. **After**, the same screenshots, then a pixel diff of each pair:
-   `npx pixelmatch before.png after.png diff.png 0.1`, or ImageMagick
-   `compare -metric AE before.png after.png diff.png`. **The target is zero changed pixels**
-   (anti-aliasing tolerance only). Read `diff.png`: every red area is a token or a variant still to tune.
+
+   ```bash
+   python3 design-md-to-app/scripts/pixel_diff.py before.png after.png --out diff.png
+   ```
+
+   Stdlib only, so there is nothing to install, and it exits **1** on a single changed pixel —
+   **the target is zero** (`--tolerance` is for antialiasing noise between two runs of the same
+   renderer, never for a difference you can see). Read `diff.png`: every red area is a token or a
+   variant still to tune, and the report names each one's position and size so you know where to
+   look before opening it.
+
+   🔴 **If the two screenshots are different sizes it refuses to compare them.** It does not scale
+   them to a common width, because a route that got 20px taller is exactly the regression a retrofit
+   causes, and scaling makes it vanish into resampling noise. Fix the height difference first, then
+   diff. (`npx pixelmatch` or ImageMagick `compare -metric AE` do the same job if the project already
+   has them.)
 4. A diff left on purpose is a design change: it needs the user's yes, and the board changes with it.
 
 Tuning a default variant changes every screen that uses it: re-run the parity check on the other routes

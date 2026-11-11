@@ -2,7 +2,7 @@
 """scan.py — fast first-pass GDPR/AI-Act signal scanner for a project.
 
 Walks a project tree, gathers boolean "signals" (does a control exist?), and
-maps them to the R1-R11 risk register. This is a SIGNAL, not a verdict — the
+maps them to the R1-R12 risk register. This is a SIGNAL, not a verdict — the
 skill's model must verify every reported hit by reading the code before putting
 it in the audit report (heuristics over-report by design; false positives are
 cheaper than misses here).

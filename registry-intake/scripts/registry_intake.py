@@ -1192,6 +1192,142 @@ def cmd_caps(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------------------------
+# sweep — the check the PORTED path never had
+#
+# `install` puts a hashed snapshot in the lock, so an item that came through the gate is known
+# forever. But our own rule for most registries is "port, do not install" (Watermelon UI, unlumen
+# UI, React Bits in `dev-flow/references/resources.md`), and a port is done by hand: no snapshot,
+# no record, no check. Golden rule 3 says one namespace, and a port is exactly how a second one
+# arrives — `components/unlumen-ui/`, a `WatermelonButton`, a comment naming the source, an asset
+# still loaded from the registry's domain.
+#
+# This does NOT look for hardcoded colours or arbitrary values. `shadcn/no-raw-colors` and
+# `shadcn/no-arbitrary-values` already catch those, and they stay ON inside the vendored component
+# directory, so the lint owns that half. What the lint cannot see is what this reads: file and
+# folder NAMES, comments, markdown, JSON, CSS — and a URL, which is not a lint concern at all.
+#
+# 🔴 And it skips the places where naming the source is CORRECT. Our rules require recording
+# provenance: the ADRs, `.workflow/`, and this lock exist to say "this came from X". A sweep that
+# flagged them would be telling you to delete the record you were told to keep, and after two of
+# those nobody runs it again.
+
+SWEEP_SKIP_DIRS = {".git", "node_modules", ".next", ".nuxt", ".svelte-kit", "dist", "build",
+                   "out", "coverage", ".turbo", ".vercel", "__pycache__", ".venv", "venv",
+                   # provenance lives here on purpose
+                   ".workflow", "adr"}
+SWEEP_SKIP_FILES = {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", LOCK}
+SWEEP_BINARY_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".icns", ".pdf", ".zip",
+                    ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".mov", ".mp3", ".wasm"}
+
+
+def sweep_patterns(sources: list[str], domains: list[str]) -> list[tuple[str, str, "re.Pattern"]]:
+    """A source name matches however it was re-spelled on the way in.
+
+    "Watermelon UI" has to catch WatermelonUI, watermelon-ui and watermelon_ui, because a port
+    renames by convention and each of those is the same second namespace.
+    """
+    pats = []
+    for name in sources:
+        name = name.strip()
+        if not name:
+            continue
+        parts = [re.escape(p) for p in re.split(r"[\s_-]+", name) if p]
+        if parts:
+            pats.append(("source", name, re.compile(r"[\s_-]?".join(parts), re.I)))
+    for dom in domains:
+        dom = dom.strip().lower()
+        if dom:
+            pats.append(("domain", dom, re.compile(re.escape(dom), re.I)))
+    return pats
+
+
+def sweep_is_binary(path: Path) -> bool:
+    if path.suffix.lower() in SWEEP_BINARY_EXT:
+        return True
+    try:
+        with path.open("rb") as fh:
+            return b"\0" in fh.read(4096)
+    except OSError:
+        return True
+
+
+def sweep(root: Path, sources: list[str], domains: list[str], max_size: int = 2_000_000) -> list[dict]:
+    pats = sweep_patterns(sources, domains)
+    hits: list[dict] = []
+    if not pats:
+        return hits
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SWEEP_SKIP_DIRS and not d.startswith(".git")]
+        here = Path(dirpath)
+        for d in list(dirnames):
+            rel = str((here / d).relative_to(root))
+            for kind, needle, rx in pats:
+                if rx.search(d):
+                    hits.append({"kind": kind, "needle": needle, "where": "folder name",
+                                 "path": rel, "line": None, "text": d})
+        for fn in filenames:
+            path = here / fn
+            rel = str(path.relative_to(root))
+            for kind, needle, rx in pats:
+                if rx.search(fn):
+                    hits.append({"kind": kind, "needle": needle, "where": "file name",
+                                 "path": rel, "line": None, "text": fn})
+            if fn in SWEEP_SKIP_FILES or sweep_is_binary(path):
+                continue
+            try:
+                if path.stat().st_size > max_size:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                for kind, needle, rx in pats:
+                    if rx.search(line):
+                        hits.append({"kind": kind, "needle": needle, "where": "contents",
+                                     "path": rel, "line": lineno, "text": line.strip()[:160]})
+    hits.sort(key=lambda h: (h["path"], h["line"] or 0))
+    return hits
+
+
+def cmd_sweep(args) -> int:
+    root = args.root.resolve()
+    sources = list(args.source or [])
+    domains = list(args.domain or [])
+    if not sources and not domains:
+        print("sweep: pass at least one --source or --domain (the registry or library you ported from)",
+              file=sys.stderr)
+        return 2
+    hits = sweep(root, sources, domains)
+    # 🔴 "Watermelon UI" does not match `WatermelonButton`, and that is the single most common way a
+    # port leaks a namespace: it renames to the distinctive first word alone. Widening the pattern to
+    # match that word everywhere would hit `Arc` inside `Architecture` and the tool would be noise,
+    # so the nudge is a sentence instead, and only when the full name found nothing.
+    hinted = []
+    for name in sources:
+        words = [w for w in re.split(r"[\s_-]+", name.strip()) if w]
+        if len(words) > 1 and not any(h["needle"] == name for h in hits):
+            hinted.append((name, words[0]))
+    if args.json:
+        print(json.dumps({"root": str(root), "sources": sources, "domains": domains,
+                          "hits": hits,
+                          "retry_with": [first for _, first in hinted]}, indent=2))
+    elif not hits:
+        print(f"sweep clean: nothing of {', '.join(sources + domains)} left in {root}")
+        for name, first in hinted:
+            print(f"  note: a port usually renames to the first word alone ({first}Button, "
+                  f"{first.lower()}-helpers). Re-run with --source {first} before calling "
+                  f"{name!r} clean.")
+    else:
+        print(f"sweep: {len(hits)} leftover(s)")
+        for h in hits:
+            loc = f"{h['path']}:{h['line']}" if h["line"] else h["path"]
+            print(f"  {h['where']:<12} {h['needle']:<20} {loc}")
+            if h["where"] == "contents":
+                print(f"               {h['text']}")
+    return 1 if hits else 0
+
+
 
 # ---------------------------------------------------------------------------------------------
 # third-party agent skills
@@ -4263,6 +4399,10 @@ def main(argv: list[str] | None = None) -> int:
     # flags in either position, consumes the `--` itself, and a stray shadcn flag written without
     # `--` now fails loudly instead of quietly changing which argument install thought it had.
     s.add_argument("shadcn_args", nargs="*")
+    s = sub.add_parser("sweep"); s.add_argument("root", type=Path)
+    s.add_argument("--source", action="append", help="name of the registry or library you ported from")
+    s.add_argument("--domain", action="append", help="its domain, for assets still loaded from it")
+    s.add_argument("--json", action="store_true")
     s = sub.add_parser("check"); s.add_argument("root", type=Path)
     s = sub.add_parser("caps"); s.add_argument("root", type=Path); s.add_argument("--reason", required=True)
     sub.add_parser("hook")
@@ -4286,7 +4426,7 @@ def main(argv: list[str] | None = None) -> int:
         print("✓ registry intake enforced" if ok else "✗ registry intake:\n" + "\n".join(f"  {p}" for p in problems))
         return 0 if ok else 1
     return {"setup": cmd_setup, "allow": cmd_allow, "deny": cmd_deny, "approve": cmd_approve,
-            "install": cmd_install, "caps": cmd_caps, "hook": cmd_hook, "hook-post": cmd_hook_post,
+            "install": cmd_install, "caps": cmd_caps, "sweep": cmd_sweep, "hook": cmd_hook, "hook-post": cmd_hook_post,
             "skill-review": cmd_skill_review, "skill-approve": cmd_skill_approve,
             "mcp-review": cmd_mcp_review, "mcp-approve": cmd_mcp_approve,
             "hook-review": cmd_hook_review, "hook-approve": cmd_hook_approve}[args.cmd](args)

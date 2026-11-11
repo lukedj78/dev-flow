@@ -3174,5 +3174,104 @@ class Install(Flow):
         self.assertEqual(lock["design_lint_caps"]["."], 12, "the lower of before and after is kept")
         self.assertFalse(ri.check(self.root)[0], "and `check` fails on the raised cap")
 
+
+class TestSweep(unittest.TestCase):
+    """The ported path. `install` leaves a snapshot; a hand port leaves nothing, and this is the check."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def write(self, rel, body=""):
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def cli(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = ri.main(list(argv))
+        return code, out.getvalue(), err.getvalue()
+
+    def test_clean_project_exits_zero(self):
+        self.write("components/ui/button.tsx", "export const Button = () => null\n")
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "Watermelon UI")
+        self.assertEqual(code, 0)
+        self.assertIn("sweep clean", out)
+
+    def test_name_is_caught_however_the_port_respelled_the_separator(self):
+        self.write("components/ui/b.tsx", "import x from './watermelon-ui/core'")
+        self.write("components/ui/c.tsx", "// adapted from watermelon_ui")
+        self.write("components/ui/d.tsx", "// from WatermelonUI")
+        hits = ri.sweep(self.root, ["Watermelon UI"], [])
+        self.assertEqual({h["path"] for h in hits},
+                         {"components/ui/b.tsx", "components/ui/c.tsx", "components/ui/d.tsx"})
+
+    def test_the_first_word_rename_is_the_trap_and_it_is_said_out_loud(self):
+        """`WatermelonButton` does not contain "Watermelon UI". Widening the pattern to the bare
+        first word would match Arc inside Architecture, so the tool says it instead of guessing."""
+        self.write("components/ui/a.tsx", "export function WatermelonButton() {}")
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "Watermelon UI")
+        self.assertEqual(code, 0, "nothing matched the full name, which is literally true")
+        self.assertIn("--source Watermelon", out, "and it must not let that pass as clean")
+
+    def test_no_hint_when_the_full_name_was_found(self):
+        self.write("components/ui/b.tsx", "import x from './watermelon-ui/core'")
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "Watermelon UI")
+        self.assertEqual(code, 1)
+        self.assertNotIn("note:", out)
+
+    def test_single_word_source_gets_no_hint(self):
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "unlumen")
+        self.assertEqual(code, 0)
+        self.assertNotIn("note:", out)
+
+    def test_folder_and_file_names_are_checked_not_just_contents(self):
+        self.write("components/unlumen-ui/card.tsx", "export const Card = () => null\n")
+        self.write("lib/unlumen-helpers.ts", "export const x = 1\n")
+        hits = ri.sweep(self.root, ["unlumen"], [])
+        wheres = {h["where"] for h in hits}
+        self.assertIn("folder name", wheres)
+        self.assertIn("file name", wheres)
+
+    def test_a_domain_still_serving_an_asset_is_a_hit(self):
+        self.write("app/page.tsx", '<img src="https://cdn.arc-ui.dev/hero.png" />')
+        hits = ri.sweep(self.root, [], ["arc-ui.dev"])
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["kind"], "domain")
+
+    def test_provenance_records_are_not_flagged(self):
+        """Our own rules require writing down where code came from. Flagging that would ask the
+        agent to delete the record it was told to keep."""
+        self.write(".workflow/meta.json", '{"note": "ported from Watermelon UI"}')
+        self.write("docs/adr/0004-ui.md", "We ported the base twin from Watermelon UI.")
+        self.write(f"{ri.LOCK}", '{"items": {"@watermelon/button": {}}}')
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "Watermelon UI")
+        self.assertEqual(code, 0, out)
+
+    def test_node_modules_and_lockfiles_are_skipped(self):
+        self.write("node_modules/watermelon-ui/index.js", "module.exports = {}")
+        self.write("pnpm-lock.yaml", "watermelon-ui: 1.0.0")
+        code, _, _ = self.cli("sweep", str(self.root), "--source", "watermelon-ui")
+        self.assertEqual(code, 0)
+
+    def test_no_source_given_exits_two_not_zero(self):
+        """Nothing to look for is not a clean sweep: it is a sweep that never ran."""
+        code, _, err = self.cli("sweep", str(self.root))
+        self.assertEqual(code, 2)
+        self.assertIn("--source", err)
+
+    def test_json_output_carries_every_hit(self):
+        self.write("components/ui/a.tsx", "export function ArcButton() {}")
+        code, out, _ = self.cli("sweep", str(self.root), "--source", "Arc", "--json")
+        self.assertEqual(code, 1)
+        payload = json.loads(out)
+        self.assertEqual(payload["sources"], ["Arc"])
+        self.assertEqual(payload["hits"][0]["where"], "contents")
+        self.assertEqual(payload["hits"][0]["line"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

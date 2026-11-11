@@ -48,7 +48,15 @@ answer, nothing §18 already records.
   threat that is hardest to dismiss, not the easiest.
 - Positioning, target customer, features, **observed** prices, distribution.
 - **Review mining**: recurring complaints existing solutions have not resolved. If the hypothesis answers
-  one of them, that is evidence of fit; if it answers none, that is worth knowing too.
+  one of them, that is evidence of fit; if it answers none, that is worth knowing too. **The sources, the
+  verbatim-and-linked rule and the thin-theme threshold are in stage 6** — this bullet and that one are
+  the same work seen from two sides, so do it once and cite it twice.
+- **Where to read a competitor's features, in order of value.** The **help centre or docs** is the most
+  complete feature list that exists, and it is written by the vendor. The **pricing page** says which of
+  those features *matter*, because those are the ones it gates. Then the changelog (what the team thinks is
+  worth announcing), the app-store listing (a screenshot of every key screen), public walkthrough videos
+  (the real flow, click by click) and the public API docs (the data model, almost for free). The marketing
+  site is last: it is the only one written to persuade you.
 - Three external trends (regulatory, technological, demographic) for the next two years, each a tailwind
   or a headwind for this hypothesis.
 - Market size only with its method: TAM/SAM/SOM with every input visible and pressure-tested, or "no reliable
@@ -64,6 +72,27 @@ synthesises; **it never interviews and never simulates**. Use `references/interv
 `interviews/`.
 **Done when:** the kit is ready and handed over. If no interview has happened yet, §5 says so and the
 validation roadmap (stage 12) carries the interviews as the first experiment.
+
+**First, when the competitor already exists: read what its users wrote.** Interviews are the evidence this
+stage turns on, and they are also the slowest thing in the Playbook — so a product with an incumbent has a
+free rung below them that this skill used to walk past. Public reviews are `[review]` evidence
+(`references/evidence.md`), and they are read, never scraped: the product's App Store and Google Play
+pages, G2, Capterra and Trustpilot filtered to 1–3 stars as well, Reddit (`"X alternative"`,
+`"switched from X"`), Hacker News, and the product's own public roadmap or feature-request board with its
+vote counts. Where an official public feed exists it is the better door — Apple's customer-reviews RSS, the
+Hacker News Algolia API, Reddit's own API within its terms. Read its changelog too, so the Playbook does
+not propose fixing something shipped last month.
+
+Sort them into three ranked lists — **what they hate**, **what is missing**, **what is unsolved** (a whole
+job or group the product ignores: *"useless for therapists"*) — each item with its count, its number of
+sources and one or two linked quotes. The third list is the one that becomes positioning in stage 7.
+
+🔴 **Then read the low ratings that matched no theme, by hand.** A themed list only finds what the themes
+already name, so the complaint nobody has a word for yet sits in the leftovers — and that is the one worth
+having. This is also what keeps the stage from turning into a word-frequency count.
+
+**It does not shorten the interview kit.** It aims it: every theme becomes a question whose answer the
+reviews cannot give, starting with whether the complaint is worth money.
 
 ## 7. Opportunity and positioning
 

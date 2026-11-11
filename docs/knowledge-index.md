@@ -51,7 +51,7 @@ This index is the map of those how-tos: what we're expert in, where the knowledg
 
 ## UI system
 
-`design-md-to-app/references/` — `shadcn-mapping.md`, `base-ui-mapping.md`, `mui-mapping.md`, `library-choice.md`, `chat-and-typeset.md`, `anti-slop-fallbacks.md`; plus `coss-ui/references/` for the Coss/UI registry.
+`design-md-to-app/references/` — `shadcn-mapping.md`, `base-ui-mapping.md`, `mui-mapping.md`, `library-choice.md`, `chat-and-typeset.md`, `anti-slop-fallbacks.md`, `primitives-first.md` (+ `scripts/pixel_diff.py`, the conformity rule's second half); plus `coss-ui/references/` for the Coss/UI registry.
 
 ## EU data residency and sovereignty
 

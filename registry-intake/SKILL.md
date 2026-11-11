@@ -1,6 +1,6 @@
 ---
 name: registry-intake
-description: 'Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with an allowlist, a static review of the item and its dependency closure, a hashed snapshot installed instead of the live URL, a PreToolUse hook that refuses installs around it, and a `check` in dev-flow''s phase gate; `@coss` stays live only when stack.ui is coss. Use when the user wants something from a community registry (pdfcn, agentcn…), asks if one is safe, updates an installed item, or a hook refused an install. Also governs the surfaces that are not copied code: agent **skills**, **MCP servers** and the project''s own **hooks** (`.claude/settings.json`) — the one thing that runs without the agent choosing to. Reviewed in the same lock; the hook refuses agent-run skill and MCP installs. Runs automatically at scaffold. Not for: shadcn''s own components (`shadcn add button` is not governed), porting eve code by hand (eve-registry-porting), or building UI (design-md-to-app).'
+description: 'Govern third-party source from a shadcn-format registry — `shadcn add @ns/item`, a registry-item URL, `eve add @ns/…` — with an allowlist, a static review of the item and its dependencies, a hashed snapshot installed instead of the live URL, a PreToolUse hook that refuses installs around it, and a `check` in dev-flow''s phase gate; `@coss` stays live only when stack.ui is coss. Use when the user wants something from a community registry (pdfcn, agentcn…), asks if one is safe, updates an installed item, a hook refused an install, or wants a **`sweep`** for what a hand port left behind (the source''s name or domain still in the code). Also governs the surfaces that are not copied code: agent **skills**, **MCP servers** and the project''s own **hooks** (`.claude/settings.json`), which run without the agent choosing to. Same lock; the hook refuses agent-run skill and MCP installs. Not for: shadcn''s own components (`shadcn add button` is not governed) or building UI (design-md-to-app).'
 ---
 
 # registry-intake — nothing third-party lands unreviewed, unpinned or around the gate
@@ -49,6 +49,7 @@ python3 $S approve <root> @pdfcn/takumi/card --by <name> [--accept CODE="why" ..
 python3 $S install <root> @pdfcn/takumi/card [--cwd packages/ui] -- --yes
 python3 $S review  <root> @pdfcn/takumi/card                # later: shows the upstream diff against the snapshot
 python3 $S check   <root>                                   # gate / CI
+python3 $S sweep   <root> --source "Watermelon UI" --source Watermelon --domain watermelonui.com   # after a hand PORT
 python3 $S caps    <root> --reason "..."                    # record a deliberately raised lint cap
 ```
 
@@ -115,6 +116,32 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 
 These are **heuristics over source text, not a sandbox and not a proof**. They exist to stop the
 failures already seen and to force the conversation; the post-install gates are still required.
+
+## `sweep` — the check the ported path never had
+
+`install` records a hashed snapshot, so an item that came through the gate stays known. But our own
+verdict for most registries in `dev-flow/references/resources.md` is **"port, do not install"**
+(Watermelon UI, unlumen UI, React Bits), and a port is done by hand: no snapshot, no record, no
+check. Golden rule 3 says one namespace, and a hand port is exactly how a second one arrives —
+`components/unlumen-ui/`, a `WatermelonButton`, a comment naming the source, an asset still served
+from the registry's domain.
+
+**It deliberately does not look for hardcoded colours or arbitrary values.** `shadcn/no-raw-colors`
+and `shadcn/no-arbitrary-values` already catch those, and they stay **on** inside the vendored
+component directory, so the lint owns that half and duplicating it would only produce two voices on
+one finding. What the lint cannot see is what this reads: **file and folder names**, comments,
+markdown, JSON, CSS — and a **URL**, which is not a lint concern at all.
+
+🔴 **The trap, and it is the common case: `WatermelonButton` does not contain "Watermelon UI".**
+A port renames to the distinctive first word alone. Widening the pattern to match that word
+everywhere would flag `Arc` inside `Architecture` and the tool would become noise nobody runs, so
+instead it **says so**: when the full name finds nothing, the output names the first word and tells
+you to re-run with it. A silent "clean" on the spelling that was never going to match is the one
+outcome this must not produce.
+
+It skips the places where naming the source is **correct** — `.workflow/`, `docs/adr/`, and
+`registry-lock.json` — because our own rules require recording provenance there. A sweep that
+flagged the record you were told to keep gets switched off after the second run.
 
 ## Trust levels
 

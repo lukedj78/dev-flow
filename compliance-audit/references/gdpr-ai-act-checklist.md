@@ -126,6 +126,33 @@ code is still recognised by name only, so read the file.
 
 ---
 
+## R12 — Subscription cancellation · §312k BGB / ROSCA · H where consumers pay
+
+**Why it is here at all:** we ship the mechanism and never check it. `module-add payments` wires the
+**Stripe Customer Portal**, which is a compliant self-serve cancellation — so a project that took the
+default is usually fine *by accident*. A project that built its own billing UI, gated cancellation behind
+a support email, or dropped the portal link from the account page has a **legal** defect, and until
+2026-11-11 nothing in this suite looked.
+
+**Audit signals:** a paid subscription sold to consumers (`stack.payments` set and the product is not
+B2B-only) **and** any of: no cancellation entry point in the authenticated UI; cancellation only by email,
+chat or phone; a cancel flow that requires more steps than the sign-up did; a confirmation step offering
+a discount, a pause or an alternative instead of confirming; a renewal that is not announced.
+
+**The rule, where it is actually binding** — read 2026-11-11, from law-firm and trade-association
+commentary, **not** from the primary texts; confirm against the statute and the judgment before relying on
+either line:
+
+| | Status |
+|---|---|
+| **Germany, §312k BGB** | **In force since July 2022.** A paid continuing-obligation contract concluded online needs a cancellation button. B2B-only contracts are out of scope. **BGH 16 July 2026 (I ZR 200/25): the confirmation page may contain only what §312k provides** — no alternatives, no "pause instead?" offers. Get it wrong and the consumer may terminate **at any time, with no notice period**, plus the usual Abmahnung and injunction exposure. ⚠️ **Open:** a BGH hearing on whether a login may stand in front of the button was listed for November 2026; outcome not published in the sources read. |
+| **United States** | 🔴 **The "click-to-cancel" rule is not in force.** The 2024 amendments to the Negative Option Rule were **vacated by the Eighth Circuit on 8 July 2025** on procedural grounds, the FTC recodified the pre-2024 rule (February 2026) and opened an ANPRM (March 2026). **ROSCA still applies and the FTC still enforces cancellation practices under it**, and state auto-renewal laws are unaffected. So "the rule was struck down" is not a defence. |
+
+**Safe-fix:** keep the Stripe Customer Portal and link it from the account page, one click from signed-in,
+with no extra gate; make the confirmation step confirm and nothing else.
+**Flag:** which jurisdictions the product actually sells to, the notice period, and the wording — this row
+tells an audit where to look, it is not legal advice and the dates above are already ageing.
+
 ## Cross-cutting notes
 
 - **Credit where due — don't over-report.** Strong controls already common in dev-flow projects: fail-closed auth, tenant isolation, per-tenant encrypted secrets, RLS, security headers, secure-store, eve approval/HITL (Art. 14 oversight), eve durable event log (Art. 12 traceability). Report these as *satisfied*, not as gaps.

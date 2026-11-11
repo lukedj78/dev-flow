@@ -155,6 +155,13 @@ Tell the user:
   Demo/Worst-case toggle. Reach for it when the user says "stress test this", "find the edge cases",
   or when a component renders anything a person typed. The fixture it produces **stays in the repo as
   a regression test**.
+- **`worst-case-data.md` covers the data; this list covers the *session*.** The two fail differently and
+  a suite that only has the first is still blind to the second. For every flow with more than one step,
+  walk this list and write the cases that apply: **two tabs open at once**; **double click on submit**;
+  **back button mid-flow**; **refresh mid-flow**; a slow network, then offline; an **expired session** at
+  the last step; **a second user's data must be invisible** (the only one on this list that is a security
+  test, so it is never the one to skip); a timezone away from the server's, across a DST boundary; mobile
+  width; keyboard only. Name the cases so a failure says which: `F01-E3`, not `test 7`.
 - **Skip what's not testable cheaply.** Pages with WebGL canvases, third-party iframes, or external API calls without a mock surface — write a `test.skip` with a comment explaining why instead of writing a brittle test. Honesty over coverage theater.
 
 ## Cross-skill dependencies

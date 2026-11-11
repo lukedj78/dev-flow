@@ -50,6 +50,7 @@ Full checklist + article mapping + remediation recipes in `references/gdpr-ai-ac
 | **R9** | Special-category data unguarded | Art. 9 |
 | **R10** | Memory/personalization not screened for manipulation | AI Act Art. 5 |
 | **R11** | A client analytics SDK sets identifiers before consent (a cookie-based init that neither runs cookieless nor reads the consent gate) | Art. 6/7 + ePrivacy |
+| **R12** | A paid consumer subscription whose cancellation is not self-serve in one click — or whose confirmation step offers a discount or a pause instead of confirming | §312k BGB (DE, in force); ROSCA + state auto-renewal laws (US) |
 
 > **Art. 32 also covers keeping the software patched — that part lives in `vercel-deploy`.** "Security of processing" is not only R7 (PII in logs): running a framework version with known, published CVEs is the same article. Since 2026-07 Next.js ships pre-announced monthly security releases with two maintained lines **whose labels move** (2026-08-25: 16.3.x Active LTS, 15.5.x Maintenance LTS — 16.2 stopped receiving patches), and the deploy gate checks the project against that floor — see `references/contracts.md` § `nextjs_version`. Don't duplicate the check here; when auditing a web project, **read `meta.json#history` for a recent `vercel-deploy` run** and say so if the floor has never been verified. Note for the report: a platform WAF rule is a mitigation, not a patch — Vercel says so itself.
 
@@ -123,5 +124,5 @@ It is one of **five** pre-deploy gates that share this shape — legal (`complia
 
 ## Reference files
 
-- `references/gdpr-ai-act-checklist.md` — the R1–R11 checklist, article mapping, and per-risk remediation recipes (safe-fix vs flag).
+- `references/gdpr-ai-act-checklist.md` — the R1–R12 checklist, article mapping, and per-risk remediation recipes (safe-fix vs flag).
 - `references/contracts.md` — the `.workflow/` dev-flow contract (vendored).
