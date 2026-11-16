@@ -38,6 +38,18 @@ SETUP = re.compile(
 )
 
 
+def clean_name(value: str | None) -> str:
+    """A job's name as data: a workflow file sets it, and a pull request from a fork can change it.
+
+    Control characters, newlines, table pipes and backticks go, and it is cut to 80 characters,
+    so it reads as one cell of the report and never as text addressed to whoever reads it.
+    """
+    text = "".join(c if c.isprintable() else " " for c in (value or "?"))
+    text = re.sub(r"[|`<>]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return (text[:80] + "…") if len(text) > 80 else (text or "?")
+
+
 def parse_time(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -88,7 +100,7 @@ def audit(runs: list[dict], setup: re.Pattern[str] = SETUP) -> dict:
             if split is None:
                 continue
             ends.append(job.get("completed_at"))
-            bucket = per_job.setdefault(job.get("name") or "?", {"waiting": [], "setup": [], "running": []})
+            bucket = per_job.setdefault(clean_name(job.get("name")), {"waiting": [], "setup": [], "running": []})
             for key, value in split.items():
                 bucket[key].append(value)
         last = max((parse_time(e) for e in ends if e), default=None)

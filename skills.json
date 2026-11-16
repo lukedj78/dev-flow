@@ -130,7 +130,7 @@
         "ci_audit.py",
         "test_ci_audit.py"
       ],
-      "skill_md_lines": 112,
+      "skill_md_lines": 115,
       "bundle": "dist/ci-speed.skill"
     },
     {
