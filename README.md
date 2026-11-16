@@ -7,7 +7,7 @@
 <sub>The poster above is the interactive map (dark/light): [`docs/dev-flow-skill-map.html`](./docs/dev-flow-skill-map.html)</sub>
 
 > **A filesystem contract for agent-driven SDLC.**
-> One folder (`.workflow/`), one state file (`meta.json`), and **57 skills (14 core + 19 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
+> One folder (`.workflow/`), one state file (`meta.json`), and **58 skills (15 core + 19 web + 2 agent + 16 mobile + 4 monorepo + 2 refactor)** that read/write it. The contract is the product — the skills are durable, replaceable consumers.
 >
 > **v1.0.0** — install as a Claude Code plugin: `/plugin marketplace add lukedj78/dev-flow` then `/plugin install dev-flow@dev-flow`. Other runtimes (Codex · Copilot · Gemini · Cursor) use [`install.sh`](#1-install-the-skills). See the [CHANGELOG](./CHANGELOG.md).
 >
@@ -151,7 +151,7 @@ The `dist/` folder contains packaged `.skill` archives. Drag them into your Clau
 
 ```bash
 ls ~/.claude/skills/ | wc -l
-# Should print 57. Restart Claude Code if you don't see them in /skills.
+# Should print 58. Restart Claude Code if you don't see them in /skills.
 ```
 
 The **core happy-path** skills (the web flow most projects start with):
@@ -1270,6 +1270,13 @@ Inspired by the **[transitions.dev](https://transitions.dev/)** motion library (
 **Why three axes and never one verdict**: a change can follow every convention and implement the wrong feature (Standards pass, Spec fail), or do exactly what the PRD asked while ignoring the declared stack (Spec pass, Standards fail). Merging them lets either hide behind the other. The third exists because **both can pass on a change that should not be merged**: every commit of the 2026-10-20 ask-gate work passed Spec and Standards — a real finding, tests added, suite green — while the gate asked on a fifth of all commands.
 
 **Not Claude Code's built-in `/code-review`** — that reviews code generically and knows nothing about `.workflow/`. This one reads the change against *this project's* spec and contract, which is precisely the half a generic reviewer has to guess at. Without a `.workflow/` it refuses and points you there. Proposed when a chunk of work lands (`page_generated`, `module_added`), not only before shipping — a spec finding is cheapest while the branch is still open. Records `meta.json#spec_review`; no phase bump; never blocks. Adapted from [Matt Pocock's `code-review`](https://github.com/mattpocock/skills) (MIT) — the two-axis split and the smell baseline are his; the Risk axis is adapted from [warpdotdev/common-skills' `merge-risk`](https://github.com/warpdotdev/common-skills/blob/main/.agents/skills/merge-risk/SKILL.md) (MIT), minus its score.
+
+### `ci-speed` — fast CI that still tells the truth
+
+**Input**: a repository with GitHub Actions and its last runs; `.workflow/meta.json#stack` when there is one.
+**Output**: `docs/ci/ci-speed.md` — the audit before and after, a budget per stage, one small PR per change with its numbers from real runs, and one list of what needs an account, a secret or a bigger bill, with its monthly cost.
+
+**How it works**: two rules outrank speed — the full suite runs before anything reaches `main` (selection only narrows pull-request feedback), and a failure stays visible (no retries, no wider timeouts, no skipped tests: a check that needs a retry has a bug). `scripts/ci_audit.py` pulls the last 150 runs through the user's own `gh` login and splits every job into waiting, setup and running at p50 and p95, naming the bucket to fix first — rarely the tests. The budgets: waiting under 10 s, setup under 30 s, lint and typecheck under 5 s, tests under 60 s per shard, a local pre-push hook under 9 s, each budget then made the job's timeout so a slower stage goes red. Faster tools (oxlint, oxfmt, `bun check`, bun, Blacksmith runners) are candidates, switched only after a side-by-side run that lists what the new one misses. Test selection (`turbo --affected`, `nx affected`) is proven by hiding a real change from it on purpose and watching the run go red. Three frictions it handles instead of steamrolling: no merge queue on a personal account's private repository (rule 1 then lives in whatever merges), a project's own lint rules (oxlint takes what it covers, ESLint keeps the custom plugins and the cap), and data residency for a third-party runner (`compliance-audit` and the register first). Writes no `meta.json` field and never changes `phase`.
 
 ### `vercel-doctor` — cost & performance pre-deploy gate
 

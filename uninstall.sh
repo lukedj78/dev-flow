@@ -61,6 +61,7 @@ SKILLS=(
   product-to-agent-skill
   registry-intake
   release-intelligence
+  ci-speed
 
   # Web stack
   figma-to-design-md
