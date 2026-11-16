@@ -58,7 +58,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)
 - `module_added` → spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy
-- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95
 - never reached on this stack: `monorepo_initialized`
 
 **`expo-rn`**
@@ -70,7 +70,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once
 - `module_added` → spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy
-- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95
 - never reached on this stack: `monorepo_initialized`
 
 **`monorepo`**
@@ -83,7 +83,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `page_generated` → spec-review  THEN  module-add / rn-module-add  OR  more screens  ·  app-verification create once per app
 - `module_added` → spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply
-- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95
 
 **`agent` (shape ③ — no web app)**
 
@@ -91,7 +91,7 @@ Plus **ecosystem-first recommended defaults** (contract §Recommended default li
 - `tasks_split` → scrum (Setup)  THEN  eve-agent (bootstrap)
 - `scaffolded` → eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done
 - `feature_complete` → app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy
-- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes
+- `deployed` → dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95
 - never reached on this stack: `design_extracted`, `monorepo_initialized`, `page_generated`, `module_added`
 
 <!-- END:routing-table -->
@@ -185,9 +185,9 @@ Read `.workflow/meta.json`. The next move per phase is §Stack-aware routing's t
 | *code exists, phase is before `scaffolded` / `page_generated`* | **Realign first** — `show_state.py` prints **PHASE BEHIND THE CODE**: no check has been proposed for anything built so far. Run the retrofit (`design-md-to-app/scripts/setup_design_lint.py <root>`: lint rule + write-time guard + AGENTS.md section), then `update_meta.py set-phase page_generated` (or `module_added`), then `spec-review` on everything built and `shadscan`. Only then resume building. |
 | `scaffolded` | **Check the primitives guard first** (`show_state.py` flags it; `setup_design_lint.py --check`): without it no write is refused and `set-phase` will not move on. Then `screenshot-to-page` if `screenshots/` has unmapped images; **`project-infra-setup` first when a module needs an account that does not exist yet** (Vercel project, Neon, Resend, Blob, DNS); then `module-add` to wire auth/db/etc. (**the inventory step first** when the capability is new — a subscription already paid for may cover it); `forms` for any form-building request; iterate. |
 | `page_generated` | **Propose `spec-review`** on the diff; `module-add` or more `screenshot-to-page` runs; `forms` for forms inside generated routes; `data-fetching` if any page needs server reads. |
-| `module_added` | **The inventory step first for each further capability** — the same reason as at `scaffolded`: a tool already paid for may cover it. Then **propose `spec-review`** on the branch just landed (cheapest while it is still open — does the diff match `PRD.md`/`tasks.md`, and the declared stack?); `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. When the build is done, advance to `feature_complete` (all stacks) → the pre-deploy gates, then deploy. |
+| `module_added` | **The inventory step first for each further capability** — the same reason as at `scaffolded`: a tool already paid for may cover it. Then **propose `spec-review`** on the branch just landed (cheapest while it is still open — does the diff match `PRD.md`/`tasks.md`, and the declared stack?); `write-tests` to add per-feature coverage (especially after `module-add db` / `module-add auth`); more `screenshot-to-page`; or iterate. Once CI runs on pull requests (`module-add ci`), `ci-speed` audits where its minutes go — `show_state.py` prints the CI note until `docs/ci/ci-speed.md` exists. When the build is done, advance to `feature_complete` (all stacks) → the pre-deploy gates, then deploy. |
 | `feature_complete` | **Propose the five pre-deploy gates**: `compliance-audit` (legal — GDPR/AI-Act, any stack) + `vercel-doctor` (cost/perf — web on Vercel) + `shadscan` (UI quality + a11y — web on shadcn) + `launch-audit` (commercial readiness — web; metadata on every route, the legal and identity pages, a CTA someone can reach) + `app-security` (can the code be attacked — dependencies, secrets, authorization and IDOR; any stack, the Next.js checks on web only). They ask five different questions and none substitutes for another: an app can pass the first three and still have no way to buy and no company name on it, and pass all four with every Server Action open to anyone who sends a POST. Then deploy: mobile (`expo-rn`) → `rn-eas-deploy`; web → `vercel-deploy`; agent → `eve deploy`. **Only on a project that opted into `release-intelligence`** (`meta.json#release.enabled`), plan the release first — the manifest and the risk floor — because the gate into `deployed` asks for it; on every other project nothing changes here. |
-| `deployed` | **Debt audit first** (`scripts/debt_audit.py collect <root>`, below): every audit plus the tests in one ordered list. Then the maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` + `app-security` after material changes. **Telemetry monitoring is `release-intelligence`'s, where it is enabled**: exposure stage by stage against measured health, pause/rollback, verification at full exposure, then flag cleanup once the soak has passed. |
+| `deployed` | **Debt audit first** (`scripts/debt_audit.py collect <root>`, below): every audit plus the tests in one ordered list. Then the maintenance loop: mobile → more screens via `rn-add-screen`, OTA hotfixes via `rn-eas-build-submit-update`; re-run `compliance-audit` + `vercel-doctor` + `shadscan` + `launch-audit` + `app-security` after material changes; `ci-speed` when a pull request waits over 2 min at p50 or 3 at p95 (`ci-speed/scripts/ci_audit.py`). **Telemetry monitoring is `release-intelligence`'s, where it is enabled**: exposure stage by stage against measured health, pause/rollback, verification at full exposure, then flag cleanup once the soak has passed. |
 | anything else | Treat as `empty` (forward-compatible). |
 
 **Policies** — each lives in **`references/policies.md`**; read the one that applies before acting on it:

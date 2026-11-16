@@ -39,7 +39,7 @@ PHASE_NEXT_BY_STACK = {
         "page_generated":   "spec-review on the diff (whenever work lands, whatever the phase)  THEN  module-add  OR  more screenshot-to-page  ·  app-verification create once (a manual to prove features on the real app)",
         "module_added":     "spec-review  OR  write-tests  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + vercel-doctor + shadscan + launch-audit + app-security  THEN  vercel-deploy",
-        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes",
+        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — re-run compliance-audit + vercel-doctor + shadscan + launch-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95",
     },
     "expo-rn": {
         "prd_drafted":      "prd-to-tasks  OR  image-to-design-md  THEN  wireframe-canvas  THEN  rn-bootstrap",
@@ -49,7 +49,7 @@ PHASE_NEXT_BY_STACK = {
         "page_generated":   "spec-review on the diff  THEN  rn-module-add  OR  more rn-add-screen  ·  app-verification create once",
         "module_added":     "spec-review  OR  rn-write-tests  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security (dependencies, secrets, the mobile checklist)  THEN  rn-eas-deploy",
-        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes",
+        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — rn-add-screen for features, rn-eas-build-submit-update for OTA hotfixes, compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95",
     },
     "monorepo": {
         "prd_drafted":      "prd-to-tasks  OR  figma-to-design-md / image-to-design-md  THEN  wireframe-canvas  THEN  monorepo-bootstrap",
@@ -60,14 +60,14 @@ PHASE_NEXT_BY_STACK = {
         "page_generated":   "spec-review  THEN  module-add / rn-module-add  OR  more screens  ·  app-verification create once per app",
         "module_added":     "spec-review  OR  monorepo-sync-types  OR  iterate — set phase feature_complete when the build is done",
         "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security (+ vercel-doctor, shadscan, launch-audit for web)  THEN  vercel-deploy + rn-eas-deploy + eve deploy, as apply",
-        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes",
+        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop on every side — the web gates, rn-eas-build-submit-update, compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95",
     },
     "agent": {
         "prd_drafted":      "eve-agent (bootstrap — agent at the repo root, no web app; bumps phase to scaffolded)",
         "tasks_split":      "scrum (Setup)  THEN  eve-agent (bootstrap)",
         "scaffolded":       "eve-agent (capability mode)  OR  eve-registry-porting  ·  app-verification create once — set phase feature_complete when the build is done",
         "feature_complete": "app-verification maintain  THEN  gates: compliance-audit + app-security  THEN  eve deploy",
-        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes",
+        "deployed":         "dev-flow debt audit (docs/debt/debt-audit.md), then maintenance loop — more capabilities (eve-agent), compliance-audit + app-security after material changes; ci-speed when a pull request waits over 2 min at p50 or 3 at p95",
     },
 }
 
@@ -331,6 +331,22 @@ def debt_line(meta: dict, root: Path) -> str | None:
         return (f"Debt: {before} to fix before the next release, {confirm} to confirm "
                 f"({block.get('report') or 'docs/debt/debt-audit.md'})")
     return None
+
+
+def ci_line(meta: dict, root: Path) -> str | None:
+    """From `module_added` on: a note when the project runs GitHub Actions and `ci-speed` never audited them.
+    Silent once `docs/ci/ci-speed.md` exists — whether CI got slow again is measured from its runs (`ci_audit.py`),
+    which this offline report cannot read, so the `deployed` row names it instead."""
+    phase = routing_phase(meta.get("phase"))
+    if phase not in phases.PHASES or phases.PHASES.index(phase) < phases.PHASES.index("module_added"):
+        return None
+    workflows = root / ".github" / "workflows"
+    if not workflows.is_dir() or not any(p.suffix in (".yml", ".yaml") for p in workflows.iterdir()):
+        return None
+    if (root / "docs" / "ci" / "ci-speed.md").is_file():
+        return None
+    return ("CI: never audited — ci-speed measures where a pull request's minutes go (waiting, setup, running) "
+            "and brings it under 2 min at p50 without letting it lie: ci-speed/scripts/ci_audit.py <owner/repo>")
 
 
 def release_line(meta: dict) -> str | None:
@@ -653,6 +669,9 @@ def main() -> int:
         print(note)
         print()
     if (note := debt_line(meta, root)):
+        print(note)
+        print()
+    if (note := ci_line(meta, root)):
         print(note)
         print()
 

@@ -4,6 +4,8 @@ Wire a **continuous-integration scaffold**: pre-commit hooks (husky + lint-stage
 
 The aim is to fail fast locally (so CI doesn't waste minutes catching what husky could have caught in seconds) and to give the user a clean green check on every PR.
 
+This scaffold gets CI running. Making it fast — the audit of where the minutes go, a budget per stage, faster tools measured side by side, test selection proven red — is `ci-speed` (`ci-speed/SKILL.md`).
+
 ## Idempotency check
 
 Before doing anything:

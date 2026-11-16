@@ -1,11 +1,12 @@
 {
   "schema_version": "1.0",
   "generated_by": "scripts/build_skills_registry.py",
-  "skill_count": 57,
+  "skill_count": 58,
   "families": {
     "core": [
       "app-security",
       "app-verification",
+      "ci-speed",
       "compliance-audit",
       "dev-flow",
       "founder-intelligence",
@@ -115,6 +116,22 @@
       ],
       "skill_md_lines": 198,
       "bundle": "dist/app-verification.skill"
+    },
+    {
+      "name": "ci-speed",
+      "family": "core",
+      "role": "operative",
+      "description": "Make a repository's CI fast without letting it lie: a pull request gets its answer in under 2 minutes at p50 and 3 at p95, and green still means the full suite passed. Audits the last 150 GitHub Actions runs into waiting / setup / running at p50 and p95 (`scripts/ci_audit.py`), fixes the biggest buc...",
+      "skill_file": "ci-speed/SKILL.md",
+      "references": [
+        "moves.md"
+      ],
+      "scripts": [
+        "ci_audit.py",
+        "test_ci_audit.py"
+      ],
+      "skill_md_lines": 115,
+      "bundle": "dist/ci-speed.skill"
     },
     {
       "name": "compliance-audit",
