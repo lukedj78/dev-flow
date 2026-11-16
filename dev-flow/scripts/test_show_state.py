@@ -477,6 +477,39 @@ class Debt(unittest.TestCase):
             self.assertTrue(rows["deployed"].startswith("dev-flow debt audit"), topology)
 
 
+class CiSpeed(unittest.TestCase):
+    """From module_added on, a project that runs GitHub Actions and never audited them gets a note — never a block."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def workflow(self) -> None:
+        (self.root / ".github" / "workflows").mkdir(parents=True)
+        (self.root / ".github" / "workflows" / "ci.yml").write_text("on: pull_request\n")
+
+    def test_proposes_the_audit_once_ci_exists(self) -> None:
+        self.workflow()
+        note = ss.ci_line({"phase": "module_added"}, self.root)
+        self.assertIsNotNone(note)
+        self.assertIn("ci-speed", note)
+
+    def test_silent_before_module_added_without_ci_or_once_audited(self) -> None:
+        self.assertIsNone(ss.ci_line({"phase": "deployed"}, self.root))
+        self.workflow()
+        self.assertIsNone(ss.ci_line({"phase": "scaffolded"}, self.root))
+        (self.root / "docs" / "ci").mkdir(parents=True)
+        (self.root / "docs" / "ci" / "ci-speed.md").write_text("# audit\n")
+        self.assertIsNone(ss.ci_line({"phase": "deployed"}, self.root))
+
+    def test_every_deployed_row_names_it(self) -> None:
+        for topology, rows in ss.PHASE_NEXT_BY_STACK.items():
+            self.assertIn("ci-speed", rows["deployed"], topology)
+
+
 class Observability(unittest.TestCase):
     """Before the first production deploy a web app with no error tracking gets a note — never a block."""
 
