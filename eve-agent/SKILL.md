@@ -129,19 +129,21 @@ Goal: a running eve agent at `apps/agent`, wired into the monorepo, exposing its
 Follow `references/eve-scaffold.md` for the full procedure. In short:
 
 1. Read `node_modules/eve/docs/` (install eve first if needed) and run `eve info` / `npx eve --help` to confirm the current init flow and folder layout.
-2. Initialize the agent inside `apps/agent` (`npx eve@0.91.0 init apps/agent`, or `eve init .` from within it — **not `eve@latest`, which is a 1.0 release candidate; see the warning below**). Keep the default HTTP channel (`agent/channels/eve.ts`) — that is what the web app consumes. The Next.js app provides the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
+2. Initialize the agent inside `apps/agent` (`npx eve@1.0.1 init apps/agent`, or `eve init .` from within it — `eve@latest` is stable again since 2026-11-18, so either works; pin the exact version when a run must be reproducible; see the warning below**). Keep the default HTTP channel (`agent/channels/eve.ts`) — that is what the web app consumes. The Next.js app provides the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
 3. Pin the model in `agent/agent.ts` — our default choice is `anthropic/claude-sonnet-5` via the Vercel AI Gateway; that is **not** eve's own scaffold default. 🔴 **Corrected 2026-11-05 from the shipped source** — `dist/src/shared/default-agent-model.d.ts` declares `DEFAULT_AGENT_MODEL_ID = "openai/gpt-6-luna-fast"` and `DEFAULT_AGENT_REASONING = "high"`, *"baked in by `eve init`, and pre-selected in the setup model picker"*. This file said `openai/gpt-5.6-luna-fast`, a string with **zero occurrences** in the `dist` of 0.80.1, 0.91.0 **or** 1.0.0-rc.5 — so it was already wrong at the version we documented against, through three passes, because every pass checked what eve *removed* and none checked what it *defaults to*. ⚠️ And note the nuance the old line flattened: **the default is per connection** — Gateway and OpenAI/ChatGPT get `gpt-6-luna-fast`, an **Anthropic** connection gets `claude-sonnet-5`, which is the model we pin anyway. The moving default is still the argument for pinning; it has simply moved again) — and write a real `agent/instructions.md`. The model can also be `defineDynamic({ events })` (no `fallback` since 0.33.0 — every handler must return a concrete model). Document the model choice in a comment. For an OpenAI/Gemini model you can also opt into an AI Gateway **service tier** (`priority`/`flex`/`default`) to tune latency vs. cost — see `references/eve-scaffold.md` §3.
 4. Set the channel auth in `agent/channels/eve.ts`: `localDev()` for development, a real authenticator (`vercelOidc()` / `jwtHmac()` / `httpBasic()`) for production. eve **fails closed** in prod — browser traffic is rejected unless an authenticator accepts it.
 
-> 🔴 **`eve@latest` is a release candidate as of 2026-11-05 — do not scaffold from it by accident.**
-> eve's npm tags are **`latest: 1.0.0-rc.5`** and a stale **`beta: 0.6.0-beta.20`**; there is no stable
-> `latest` any more. The last stable release is **`0.91.0`** (2026-10-30), and `1.0.0-rc.0` landed the
-> next day. So `npx eve@latest init` hands a new project a release candidate, while this skill still
-> describes pre-`0.84.0` contracts — the version where eve moved its public APIs to eve-owned types,
-> stopped exporting the legacy aliases, and published a **v27 upgrade guide**. **Scaffold from `eve@0.91.0`
-> explicitly** until the v27 pass lands (see `references/eve-docs-coverage.md`, 2026-11-05 note, for what
-> is already known to have changed). Taking the RC is a deliberate choice, not a default: it means doing
-> the v27 migration in the project by hand.
+> **`eve@latest` is stable again: `latest: 1.0.1` as of 2026-11-18.** `1.0.0` shipped 2026-11-15 and
+> `1.0.1` the day after, so the standing pin on `0.91.0` — which existed because `latest` pointed at
+> `1.0.0-rc.5` — is lifted. Scaffold from `latest`, or pin `eve@1.0.1` when a run must be
+> reproducible. ⚠️ The `beta` tag is still the stale **`0.6.0-beta.20`**; never take it.
+> **Measured before lifting it** (2026-11-17, both shipped packages): 4 of 39 cited doc paths dead,
+> all 32 imported subpaths intact, 37 of 38 named identifiers still declared. Full account and the
+> one correction it turned up in `references/eve-docs-coverage.md`. Runtime behaviour was **not**
+> measured — a package cannot show it — so the first project on 1.0.1 is where that is learned. The
+> old note also claimed the pin protected against the pre-`0.84.0` contract change; the 2026-11-05
+> pass had already measured that it did not, since that cleanup landed in the 0.84.0 wave and 0.91.0
+> already carried it. A pin that protects against nothing costs only the thing it holds back.
 
 5. Add at least one baseline eval in `evals/` (sibling of `agent/`) so `eve eval` has a gate to enforce in CI.
 6. Wire `apps/agent` into the pnpm workspace and `turbo.json` pipelines (`dev`, `build`, `lint`, `typecheck`, plus an `eval` task that runs `eve eval`).

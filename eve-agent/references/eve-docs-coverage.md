@@ -50,7 +50,7 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > **Still open, and still deliberately**: the 1.0 docs reorganisation (`overview.mdx` → `index.mdx`, channels
 > as directories, `tutorial/` deleted, `guides/evaluate` → `guides/decide.md`, `observability/*` under
 > `guides/instrumentation/`) is **RC-only** — at 0.91.0 the current paths stand, so the rows below resolve
-> today and break the day we take 1.0. **The pin stays `eve@0.91.0` until 1.0.0 ships stable.**
+> today and break the day we take 1.0. ~~**The pin stays `eve@0.91.0` until 1.0.0 ships stable.**~~ **Lifted 2026-11-18** — see below.
 >
 > 🔴 **Both halves of that sentence are now settled, and the prediction was wrong. Measured 2026-11-17
 > against `eve@1.0.1`** (published 2026-11-16; `1.0.0` on 2026-11-15), after `freshness.py` reported the
@@ -66,7 +66,7 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > `channels/slack/{index,reference}.mdx`, and two channels are new (`a2a`, `recall`). 113 → 124 pages.
 > So **taking 1.0 is a small job, not the large one this note assumed** — but it is still a job, and
 > what it costs is a re-read of behaviour, not a path rewrite. `eve-scaffold.md` still pins
-> `eve@0.91.0`; moving it changes what every new project installs.
+> ~~`eve@0.91.0`; moving it changes what every new project installs.~~ **Taken 2026-11-18: the pin is lifted and the scaffold is `eve@1.0.1`** (`SKILL.md`, `eve-scaffold.md`, `eve-capabilities.md`). A third surface was measured before deciding — the **identifiers** our imports name: **37 of 38** are still declared in 1.0.1, and the 38th, `parseInputResponses`, turns out to exist in **neither** version, so it was an invented API this file had been carrying rather than anything the move broke (corrected in `eve-capabilities.md`). Runtime behaviour stays unmeasured by construction: the first project on 1.0.1 is where it is learned.
 
 > **Verification pass 2026-11-05 against eve@0.91.0 and 1.0.0-rc.5 — the pre-1.0 cleanup, and `latest` is now an RC.**
 > `npm pack` of **0.80.1, 0.91.0 and 1.0.0-rc.5**, the cumulative `CHANGELOG` from `vercel/eve` (**24 releases**
@@ -75,7 +75,7 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > **① `latest` is `1.0.0-rc.5`; there is no stable `latest` any more.** eve's only other npm tag is a stale
 > `beta: 0.6.0-beta.20`. The last stable is **0.91.0** (2026-10-30); `1.0.0-rc.0` landed the next day and rc.5
 > the day of this pass. Our scaffold said `npx eve@latest init`, so **from 2026-10-31 it would have handed every
-> new project a release candidate** — now pinned to `eve@0.91.0` in `SKILL.md`, `eve-scaffold.md` and
+> new project a release candidate** — pinned at the time to `eve@0.91.0` in `SKILL.md`, `eve-scaffold.md` and
 > `eve-capabilities.md`. This is the first time `latest` has not been the version to build on, and it makes
 > `@latest` in a scaffold command a standing hazard rather than a convenience.
 >
@@ -598,7 +598,7 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > resume a *still-running* turn, which the hand-rolled event-log pattern cannot; a child may return
 > `parent.sandbox` to share the parent's live sandbox (0.39.0); and `ctx.isDMOrPrivateChannel()`
 > (0.39.1) — async, and **fails closed to `true`**. Plus `respond()`'s 0.42.0 strictness
-> (`parseInputResponses()` from `eve/client` for anything widened to `InputResponse[]`), the new
+> (an escape hatch for anything widened to `InputResponse[]` — ⚠️ **the name recorded here, `parseInputResponses()` from `eve/client`, is not in either shipped package**, see `eve-capabilities.md`), the new
 > **Linq** channel (iMessage *and* SMS, `eve add channel/linq`), and Telegram/Chat-SDK authorization
 > challenges.
 >

@@ -57,15 +57,29 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 
 ## 2. Initialize eve inside apps/agent
 
-* Read `node_modules/eve/docs/` for the current init flow, then run `npx eve@0.91.0 init apps/agent` (or `eve init .` from within `apps/agent`). **Not `eve@latest`:**🔴 **`eve@latest` is a release candidate as of 2026-11-05 — do not scaffold from it by accident.**
-  eve's npm tags are **`latest: 1.0.0-rc.5`** and a stale **`beta: 0.6.0-beta.20`**; there is no stable
-  `latest` any more. The last stable release is **`0.91.0`** (2026-10-30), and `1.0.0-rc.0` landed the
-  next day. So `npx eve@latest init` hands a new project a release candidate, while this skill still
-  describes pre-`0.84.0` contracts — the version where eve moved its public APIs to eve-owned types,
-  stopped exporting the legacy aliases, and published a **v27 upgrade guide**. **Scaffold from `eve@0.91.0`
-  explicitly** until the v27 pass lands (see `references/eve-docs-coverage.md`, 2026-11-05 note, for what
-  is already known to have changed). Taking the RC is a deliberate choice, not a default: it means doing
-  the v27 migration in the project by hand.
+* Read `node_modules/eve/docs/` for the current init flow, then run `npx eve@1.0.1 init apps/agent` (or `eve init .` from within `apps/agent`). **Not `eve@latest`:**🔴 **`eve@latest` is a release candidate as of 2026-11-05 — do not scaffold from it by accident.**
+
+  **`eve@latest` is stable again as of 2026-11-18: `latest: 1.0.1`.** Scaffold from it, or pin
+  `eve@1.0.1` when a run must be reproducible. The old instruction — *scaffold from `eve@0.91.0`
+  explicitly* — existed because `latest` pointed at `1.0.0-rc.5`; `1.0.0` shipped 2026-11-15 and
+  `1.0.1` the day after, so that reason is gone. ⚠️ The `beta` tag is still the stale
+  `0.6.0-beta.20`; never take it.
+  
+  **The second reason the pin used to give was already false, and it is worth not repeating.** It also
+  said to stay on 0.91.0 *"while this skill still describes pre-`0.84.0` contracts"* — but the
+  2026-11-05 verification pass in `references/eve-docs-coverage.md` measured the opposite: the whole
+  pre-1.0 cleanup landed in the **0.84.0** wave, so 0.91.0 already carried it and the pin never avoided
+  it. A pin that protects against nothing costs only the thing it holds back.
+  
+  **What taking 1.0.1 was measured to cost** (2026-11-17, against the shipped packages of both
+  versions): **4 of the 39** doc paths this skill cites are dead, three of them `overview.mdx` renamed
+  to `index.mdx`; **all 32** eve subpaths our references import still exist (102 → 105 entries); and
+  **37 of the 38** eve identifiers our imports name are still declared — the one that is not,
+  `parseInputResponses`, turned out never to have existed in either version (`eve-capabilities.md`
+  carries the correction). The docs reorganised rather than broke: every channel went from
+  `channels/slack.mdx` to `channels/slack/{index,reference}.mdx`, and `a2a` and `recall` are new.
+  ⚠️ **Runtime behaviour was not measured and cannot be read from a package**: that is what a first
+  project on 1.0.1 is for.
 * Keep the default HTTP channel (`agent/channels/eve.ts`) — the web app consumes it. The Next.js app supplies the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
 * Confirm the generated layout against the docs. Expect under `agent/`:
   * `agent.ts` — model & runtime config,

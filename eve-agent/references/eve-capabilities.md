@@ -349,7 +349,17 @@ await s.getEventStream({ startIndex: 12 });
    `inputResponses` are **mutually exclusive**: a HITL reply goes through `respond()`, so you can no
    longer smuggle one inside a send. **Since 0.42.0 `respond()` also refuses a widened
    `InputResponse[]`** — it takes exact response literals, or a value *proved* by
-   `parseInputResponses()` from `eve/client`. That bites exactly where a custom channel decodes a
+   `parseInputResponses()` from `eve/client`. ⚠️ **The name is unverified and probably wrong — do not
+   type it.** Searched 2026-11-18 in the shipped packages of **both** `eve@0.91.0` and `eve@1.0.1`:
+   the string `parseInputResponses` appears in **zero files** in either, and
+   `dist/src/client/index.d.ts` carries no `InputResponse` surface at all. (The package does export
+   `InputResponse`, `InputResponseSchema` and `InputResponsesSchema`, but from elsewhere, and the
+   `parseInput` functions in `dist` are private helpers bundled inside individual tools.) So the
+   *rule* below holds — `respond()` refuses a widened array — and the **name of the escape hatch is
+   not established**: read `node_modules/eve/dist/src/client/index.d.ts` and the respond types before
+   writing the call, and fix this line with what you find. Same class as the invented
+   `launchDarkly.variation()` of 2026-11-07, and it predates the 1.0 move rather than being caused by
+   it. That bites exactly where a custom channel decodes a
    platform payload, because decoding is what widens the type; the strict parse is there so a
    channel-local extra key can't ride into the session inbox:
 
@@ -777,7 +787,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 * The extension declares a **config schema** (Zod / any Standard Schema); pass config as the default-export call argument. Read secrets from `process.env` in this trusted runtime — never hardcode.
 * Tune what it exposes without forking it: `disableTool()` in the matching slot to remove a bundled tool (hooks and instruction fragments are **additive and cannot be replaced**; a dynamic definition in the same slot beats a static one), and `toolResultFrom` (from `eve/tools`) inside a hook to narrow a bundled tool's result type — ⚠️ it matches on **the imported definition, not the namespaced string**: pass the extension's own `search` definition, not `"crm__search"`. Both confirmed at 0.45.0.
 
-**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@0.91.0 extension init <name>` (**not `eve@latest` — it is a 1.0 release candidate since 2026-10-31; see `SKILL.md`**), which lays out the package:
+**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@1.0.1 extension init <name>` (**not `eve@latest` — it is a 1.0 release candidate since 2026-10-31; see `SKILL.md`**), which lays out the package:
 
 ```
 @acme/crm/

@@ -2,17 +2,13 @@
   "_why": "A deliberate pin is a decision, not a stale claim. Without this file freshness.py reported `eve@0.91.0` as BEHIND twelve times on its first run \u2014 true, and noise, because the pin is on purpose. A tool that reports a settled decision as a finding gets switched off after the second week (the same rule registry-intake's sweep follows for provenance records, and the one vercel-labs/ui's experts encode in decisions.md: never re-raise a Settled item).",
   "_shape": "package -> { version, why, until }. `until` is the condition that ends the pin, checked mechanically where it can be: `stable` means report as soon as npm's latest is a non-prerelease >= `until_version`. A pin whose condition is met is reported as EXPIRED \u2014 louder than BEHIND, because a decision has run out rather than a number having moved.",
   "pins": {
-    "eve": {
-      "version": "0.91.0",
-      "why": "The pin existed because npm `latest` pointed at a release candidate. \ud83d\udd34 **Its condition is met**: 1.0.0 shipped 2026-11-15 and 1.0.1 on 2026-11-16. Measured 2026-11-17 before deciding: 4 of the 39 doc paths `eve-docs-coverage.md` cites are dead (three are `overview`\u2192`index` renames), and all 32 eve subpaths our references import still exist (102\u2192105 entries). So the move is small. What is NOT measured is runtime behaviour, which is why this is still a pin and not a bump: raising it changes what every new project scaffolds, and that is the user's call, not a version comparison.",
-      "until": "manual",
-      "condition_met_on": "2026-11-15",
-      "measured_on": "2026-11-17"
-    },
     "shadcn": {
       "version": "4.21.0",
       "why": "registry-intake locks the CLI so an install cannot change behaviour between a review and the install it approved. Raising it is a registry-intake decision, not a version bump.",
       "until": "manual"
     }
+  },
+  "_lifted": {
+    "eve": "Lifted 2026-11-18 at 1.0.1. The pin existed only because npm `latest` pointed at 1.0.0-rc.5; 1.0.0 shipped 2026-11-15. Measured before lifting: 4 of 39 cited doc paths dead (three `overview`->`index` renames), all 32 imported subpaths intact, 37 of 38 named identifiers still declared \u2014 and the 38th, `parseInputResponses`, never existed in either version, which the measurement found rather than the move causing it. Runtime behaviour was not measured and cannot be, from a package. Kept here so the weekly pass does not re-propose a pin somebody deliberately removed."
   }
 }
