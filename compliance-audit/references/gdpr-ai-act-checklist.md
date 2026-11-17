@@ -95,6 +95,15 @@ has an ML service, say so in the report if nobody has ever measured it.
 **Safe-fix:** the register is `meta.json#compliance.sub_processors`, kept by every `module-add` through `data_residency.py add` and rendered to `docs/compliance/subprocessors.md`. Add the rows the code shows and the register lacks (same command); only for a project that predates the register, **generate `docs/compliance/subprocessors.md` from `meta.json#stack`** — one row per provider (service, data categories, region, DPA-link `TODO`). It's a standing customer-facing artifact, not one-time setup.
 **Flag:** obtaining/verifying each DPA.
 
+⚠️ **One sub-processor arrives through a single function call and no scan sees it: WebMCP.** On a
+project with `stack.ui = "ui-sdk"`, `registerTools(agent, …)` publishes the page's components to the
+agent built into the **visitor's** browser. `snapshot()` returns component labels and values, which on
+a real screen is names, amounts and addresses — so the call sends personal data to whatever model that
+browser runs, a processor the project never declared (**R3** as well, when that model is outside the
+EU). The code looks like one line of setup. Check `meta.json#stack.ui`, then the PRD's §Agent
+authority for whether the browser's agent was allowed at all; `data-agent-hidden` on the regions that
+must not leave is a mitigation, not the decision.
+
 ## R9 — Special-category data · Art. 9 · M/H
 
 **Audit signals:** an agent/memory or forms that can collect health, religion, political opinion, sexual orientation, union membership, biometric/genetic, racial/ethnic data (eve memory guardrail lists only secrets; voice = biometric-adjacent).

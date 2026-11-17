@@ -233,7 +233,7 @@
         "scope.py",
         "test_scope.py"
       ],
-      "skill_md_lines": 335,
+      "skill_md_lines": 371,
       "bundle": "dist/prd-from-idea.skill"
     },
     {
@@ -471,7 +471,8 @@
         "shadcn-styles.md",
         "showcase-template.md",
         "skeleton-audit.md",
-        "spec.md"
+        "spec.md",
+        "ui-sdk-mapping.md"
       ],
       "scripts": [
         "build_registry.py",
@@ -644,7 +645,7 @@
         "contracts.md"
       ],
       "scripts": [],
-      "skill_md_lines": 346,
+      "skill_md_lines": 353,
       "bundle": "dist/shadscan.skill"
     },
     {

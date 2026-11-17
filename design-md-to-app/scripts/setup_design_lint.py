@@ -48,7 +48,7 @@ from pathlib import Path
 
 VERSION = "0.1.0"
 PLUGIN = "@shadcn/lint"
-TAILWIND_UIS = {"shadcn", "base-ui", "coss"}
+TAILWIND_UIS = {"shadcn", "base-ui", "coss", "ui-sdk"}
 PHASES_BEFORE_SCAFFOLD = {"empty", "idea_captured", "prd_drafted", "tasks_split",
                           "design_extracted", "monorepo_initialized"}
 AGENTS_BEGIN = "<!-- BEGIN:design-system-lint -->"
@@ -218,7 +218,13 @@ def package_manager(root: Path) -> str:
 FOREIGN_UI_LIBRARIES = ["@mui/*", "@chakra-ui/*", "antd", "antd/*", "@mantine/*", "@headlessui/react",
                         "@heroui/*", "@nextui-org/*", "react-bootstrap", "primereact", "primereact/*",
                         "flowbite-react", "@ark-ui/*", "@fluentui/*", "@blueprintjs/*", "semantic-ui-react",
-                        "@radix-ui/themes"]
+                        "@radix-ui/themes",
+                        # UI SDK is a declared `stack.ui` of its own; on any OTHER topology it is a
+                        # second component library, so it is banned here and filtered out below when
+                        # the project is the one that declared it.
+                        "@ui-sdk/core", "@ui-sdk/core/*", "@ui-sdk/react", "@ui-sdk/react/*",
+                        "@ui-sdk/vue", "@ui-sdk/vue/*", "@ui-sdk/svelte", "@ui-sdk/svelte/*",
+                        "@ui-sdk/solid", "@ui-sdk/solid/*", "@ui-sdk/web", "@ui-sdk/web/*"]
 # - the headless bases the vendored primitives are built on: only components/ui may import them,
 #   so app code cannot fork a primitive's behaviour by going around it. Libraries whose app-level
 #   imports shadcn's own docs show (sonner's toast, recharts, react-day-picker types) are not here.
@@ -266,11 +272,18 @@ def primitives_rule(topo: dict, severity: str) -> str:
                  "message": "This project configures class merging in lib/utils (its own type scale): import cn from "
                             "there. The package's cn uses the stock tables and silently drops classes the config keeps "
                             "apart. `shadcn add` writes the package import since Sep 2026: rewrite it."}] if utils else []
-    patterns = [{"group": anchored(FOREIGN_UI_LIBRARIES),
+    # The declared library cannot be foreign to itself. Only ui-sdk needs this today: the other
+    # Tailwind topologies install a vendored kit, so their own package never appears in the list.
+    foreign = [g for g in FOREIGN_UI_LIBRARIES
+               if not (topo.get("ui") == "ui-sdk" and g.startswith("@ui-sdk/"))]
+    patterns = [{"group": anchored(foreign),
                  "message": "Golden rule 3: this project's UI library is the one in meta.json#stack. "
                             "A second component library is not composed in; record an exception if it must be."}]
-    # standalone Base UI has no components/ui: there the headless primitives ARE the library
-    if topo.get("ui") != "base-ui":
+    # Standalone Base UI and UI SDK have no vendored kit: there the imported library IS the primitive,
+    # so a rule that says "import from components/ui, not the base" has nothing to point at. On ui-sdk
+    # the restriction that replaces it is in `ui-sdk-mapping.md`: never rebuild with behaviours a
+    # component the library already ships.
+    if topo.get("ui") not in ("base-ui", "ui-sdk"):
         patterns.append({"group": anchored(PRIMITIVE_BASES),
                          "message": "Golden rule 3: import the primitive from components/ui, not its headless base "
                                     "— going around it forks the primitive's behaviour."})

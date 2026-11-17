@@ -292,6 +292,13 @@ Consistent with rule zero: when the tool ships the knowledge, use the tool's cop
   > reachable by keyboard.* Reading the file: a `div` list toggled by `useState`, no roving focus.
   > `components/ui/dropdown-menu.tsx` is installed. → **Golden rule 3**, routed to `screenshot-to-page`:
   > replace with `DropdownMenu`; do not add `tabIndex`/`onKeyDown` to the copy.
+
+  🔴 **Read `meta.json#stack.ui` before writing that remedy.** The fix above says "replace it with the
+  installed primitive", which is right on `shadcn`, `base-ui` and `coss` — and wrong on
+  `"ui-sdk"`, where there is no vendored `components/ui/` kit to point at: the remedy there is the
+  component's own entry (`@ui-sdk/react/menu`), or, when the library does not ship that pattern, the
+  behaviour (`createRovingFocus`) composed into the domain component. Naming a file that the topology
+  never installs is the fastest way to make a finding unactionable.
 - **`write-tests`** — complementary, not overlapping: shadscan is static and finds *missing* fundamentals;
   tests assert *behaviour*. A shadscan fix is a good prompt for a regression test.
 

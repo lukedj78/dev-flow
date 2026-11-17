@@ -267,6 +267,42 @@ Decided before launch, not after. Levels: traffic, product.
 - **False positives to watch**: <e.g. sign-ups without activation; revenue without retention>
 - **Events to instrument**: `<event_name>` (where it fires) · …
 
+## Agent authority
+
+<Only when an agent will operate this product's own interface — `stack.ui = "ui-sdk"` with the agent
+bridge, see `design-md-to-app/references/ui-sdk-mapping.md`. Leave the section out otherwise.>
+
+🔴 **These are product decisions, not attributes.** "Deleting a project needs a person" is a line of
+PRD; `data-agent-confirm` is only how it gets written down. Decided here, the markup follows. Decided
+while building, it gets decided by whoever typed the component — which in practice means not decided.
+
+One row per action an agent can reach. The **sentence** matters as much as the verdict: it is what the
+person will be shown when they are asked, so write it for them, from app state, and make it say the
+consequence.
+
+| Action | An agent may | The sentence a person sees |
+|---|---|---|
+| change a project's name | alone | — |
+| invite a member | **ask first** | "Invites <email> as an editor. They get access immediately." |
+| delete the project | **ask first** | "Deletes the project and all its files. This cannot be undone." |
+| read the recovery codes | **never** — hidden from the agent | — |
+| fill the tax ID | fill, never read | — |
+
+Three verdicts and nothing in between: **alone**, **ask first**, **never**. "Probably fine" is
+`ask first`; the cheap mistake is a question too many, not a deletion too few.
+
+**And one question above the table: whose agent?** Ours only, or also the one built into the
+visitor's browser (WebMCP). They are different decisions with different consequences — the second
+sends what is on screen to a model we do not run — and the default answer is **ours only**. If the
+product wants the browser's agent too, say so here and read
+`design-md-to-app/references/ui-sdk-mapping.md` §WebMCP: it is an explicit call with a second
+approval callback, and on a product handling personal data it is a sub-processor question
+(`compliance-audit` R3 and R8).
+
+⚠️ **A sentence is not optional on an `ask first` row.** The person is asked with it and nothing else.
+"Are you sure?" tells them nothing, and an agent that reached that control already thought it was the
+right one.
+
 ## Non-goals
 
 <What the MVP explicitly does not include. Be opinionated.>

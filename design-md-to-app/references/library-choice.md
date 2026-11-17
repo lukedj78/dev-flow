@@ -49,6 +49,62 @@ Pick MUI when the DESIGN.md shows any of:
 - **Built-in component breadth matters more than visual distinctiveness**: the user wants "professional, gets out of the way" rather than "make it look unique."
 - **The user already uses MUI in adjacent projects** and wants consistency.
 
+## Strong signals for UI SDK (`ui="ui-sdk"`)
+
+⚠️ **Beta, and never the default.** `@ui-sdk/core@0.1.0-beta.1` was first published **2026-11-12**
+under Vercel's public-beta terms, which reserve API changes; three of its most interesting APIs — the
+`agent` key, `createHistory`, `stageChanges` — are marked experimental. Two signals earn it. Without
+one of them the answer is `"shadcn"`, and say so.
+
+**1. The product must run on more than one framework.** It is the only option here that ships the same
+parts in **React, Vue, Svelte, Solid and Web Components** from one primitive definition. A design
+system that has to serve a Next app and a Nuxt app is the case; one React app is not.
+
+**2. 🔴 An agent drives the interface.** This is the signal that matters for our portfolio, and it is
+not about the catalogue. A domain component built on shadcn is markup: an agent has to click it
+through the accessibility tree, and giving it a tool means writing one. A component built with
+`definePrimitive` **joins the agent bridge on one line** —
+
+```ts
+agent: { actions: ["rate"] },
+```
+
+— and from there `agent.snapshot()` lists it, `agent.act()` calls it, `data-agent-confirm` / `-secret`
+/ `-hidden` govern it, and its change callbacks receive `source: "agent"`. Their docs put it plainly:
+*"an app that installs your rating from npm creates the bridge, renders `<Rating>`, and its agent can
+rate, **with no tool or schema to write**."* On a project with an eve agent that is the difference
+between a UI the agent can operate and one it cannot.
+
+Their own benchmark, three-run medians on one settings-screen task through Claude Code, measures the
+same thing from the other end: **59% fewer tool calls, 76% fewer tokens, 68% cheaper** than Base UI
+with browser tools — with a control group (the same ui-sdk screen driven by browser tools cost about
+what the others did, so the delta is the bridge, not the library). ⚠️ Read from their repo, not run by
+us; it is reproducible at `benchmarks/agent`.
+
+### What it is not a signal for
+
+- **A component shadcn lacks.** Measured 2026-11-17 against the shadcn registry's 65 `registry:ui`
+  items: **35 overlap**, 20 are ui-sdk's alone and 30 are shadcn's alone — and the two exclusive
+  columns are categorically different. ui-sdk's 20 are interaction-heavy (date picker, color picker,
+  tree, toolbar, cropper, token input); shadcn's 30 are presentational (badge, card, skeleton, alert,
+  empty) plus our chat surface. **shadcn ships what things look like; ui-sdk ships what they do.** One
+  missing control is not a reason to change the whole library — compose it, or take the specialist pick
+  from the table at the end of this file.
+- **Nicer behaviour on its own.** `@dnd-kit/core` already answers reorder and kanban keyboard-first,
+  and it has years of use behind it. Swapping a working pick for a five-day-old one is not an upgrade.
+
+### If it is chosen
+
+`stack.ui = "ui-sdk"`, and then: no CLI and no copied kit, so `components/ui/` holds **your**
+compositions and the headless base is an import, exactly as for `"base-ui"` standalone. DESIGN.md
+still commands — `web.css` is an optional default look, and the rule is *you bring the styles*.
+`@layer ui-sdk;` goes at the top of the global stylesheet, **above** `@import "tailwindcss"`.
+Read `design-md-to-app/references/ui-sdk-mapping.md` before scaffolding.
+
+🔴 **And the one security rule, which is not optional**: `createAgent`'s `allow` callback is **UI
+policy, not an access control**. It runs in the client; the Server Action still checks the session and
+the tenant, exactly as for a feature flag. `app-security/references/review.md` carries it.
+
 ## If shadcn: which primitive base — Base UI / Radix / React Aria (`--base`)
 
 shadcn CLI v4 builds its components on **Base UI, Radix, or React Aria** primitives. After the user picks shadcn, ask the follow-up and record it as `stack.ui_base` (`"base"` | `"radix"` | `"aria"`). The component API and the blocks (login, sidebar, dashboard, …) are identical across all — only the underlying primitive library changes, and `shadcn add` pulls the matching variant.

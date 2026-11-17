@@ -106,7 +106,7 @@ code, or any T1 finding. High tier always needs a human, even with no findings.
 | C2 | block | a **file** it writes defines the token layer: custom properties on `:root`, `html`, `body` or in a Tailwind v4 `@theme` block. Arc UI's `arc-foundation` is why this exists — 97 tokens in a `foundation.css` that C1 never saw, because C1 reads item keys. `:host` does not fire: a shadow root is the component's own scope |
 | D1 · D2 · D4 | block | npm package does not exist · (A)GPL/SSPL/BUSL/no licence · install scripts |
 | D3 · D5 · D6 | review | weak copyleft or NC · current release line published < 30 days ago · `npm view` failed |
-| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 13); under 1.0 a caret locks the minor (`cn@^0.2.4` refuses 0.3.x) |
+| D7 | review | the item's dependency range excludes the major the project has installed (React Bits asks `motion@^12`, our projects run 14); under 1.0 a caret locks the minor (`cn@^0.2.4` refuses 0.3.x) |
 | D8 | review · info | the npm name was **reused**: a gap of 2+ years between releases, a different repository and no maintainer in common. D5 then dates from the new line, not from the old one. `info` for names whose new owner was checked (`cn` → shadcn-ui/cn, `motion` → motiondivision/motion) |
 | R1 | block | the closure reaches a registry that is not allowlisted |
 | R2 · R3 | info · block | no registry-item `$schema` · unknown item type |

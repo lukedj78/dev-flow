@@ -59,6 +59,31 @@ Two cases the scan flags that need a different reading:
   alternative is there and checked **before** any work is done; a webhook that parses the body before verifying
   the signature is A01 as well.
 
+🔴 **An agent bridge is UI policy, not an access control** — only on `stack.ui = "ui-sdk"`, where
+`createAgent` lets an agent read the page's components and call their actions. Three things to check,
+and the first is the one that gets assumed:
+
+- **`allow` runs in the client.** It decides which actions the *interface* accepts. It is not a
+  permission system, and nothing about it reaches the server: a mutation still arrives through a
+  Server Action or a route handler, which checks the session and the tenant exactly as it would for a
+  person. This is the same rule as *a flag is not an access control*
+  (`release-intelligence/references/feature-flags.md`), one surface over. Treating `allow` as the gate
+  is how the server-side check does not get written.
+- **An `allow` that returns `true` without reading `step.confirm` answers yes for the person.** Their
+  own docs say so. With no `allow` at all, a control marked `data-agent-confirm` fails closed and
+  tells the agent to ask — the good default. The moment an `allow` exists to permit anything, every
+  branch that does not read `step.confirm` has silently taken over answering. Check it in every
+  `allow`, including the second one `registerTools` takes for the browser's agent.
+- **It does not know who is asking.** `allow` receives `component`, `label`, `action`, `args`, `ref`
+  and a `signal` — not the caller's identity. Callers are separated by *entry point*, not by identity:
+  our own agent through `createAgent`, the browser's through `registerTools`. Two agents of ours are
+  indistinguishable, so an action that only one of them should have does not belong behind `allow`.
+
+What the marks do and do not hide: `data-agent-hidden` keeps a region out of `snapshot` and `query`
+**but its changes still reach `observe`**, so an audit trail survives it; `data-agent-secret` leaves
+the component visible with its value redacted, and password, card and one-time-code fields are secret
+without a mark. Neither is a substitute for not rendering data the viewer may not see.
+
 The pattern that makes this hard to get wrong is a **Data Access Layer**: every query lives in
 `lib/server/<domain>.ts`, starts with `import "server-only"`, gets the user from the session itself and
 never takes a `userId` argument from the caller. Actions call the DAL and nothing else.

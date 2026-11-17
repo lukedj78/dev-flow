@@ -287,6 +287,37 @@ class Policy(unittest.TestCase):
             (u,) = sdl.detect(root)
             return sdl.preset_source(u, "error")
 
+    def test_ui_sdk_is_foreign_on_a_shadcn_project(self) -> None:
+        """A second component library is a second component library, whoever wrote it."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (u,) = sdl.detect(root)
+            src = sdl.preset_source({**u, "ui": "shadcn"}, "error")
+            self.assertIn('"@ui-sdk/react/*"', src)
+            self.assertIn('"@ui-sdk/core"', src)
+
+    def test_ui_sdk_is_not_foreign_to_itself(self) -> None:
+        """On `ui="ui-sdk"` the package IS the declared library: banning it would ban the only use."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (u,) = sdl.detect(root)
+            src = sdl.preset_source({**u, "ui": "ui-sdk"}, "error")
+            self.assertNotIn("@ui-sdk/", src)
+            self.assertIn('"@mui/*"', src, "every other foreign library is still banned")
+
+    def test_ui_sdk_has_no_vendored_base_to_stand_behind(self) -> None:
+        """Like standalone Base UI: no components/ui kit, so "import from the primitive" points nowhere."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); single_app(root)
+            (u,) = sdl.detect(root)
+            src = sdl.preset_source({**u, "ui": "ui-sdk"}, "error")
+            self.assertNotIn('"@radix-ui/react-*"', src)
+            shadcn = sdl.preset_source({**u, "ui": "shadcn"}, "error")
+            self.assertIn('"@radix-ui/react-*"', shadcn, "and shadcn still gets it")
+
+    def test_ui_sdk_renders_with_tailwind_so_the_lint_applies(self) -> None:
+        self.assertIn("ui-sdk", sdl.TAILWIND_UIS)
+
     def test_golden_rule_3_import_bans(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             root = Path(d); single_app(root)

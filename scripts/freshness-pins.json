@@ -1,0 +1,17 @@
+{
+  "_why": "A deliberate pin is a decision, not a stale claim. Without this file freshness.py reported `eve@0.91.0` as BEHIND twelve times on its first run — true, and noise, because the pin is on purpose. A tool that reports a settled decision as a finding gets switched off after the second week (the same rule registry-intake's sweep follows for provenance records, and the one vercel-labs/ui's experts encode in decisions.md: never re-raise a Settled item).",
+  "_shape": "package -> { version, why, until }. `until` is the condition that ends the pin, checked mechanically where it can be: `stable` means report as soon as npm's latest is a non-prerelease >= `until_version`. A pin whose condition is met is reported as EXPIRED — louder than BEHIND, because a decision has run out rather than a number having moved.",
+  "pins": {
+    "eve": {
+      "version": "0.91.0",
+      "why": "npm `latest` points at 1.0.0-rc; the suite stays on the last stable line until 1.0.0 ships stable. Recorded 2026-11-05 in the ecosystem-watch log.",
+      "until": "stable",
+      "until_version": "1.0.0"
+    },
+    "shadcn": {
+      "version": "4.21.0",
+      "why": "registry-intake locks the CLI so an install cannot change behaviour between a review and the install it approved. Raising it is a registry-intake decision, not a version bump.",
+      "until": "manual"
+    }
+  }
+}

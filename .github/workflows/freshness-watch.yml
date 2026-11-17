@@ -1,0 +1,77 @@
+name: freshness-watch
+
+# Every third-party claim in this suite has a clock, and until now almost none of them did.
+#
+# Measured 2026-11-17: of 320 markdown files in scope, 133 name an npm package and only a third of
+# those say when the claim was last checked. `lint_skills.py` check 21 can only flag a date it can
+# see, so it found four stale files and read as "we are fine" while two thirds of the shelf was
+# invisible. Both of that week's real defects were in undated prose: `launchDarkly.variation()` (not
+# an export) and "eve vendors chat 4.42.0" (a peer, not a dependency).
+#
+# WEEKLY, not monthly, and that is the whole point: the window `freshness.py` applies is a function of
+# each package's own maturity, and for a prerelease or a pre-1.0 it is SEVEN DAYS. A monthly cron
+# cannot notice a seven-day window, so `stack-defaults-watch.yml`'s cadence would quietly defeat the
+# check. That one stays monthly: it tracks mature RN/Expo pins, which is a different clock.
+#
+# It changes no file and fails on nothing that is merely old. Old is a reason to re-read, not proof of
+# error — the same rule the lint's notes follow. It fails only when a package or a version we name is
+# gone from the registry, because that is a claim that is provably false today.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # every Monday, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Freshness report
+        id: fresh
+        run: |
+          set +e
+          python3 scripts/freshness.py | tee report.txt
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          {
+            echo '```'
+            cat report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -qE "^  (BEHIND|OVERDUE|NOT CHECKED)" report.txt; then
+            echo "act=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      # One issue, kept up to date — never one per week. Same shape as stack-defaults-watch.
+      - name: Keep one issue up to date
+        if: steps.fresh.outputs.act == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Freshness: third-party claims to re-read"
+          body="$(printf 'Weekly pass, %s. Nothing was changed.\n\n**BEHIND** is a version to bump. **OVERDUE** is a file past the window its youngest package sets — re-read it against the package, not against the docs, and move its date. **NOT CHECKED** means the registry did not answer, which is not a pass.\n\n```\n%s\n```' "$(date -u +%F)" "$(cat report.txt)")"
+          number="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+      - name: Fail only on a claim that is provably false
+        if: steps.fresh.outputs.code != '0'
+        run: |
+          echo "A package or a pinned version named in the suite is gone from the registry." >&2
+          exit 1

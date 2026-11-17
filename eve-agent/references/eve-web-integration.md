@@ -191,6 +191,58 @@ const WIDGET_RENDERERS: CustomRenderer[] = [{ language: WIDGET_LANGUAGES, compon
 Keep widget components **pure presentation fed by their own query** — they take an id, fetch, and
 render; they never receive data through the agent. The seam is: model → fence name + id → your API.
 
+## The other direction — the agent *operating* the UI (`stack.ui = "ui-sdk"` only)
+
+The widget protocol above is the agent **producing** interface. This is the mirror: the agent
+**using** the one that is already on screen, instead of describing what the person should click.
+
+It exists only on a project whose `meta.json#stack.ui` is `"ui-sdk"` (`library-choice.md` has the two
+signals that earn it, and this is the second one). There, a component built with `definePrimitive`
+joins an agent bridge on one line:
+
+```ts
+agent: { actions: ["rate"] },
+```
+
+and the page creates the bridge once, in the browser:
+
+```ts
+import { createAgent } from "@ui-sdk/react/agent"
+const agent = createAgent({ allow: (step) => step.confirm ? askThePerson(step.confirm) : true })
+```
+
+`agent.snapshot()` then lists every component with its state and the actions it offers;
+`agent.act({ steps })` calls them. The change goes through the component's own API and its change
+callback, which receives `details.source === "agent"` and can `details.cancel()`.
+
+**Why it matters here rather than in a UI reference.** On shadcn a domain component is markup: an eve
+agent reaching it has to drive a browser and read the accessibility tree, and giving it a tool means
+writing one by hand. On `ui-sdk` the component says what it can do, and anyone who renders it gets
+that — *"with no tool or schema to write"*, in their words. For an agent that already has tools and
+sessions, this is the difference between an interface it can operate and one it can only talk about.
+
+### Where it sits against what this file already has
+
+| | who acts | the channel |
+|---|---|---|
+| widget protocol (above) | the agent writes, the client renders | the message stream |
+| `clientContext` (below) | the client tells the agent what the page knows | `prepareSend` |
+| **the agent bridge** | the agent reads and changes the page | `createAgent` in the browser |
+
+They compose: `clientContext` tells the agent what is on screen, the bridge lets it change it, and
+`agent.subscribe` reports what a person changed between turns so the next turn is not working from a
+stale picture.
+
+🔴 **Three rules before building on it**, all in `app-security/references/review.md` §A01: `allow`
+runs in the client and is **not** an access control — the Server Action still checks session and
+tenant; an `allow` that returns `true` without reading `step.confirm` has answered for the person; and
+`allow` does not know which agent is asking, only which entry point it came through. The marks
+(`data-agent-confirm`, `-secret`, `-hidden`) are in `design-md-to-app/references/ui-sdk-mapping.md`.
+
+⚠️ The bridge, the `agent` key, `createHistory` and `stageChanges` are **experimental** in a beta
+package (`@ui-sdk/core@0.1.0-beta.x`, first published 2026-11-12). Re-read the installed
+`docs/agents.md` before relying on a name here.
+
 ## Passing browser context to the agent (`prepareSend` → `clientContext` → `defineDynamic`)
 
 Per-request browser state (time zone, locale, viewport, the entity the user is looking at) reaches
