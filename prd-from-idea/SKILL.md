@@ -211,9 +211,17 @@ For `PRD.md`, after `PROJECT.md` is in place, ask:
    as your proposal. On the founder path it is not asked: the evidence and the exclusions come from Playbook §12, and `Who decides` is the founder.
 8. **What technical constraints exist?** (must use Postgres, must be GDPR-compliant, must integrate with X, etc. — `null` is a fine answer)
 8b. **Dove gestiamo il lavoro: Linear, Jira o GitHub?** — the project's tracker, where `scrum` will run the sprints.
-   Propose the default: the tracker the project or the client already uses (an existing repo with issues, a client's
-   Jira), otherwise Linear. Record it with `scrum/scripts/meta_tracker.py <root>/.workflow/meta.json choose --provider
-   linear|jira|github`. Autonomous runs: Linear, recorded as `Assumed:`.
+   🔴 **Ask it, with `AskUserQuestion`, like every other closed choice** (`contracts.md` §Asking the user). Measured
+   2026-11-18 on a real run: this one was *assumed* and Linear appeared in the plan without anyone choosing it. The
+   cause is the wording this line used to carry — *"propose the default"* — which an agent reads as **state it**, not
+   as **ask it**. "Propose" means the recommended option goes first inside the widget and marked; it never means
+   skipping the question.
+   The recommended option is the tracker the project or the client **already uses** — an existing repo with issues, a
+   client's Jira — and Linear only when there is no such signal. Say which of the two cases you are in, in the option's
+   one-line description, so the user can correct the premise rather than just the answer.
+   Record it with `scrum/scripts/meta_tracker.py <root>/.workflow/meta.json choose --provider linear|jira|github`.
+   Only on an autonomous run (§Autonomous runs below — nobody can answer) is it taken without asking: Linear, recorded
+   as `Assumed:`.
 
 If the user pastes a long brief, parse it and ask only the unanswered questions. Don't make them re-state things they already wrote.
 
@@ -228,6 +236,35 @@ When no one can answer — a background or `claude -p` session, a batch rebuild 
 5. **Never derive the topology shape** when Q9 is `eve` (single app / monorepo / agent-only): write `needs a human: shape`, draft everything in the PRD that does not depend on it, and hand off.
 
 ### Step 4 — Draft the documents
+
+🔴 **Everything in these documents is either something the user said, or an assumption. There is no
+third kind — and the second one is marked.**
+
+Measured 2026-11-18 on a real interactive run (`ops-config`): the PRD arrived complete — five MVP
+stories, a filled §Agent authority table with its sentences — and the user's reaction was *"BUT I
+TOLD IT NOTHING."* They were right. `grep Assumed:` over that PRD returned **zero**. §Open questions
+listed six things the agent did not know, which was good, and nothing at all about the much larger
+set of things it had **decided on the user's behalf**.
+
+The cause: until now the `Assumed:` rule lived only inside §Autonomous runs. A run in `interactive`
+mode never reads that section, so the rule did not exist where it was needed. It is unconditional now.
+
+- **Ask the PRD's own questions before drafting its sections.** User stories, out of scope, the
+  evidence rule, technical constraints — and §Agent authority when `stack.ui` is `"ui-sdk"`. Drafting
+  them from the PROJECT.md interview is authoring, not recording.
+- **What you author anyway is marked where it sits**, not only in a list at the end: a line
+  `> Assumed: <what> — because <why>` immediately under the heading or the table it applies to. A
+  reader reads the section; an appendix is read by nobody, and a month later an unmarked assumption is
+  indistinguishable from a decision the team took.
+- **§Open questions keeps its job** — what is *unknown* — and gains nothing here. "I don't know" and
+  "I decided for you" are different failures and are recorded differently.
+- The `history` entry records both: `inputs.decisions` for what the user said, `inputs.assumptions`
+  for what you wrote.
+
+A document that is 90% authored and unmarked is worse than an empty one: the empty one gets filled in,
+the full one gets approved.
+
+
 
 #### `PROJECT.md` template
 

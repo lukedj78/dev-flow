@@ -669,6 +669,12 @@ think", and the flow then records a `stack` value nobody actually chose.
 - **Multi-select only when the answers really compose** (which modules, which locales), never to dodge
   a decision that has one answer.
 - A question the user already answered in their paste is not asked again, in any form.
+- 🔴 **"Propose the default" is not permission to skip the question.** It means the recommended option
+  goes first inside the widget, marked, with its reason. Measured 2026-11-18: the tracker question was
+  written as *"propose the default … otherwise Linear"* and a real run put Linear in the plan without
+  anyone choosing it. Any line in any skill that says *propose*, *suggest* or *default to* for a
+  closed set still asks; only an autonomous run — where nobody can answer — takes the default, and
+  then it is written down as `Assumed: <answer> — because <source>`.
 
 ## Folder structure conventions
 
