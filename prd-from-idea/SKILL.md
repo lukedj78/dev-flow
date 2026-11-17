@@ -79,6 +79,27 @@ Read `.workflow/meta.json`. If absent, ask the user whether to initialize the pr
 
 For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user already answered in their initial paste.
 
+🔴 **Questions 1–5 are about the problem, and nothing displaces them.** Measured on a real run
+(2026-11-17): the interview opened with *"who is the agent that will use the panel, and where does it
+run?"*, then scope, then *"what should happen for the actions the agent must not take alone?"*, and
+only reached *"where do the settings live today?"* fourth. The user's words: *"I expected the general
+questions, the typical ones of the flow."* They were right — three of those four were stack and policy
+questions, interleaved with the product ones.
+
+The cause is worth naming, because it will happen again with the next section somebody adds: the PRD
+template carries concrete, actionable material (tables, verdicts, example rows), and concrete material
+attracts an interview more strongly than five abstract questions do. So:
+
+- **Nothing from a later template section is asked during the PROJECT.md interview.** Not §Agent
+  authority, not §Measurement beyond its single opt-in question. If a section has a condition, it is
+  filled when that condition is known, not while the product is still being described.
+- **A paste that describes the solution does not answer questions 2–5.** "It must let an agent change
+  the settings" says what it does, not what hurts, who suffers, how they cope today, or what winning
+  looks like. Ask them anyway; skipping is for a paste that answered them, not for one that was
+  detailed about something else.
+- **One question at a time, and open.** A multiple-choice list for question 2 is a scope checklist
+  wearing a product question's clothes.
+
 **From an approved Playbook**, questions 1–5 (audience, problem, current alternatives, wedge, success) are already answered: write them from the Playbook, citing the section (`Playbook §3`, `§4`, `§6`, `§9`, `§12`), and do not ask them again. The technical questions (6 onward) are still asked. Decisions the Playbook marks as **locked** in §18 — segment, MVP scope and exclusions, success metrics, constraints — go into PROJECT.md and PRD.md unchanged (Non-goals take the MVP exclusions; the metrics decided before launch go into `## Measurement`, and `stack.analytics` starts as `["traffic", "product"]`, or `["product"]` on Expo — the founder already chose to measure); its open hypotheses go into PRD §Open questions with their H-ids. `## Scope rules` takes the evidence and the exclusions from Playbook §12, and `Who decides` is the founder — question 7b is not asked. With `approved_experiment`, the PRD covers only `founder.experiment` (scope, objective, constraints, acceptance). A technical constraint that contradicts a locked decision is flagged to the user with an offer to return to `founder-intelligence`, never resolved silently (`dev-flow/references/policies.md`).
 
 1. **Who is this for?** (target audience — be specific: not "B2B" but "Series A SaaS founders running 10–30 person teams")
@@ -99,11 +120,21 @@ For `PROJECT.md`, ask **at most 7 questions**, in this order. Skip any the user 
    - "mobile" / "iOS" / "Android" / "mobile app" / "native app" → `stack.framework: "expo-rn"`
    - "both" / "monorepo" / "web + mobile" / "stesso prodotto su entrambi" → `stack.framework: "monorepo"`
    - "desktop" → out of scope for this skill set — refuse politely and refer the user to Tauri/Electron docs.
-7. **(Web only OR monorepo: ask for the web side)** **Which UI library — shadcn/ui, Base UI, MUI, or Coss/UI?** Map the answer → `meta.json#stack.ui` (for `framework="next"`) or `meta.json#stack.monorepo.web.ui` (for `framework="monorepo"`):
+7. **(Web only OR monorepo: ask for the web side)** **Which UI library — shadcn/ui, Base UI, MUI, or Coss/UI?**
+   *(A fifth, UI SDK, is offered by you and only on a signal — see the `ui-sdk` row below. Do not put it in the question.)* Map the answer → `meta.json#stack.ui` (for `framework="next"`) or `meta.json#stack.monorepo.web.ui` (for `framework="monorepo"`):
    - "shadcn" / "shadcn/ui" / "i want to own the source" → `"shadcn"`
    - "base ui" / "base-ui" / "headless library no CLI" → `"base-ui"`
    - "mui" / "material ui" / "material design" / "internal tool with lots of tables" → `"mui"`
    - "coss" / "coss/ui" / "cal.com design system" / "cal.com style" → `"coss"` (Coss/UI, the Cal.com design system built on Base UI — requires Tailwind v4)
+   - "ui-sdk" / "ui sdk" / "vercel ui sdk" → `"ui-sdk"` — **but do not offer it in the question above.** It is beta
+     (`0.1.0-beta.x`) and earns a project only on one of two signals, both of which the user has already told you by
+     now, so **you offer it, they do not have to know it exists**: the product must run on **more than one framework**
+     (it is the only option that ships React, Vue, Svelte, Solid and web components from one definition), or **an agent
+     will operate the interface itself** — not an agent that writes the app, one that reads the page and changes
+     controls at runtime. With a signal present, name it as a fifth option *with its cost* ("beta, APIs may move") and
+     let the user choose. With neither, do not mention it: a new library from Vercel is exactly the thing to propose
+     because it is new rather than because it fits. `design-md-to-app/references/library-choice.md` has the full
+     signals and the catalogue comparison.
    - No clear answer → default to `"shadcn"` (most flexible / well-trodden path), explain briefly, let the user override.
 
    For mobile-only (`framework="expo-rn"`) and the mobile side of monorepo, UI is fixed at `"nativewind"` — no question asked.
@@ -271,6 +302,16 @@ Decided before launch, not after. Levels: traffic, product.
 
 <Only when an agent will operate this product's own interface — `stack.ui = "ui-sdk"` with the agent
 bridge, see `design-md-to-app/references/ui-sdk-mapping.md`. Leave the section out otherwise.>
+
+🔴 **When to ask, because getting this wrong is what it looked like the first time.** This section is
+filled **after question 7 has settled `stack.ui` on `"ui-sdk"`** — never before. It is **not** one of
+the seven opening questions, and *"who is the agent and where does it run?"* asked while the user is
+still describing the product reads as an interrogation about a decision nobody has taken yet.
+
+Once `stack.ui` is `"ui-sdk"`, ask **in one batch**, not one at a time: whose agent (ours only, or the
+visitor's browser through WebMCP — the default is ours only), then the rows below. If `stack.ui` is
+anything else, **ask nothing and leave the section out**: the bridge does not exist on that topology,
+so the questions have no answer to record.
 
 🔴 **These are product decisions, not attributes.** "Deleting a project needs a person" is a line of
 PRD; `data-agent-confirm` is only how it gets written down. Decided here, the markup follows. Decided

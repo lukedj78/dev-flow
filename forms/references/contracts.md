@@ -646,6 +646,30 @@ Captures user choices that downstream skills need. Keys:
 
 Use `null` (not `"none"`) when not yet decided. For `route_groups`, an empty array `[]` means "no route groups, flat routing".
 
+## Asking the user — a choice is asked as a choice
+
+Measured 2026-11-17: **`AskUserQuestion` appears nowhere in these 57 skills.** Every decision in the
+flow — the platform, the UI library, the form library, the tracker, the deploy target, the payments
+provider — is written in prose (*"Which UI library — shadcn/ui, Base UI, MUI, or Coss/UI?"*), so an
+agent reading it writes a sentence. Whether the reader ever sees a selectable list is left to that
+agent's mood, which is why it is inconsistent: the same run produced one multiple-choice question and
+three paragraphs.
+
+**When a question has a known, closed set of answers, ask it with `AskUserQuestion`.** Not as a
+courtesy — a sentence listing four options invites a fifth, an ambiguous one, or a "whatever you
+think", and the flow then records a `stack` value nobody actually chose.
+
+- **The recommendation goes inside the options, first and marked**, never implied in the prose around
+  them: `"shadcn/ui (consigliata)"` as option one, with the one-line reason in its description. An
+  agent that knows the answer and asks neutrally is making the user guess what it already knows.
+- **One question per decision**, with its own options. Three decisions in one widget is a form.
+- **Open questions stay open.** *"What problem do they have right now?"* has no option list, and
+  giving it one turns a product question into a checklist — which is exactly how an interview drifts
+  from the problem to the solution.
+- **Multi-select only when the answers really compose** (which modules, which locales), never to dodge
+  a decision that has one answer.
+- A question the user already answered in their paste is not asked again, in any form.
+
 ## Folder structure conventions
 
 Skills that scaffold a codebase (`design-md-to-app`, `rn-bootstrap`, `monorepo-bootstrap`) MUST generate the canonical folder structure documented in `docs/superpowers/specs/2026-06-06-folder-structure-refactor.md`. Key rules:
