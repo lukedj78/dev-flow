@@ -50,6 +50,16 @@ npm install @ui-sdk/core @ui-sdk/react     # or /vue /svelte /solid /web
 `@layer ui-sdk;` after Tailwind's import puts their resets above your utilities. Their own changelog
 records this as a known trap (PR 321).
 
+🔴 **Use Tailwind, and the reason is not taste.** UI SDK is genuinely style-agnostic — its own docs
+say the state attributes and CSS variables *"work with Tailwind CSS or any other stylesheet"*, and its
+demos use plain CSS. But **every guardrail this suite owns is written against utility classes**:
+`shadcn/no-raw-colors`, `no-arbitrary-values` and `require-static-classes`, the write-time primitives
+guard, most of `shadscan`, and `cn` itself. A ui-sdk project on plain CSS is the only project in the
+fleet with **no design enforcement at all** — DESIGN.md's tokens still work as custom properties, and
+nothing checks that anyone used them. So Tailwind is the default here, and a plain-CSS ui-sdk project
+is an **exception to record** in `meta.json#stack_config`, with what it gives up, not a styling
+preference. (`setup_design_lint.py` refuses to install on such a project and says so.)
+
 `@ui-sdk/core/web.css` is an **optional** default look. On our projects DESIGN.md commands, so take it
 only as a starting point and expect to override; *you bring the styles* is their phrase.
 

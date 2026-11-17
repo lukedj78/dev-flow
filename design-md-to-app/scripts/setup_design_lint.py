@@ -48,7 +48,33 @@ from pathlib import Path
 
 VERSION = "0.1.0"
 PLUGIN = "@shadcn/lint"
-TAILWIND_UIS = {"shadcn", "base-ui", "coss", "ui-sdk"}
+TAILWIND_UIS = {"shadcn", "base-ui", "coss"}
+# 🔴 ui-sdk is NOT in that set, and the first version of this change put it there.
+#
+# shadcn, Coss and Base UI are Tailwind topologies by construction: the kit arrives styled with
+# utilities and `shadcn/no-raw-colors`, `no-arbitrary-values` and `require-static-classes` are rules
+# ABOUT Tailwind classes. ui-sdk ships unstyled parts and says "you bring the styles" — which may be
+# Tailwind or plain CSS. Measured on a real project 2026-11-17 (`ui-sdk-search`): 56 wrappers, zero
+# Tailwind, styling through `.css` files and `c-button--outline` classes. Declaring it a Tailwind UI
+# would have run class-shaped rules over a stylesheet-shaped project.
+#
+# So for ui-sdk the gate is the project, not the declaration: the lint applies only where Tailwind is
+# actually installed.
+STYLE_AGNOSTIC_UIS = {"ui-sdk"}
+
+
+def has_tailwind(root: Path) -> bool:
+    """Is Tailwind a dependency of this project (or any workspace package)?"""
+    for pkg in [root / "package.json", *root.glob("apps/*/package.json"),
+                *root.glob("packages/*/package.json")]:
+        try:
+            data = json.loads(pkg.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+        if any(k == "tailwindcss" or k.startswith("@tailwindcss/") for k in deps):
+            return True
+    return False
 PHASES_BEFORE_SCAFFOLD = {"empty", "idea_captured", "prd_drafted", "tasks_split",
                           "design_extracted", "monorepo_initialized"}
 AGENTS_BEGIN = "<!-- BEGIN:design-system-lint -->"
@@ -69,8 +95,14 @@ def ui_of(meta: dict) -> str | None:
     return stack.get("ui") or (stack.get("monorepo", {}).get("web", {}) or {}).get("ui")
 
 
-def applicability(meta: dict) -> tuple[bool, str]:
-    """Whether the design lint applies. Mirrors update_meta.py's gate — keep in sync."""
+def applicability(meta: dict, root: Path | None = None) -> tuple[bool, str]:
+    """Whether the design lint applies. Mirrors update_meta.py's gate — keep in sync.
+
+    `root` is optional so the gate in `dev-flow/scripts/design_lint_gate.py` and the tests can ask
+    from `meta` alone. It is only read for a style-agnostic UI, where the declaration does not say
+    whether the project styles with Tailwind; without it such a project is assumed to have it, since
+    refusing to install the lint on a guess is the worse failure.
+    """
     stack = meta.get("stack", {})
     fw = stack.get("framework")
     if fw not in {"next", "monorepo"}:
@@ -78,7 +110,15 @@ def applicability(meta: dict) -> tuple[bool, str]:
     if fw == "monorepo" and (stack.get("monorepo", {}) or {}).get("topology") == "mobile-only":
         return False, "monorepo without a web app"
     ui = ui_of(meta)
-    if ui and ui not in TAILWIND_UIS:
+    if ui in STYLE_AGNOSTIC_UIS:
+        if root is not None and not has_tailwind(root):
+            return False, (f"stack.ui={ui!r} and this project has no Tailwind — the class-shaped "
+                           f"rules cannot run, so this project has NO design enforcement: "
+                           f"no-raw-colors, no-arbitrary-values and require-static-classes all go "
+                           f"silent, and shadscan loses most of its checks. Tailwind is the default "
+                           f"for ui-sdk (ui-sdk-mapping.md); going without it is an exception to "
+                           f"record, not a styling preference")
+    elif ui and ui not in TAILWIND_UIS:
         return False, f"stack.ui={ui!r} does not render with Tailwind"
     return True, "applies"
 
@@ -884,7 +924,7 @@ def run_eslint(pkg: Path) -> list[dict]:
 
 def check(root: Path) -> tuple[bool, list[str]]:
     meta = load_meta(root)
-    ok, why = applicability(meta)
+    ok, why = applicability(meta, root)
     if not ok:
         return True, [f"not applicable: {why}"]
     decision = meta.get("stack", {}).get("design_lint")
@@ -936,7 +976,7 @@ def check(root: Path) -> tuple[bool, list[str]]:
 
 def setup(root: Path) -> int:
     meta = load_meta(root)
-    ok, why = applicability(meta)
+    ok, why = applicability(meta, root)
     if not ok:
         print(f"skipped — {why}")
         return 0

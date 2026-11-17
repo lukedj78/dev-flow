@@ -143,6 +143,27 @@ It skips the places where naming the source is **correct** — `.workflow/`, `do
 `registry-lock.json` — because our own rules require recording provenance there. A sweep that
 flagged the record you were told to keep gets switched off after the second run.
 
+## The double gate on `stack.ui = "ui-sdk"`
+
+UI SDK arrives through two doors, and only one of them is this skill's.
+
+| What arrives | How | Governed by |
+|---|---|---|
+| **the library** (`@ui-sdk/core`, `@ui-sdk/react`) | `npm install` | the design-time choice — `design-md-to-app/references/library-choice.md`. `pnpm add` is outside this skill's perimeter |
+| **a theme or a component kit for it** | a **shadcn-format registry** | **this skill**, like any other registry |
+
+The second door is not hypothetical. Checked 2026-11-17: `spec-01.vercel.app` — a hardware theme by
+one of UI SDK's own authors — ships **122 items** (62 `registry:ui`, 52 `registry:component`, 7
+blocks) at `https://spec-01.vercel.app/r/registry.json`, with no GitHub repo anywhere. Its install
+instruction is *"install components from the SPEC-01 shadcn registry … wrap the app in `<Hardware>`"*.
+
+🔴 **And it would have been stopped here.** Every one of those 122 items declares
+`@ui-sdk/core@0.0.0-20261111125312.ga16c1d57` — a git-sha snapshot build from the day before the
+public beta, which **npm answers 404 for**. That is `D7` (an item's dependency range against what the
+project has installed), caught by a `review` before an install, not by a failed `pnpm install` after
+one. The lesson generalises past this registry: a themed kit for a beta library is likely to pin a
+build of it, and a pin to a snapshot ages out the moment the publisher cleans up.
+
 ## Trust levels
 
 Every allowlisted registry is `trust: "snapshot"`. The one exception is the registry of the **UI system

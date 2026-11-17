@@ -315,8 +315,37 @@ class Policy(unittest.TestCase):
             shadcn = sdl.preset_source({**u, "ui": "shadcn"}, "error")
             self.assertIn('"@radix-ui/react-*"', shadcn, "and shadcn still gets it")
 
-    def test_ui_sdk_renders_with_tailwind_so_the_lint_applies(self) -> None:
-        self.assertIn("ui-sdk", sdl.TAILWIND_UIS)
+    def test_ui_sdk_is_style_agnostic_so_the_project_decides_not_the_declaration(self) -> None:
+        """Measured on ui-sdk-search 2026-11-17: 56 wrappers, zero Tailwind, plain `.css` files.
+
+        shadcn/Coss/Base UI arrive styled with utilities, so `stack.ui` settles it. ui-sdk ships
+        unstyled parts — "you bring the styles" — so the declaration says nothing, and running
+        class-shaped rules over a stylesheet-shaped project is the mistake this guards.
+        """
+        self.assertNotIn("ui-sdk", sdl.TAILWIND_UIS)
+        self.assertIn("ui-sdk", sdl.STYLE_AGNOSTIC_UIS)
+        meta = {"stack": {"framework": "next", "ui": "ui-sdk"}}
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "package.json").write_text(json.dumps(
+                {"dependencies": {"@ui-sdk/react": "^0.1.0-beta.6"}}))
+            ok, why = sdl.applicability(meta, root)
+            self.assertFalse(ok, "plain CSS: the Tailwind rules have nothing to say")
+            self.assertIn("no Tailwind", why)
+            self.assertIn("NO design enforcement", why,
+                          "the refusal must say what is given up, not just that it refused")
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "package.json").write_text(json.dumps(
+                {"dependencies": {"@ui-sdk/react": "^0.1.0-beta.6", "tailwindcss": "^4.0.0"}}))
+            self.assertTrue(sdl.applicability(meta, root)[0], "with Tailwind it applies")
+
+    def test_a_style_agnostic_ui_without_a_root_is_assumed_to_have_tailwind(self) -> None:
+        """The phase gate asks from `meta` alone. Refusing to install on a guess is the worse failure."""
+        meta = {"stack": {"framework": "next", "ui": "ui-sdk"}}
+        self.assertTrue(sdl.applicability(meta)[0])
 
     def test_golden_rule_3_import_bans(self) -> None:
         with tempfile.TemporaryDirectory() as d:
