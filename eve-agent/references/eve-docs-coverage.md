@@ -51,6 +51,22 @@ Every page of <https://eve.dev/docs> mapped to where this skill covers it. Purpo
 > as directories, `tutorial/` deleted, `guides/evaluate` → `guides/decide.md`, `observability/*` under
 > `guides/instrumentation/`) is **RC-only** — at 0.91.0 the current paths stand, so the rows below resolve
 > today and break the day we take 1.0. **The pin stays `eve@0.91.0` until 1.0.0 ships stable.**
+>
+> 🔴 **Both halves of that sentence are now settled, and the prediction was wrong. Measured 2026-11-17
+> against `eve@1.0.1`** (published 2026-11-16; `1.0.0` on 2026-11-15), after `freshness.py` reported the
+> pin's condition met:
+>
+> | | expected | measured |
+> |---|---|---|
+> | doc paths this file cites | *"break the day we take 1.0"* | **4 of 39** — `channels/overview`, `tools/overview`, `evals/overview` (all renamed to `index`) and `prepare-for-1-0` (gone, as it should be) |
+> | eve subpaths our references import | — | **32 of 32 still exported** (the package goes 102 → 105 entries) |
+> | runtime behaviour | — | ⚠️ **not measurable from the artefact.** This is the half a script cannot do, and the reason the scaffold pin is still a decision rather than a bump |
+>
+> The docs reorganised rather than broke: every channel went from `channels/slack.mdx` to
+> `channels/slack/{index,reference}.mdx`, and two channels are new (`a2a`, `recall`). 113 → 124 pages.
+> So **taking 1.0 is a small job, not the large one this note assumed** — but it is still a job, and
+> what it costs is a re-read of behaviour, not a path rewrite. `eve-scaffold.md` still pins
+> `eve@0.91.0`; moving it changes what every new project installs.
 
 > **Verification pass 2026-11-05 against eve@0.91.0 and 1.0.0-rc.5 — the pre-1.0 cleanup, and `latest` is now an RC.**
 > `npm pack` of **0.80.1, 0.91.0 and 1.0.0-rc.5**, the cumulative `CHANGELOG` from `vercel/eve` (**24 releases**
@@ -667,7 +683,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 ## Building blocks
 | Page | Covered in | |
 |---|---|---|
-| `/docs/tools/overview` | `eve-capabilities.md` §Tool + `eve-conventions.md` (idempotency/approval) | ✅ |
+| `/docs/tools/index` (was `tools/overview`, renamed at 1.0) | `eve-capabilities.md` §Tool + `eve-conventions.md` (idempotency/approval) | ✅ |
 | `/docs/skills` | `eve-capabilities.md` §Skill + `eve-concepts.md` (context) | ✅ |
 | `/docs/subagents` | `eve-capabilities.md` §Subagent | ✅ |
 | `/docs/sandbox` — **split into a directory in 0.64** (`index` + `default`/`vercel`/`docker`/`microsandbox`/`just-bash`) | `eve-concepts.md` §Sandbox — rewritten 2026-09-23 for the environment API (`DefaultSandbox`/`VercelSandbox`/… `.environment()` + `defineSandbox(selector)`, `prepare`, post-open init, lifecycle, seeding, network policy, credential brokering, `defineParentSandbox`) | ✅ |
@@ -679,7 +695,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | Page | Covered in | |
 |---|---|---|
 | `/docs/connections/overview` · `/mcp` · `/openapi` | `eve-capabilities.md` §Connection (`defineMcpClientConnection` / `defineOpenAPIConnection`) | ✅ |
-| `/docs/channels/overview` · `/eve` · `/slack` · `/github` · `/linear` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
+| `/docs/channels/index` (was `channels/overview`, renamed at 1.0) · `/eve` · `/slack` · `/github` · `/linear` · `/twilio` | `eve-capabilities.md` §Channel (all kinds + Vercel Connect; Slack `onMessage`/`onEvent` hooks + `ctx.cancel()`/`ctx.reset()` session controls) | ✅ |
 | `/docs/channels/telegram` · `/discord` · `/teams` | `eve-channels.md` — per-surface guides: webhook registration, group dispatch, `onMessage` gate + the two send paths (Telegram); 3s ACK + command propagation (Discord); `onInputResponse` authorization bypass + file opt-in (Teams) | ✅ |
 | `/docs/channels/linq` | `eve-capabilities.md` §Channel — `eve add channel/linq`, Connect vs portable credentials, iMessage **and** SMS (Photon stays iMessage-only) | ✅ |
 | `/docs/channels/mcp` | `eve-capabilities.md` §Channel — `mcpChannel()` on `eve/channels/mcp`: the agent published **as** an MCP server (`agent_start` / `agent_get` / `agent_update` / `agent_cancel`), auth mandatory even in dev. Distinct from `/docs/connections/mcp`, which is the agent *calling* one. | ✅ |
@@ -735,7 +751,7 @@ Legend: **✅ deep** (written up here) · **↪ pointer** (named + where to read
 | `/docs/evals/{overview,cases,assertions,judge,targets,reporters,running}` | `eve-evals.md` (full) + `eve-capabilities.md` §Eval | ✅ |
 | `/docs/patterns/{multi-tenant-auth,multi-tenant-approvals,multi-tenant-memory,dynamic-scheduling}` | `eve-patterns.md` | ✅ |
 | `/docs/evals/tool-stubs` — **new** | `eve-evals.md` §Tool stubs — `{ id, tool, match?, outcome \| outcomes }`; **first match wins top-to-bottom**, and **no match runs the real tool**, so a typo in `tool` yields a *passing* eval that exercised production (eve warns and does not fail); `outcomes` is a sequence, not a database; a broken stub fails the eval even when the agent recovers. **Refused by default, including in development** — `eveVercelOidc` + `allowToolStubs: true` on the runner's subject, granted only by server config. 🔴 **The permission is checked only at session creation**, so anyone the channel admits to that session can use its stubs: isolate, or use a separate eval deployment. Plus `throw`, subagent paths, the persistent-tool rule, qualified connection names, and the limits | ✅ |
-| `/docs/guides/prepare-for-1-0` — **new** | **applied 2026-11-05**, see the pass note at the top of this file. 17 sections; the load-bearing discovery is *when* they apply — **the whole pre-1.0 cleanup landed at 0.84.0**, so pinning the last stable (0.91.0) does not avoid it. Nine identifiers of ours were wrong against the shipped `dist` and are fixed across `eve-concepts.md`, `eve-conventions.md`, `eve-patterns.md`, `eve-capabilities.md`, `eve-evals.md`, `ai-elements.md` and `eve-scaffold.md`. Five of its sections cost us nothing (we already use `defineMcpClientConnection`, `export default defineAgent(...)`, and never bare `workflow` imports, `client.info()` from a browser or `session.snapshot()`) | ✅ |
+| ~~`/docs/guides/prepare-for-1-0`~~ — **gone at 1.0.0**, as it should be: it was the guide for getting there | **applied 2026-11-05**, see the pass note at the top of this file. 17 sections; the load-bearing discovery is *when* they apply — **the whole pre-1.0 cleanup landed at 0.84.0**, so pinning the last stable (0.91.0) does not avoid it. Nine identifiers of ours were wrong against the shipped `dist` and are fixed across `eve-concepts.md`, `eve-conventions.md`, `eve-patterns.md`, `eve-capabilities.md`, `eve-evals.md`, `ai-elements.md` and `eve-scaffold.md`. Five of its sections cost us nothing (we already use `defineMcpClientConnection`, `export default defineAgent(...)`, and never bare `workflow` imports, `client.info()` from a browser or `session.snapshot()`) | ✅ |
 | `/docs/guides/deployment/workflow-worlds` · `/self-hosted-operations` — **new** | `eve-scaffold.md` §Self-hosting — the three worlds and what each does on upgrade; 🔴 **upgrading eve strands every session the previous version built** on the local *and* Postgres worlds (history readable, cannot resume; `ctx.session.predecessor` names it), which is a release-planning fact for any product with long-lived sessions. Replicas need Postgres (`bootstrap` before first start **and** before any build that upgrades the package), schedules on **one** replica, shared sandbox access or `SandboxTemplateNotProvisionedError`, pool ≥ concurrency + 2 (so 52, not the default 10). ⚠️ **Postgres stores inputs, outputs and stream contents unencrypted and keeps finished runs** — a `compliance-audit` register entry. Callbacks are refused to loopback/private/link-local addresses outside `eve dev` | ✅ |
 | `/docs/patterns/fork-conversations-into-new-threads` — **new** | `eve-patterns.md` §11bis — the same `ctx.to().send()` as a hand-off, with `history`; what makes it a *fork* is a target that always starts a new session (Slack with **only** a `channelId`), and ⚠️ **many built-in channels reuse one session per chat**, so the same code appends the whole transcript to someone's existing conversation instead. `isChannel()` to narrow metadata, `auth: ctx.session.auth.current`, and an `idempotencyKey` so a retried tool call does not open a second thread | ✅ |
 | `/docs/patterns/voice-notes` — **new** | `eve-patterns.md` §11ter — **audio reaches the agent as a sandbox file and the model does not transcribe it**, so a voice note is invisible without a tool. `transcribe()` from `ai` on the agent's own credentials. 🔴 The path comes from the model, so normalise it and refuse anything outside `/workspace/.eve/attachments/`; put the recovery instruction **in the thrown error**, because that text is the model's recovery UX. A file over the channel limit (25 MB default) arrives as a note, not a file | ✅ |
