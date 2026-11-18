@@ -125,6 +125,40 @@ const rows = await db.execute(sql`select * from orders where status = ${status}`
 What to look at: the scan's `raw-sql`; `dangerouslySetInnerHTML` fed by user content; URLs built from
 input and passed to `fetch`, `redirect()` or `rewrites()` (SSRF and open redirects).
 
+🔴 **And when you find that `dangerouslySetInnerHTML`, name the replacement — this file used to stop
+at "look at it".** The browser's own sanitizer is the answer:
+
+```ts
+container.setHTML(untrusted);                                  // default: strips script and on*
+container.setHTML(untrusted, { sanitizer: new Sanitizer({      // or restrict further
+  elements: ["p", "b", "i", "strong", "em"], attributes: ["class"],
+}) });
+```
+
+A custom `Sanitizer` can only ever be **more** restrictive than the default, which is what makes it
+safe to hand to a caller. Support, since Chrome/Edge 146 (Mar 2026) and Firefox 148 (Feb 2026),
+**not Safari** — so a fallback is required, not optional, and three things about it are not obvious:
+
+- **Load DOMPurify only when the native API is missing** (`'setHTML' in Element.prototype`), through
+  a dynamic `import()` your bundler can split. Shipping it to every browser is the cost this rule
+  exists to avoid.
+- ⚠️ **The two do not sanitize the same way.** DOMPurify keeps `aria-*` and `data-*` even when
+  `ALLOWED_ATTR` is set, and keeps the *text* of elements it removes; the native Sanitizer strips
+  both. Matching behaviour needs `ALLOW_ARIA_ATTR: false`, `ALLOW_DATA_ATTR: false`,
+  `KEEP_CONTENT: false` and `#text` allowed. Two different outputs for the same input, split by
+  browser, is a bug nobody reproduces.
+- **Under Trusted Types the fallback needs its own policy.** `setHTML()` does not, but with
+  `require-trusted-types-for 'script'` in force, DOMPurify needs `RETURN_TRUSTED_TYPE: true` and its
+  `dompurify` policy name allowed in the `trusted-types` CSP directive — otherwise the fallback path
+  throws in exactly the browser it exists for.
+
+**Sanitize on the server too** when the same content is rendered anywhere else — another client, an
+SSR pass, an email — and keep the two rule sets from disagreeing. Client-side sanitization protects
+the page that renders, nothing further.
+
+Source: `GoogleChrome/modern-web-guidance`, `guides/security/sanitize-untrusted-html.md` and
+`guides/security/trusted-types.md` (read 2026-11-18, CC-BY 4.0).
+
 ## A07 — Authentication failures
 
 - Sign-in, sign-up and password reset are rate-limited (better-auth `rateLimit`, or the platform's).
