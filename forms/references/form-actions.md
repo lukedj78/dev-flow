@@ -6,13 +6,10 @@ The default `<FormActions submitLabel="Save" submittingLabel="Saving…" resetLa
 
 ```tsx
 <form.Subscribe
-  selector={(s) => ({
-    canSubmit: s.canSubmit,
-    isSubmitting: s.isSubmitting,
-    isDirty: s.isDirty,
-  })}
+  // Not `s.canSubmit`: TanStack's own flag folds in validity, which is not a gate here.
+  selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
 >
-  {({ canSubmit, isSubmitting, isDirty }) => (
+  {({ isSubmitting, isDirty }) => (
     <div className="flex items-center justify-between gap-2">
       <Button type="button" variant="ghost" onClick={onCancel}>
         Cancel
@@ -26,7 +23,7 @@ The default `<FormActions submitLabel="Save" submittingLabel="Saving…" resetLa
         >
           Reset
         </Button>
-        <Button type="submit" disabled={!canSubmit}>
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {isSubmitting ? "Saving…" : "Save"}
         </Button>
       </div>
@@ -38,8 +35,10 @@ The default `<FormActions submitLabel="Save" submittingLabel="Saving…" resetLa
 ## react-hook-form — `useFormState`
 
 ```tsx
-const { isDirty, isValid, isSubmitting } = useFormState({ control: form.control });
-const canSubmit = isValid && !isSubmitting;
+// `isValid` is deliberately absent: it is not a gate. See the skill, §The Save button is
+// not a validity light.
+const { isDirty, isSubmitting } = useFormState({ control: form.control });
+const canSave = isDirty && !isSubmitting;
 
 return (
   <div className="flex items-center justify-between gap-2">
@@ -55,7 +54,7 @@ return (
       >
         Reset
       </Button>
-      <Button type="submit" disabled={!canSubmit}>
+      <Button type="submit" disabled={!canSave}>
         {isSubmitting ? "Saving…" : "Save"}
       </Button>
     </div>
@@ -72,7 +71,7 @@ When the form lives inside a shadcn `<Dialog>`, the natural place for actions is
   <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
     Cancel
   </Button>
-  <Button type="submit" disabled={!canSubmit}>
+  <Button type="submit" disabled={!canSave}>
     {isSubmitting ? "Saving…" : "Save"}
   </Button>
 </DialogFooter>
@@ -85,19 +84,19 @@ If `isDirty === true` when the user clicks Cancel, run the unsaved-changes guard
 Common in admin tools:
 
 ```tsx
-<form.Subscribe selector={(s) => ({ canSubmit: s.canSubmit, isSubmitting: s.isSubmitting })}>
-  {({ canSubmit, isSubmitting }) => (
+<form.Subscribe selector={(s) => ({ isDirty: s.isDirty, isSubmitting: s.isSubmitting })}>
+  {({ isDirty, isSubmitting }) => (
     <div className="flex justify-end gap-2">
       <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
       <Button
         type="submit"
         variant="outline"
-        disabled={!canSubmit}
+        disabled={!isDirty || isSubmitting}
         onClick={() => { /* set a flag the onSubmit reads */ }}
       >
         Save and close
       </Button>
-      <Button type="submit" disabled={!canSubmit}>
+      <Button type="submit" disabled={!isDirty || isSubmitting}>
         {isSubmitting ? "Saving…" : "Save"}
       </Button>
     </div>
@@ -111,7 +110,8 @@ To distinguish "Save" from "Save and close" inside the hook's `save` callback, p
 
 - Not a Cancel button. Cancel is a parent concern (close the dialog, navigate away, etc.); the form has no opinion on it.
 - Not a place for "Save and continue editing" auto-save. The skill bans auto-save — the contract is explicit Save click. If you genuinely need workflow buttons, inline the subscribe block and own the layout.
-- Not a place for confirmation modals. "Are you sure?" UX is the parent's concern; `<FormActions>` only disables until `canSubmit && isDirty`.
+- Not a place for confirmation modals. "Are you sure?" UX is the parent's concern; `<FormActions>` only disables while there is nothing to save or a save is in flight.
+- 🔴 **Not a validity light.** Whatever layout you inline, the submit button must stay **enabled on an invalid form** — pressing it is the only thing that tells a screen-reader user which field is wrong. Any `disabled={!isValid}` you write here deletes that, and the error never reaches them. See the skill, §The Save button is not a validity light.
 
 ## Rule of thumb
 

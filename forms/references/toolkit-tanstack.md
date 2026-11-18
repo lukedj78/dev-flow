@@ -26,6 +26,7 @@ export { useCreateForm } from "./useCreateForm";
 export { FormProvider, useFormContext } from "./FormProvider";
 export { FormField } from "./FormField";
 export { FormActions } from "./FormActions";
+export { focusFirstInvalid } from "./focusFirstInvalid";
 export { mapFormError, type FormErrorContext } from "./mapFormError";
 ```
 
@@ -80,6 +81,7 @@ import { useRef } from "react";
 import { useForm } from "@tanstack/react-form";
 import type { z } from "zod";
 import type { AnyReactFormApi } from "./FormProvider";
+import { focusFirstInvalid } from "./focusFirstInvalid";
 import { mapFormError } from "./mapFormError";
 
 export interface UseEditFormOptions<T> {
@@ -116,9 +118,44 @@ export function useEditForm<T>(opts: UseEditFormOptions<T>): AnyReactFormApi {
         if (inFlight.current === controller) inFlight.current = null;
       }
     },
+    // The Save button is enabled on an invalid form on purpose; this is what pressing it buys.
+    onSubmitInvalid: () => focusFirstInvalid(),
   });
 }
 ```
+
+---
+
+## `lib/forms/focusFirstInvalid.ts`
+
+The other half of the submit gate. Our Save button no longer blocks on validity, so a failed submit
+actually happens — and a failed submit is the moment the platform reserves for telling the user what
+is wrong.
+
+```ts
+"use client";
+import { announce } from "@/lib/a11y/announcer";
+
+export function focusFirstInvalid(): void {
+  // The submit came from a control inside the form — the Save button, or the field the user
+  // pressed Enter in — so the active element locates the right form without any plumbing.
+  // A programmatic submit with focus elsewhere falls through to announcing only.
+  const formEl = (document.activeElement as HTMLElement | null)?.closest("form") ?? null;
+  const invalid = formEl?.querySelectorAll<HTMLElement>('[aria-invalid="true"]') ?? [];
+
+  // Focus announces that field's own message through `aria-describedby`.
+  invalid[0]?.focus();
+
+  // The count is the thing focus cannot say, so it is the only thing the region says.
+  // One field: focus already read it out, and repeating it talks over the screen reader.
+  if (invalid.length > 1) announce(`${invalid.length} fields need attention`);
+}
+```
+
+⚠️ **On a long form, focusing the first invalid field is the wrong affordance** — the user is thrown
+to the top with no sense of how much is wrong. Past roughly eight fields, render an error summary
+(a heading, then a link per invalid field), focus the heading, and have the links move focus to the
+controls. Same function, different target.
 
 ---
 
@@ -132,6 +169,7 @@ import { useRef } from "react";
 import { useForm } from "@tanstack/react-form";
 import type { z } from "zod";
 import type { AnyReactFormApi } from "./FormProvider";
+import { focusFirstInvalid } from "./focusFirstInvalid";
 import { mapFormError } from "./mapFormError";
 
 export interface UseCreateFormOptions<TInput, TResult> {
@@ -166,6 +204,8 @@ export function useCreateForm<TInput, TResult>(
         if (inFlight.current === controller) inFlight.current = null;
       }
     },
+    // On an empty create form, pressing Create is how the user learns what is required.
+    onSubmitInvalid: () => focusFirstInvalid(),
   });
 }
 ```
@@ -195,6 +235,13 @@ export interface FormFieldRenderProps {
   touched: boolean;
   isValid: boolean;
   errors: string[];
+  /** Spread onto the control as `aria-invalid`. Mirrors `:user-invalid`: the field was
+   *  modified and left, or a submit was attempted. Never compute this in a component. */
+  invalid: boolean;
+  /** Spread onto the control as `aria-describedby`. The error element's id while the field
+   *  is invalid, `undefined` otherwise — a permanent reference is read out before the user
+   *  has touched the field, even when the text is hidden. */
+  describedBy: string | undefined;
 }
 
 // Standard Schema validators (Zod) report issues as `{ message }`; function
@@ -219,12 +266,20 @@ export function FormField({
   children: (field: FormFieldRenderProps) => ReactNode;
 }) {
   const form = useFormContext();
+  // Reactive: `form.state` read directly does not re-render. One submit attempt flips every
+  // field to invalid at once, which is what the failed-submit announcement needs.
+  const submitAttempted = form.useStore((s) => s.submissionAttempts > 0);
   return (
     <form.Field name={name}>
       {(field) => {
         const { meta } = field.state;
         const errors = meta.errors.map(toMessage).filter(Boolean);
-        const invalid = meta.isTouched && !meta.isValid;
+        // `:user-invalid`, not `:invalid`: modified and left, or a submit was attempted.
+        // `meta.isTouched` alone is blur — it reports an error on a field tabbed straight through.
+        const invalid =
+          ((meta.isDirty && meta.isTouched) || submitAttempted) && !meta.isValid;
+        const errorId = `${name}-error`;
+        const shown = invalid && Boolean(errors[0]);
         return (
           <Field data-invalid={invalid}>
             <FieldLabel htmlFor={name}>{label}</FieldLabel>
@@ -236,9 +291,13 @@ export function FormField({
               touched: meta.isTouched,
               isValid: meta.isValid,
               errors,
+              invalid,
+              // Only while shown. `<FieldError>` is unmounted otherwise, so a stale id
+              // would point at nothing — and a permanent one is announced too early.
+              describedBy: shown ? errorId : undefined,
             })}
             {description && <FieldDescription>{description}</FieldDescription>}
-            {invalid && errors[0] && <FieldError>{errors[0]}</FieldError>}
+            {shown && <FieldError id={errorId}>{errors[0]}</FieldError>}
           </Field>
         );
       }}
@@ -272,13 +331,14 @@ export function FormActions({
   const form = useFormContext();
   return (
     <form.Subscribe
+      // Deliberately NOT `s.canSubmit` — TanStack's own `canSubmit` folds in validity, which is
+      // the gate we removed. See the `forms` skill, §The Save button is not a validity light.
       selector={(s) => ({
-        canSubmit: s.canSubmit,
         isSubmitting: s.isSubmitting,
         isDirty: s.isDirty,
       })}
     >
-      {({ canSubmit, isSubmitting, isDirty }) => (
+      {({ isSubmitting, isDirty }) => (
         <div className="flex justify-end gap-2">
           <Button
             type="button"
@@ -290,7 +350,9 @@ export function FormActions({
           </Button>
           <Button
             type="submit"
-            disabled={!canSubmit || (requireDirty && !isDirty)}
+            // Disabled when there is nothing to save, or a save is in flight. An invalid form
+            // keeps an enabled button: pressing it is how the user is told what is wrong.
+            disabled={isSubmitting || (requireDirty && !isDirty)}
           >
             {isSubmitting ? submittingLabel : submitLabel}
           </Button>

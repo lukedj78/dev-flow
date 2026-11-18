@@ -683,6 +683,67 @@ Mount `<ModeToggle />` in **both** the public site shell (`SiteTopNav` next to t
 
 Use `defaultTheme="light"` unless the source DESIGN.md explicitly declares dark as canonical (some editorial brands do — Aetherfield is light-only, Notarius is light-only, devops-graphite is dark-by-default). `enableSystem` lets the user's OS preference win on first visit.
 
+### Step 4.6b — The page's live region (mandatory, one per app)
+
+🔴 **One polite live region, mounted once in the root layout.** Everything that happens without the
+user's focus moving — a form rejecting a field on blur, a filter returning nothing, a row removed —
+has no way to reach a screen reader otherwise, and each feature inventing its own region is how an
+app ends up with five that each announce unreliably.
+
+`lib/a11y/announcer.tsx`:
+
+```tsx
+"use client";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
+
+// Module-level, so non-React code (a form hook, a service) can announce without a context.
+let setMessage: ((text: string) => void) | null = null;
+
+/** Say something to assistive technology. Safe to call from anywhere, no-op before mount. */
+export function announce(text: string): void {
+  setMessage?.(text);
+}
+
+export function Announcer() {
+  const [message, set] = useState("");
+  setMessage = (text) => {
+    // Re-announce an identical message: a region is read when its text CHANGES, so setting
+    // the same string twice says nothing. The zero-width space makes it a change.
+    set((prev) => (prev === text ? `${text}​` : text));
+  };
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="sr-only"
+    >
+      {message}
+    </div>
+  );
+}
+```
+
+Mount it next to the `<Toaster>` in `app/layout.tsx`, inside `<ThemeProvider>`:
+
+```tsx
+<ThemeProvider …>
+  {children}
+  <Announcer />
+  <Toaster />
+</ThemeProvider>
+```
+
+- ⚠️ **The region must be in the DOM from first paint, empty.** A region inserted at the same moment
+  as its text is not announced reliably — that is the whole failure mode it exists to avoid.
+- **`sr-only`, not `hidden`.** `display: none` removes it from the accessibility tree and nothing is
+  read. Tailwind's `sr-only` keeps it rendered and off-screen.
+- **It is not the toaster.** The toast reports the outcome of an action the user took deliberately;
+  the region reports something that changed without their focus moving. `forms` relies on this split
+  — see its §The Save button is not a validity light.
+- `aria-live="assertive"` interrupts whatever is being read. Reserve it for something the user must
+  hear now, such as a session about to expire; everything else is polite.
+
 ### Step 4.7 — Server actions scaffold (mandatory)
 
 Scaffold **at least one** server-action file at `lib/server/<domain>.ts` so the next developer (or skill) has a referenceable pattern to copy. Pick the domain from the PRD's most-prominent user story (for Notarius: `practices.ts`; for an e-commerce: `orders.ts`; for a CRM: `contacts.ts`).
@@ -1346,6 +1407,6 @@ Read `meta.json#stack.forms`:
 - `"tanstack-form"` (default): scaffold `lib/forms/` with the TanStack Form toolkit (`useEditForm`, `useCreateForm`, `FormProvider`, `FormField`, `FormActions`, `mapFormError`). Install deps: `@tanstack/react-form`, `zod` >= 4.
 - `"react-hook-form"` (opt-in): scaffold `lib/forms/` with the RHF equivalent (same hook + component names; `useForm` + `useFormContext` + `Controller` from `react-hook-form` underneath, plus the same `FormField` / `FormActions` / `mapFormError` surface so consumers don't see a difference). Install deps: `react-hook-form`, `@hookform/resolvers`, `zod` >= 4.
 
-Both share: explicit Save button gated by `isDirty && canSubmit` (edit) or `canSubmit` (create), Zod schema as validator, error mapping via `mapFormError`, no auto-save, no save-on-blur. The `forms` sibling skill (in-tree) owns the full toolkit + audit recipe — `design-md-to-app` only scaffolds the initial wiring at project bootstrap; subsequent form work routes through `forms`.
+Both share: explicit Save button gated by `canSave` (`isDirty && !isSubmitting`) for edit, or `!isSubmitting` alone for create — **never on `isValid`**, because disabling Save on an invalid form deletes the failed submit, which is the event that announces the error to a screen reader (`forms` §The Save button is not a validity light). Zod schema as validator, error mapping via `mapFormError`, no auto-save, no save-on-blur. The `forms` sibling skill (in-tree) owns the full toolkit + audit recipe — `design-md-to-app` only scaffolds the initial wiring at project bootstrap; subsequent form work routes through `forms`.
 
 When `null`, ask the user which to install — default to TanStack Form.

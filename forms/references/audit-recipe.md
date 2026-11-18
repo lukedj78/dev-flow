@@ -148,11 +148,45 @@ rg -n --type=tsx -B2 -A6 -e '<Button\s+type=["\x27]submit["\x27]' \
   | rg -v -e 'isDirty' -e '<FormActions'
 ```
 
+### K. Submit button gated on validity (HIGH — the error never reaches a screen reader)
+
+The inverse of J, and the costlier one. A Save disabled because the form is invalid deletes the
+failed submit, which is the only event that announces *which* field is wrong. See the skill,
+§The Save button is not a validity light.
+
+```bash
+rg -n --type=tsx -e 'disabled=\{!?\s*(!?isValid|!canSubmit|!form\.formState\.isValid)' \
+  -g '!node_modules' -g '!.next'
+# and the toolkit's own copy, which is where it usually comes from:
+rg -n -e 'canSubmit' lib/forms/ 2>/dev/null
+```
+
+A hit in `lib/forms/` means the project carries a pre-2026-11-18 toolkit copy; re-scaffold it rather
+than patching the button at each call site.
+
+### L. A form missing the accessibility wiring (HIGH)
+
+All four, and three come free from `<FormField>`. Flag a control that has none of them:
+
+```bash
+# controls inside a form file with no aria-invalid at all
+rg -l --type=tsx -e 'useEditForm|useCreateForm' -g '!node_modules' \
+  | xargs rg -L -e 'aria-invalid' 2>/dev/null
+# aria-invalid present but no description reaching the message
+rg -n --type=tsx -e 'aria-invalid' -g '!node_modules' | rg -v -e 'aria-describedby'
+# does the app have a live region at all?
+rg -n -e 'aria-live' -g '!node_modules' app/ components/ lib/ 2>/dev/null
+```
+
+⚠️ **`aria-invalid={field.touched && !field.isValid}` is a stale pattern, not a passing one.**
+`touched` is blur alone, so it reports an error on a field the user tabbed straight through. The
+current toolkit exposes `field.invalid`, which mirrors `:user-invalid`.
+
 ---
 
 ## Step 3 — produce the report
 
-Markdown report grouped by violation kind (A through J). For each finding:
+Markdown report grouped by violation kind (A through L). For each finding:
 
 - File path + line (clickable: `path/to/file.tsx:42`).
 - 3–5 line excerpt of the offending code.
@@ -182,9 +216,13 @@ End with:
 1. **Toolkit missing** (Step 1) → run `scripts/scaffold_lib_forms.py` first — every other fix depends on it.
 2. **A** — pick one library, remove the other. Project-wide decision.
 3. **B + D** — usually the same files; refactor together (raw `useForm` → toolkit hooks; inline toasts → `mapFormError`).
-4. **J + E** — change UX; worth a focused PR with screenshot diff.
-5. **C, F, G, H** — mechanical refactors once the toolkit is in place.
-6. **I** — last, after structural fixes are in.
+4. **K + L** — accessibility, and the two are one change: re-scaffold `lib/forms/`, which ungates
+   the button and brings `field.invalid` / `field.describedBy` with it, then wire the controls. Do
+   this before the UX work below, because it is a correctness fix and the UX work touches the same
+   buttons.
+5. **J + E** — change UX; worth a focused PR with screenshot diff.
+6. **C, F, G, H** — mechanical refactors once the toolkit is in place.
+7. **I** — last, after structural fixes are in.
 
 ---
 

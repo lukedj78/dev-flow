@@ -3,7 +3,7 @@
 Scaffold lib/forms/ for a Next.js 16 App Router project.
 
 Reads meta.json#stack.forms to pick the underlying library (TanStack Form
-or react-hook-form), then writes the 7 toolkit files into <root>/lib/forms/
+or react-hook-form), then writes the toolkit files into <root>/lib/forms/
 with the matching backend. Surface API is identical across both — only the
 internals differ.
 
@@ -67,6 +67,14 @@ EXPECTED_FILES = [
     "FormActions.tsx",
     "mapFormError.ts",
 ]
+# RHF focuses the first errored field itself (`shouldFocusError`, default true); TanStack has no
+# equivalent, so only its toolkit ships the helper. Not a gap — the two reach the same behaviour.
+EXTRA_FILES = {"tanstack-form": ["focusFirstInvalid.ts"], "react-hook-form": []}
+
+# Both toolkits' invalid-submit paths announce through this. `design-md-to-app` §Step 4.6b owns it
+# and mounts it in the root layout; scaffolding forms into an app that never ran that step leaves a
+# dangling import, so say so here rather than letting tsc be the one to explain it.
+ANNOUNCER_PATH = "lib/a11y/announcer.tsx"
 
 
 def fail(msg: str, code: int = 1) -> None:
@@ -130,8 +138,8 @@ def check_app_router(root: Path) -> None:
         )
 
 
-def parse_toolkit_md(md_path: Path) -> dict[str, str]:
-    """Extract the 7 code blocks from a toolkit reference markdown file.
+def parse_toolkit_md(md_path: Path, library: str) -> dict[str, str]:
+    """Extract the toolkit's code blocks from a toolkit reference markdown file.
 
     Each section heading like ``## `lib/forms/<file>` `` is followed by a
     fenced code block. We capture the body of each fence and map it to the
@@ -151,7 +159,8 @@ def parse_toolkit_md(md_path: Path) -> dict[str, str]:
     extracted: dict[str, str] = {}
     for m in pattern.finditer(text):
         extracted[m.group("file")] = m.group("body")
-    missing = [f for f in EXPECTED_FILES if f not in extracted]
+    expected = EXPECTED_FILES + EXTRA_FILES.get(library, [])
+    missing = [f for f in expected if f not in extracted]
     if missing:
         fail(
             f"Toolkit reference {md_path} is missing code blocks for: {missing}. "
@@ -241,7 +250,7 @@ def _append_history(meta_path: Path, library: str, written: list[str]) -> None:
     meta_io.write_json(meta_path, meta)
 
 
-def print_next_steps(library: str, toast: str, toast_installed: bool) -> None:
+def print_next_steps(root: Path, library: str, toast: str, toast_installed: bool) -> None:
     toast_pkg = " sonner" if toast == "sonner" else ""
     toast_primitive = "sonner" if toast == "sonner" else "toast"
     print()
@@ -269,11 +278,20 @@ def print_next_steps(library: str, toast: str, toast_installed: bool) -> None:
         print("     import { Toaster } from \"@/components/ui/toast\";")
         print("     <Toaster />   // Base UI: the provider + viewport that toast.add() renders into")
     print()
-    print("4. Adapt the error classes inside lib/forms/mapFormError.ts to")
+    if not (root / ANNOUNCER_PATH).exists():
+        print(f"4. ⚠ MISSING: {ANNOUNCER_PATH} — the toolkit imports announce() from it.")
+        print("   The failed-submit path cannot reach a screen reader without it, and the")
+        print("   build will not compile. Scaffold it with design-md-to-app's Step 4.6b")
+        print("   (\"The page's live region\") and mount <Announcer /> in app/layout.tsx.")
+    else:
+        print(f"4. {ANNOUNCER_PATH} found. Confirm <Announcer /> is mounted in app/layout.tsx —")
+        print("   the file existing is not the same as the region being in the DOM.")
+    print()
+    print("5. Adapt the error classes inside lib/forms/mapFormError.ts to")
     print("   match your services layer (SessionExpiredError, ForbiddenError,")
     print("   ValidationProblem, ServerProblem are placeholders).")
     print()
-    print("5. Optionally swap inline strings for your i18n keys.")
+    print("6. Optionally swap inline strings for your i18n keys.")
     print()
 
 
@@ -329,7 +347,7 @@ def main() -> None:
         fail(f"Missing toolkit reference {md_path}.")
 
     print(f"→ Scaffolding lib/forms/ ({library}) at {root}")
-    files = parse_toolkit_md(md_path)
+    files = parse_toolkit_md(md_path, library)
     toast, toast_installed = detect_toast(root, stack)
     info(f"toast backend: {toast}{'' if toast_installed else ' (not installed yet)'}")
     files = apply_toast(files, toast)
@@ -345,7 +363,7 @@ def main() -> None:
     print()
     print(f"✓ Wrote {len(written)} file(s) into lib/forms/")
     print(f"✓ Appended history entry to {meta_path.relative_to(root)}")
-    print_next_steps(library, toast, toast_installed)
+    print_next_steps(root, library, toast, toast_installed)
 
 
 if __name__ == "__main__":

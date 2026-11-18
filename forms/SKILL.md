@@ -31,7 +31,10 @@ This skill follows the dev-flow contract — see `references/contracts.md` (vend
 
 ## The Rule
 
-**Every form goes through one shared toolkit at `lib/forms/`. Every form has an explicit Save button gated by dirty + valid state. No auto-save, no save-on-blur, no debounce. Never `useState` for field values. Never raw `useForm` (TanStack or RHF) outside the toolkit. Never inline `toast.success`/`toast.error` from a form component.**
+**Every form goes through one shared toolkit at `lib/forms/`. Every form has an explicit Save button, disabled when there is nothing to save. No auto-save, no save-on-blur, no debounce. Never `useState` for field values. Never raw `useForm` (TanStack or RHF) outside the toolkit. Never inline `toast.success`/`toast.error` from a form component.**
+
+🔴 **The Save button is gated on `isDirty`, not on `isValid`** — and the reason is accessibility, not
+taste. See §The Save button is not a validity light below before changing it back.
 
 A "form" is any UI with `<input>` / `<textarea>` / `<select>` / `<Checkbox>` / `<Switch>` / `<RadioGroup>` whose value persists to a backend (POST / PATCH / PUT). Display-only fields, search boxes that only filter, and fire-and-forget toggles that take no field state are not forms.
 
@@ -39,10 +42,74 @@ A "form" is any UI with `<input>` / `<textarea>` / `<select>` / `<Checkbox>` / `
 
 | Form kind | Hook | Submit trigger | After success |
 |---|---|---|---|
-| **Edit** (panel, settings, inline editor) | `useEditForm` | `<Button type="submit">Save</Button>` — disabled unless `isDirty && canSubmit` | Form stays open. Hook resets baseline to the saved value so `isDirty` returns to `false`. |
-| **Create** (dialog, new-record form) | `useCreateForm` | `<Button type="submit">Create</Button>` — disabled unless `canSubmit` | `onSuccess(result)` callback fires (close dialog, route, etc.). |
+| **Edit** (panel, settings, inline editor) | `useEditForm` | `<Button type="submit">Save</Button>` — disabled unless `canSave` (`isDirty && !isSubmitting`) | Form stays open. Hook resets baseline to the saved value so `isDirty` returns to `false`. |
+| **Create** (dialog, new-record form) | `useCreateForm` | `<Button type="submit">Create</Button>` — disabled only while `isSubmitting` | `onSuccess(result)` callback fires (close dialog, route, etc.). |
 
 Both share the `<FormProvider>` + `<FormField>` rendering layer, the same Zod schema as validator, the same `mapFormError` error router, and the same `<FormActions>` button row. The differences: edit gates on `isDirty` and resets baseline after success; create closes via `onSuccess`.
+
+## The Save button is not a validity light
+
+**Start from what goes wrong.** Someone opens an edit panel with a screen reader, changes a field,
+leaves one required field empty, and tabs to Save. Save is disabled. Nothing says why — a disabled
+button has no error, no description, no reason. They cannot submit, and nothing has told them which
+field is wrong. The form is a dead end, and no amount of styling the invalid field fixes it, because
+they never see the styling.
+
+**What made it a dead end was the gate.** Native HTML announces form errors on the **failed submit**:
+the browser blocks the submission, moves focus to the first invalid control, and the screen reader
+reads that control's error. Disabling Save because the form is invalid deletes that event. The one
+moment the platform reserved for telling the user what is wrong never happens.
+
+So the gate changed, and the rule is now:
+
+| the form is | Save is | because |
+|---|---|---|
+| unchanged (`!isDirty`) | **disabled** | there is genuinely nothing to save, and saying so is honest |
+| changed and invalid | **enabled** | pressing it is how the user finds out what is wrong |
+| submitting | **disabled** | one in-flight save at a time |
+
+`state.canSave` is `isDirty && !isSubmitting`. **There is no `canSubmit` any more** — the old name
+meant `isValid && isDirty && !isSubmitting`, and a project still reading it gets `undefined`, which
+disables the button permanently. That is deliberate: it breaks loudly in the one place a stale
+toolkit copy would otherwise go quiet.
+
+### The four things that make a form's errors reach everyone
+
+`aria-invalid` alone is not an accessible form. All four, and the toolkit owns three of them:
+
+1. **`aria-invalid` on the control**, from the moment the error becomes visible — and explicitly
+   `"false"` before that, never unset. Firefox and Safari expose an empty `required` field as invalid
+   from page load, so an unset attribute still produces a premature "invalid entry" announcement.
+2. **`aria-describedby` pointing at the error message, only while the field is invalid.** Text that
+   `aria-describedby` references is announced even when it is visually hidden, so a permanent
+   reference reads the error out before the user has touched the field. `<FormField>` mounts
+   `<FieldError>` on demand and hands the id down, so the reference appears and disappears with it.
+3. **One polite live region for the page**, whose text *changes*. ⚠️ shadcn's `<FieldError>` renders
+   `role="alert"` and returns `null` when there is no error, so today the error node is **inserted**
+   rather than changed — and a live region that is shown rather than changed is not announced
+   reliably. The region lives in the app shell, not in `<FormProvider>`: two forms on one page would
+   otherwise give two regions.
+4. **Focus to the first invalid control on a failed submit.** This is what the new gate buys back.
+   `handleSubmit` does it; on a long form, focus an error summary instead — a heading followed by a
+   link per invalid field.
+
+**The toast is not the live region.** `mapFormError` keeps the toast, and it reports the *outcome of
+a submit* — a rejected save, a server error. Field-level errors raised on blur go to the polite
+region. Routing blur errors to the toaster is how a half-filled form produces a stack of toasts.
+
+Sourced from `GoogleChrome/modern-web-guidance`,
+`guides/accessibility/accessible-error-announcement.md` and
+`guides/forms/validate-input-after-interaction.md` (read 2026-11-18, CC-BY 4.0).
+
+### When the error appears
+
+Our field state exposes `touched`, which is **blur alone**. The platform's `:user-invalid` requires
+that the user *modified* the field and left it, or attempted a submit. The difference is visible:
+tab straight through an empty required field and `touched` shows an error, `:user-invalid` does not.
+
+`<FormField>` therefore derives `invalid` as **`dirty && touched && !isValid`, or
+`submitAttempted && !isValid`** — the same two conditions the pseudo-class uses. Do not reach for
+`meta.isTouched` directly in a component; the wrapper owns this.
 
 ## Library branching — `stack.forms`
 
@@ -53,7 +120,7 @@ The two libraries (TanStack Form + Zod, react-hook-form + Zod) are **equally sup
 | `"tanstack-form"` *(default when nothing else indicates a preference)* | `useEditForm` + `useCreateForm` wrap `useForm` from `@tanstack/react-form` | Pass schema to `validators: { onChange, onBlur }` | https://tanstack.com/form/latest |
 | `"react-hook-form"` *(fully supported; auto-detected when already present)* | Same hook names; wrap `useForm` from `react-hook-form` with `zodResolver` | `zodResolver(schema)` from `@hookform/resolvers/zod` | https://react-hook-form.com |
 
-The consumer of `useEditForm` / `useCreateForm` never imports the underlying library. They get a typed hook with `state.isDirty`, `state.isSubmitting`, `state.canSubmit`, `handleSubmit()`, `reset(value?)`, `Subscribe(...)`, and a `<form.Field>` (TanStack) or `<form.Field>` (RHF wrapper) equivalent for raw escape-hatch usage.
+The consumer of `useEditForm` / `useCreateForm` never imports the underlying library. They get a typed hook with `state.isDirty`, `state.isValid`, `state.isSubmitting`, `state.canSave`, `handleSubmit()`, `reset(value?)`, `Subscribe(...)`, and a `<form.Field>` (TanStack) or `<form.Field>` (RHF wrapper) equivalent for raw escape-hatch usage.
 
 ### Selection logic — decide once, up front
 
@@ -74,7 +141,7 @@ Write the resolved value to `meta.json#stack.forms` immediately (Step 1 of the [
 | `meta.json#stack.ui` | `<FormField>` renders | `<FormActions>` renders | Notes |
 |---|---|---|---|
 | `"shadcn"` / `"base-ui"` *(default; every example above)* | shadcn `Field` + `FieldLabel` + `FieldError` (see `references/toolkit-tanstack.md` / `references/toolkit-rhf.md`) | shadcn `Button` | `"base-ui"` here still means shadcn's component set on the Base UI primitive layer — the `Field` API is the same. |
-| `"mui"` | MUI `TextField` (or `FormControl` + `InputLabel` + `FormHelperText` for non-text inputs) wired to the **same field API** the hook exposes (`value`, `setValue`, `onBlur`, `touched`, `isValid`, `errors`) | MUI `Button` / `LoadingButton`, gated on the same `canSubmit`/`isDirty` booleans | The dirty + valid gating logic lives in the hook (`useEditForm`/`useCreateForm`), not in `<FormField>` — swapping shadcn primitives for MUI ones changes zero business logic. Example: `<TextField error={touched && !isValid} helperText={touched && errors[0]} label={label} value={value} onChange={(e) => setValue(e.target.value)} onBlur={onBlur} />`. |
+| `"mui"` | MUI `TextField` (or `FormControl` + `InputLabel` + `FormHelperText` for non-text inputs) wired to the **same field API** the hook exposes (`value`, `setValue`, `onBlur`, `touched`, `isValid`, `errors`, `invalid`, `describedBy`) | MUI `Button` / `LoadingButton`, gated on the same `canSave` boolean | The dirty + valid gating logic lives in the hook (`useEditForm`/`useCreateForm`), not in `<FormField>` — swapping shadcn primitives for MUI ones changes zero business logic. Example: `<TextField error={touched && !isValid} helperText={touched && errors[0]} label={label} value={value} onChange={(e) => setValue(e.target.value)} onBlur={onBlur} />`. |
 | anything else (Chakra, Radix vanilla, …) | Not covered by this skill's reference implementations | — | Refuse to silently invent a mapping. Either ask the user which primitives to wire (then treat the result as a project-specific `FormField`/`FormActions` implementation, still behind the same hook contract), or use the raw [escape hatch](#escape-hatch--raw-library-field) until the project has one. |
 
 When scaffolding (`scripts/scaffold_lib_forms.py`) or hand-writing `lib/forms/FormField.tsx` for a `stack.ui = "mui"` project, keep the render-prop shape identical to the shadcn version — only the JSX inside changes.
@@ -198,7 +265,8 @@ export function ProjectEditPanel({ project }: { project: Project }) {
               value={String(field.value ?? "")}
               onChange={(e) => field.setValue(e.target.value)}
               onBlur={field.onBlur}
-              aria-invalid={field.touched && !field.isValid}
+              aria-invalid={field.invalid}
+              aria-describedby={field.describedBy}
             />
           )}
         </FormField>
@@ -210,7 +278,8 @@ export function ProjectEditPanel({ project }: { project: Project }) {
               value={String(field.value ?? "")}
               onChange={(e) => field.setValue(e.target.value)}
               onBlur={field.onBlur}
-              aria-invalid={field.touched && !field.isValid}
+              aria-invalid={field.invalid}
+              aria-describedby={field.describedBy}
             />
           )}
         </FormField>
@@ -229,7 +298,9 @@ export function ProjectEditPanel({ project }: { project: Project }) {
 **What the hook owns** (never reimplement in components):
 
 - **Dirty tracking** — drives `state.isDirty` from a deep-equal compare of current values vs the current baseline (initial `defaultValues` on mount, then the most-recently-saved value).
-- **Submit gating** — exposes `state.canSubmit = isValid && isDirty && !isSubmitting`. `<FormActions>` reads it via `form.Subscribe`.
+- **Submit gating** — exposes `state.canSave = isDirty && !isSubmitting`. `<FormActions>` reads it via `form.Subscribe`. **Not** `isValid`: see §The Save button is not a validity light.
+- **Focus on a failed submit** — when validation fails, `handleSubmit` finds the first control the form owns that is `[aria-invalid="true"]` and focuses it, so its error is announced. This is the half the old gate was deleting.
+- **Announcing a field error** — writes the first new error message into the page's polite live region (`announce()` from `lib/a11y/announcer.tsx`, scaffolded by `design-md-to-app`). One region per page, text changed rather than inserted.
 - **Baseline reset on success** — after the `save` callback resolves, calls `form.reset(savedValue)` so the new clean state is the saved value. Editing back to the just-saved value should leave `isDirty === false`.
 - **AbortController** on submit — if the user re-submits while a save is in flight, the hook ignores the earlier call's resolution once a newer one starts. **Note**: `save`/`submit` is passed `{ signal }` for parity with a raw service call, but a Server Action **cannot accept an `AbortSignal` as an argument** — it isn't a serializable value across the server boundary and passing it will throw. When `save` wraps a Server Action (the normal case), ignore the second parameter; the hook's own bookkeeping still guards against acting on a stale response.
 - **Error mapping** — thrown errors flow through `mapFormError`. The `save` callback **must throw on failure** — never catch.
@@ -238,7 +309,7 @@ export function ProjectEditPanel({ project }: { project: Project }) {
 **What the consumer owns:**
 
 - The `<form onSubmit>` wrapper that calls `form.handleSubmit()`.
-- Wiring `aria-invalid` on inputs.
+- Spreading `aria-invalid={field.invalid}` and `aria-describedby={field.describedBy}` onto the control. Both values come from `<FormField>` — compute neither in the component.
 - Calling the entity's **Server Action** from `save`/`submit` — never the service layer, which is server-only (see `data-fetching` skill).
 
 ## Create form pattern
@@ -310,7 +381,7 @@ export function CreateProjectForm({
 }
 ```
 
-Create forms gate the submit button on `canSubmit = isValid && !isSubmitting` — dirty tracking is irrelevant for new records. Some teams still gate on `isDirty` to prevent submitting an entirely-default form; that's a per-project preference codified once in `useCreateForm`, never per-component.
+Create forms disable the submit button only while `isSubmitting` — dirty tracking is irrelevant for new records, and validity is not a gate here either, for the same reason as everywhere else: on an empty create form, pressing Create is how the user learns what is required. Some teams still gate on `isDirty` to stop a submit of an entirely-default form; that's a per-project preference codified once in `useCreateForm`, never per-component, and it costs the same announcement — if you adopt it, the empty-form case needs its own path.
 
 ## `FormActions`
 
@@ -403,7 +474,7 @@ Drop to raw `<form.Field>` (TanStack) or `Controller` (RHF) — skipping `<FormF
 - Multi-step wizard navigation the form layer can't model linearly.
 - Inline table-cell editors (one cell, no surrounding `<FormProvider>`).
 
-Even when escaping `<FormField>`, **still use `useEditForm` / `useCreateForm`** and let `mapFormError` route errors. Still go through i18n. Still gate submit on dirty + valid. The escape hatch is the wrapper, not the hook contract.
+Even when escaping `<FormField>`, **still use `useEditForm` / `useCreateForm`** and let `mapFormError` route errors. Still go through i18n. Still gate submit on `canSave`. 🔴 **And the four accessibility requirements are still yours** — escaping `<FormField>` means escaping the wrapper that was wiring `aria-invalid`, `aria-describedby` and the announcement for you, so write them by hand. This is the most common place a form loses them.
 
 ## Toolkit reference
 

@@ -219,23 +219,44 @@ it("returns the client list once loaded", async () => {
 
 Mutations (`useMutation`) follow the same shape — mock the server action the mutation calls, assert `isPending` while the promise is unresolved, then assert the success/error branch and (if the component calls it) that `queryClient.invalidateQueries` fired.
 
-### Components that use TanStack Form (Save gated by dirty + valid)
+### Components that use TanStack Form (Save gated by dirty, not by valid)
 
-Forms built with the `forms` toolkit expose a Save button that's disabled unless the form is **both dirty and valid** (see the `forms` skill). Test that gate directly rather than testing TanStack Form's internals:
+Forms built with the `forms` toolkit expose a Save button disabled when there is **nothing to save** —
+pristine, or a save in flight. 🔴 **An invalid form keeps an enabled Save on purpose**: pressing it is
+what tells a screen-reader user which field is wrong, and the old `isValid` gate deleted that event.
+If you are reading an older test that asserts `toBeDisabled()` on a dirty-but-invalid form, it is
+asserting the bug — invert it.
 
 ```typescript
-it("keeps Save disabled until the form is dirty and valid", async () => {
+it("keeps Save disabled until there is something to save", async () => {
   const user = userEvent.setup();
   render(<ClientEditForm client={{ id: 1, name: "Mario Rossi" }} />);
 
   const save = screen.getByRole("button", { name: /save/i });
-  expect(save).toBeDisabled(); // pristine — not dirty yet
+  expect(save).toBeDisabled(); // pristine — nothing to save
 
   await user.clear(screen.getByLabelText(/name/i));
-  expect(save).toBeDisabled(); // dirty but invalid (empty required field)
+  expect(save).toBeEnabled(); // dirty and invalid: pressing it is how the error surfaces
+});
 
-  await user.type(screen.getByLabelText(/name/i), "Mario Bianchi");
-  expect(save).toBeEnabled(); // dirty AND valid
+it("announces the error instead of swallowing it, on a failed submit", async () => {
+  const user = userEvent.setup();
+  render(<ClientEditForm client={{ id: 1, name: "Mario Rossi" }} />);
+
+  await user.clear(screen.getByLabelText(/name/i));
+  await user.click(screen.getByRole("button", { name: /save/i }));
+
+  const input = screen.getByLabelText(/name/i);
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  expect(input).toHaveFocus();                        // the submit moved focus here
+  expect(input).toHaveAccessibleDescription(/required/i); // aria-describedby reaches the message
+});
+
+it("marks a field valid-until-proven, not invalid-by-default", async () => {
+  render(<ClientEditForm client={{ id: 1, name: "" }} />);
+  // Explicitly "false", never unset: Firefox and Safari expose an empty `required` field as
+  // invalid from page load, so an absent attribute still announces an error on first focus.
+  expect(screen.getByLabelText(/name/i)).toHaveAttribute("aria-invalid", "false");
 });
 
 it("resets to a disabled Save (new baseline) after a successful save", async () => {
@@ -249,7 +270,12 @@ it("resets to a disabled Save (new baseline) after a successful save", async () 
 });
 ```
 
-Don't assert on TanStack Form's internal field state or Zod's parsing — assert on the **Save button's disabled state** and the post-save baseline reset, which is the actual contract the `forms` toolkit promises.
+Don't assert on TanStack Form's internal field state or Zod's parsing. Assert the four things the
+toolkit actually promises: the **Save button's disabled state**, the post-save **baseline reset**,
+`aria-invalid` **tracking interaction rather than validity**, and the **accessible description**
+reaching the error message. `toHaveAccessibleDescription` resolves `aria-describedby` for you, which
+is why it beats asserting the attribute's value — it fails when the id points at nothing, which is
+the realistic regression.
 
 ## Mocking `next/navigation` per-test
 

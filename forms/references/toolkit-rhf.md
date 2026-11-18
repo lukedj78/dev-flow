@@ -66,6 +66,7 @@ import { useRef } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
+import { announce } from "@/lib/a11y/announcer";
 import { mapFormError } from "./mapFormError";
 
 export interface UseEditFormOptions<T> {
@@ -104,7 +105,14 @@ export function useEditForm<T>(opts: UseEditFormOptions<T>): UseFormReturn<T> {
         }
         onValid?.(value as never);
       },
-      onInvalid,
+      (errors) => {
+        // RHF's `shouldFocusError` (on by default) already moved focus to the first errored
+        // field, which announces that field's own message through `aria-describedby`. The
+        // count is the part focus cannot say, so it is the only part the region says.
+        const count = Object.keys(errors).length;
+        if (count > 1) announce(`${count} fields need attention`);
+        (onInvalid as ((e: typeof errors) => void) | undefined)?.(errors);
+      },
     )) as never;
 
   return form;
@@ -123,6 +131,7 @@ import { useRef } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
+import { announce } from "@/lib/a11y/announcer";
 import { mapFormError } from "./mapFormError";
 
 export interface UseCreateFormOptions<TInput, TResult> {
@@ -162,12 +171,24 @@ export function useCreateForm<TInput, TResult>(
         }
         onValid?.(value as never);
       },
-      onInvalid,
+      (errors) => {
+        // RHF's `shouldFocusError` (on by default) already moved focus to the first errored
+        // field, which announces that field's own message through `aria-describedby`. The
+        // count is the part focus cannot say, so it is the only part the region says.
+        const count = Object.keys(errors).length;
+        if (count > 1) announce(`${count} fields need attention`);
+        (onInvalid as ((e: typeof errors) => void) | undefined)?.(errors);
+      },
     )) as never;
 
   return form;
 }
 ```
+
+⚠️ **This is the one place the two toolkits are not symmetric, and it is in our favour.** RHF focuses
+the first errored field itself (`shouldFocusError`, default `true`) — do not turn it off, and do not
+add a second focus call on top of it. TanStack has no equivalent, which is why its side ships
+`focusFirstInvalid()`. If a project sets `shouldFocusError: false`, that function is the replacement.
 
 ---
 
@@ -178,7 +199,7 @@ Render-prop bridge over RHF's `Controller`, exposing the same shape as the TanSt
 ```tsx
 "use client";
 import { type ReactNode } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext, useFormState } from "react-hook-form";
 import {
   Field,
   FieldDescription,
@@ -203,31 +224,49 @@ export function FormField({
     touched: boolean;
     isValid: boolean;
     errors: string[];
+    /** Spread onto the control as `aria-invalid`. Mirrors `:user-invalid`. */
+    invalid: boolean;
+    /** Spread onto the control as `aria-describedby`; `undefined` while valid. */
+    describedBy: string | undefined;
   }) => ReactNode;
 }) {
   const { control } = useFormContext();
+  // Reactive, and form-wide: one submit attempt flips every field to invalid at once,
+  // which is what the failed-submit announcement needs.
+  const { submitCount } = useFormState({ control });
+  const errorId = `${name}-error`;
   return (
     <Controller
       control={control as never}
       name={name as never}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.isTouched && !!fieldState.error}>
-          <FieldLabel htmlFor={name}>{label}</FieldLabel>
-          {children({
-            name: field.name,
-            value: field.value,
-            setValue: field.onChange,
-            onBlur: field.onBlur,
-            touched: fieldState.isTouched,
-            isValid: !fieldState.error,
-            errors: fieldState.error?.message ? [fieldState.error.message] : [],
-          })}
-          {description && <FieldDescription>{description}</FieldDescription>}
-          {fieldState.isTouched && fieldState.error?.message && (
-            <FieldError>{fieldState.error.message}</FieldError>
-          )}
-        </Field>
-      )}
+      render={({ field, fieldState }) => {
+        // `:user-invalid`, not `:invalid`: modified and left, or a submit was attempted.
+        // `isTouched` alone is blur — it reports an error on a field tabbed straight through.
+        const invalid =
+          ((fieldState.isDirty && fieldState.isTouched) || submitCount > 0) &&
+          !!fieldState.error;
+        const shown = invalid && Boolean(fieldState.error?.message);
+        return (
+          <Field data-invalid={invalid}>
+            <FieldLabel htmlFor={name}>{label}</FieldLabel>
+            {children({
+              name: field.name,
+              value: field.value,
+              setValue: field.onChange,
+              onBlur: field.onBlur,
+              touched: fieldState.isTouched,
+              invalid,
+              // Only while shown: `<FieldError>` is unmounted otherwise, and a permanent
+              // reference is announced before the user has touched the field.
+              describedBy: shown ? errorId : undefined,
+              isValid: !fieldState.error,
+              errors: fieldState.error?.message ? [fieldState.error.message] : [],
+            })}
+            {description && <FieldDescription>{description}</FieldDescription>}
+            {shown && <FieldError id={errorId}>{fieldState.error?.message}</FieldError>}
+          </Field>
+        );
+      }}
     />
   );
 }
@@ -256,10 +295,9 @@ export function FormActions({
   requireDirty?: boolean;
 }) {
   const form = useFormContext();
-  const { isDirty, isValid, isSubmitting } = useFormState({
-    control: form.control,
-  });
-  const canSubmit = isValid && !isSubmitting;
+  // `isValid` is deliberately not read here: it is not a gate. See the `forms` skill,
+  // §The Save button is not a validity light.
+  const { isDirty, isSubmitting } = useFormState({ control: form.control });
   return (
     <div className="flex justify-end gap-2">
       <Button
@@ -272,7 +310,9 @@ export function FormActions({
       </Button>
       <Button
         type="submit"
-        disabled={!canSubmit || (requireDirty && !isDirty)}
+        // Nothing to save, or a save in flight. An invalid form keeps an enabled button:
+        // pressing it is how the user is told what is wrong.
+        disabled={isSubmitting || (requireDirty && !isDirty)}
       >
         {isSubmitting ? submittingLabel : submitLabel}
       </Button>
