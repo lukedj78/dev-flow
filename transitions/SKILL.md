@@ -149,7 +149,7 @@ names **missed opportunities** — where the interface would read better if some
 through the four-question gate in `references/animation-opportunities.md` (at most 5–7, rejected candidates listed). The scan reads
 source; to prove non-negotiable ② on the running page, run `app-verification`'s render probe
 (`node <skills>/app-verification/scripts/render_probe.mjs <url>`): its `reduced-hidden` finding lists text that is
-visible normally and stays invisible with reduced motion — an entrance with no reduced-motion path. Report un-tokenized durations/easings, `duration-[Xms]`/`ease-[…]` Tailwind arbitraries, inline `cubic-bezier`, `@keyframes` animating layout props, transitions with no `prefers-reduced-motion` path, and Tier-3 usage where Tier 0/1 would do. See `references/audit-recipe.md`. The scan is a **signal, not a verdict**.
+visible normally and stays invisible with reduced motion — an entrance with no reduced-motion path. Report un-tokenized durations/easings, `duration-[Xms]`/`ease-[…]` Tailwind arbitraries, inline `cubic-bezier`, `@keyframes` animating layout props, transitions with no `prefers-reduced-motion` path, **`toplayer-exit-missing`** (a native `<dialog>`/`[popover]` whose exit cannot run — the fix is in `references/animation-standards.md` §the native top layer, and it is a correctness bug, not a polish item), and Tier-3 usage where Tier 0/1 would do. See `references/audit-recipe.md`. The scan is a **signal, not a verdict**.
 
 ### Refine (swap to tokens)
 In a given file, replace hardcoded durations/easings with the nearest token (round to the token scale) and add any missing reduced-motion fallback. Every change is a reviewable diff.

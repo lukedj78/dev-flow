@@ -9,6 +9,8 @@ layers of check:
     set inside a requestAnimationFrame loop, a CSS variable written from a gesture) — frame_smells()
   * file-level a11y smell (a file that animates but ships no prefers-reduced-motion fallback)
     — missing_reduced_motion()
+  * file-level correctness smell (a native top-layer element whose exit cannot run because
+    `display`/`overlay` + `transition-behavior: allow-discrete` are missing) — missing_allow_discrete()
 
 This is a SIGNAL, not a verdict — heuristics over-report. The skill must verify
 every hit by reading the code before it lands in the report.
@@ -62,6 +64,12 @@ RM_MARKER = re.compile(
 )
 # A Motion (Tier 3) import — informational; needs context to judge overkill.
 TIER3_IMPORT = re.compile(r"from ['\"]motion/react['\"]|from ['\"]framer-motion['\"]")
+
+# --- file-level: an element on the NATIVE top layer, and the two properties its exit needs.
+# Only native markers. A Radix/shadcn overlay exits because the library holds the node mounted, so
+# `animate-out` is absent here on purpose — see missing_allow_discrete().
+TOPLAYER_MARKER = re.compile(r"dialog\[open\]|\[popover[\]=]|:popover-open\b|::backdrop\b")
+DISCRETE_MARKER = re.compile(r"allow-discrete|transition-behavior")
 
 # `.claude` holds agent worktrees (whole copies of the app): scanning them reports every hit once per worktree.
 SKIP_DIRS = {"node_modules", ".git", "dist", ".next", ".expo", "build", ".turbo", ".vercel", "ios", "android", "coverage",
@@ -336,6 +344,19 @@ def missing_reduced_motion(text: str) -> bool:
     return bool(ANIM_MARKER.search(text)) and not RM_MARKER.search(text)
 
 
+def missing_allow_discrete(text: str) -> bool:
+    """True if the file animates something on the NATIVE top layer with no `allow-discrete`.
+
+    `@starting-style` buys the entry; the exit of a `<dialog>` or `[popover]` needs `display` and
+    `overlay` in the transition list plus `transition-behavior: allow-discrete`, or the element hits
+    `display: none` on the closing frame and the exit never runs. Deliberately keyed on the *native*
+    top layer: a Radix/shadcn or MUI overlay animates out because the library keeps the node mounted
+    (`data-[state=closed]`), so `animate-out` must not trigger this. `@starting-style` alone does not
+    either — on a plain element the fix is to keep it mounted, not to add `allow-discrete`.
+    """
+    return bool(TOPLAYER_MARKER.search(text)) and bool(re.search(_DECL, text)) and not DISCRETE_MARKER.search(text)
+
+
 def scan(root: Path) -> list[dict]:
     findings: list[dict] = []
     # os.walk, pruning SKIP_DIRS before descending — rglob walked every node_modules and dropped it afterwards.
@@ -353,9 +374,12 @@ def scan(root: Path) -> list[dict]:
         rel = str(p.relative_to(root))
         origin = provenance(rel)
         first_anim_line = None
+        first_toplayer_line = None
         for i, line in enumerate(text.splitlines(), start=1):
             if first_anim_line is None and ANIM_MARKER.search(line):
                 first_anim_line = i
+            if first_toplayer_line is None and TOPLAYER_MARKER.search(line):
+                first_toplayer_line = i
             cat = classify_line(line)
             if cat:
                 findings.append({"file": rel, "line": i, "category": cat, "text": line.strip()[:120], "provenance": origin})
@@ -369,6 +393,12 @@ def scan(root: Path) -> list[dict]:
             findings.append({"file": rel, "line": first_anim_line or 1,
                              "category": "no-reduced-motion",
                              "text": "file animates without a prefers-reduced-motion fallback",
+                             "provenance": origin})
+        if missing_allow_discrete(text):
+            findings.append({"file": rel, "line": first_toplayer_line or 1,
+                             "category": "toplayer-exit-missing",
+                             "text": "native top-layer element transitions without display/overlay + "
+                                     "transition-behavior: allow-discrete — the exit never runs",
                              "provenance": origin})
     return findings
 

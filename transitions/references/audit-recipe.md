@@ -35,15 +35,20 @@ motion version, plus the **rejected** candidates and the question that stopped t
 
 ## 3. Report shape
 
-Group by severity: **A11y** (missing reduced-motion) → **Performance** (layout props, `transition-all`, state or CSS variables per frame, paint props, broad `will-change` — ordered by cost: layout before paint, busy-main-thread before idle) → **Consistency** (magic numbers, inline easings) → **Weight** (Tier-3 overkill). Per finding: `file:line`, the smell, **the cause it addresses**, the token/tier it should use, the one-line fix, and **`Verified: from code` or `needs a device recording`** — never "it is smooth" from a fast laptop (`animation-standards.md` §Frame budget). Lead with a posture summary (is there a token layer at all? is `stack.motion.tokens` true?).
+Group by severity: **Correctness** (`toplayer-exit-missing` — the animation is written and does not
+run; it goes first because it is the only category where the author believes the work is already done)
+→ **A11y** (missing reduced-motion) → **Performance** (layout props, `transition-all`, state or CSS variables per frame, paint props, broad `will-change` — ordered by cost: layout before paint, busy-main-thread before idle) → **Consistency** (magic numbers, inline easings) → **Weight** (Tier-3 overkill). Per finding: `file:line`, the smell, **the cause it addresses**, the token/tier it should use, the one-line fix, and **`Verified: from code` or `needs a device recording`** — never "it is smooth" from a fast laptop (`animation-standards.md` §Frame budget). Lead with a posture summary (is there a token layer at all? is `stack.motion.tokens` true?).
 
 ## 4. Refine order (when the user approves)
 
 1. **Scaffold the token layer first** if missing (Setup) — you can't refine to tokens that don't exist.
-2. **A11y fixes** — add every missing `prefers-reduced-motion` fallback. Highest leverage, lowest risk.
-3. **Performance** — `transition-all` → scoped; layout-prop animations → transform/opacity.
-4. **Consistency** — magic numbers/easings → nearest token (round to the token scale; if a value has no near token, propose adding one to `tokens.ts` rather than snapping hard).
-5. **Weight** — downgrade Tier-3-for-a-fade to Tier 0.
+2. **Correctness** — `toplayer-exit-missing`: add `display, overlay` to the transition list and
+   `transition-behavior: allow-discrete` after the shorthand (`animation-standards.md` §the native top
+   layer). Check the `::backdrop` separately; it needs its own copy.
+3. **A11y fixes** — add every missing `prefers-reduced-motion` fallback. Highest leverage, lowest risk.
+4. **Performance** — `transition-all` → scoped; layout-prop animations → transform/opacity.
+5. **Consistency** — magic numbers/easings → nearest token (round to the token scale; if a value has no near token, propose adding one to `tokens.ts` rather than snapping hard).
+6. **Weight** — downgrade Tier-3-for-a-fade to Tier 0.
 
 Each refine is a reviewable diff. A re-run of the scan should return no findings for already-fixed files (idempotent). Update `stack.motion.last_audit_at` and append `history`.
 

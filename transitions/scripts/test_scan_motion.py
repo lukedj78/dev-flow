@@ -317,6 +317,65 @@ class TestScanSmoke(unittest.TestCase):
                 'export const C = () => <div className={hoverLift}>x</div>;')
             self.assertNotIn("no-reduced-motion", self._cats(scan(root)))
 
+    # ── the native top layer: @starting-style buys the entry, not the exit ──
+
+    def test_native_dialog_transition_without_allow_discrete_is_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "dialog.css").write_text(
+                "dialog { opacity: 0; transition: opacity 200ms var(--ease-out); }\n"
+                "dialog[open] { opacity: 1; @starting-style { opacity: 0; } }")
+            self.assertIn("toplayer-exit-missing", self._cats(scan(root)))
+
+    def test_popover_transition_without_allow_discrete_is_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "popover.css").write_text(
+                "[popover] { opacity: 0; transition-property: opacity; }\n"
+                "[popover]:popover-open { opacity: 1; }")
+            self.assertIn("toplayer-exit-missing", self._cats(scan(root)))
+
+    def test_allow_discrete_present_is_not_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "dialog.css").write_text(
+                "dialog { opacity: 0;\n"
+                "  transition-property: opacity, display, overlay;\n"
+                "  transition-duration: var(--motion-duration-base);\n"
+                "  transition-behavior: allow-discrete; }\n"
+                "dialog[open] { opacity: 1; @starting-style { opacity: 0; } }\n"
+                "@media (prefers-reduced-motion: reduce) { dialog { transition: none } }")
+            self.assertNotIn("toplayer-exit-missing", self._cats(scan(root)))
+
+    def test_radix_overlay_is_not_flagged(self):
+        """A shadcn/Radix overlay exits because the library holds the node mounted until the
+        animation ends. Reporting `allow-discrete` missing there would send someone to add a
+        property that does nothing — the whole reason the marker is the native top layer."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "dialog.tsx").write_text(
+                'export const C = () => <DialogPrimitive.Content className="'
+                'data-[state=open]:animate-in data-[state=closed]:animate-out '
+                'transition-opacity motion-reduce:transition-none" />;')
+            self.assertNotIn("toplayer-exit-missing", self._cats(scan(root)))
+
+    def test_backdrop_without_a_transition_is_not_flagged(self):
+        """Styling `::backdrop` statically animates nothing, so there is no exit to lose."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "backdrop.css").write_text("dialog::backdrop { background: rgb(0 0 0 / 0.5); }")
+            self.assertNotIn("toplayer-exit-missing", self._cats(scan(root)))
+
+    def test_starting_style_alone_is_not_flagged(self):
+        """On a plain element the fix is to keep it mounted, not to add `allow-discrete`."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "toast.css").write_text(
+                ".toast { opacity: 1; transition: opacity var(--motion-duration-base) var(--ease-out);\n"
+                "  @starting-style { opacity: 0; } }\n"
+                "@media (prefers-reduced-motion: reduce) { .toast { transition: none } }")
+            self.assertNotIn("toplayer-exit-missing", self._cats(scan(root)))
+
     # ── provenance: ranking, so an audit stays readable ─────────────────────
 
     def test_provenance_separates_vendored_from_authored(self):

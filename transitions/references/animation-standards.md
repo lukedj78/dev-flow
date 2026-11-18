@@ -142,6 +142,49 @@ it visibly jump.
 
 Legacy fallback: `useEffect(() => setMounted(true), [])` plus a `data-mounted` attribute.
 
+🔴 **`@starting-style` buys the entry and nothing else.** It applies on an element's *first* style
+update — insertion, or `display` leaving `none` — so it does nothing to an element already on the page,
+and it has no say in what happens when the element leaves. An exit animation needs one of two things,
+and which one depends on who owns the unmount:
+
+| the element is | the exit comes from | you write |
+|---|---|---|
+| a Radix/shadcn or MUI overlay | the library keeping the node mounted until the animation ends (`data-[state=closed]`) | nothing — this is why a shadcn `Dialog` already animates out |
+| on the **native top layer** (`<dialog>`, `[popover]`) | `display` and `overlay` transitioning discretely | the block below |
+| a plain element you unmount yourself | nothing. React removes the node on the same frame | keep it mounted for the duration, or move it to the top layer |
+
+### The native top layer needs two properties nobody guesses
+
+```css
+dialog, [popover] {
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;   /* ← after the shorthand, see below */
+}
+
+dialog[open], [popover]:popover-open {
+  opacity: 1;
+  @starting-style { opacity: 0; }        /* ← after the open state, see below */
+}
+```
+
+- **`transition-behavior: allow-discrete`** is what lets `display` animate at all — without it the
+  element hits `display: none` on the closing frame and the exit transition never runs.
+- **`overlay`** must be in the transition list too, or the element drops out of the top layer
+  immediately and gets clipped by whatever is above it while it is still fading.
+- ⚠️ **Two ordering traps, and both fail silently.** `transition-behavior` must come **after** any
+  `transition` shorthand, because the shorthand resets it. And `@starting-style` must come **after** the
+  open state it transitions from, because it is a normal cascade participant. Either one in the wrong
+  place gives you a working entry and a dead exit — the same class as `@layer` order in
+  `design-md-to-app/references/ui-sdk-mapping.md`.
+- The `::backdrop` is a separate element with the same requirement: give it its own
+  `transition-property: …, display, overlay` and `transition-behavior: allow-discrete`.
+
+Sourced from `GoogleChrome/modern-web-guidance`, `guides/ui-behaviors/animate-to-from-top-layer.md`
+(read 2026-11-18, CC-BY 4.0), which marks the `display`/`overlay` pair MANDATORY.
+
 **Exit the way you entered.** A toast that slides up from the bottom leaves through the bottom.
 Symmetric paths are what make swipe-to-dismiss feel obvious rather than learned.
 
