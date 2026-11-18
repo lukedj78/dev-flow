@@ -4,26 +4,39 @@ The **how** for a project that chose UI SDK in `library-choice.md`. If you have 
 signals there — more than one framework, or an agent drives the interface — read them first and
 check the project has one of them. On every other project the answer is `"shadcn"`.
 
-⚠️ **Beta.** `@ui-sdk/core@0.1.0-beta.1`, first published **2026-11-12**, under Vercel's public-beta
-terms, which reserve API changes. The `agent` key, `createHistory` and `stageChanges` are marked
-experimental in their own docs. Everything below was read from the repo and the registry on
-**2026-11-17**; re-read before leaning on a name.
+⚠️ **Beta, and moving fast.** First published **2026-11-12** at `0.1.0-beta.1`; the copy measured for
+this file is **`@ui-sdk/core@0.1.0-beta.6`** (Apache-2.0), installed 2026-11-19 — **six prereleases in
+seven days**. Vercel's public-beta terms reserve API changes, and the `agent` key, `createHistory` and
+`stageChanges` are marked experimental in their own docs. The prose below was written against the repo
+on 2026-11-17 and **re-measured against the installed package on 2026-11-19**: all 12 named identifiers
+(`definePrimitive`, `createParts`, `createChange`, `createRovingFocus`, `createPopup`, `createTypeahead`,
+`createReorder`, `createHistory`, `stageChanges`, `createAgent`, `registerTools`, `agentTools`) are still
+declared in the `.d.ts`, and every `data-*` marker and CSS variable named here is still in the shipped
+docs. Two doc paths had moved and are corrected below. **At this cadence, re-measure rather than trust
+this block** — the fastest check is the identifier sweep, not a read.
 
 ## Read the installed copy, not the website
 
 Same rule as eve, and they ship for it: the docs for the version you installed are Markdown inside
 the package.
 
-| Read | Where |
+🔴 **Which package a file lives in is the thing to get right, and `llms.txt` is not an index.** Both
+mistakes were in this table until measured against the installed beta.6 on 2026-11-19:
+
+| Read | Where, exactly |
 |---|---|
-| the index, first | `node_modules/@ui-sdk/<framework>/docs/llms.txt` |
-| one component | `docs/components/select.md` in the same package |
-| the behaviours | `docs/core.md` — **over 300 KB, search it by heading**, never read it whole |
-| rendering a primitive in your framework | `docs/rendering.md` |
-| the agent bridge | `docs/agents.md` |
+| one component | `@ui-sdk/<framework>/docs/components/select.md` — the **framework** package |
+| rendering a primitive | `@ui-sdk/<framework>/docs/rendering.md` — the **framework** package, not core |
+| the behaviours | `@ui-sdk/core/docs/core.md` — **8,084 lines / 387 KB. Search it by heading; never read it whole** |
+| the agent bridge | `@ui-sdk/core/docs/agents.md` (76 KB) — `@ui-sdk/react/docs/agents.md` also exists |
+| the default stylesheet | `@ui-sdk/core/web.css`, which the export map resolves to `dist/web.css` |
+
+⚠️ **`docs/llms.txt` is not a table of contents.** Its first line says *"ui-sdk Core docs, as one
+file"*, and it is **8,084 lines — the same length as `core.md`**. Opening it "first, for the index"
+reads 387 KB of prose into context. There is no index file; go to the page you need.
 
 `<framework>` is `react`, `vue`, `svelte`, `solid` or `web`. Their skill ships in the package too, at
-`node_modules/@ui-sdk/core/skills/ui-sdk/SKILL.md`, and that copy always matches the installed
+`node_modules/@ui-sdk/core/skills/ui-sdk/SKILL.md` (6.4 KB), and that copy always matches the installed
 version — prefer it to `npx skills add`, which is a third-party skill install and goes through
 `registry-intake skill-review`.
 
@@ -201,19 +214,35 @@ second to on because the first is on is how an app ends up driven by a model nob
 - **`consequentialHint` asks, it does not gate.** It invites the agent to confirm, blocks nothing on its
   own, and a browser older than the hint never prompts at all. Keep whatever in-app confirmation the
   action already warranted — the same rule as `allow` being UI policy.
-- ⚠️ **`unregister()` — verify before leaning on it.** Their docs name it; the browser API it would wrap
-  no longer exists. WebMCP **removed `unregisterTool()`**, `provideContext()` and `clearContext()`, and
-  deprecated `navigator.modelContext` in Chromium 150. The supported way to withdraw a tool is an
-  `AbortSignal` passed at registration and aborted later. Either `unregister()` is their own wrapper over
-  an `AbortController` — the likely case — or it was written against a WebMCP that is gone. Read the
-  installed `.d.ts` and settle it; do not guess a replacement.
-- 🔴 **`exposedTo` is a second transfer surface, and the §R3 note below does not cover it.** A tool is
-  private to its own document and same-origin frames by default. `exposedTo: ["https://…"]` lets named
-  origins **in the frame tree** discover and run it, through a *mutual* opt-in: the consumer must also
-  ask for that origin with `getTools({ fromOrigins: [...] })`. Every origin must be HTTPS or localhost,
-  or `registerTool()` rejects with `SecurityError`. Handing a tool to another origin is the same
-  declaration as handing over a snapshot, one frame across — `compliance-audit` **R8**, and a PRD
-  decision. It matters wherever we put our own UI inside an iframe (`iframe-canvas`).
+- **There is no `unregister()` method — `registerTools` returns an unnamed function.** Read from the
+  installed types (`core/dist/page/agent/agent.d.ts`, beta.6): `registerTools(agent, { allow }): () => void`.
+  The name is whatever the caller binds it to, and their own docs bind it to HMR disposal:
+  ```ts
+  const unregister = registerTools(agent, { allow })
+  if (import.meta.hot) import.meta.hot.dispose(unregister)
+  ```
+  ⚠️ **What that function does inside is still unmeasured, and the way to measure it is not to read it.**
+  The browser method it would be the obvious wrapper for is **gone**: WebMCP removed `unregisterTool()`,
+  `provideContext()` and `clearContext()`, and deprecated `navigator.modelContext` in Chromium 150; a
+  tool is withdrawn by aborting an `AbortSignal` passed at registration. Their docs do not say which
+  path they take, `dist/*.js` is not ours to read, so the answer is the three-line test — on the first
+  project that ships this, in a Chromium with the flag:
+  ```js
+  const un = registerTools(agent, { allow: () => true })
+  document.modelContext.getTools()   // the three are there
+  un(); document.modelContext.getTools()   // still there?
+  ```
+  **If they are still there, it is a leak you believe you closed**: `snapshot` keeps reading the page
+  after you navigated away from the data. The HMR binding is weak evidence it works — a dead cleanup
+  would break their own quickstart on every save — but evidence is not the test.
+- **`exposedTo` is a WebMCP capability their wrapper does not surface, and that is good news.** The raw
+  API can expose a tool to **named origins in the frame tree**, through a mutual opt-in with
+  `getTools({ fromOrigins: [...] })`. ⚠️ Measured on the installed beta.6: **`exposedTo` appears in zero
+  files** of `@ui-sdk/core` and `@ui-sdk/react`, docs and types alike — so `registerTools` registers
+  same-origin only and there is no cross-origin surface to declare. It becomes ours to think about only
+  if they add the option, or if a project calls `document.modelContext.registerTool` directly instead of
+  going through the bridge. Then it is the snapshot declaration again, one frame across:
+  `compliance-audit` **R8**, and it matters wherever `iframe-canvas` puts our UI in a frame.
 
 🔴 **The consequence nobody sees in the API: a snapshot leaves the machine.** `snapshot()` returns
 component labels and values — which on a real screen is customer names, amounts, addresses. Handing it
@@ -251,3 +280,10 @@ are from `GoogleChrome/modern-web-guidance` (`guides/webmcp/`, read 2026-11-18, 
 CC-BY 4.0), not from UI SDK, which describes its own wrapper. When the two disagree about what the
 browser does, the platform source wins; when they disagree about what `registerTools` does, read the
 installed `.d.ts`.
+
+**Re-measured 2026-11-19 against `@ui-sdk/core@0.1.0-beta.6` installed in `~/projects/ui-sdk-search`
+and `~/projects/fornitori`** — docs and `.d.ts` only, never `dist/*.js`. That pass is what found the
+two moved doc paths, `llms.txt` not being an index, `exposedTo` being absent from their wrapper, and
+`unregister()` not being a method. 🔴 **The lesson for the next reader of this file: three of those
+four were written from the vendor's own docs about the vendor's own wrapper, and the installed package
+contradicted them inside two days.** A beta on six prereleases in a week is measured, not cited.
