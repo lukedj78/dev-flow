@@ -486,7 +486,7 @@
         "test_setup_primitives_guard.py",
         "test_templates.py"
       ],
-      "skill_md_lines": 1351,
+      "skill_md_lines": 1412,
       "bundle": "dist/design-md-to-app.skill"
     },
     {
@@ -527,7 +527,7 @@
         "meta_io.py",
         "scaffold_lib_forms.py"
       ],
-      "skill_md_lines": 502,
+      "skill_md_lines": 573,
       "bundle": "dist/forms.skill"
     },
     {

@@ -108,6 +108,22 @@ through those, from the DESIGN.md tokens, never by inlining state.
 
 ## Composition
 
+**One allocation, upward: eight behaviours are covered exactly by four primitives, and the four by
+one domain component. The seams of the middle tier fall in the gaps of the lower one; the top tier
+has no seam, and is the only tier you author.** That sentence is the whole model, and the drawing
+below is the same sentence for a reader who prefers to look.
+
+![The three tiers of UI SDK: eight behaviour units covered exactly by four primitives, the four
+covered by one domain component, with the top tier hatched as the only one authored here.](../assets/ui-sdk-layers.svg)
+
+> ⚠️ **The drawing is for a person reading this file on GitHub.** An agent reads the sentence above
+> and skips the image, and this repo's site generator does not render images either — so the picture
+> never carries a fact the prose does not. Composed under
+> [Plotter](https://github.com/pasqualevitiello/plotter)'s grammar (MIT, `resources.md` has the row)
+> and passed by its `check.py`; it names `Cal Sans` and falls back to the host's sans-serif, since the
+> font is not vendored here.
+
+
 A component is a **primitive** (`definePrimitive`: state, api, slots) rendered by `createParts`. The
 primitive is framework-free; the parts are the same in all five.
 
@@ -157,8 +173,15 @@ reading `step.confirm` answers yes for the person.**
 
 `registerTools(agent, { allow })` publishes `snapshot`, `act` and `query` on the browser's
 `document.modelContext`, so **the agent built into the visitor's browser** can read the page's
-components and call their actions. Where the browser has no `document.modelContext.registerTool`, the
-call does nothing.
+components and call their actions.
+
+⚠️ **Today it reaches almost nobody — which is the reason to decide it now, not later.**
+`document.modelContext` is **not supported natively by any major browser**. It is an early preview in
+Chromium: **146.0.7672.0 or newer** *and* the `chrome://flags/#enable-webmcp-testing` flag, against a
+Community Group draft that is not standards-track (checked 2026-11-18). So the code ships inert and
+starts working when a flag flips somewhere you do not control. Feature-detect with
+`if ('modelContext' in document)`, and read the next paragraph as a decision about the future, not a
+measurement of today.
 
 **It is off unless the PRD says otherwise.** The bridge (`createAgent`) and WebMCP are two decisions:
 the first lets *our* agent operate the interface, the second lets *someone else's*. Defaulting the
@@ -168,11 +191,29 @@ second to on because the first is on is how an app ends up driven by a model nob
   write that agent*. `allow: (step) => !step.confirm` is the useful shape: everything ordinary runs,
   and anything marked for a person is left to the person.
 - **Their tool annotations say what the tools are**: `readOnlyHint` on `snapshot` and `query`,
-  `consequentialHint` on `act` — and 🔴 **`untrustedContentHint: true` on all three, because the
-  results contain page text that other people wrote.** That is our instruction/data boundary stated at
-  the tool level: what comes back from the page is data, never an instruction, and an agent acting on
-  it is acting on user input.
-- `unregister()` removes the tools; the bridge keeps working for our own agent.
+  `consequentialHint` on `act`, and `untrustedContentHint: true` on all three. ⚠️ **That third one is
+  their choice, and a conservative one** — the annotation's own meaning is narrower: it marks a tool
+  whose result is content **the site does not control**, such as user-generated text or a third party's
+  API response, and WebMCP's own example sets it `false` for first-party data. UI SDK cannot know which
+  your page is, so it marks all three. 🔴 **Our instruction/data boundary does not rest on it**: what
+  comes back from the page is data and never an instruction, whoever wrote it, and an agent acting on it
+  is acting on user input. The annotation tells the other agent; keeping the rule is ours.
+- **`consequentialHint` asks, it does not gate.** It invites the agent to confirm, blocks nothing on its
+  own, and a browser older than the hint never prompts at all. Keep whatever in-app confirmation the
+  action already warranted — the same rule as `allow` being UI policy.
+- ⚠️ **`unregister()` — verify before leaning on it.** Their docs name it; the browser API it would wrap
+  no longer exists. WebMCP **removed `unregisterTool()`**, `provideContext()` and `clearContext()`, and
+  deprecated `navigator.modelContext` in Chromium 150. The supported way to withdraw a tool is an
+  `AbortSignal` passed at registration and aborted later. Either `unregister()` is their own wrapper over
+  an `AbortController` — the likely case — or it was written against a WebMCP that is gone. Read the
+  installed `.d.ts` and settle it; do not guess a replacement.
+- 🔴 **`exposedTo` is a second transfer surface, and the §R3 note below does not cover it.** A tool is
+  private to its own document and same-origin frames by default. `exposedTo: ["https://…"]` lets named
+  origins **in the frame tree** discover and run it, through a *mutual* opt-in: the consumer must also
+  ask for that origin with `getTools({ fromOrigins: [...] })`. Every origin must be HTTPS or localhost,
+  or `registerTool()` rejects with `SecurityError`. Handing a tool to another origin is the same
+  declaration as handing over a snapshot, one frame across — `compliance-audit` **R8**, and a PRD
+  decision. It matters wherever we put our own UI inside an iframe (`iframe-canvas`).
 
 🔴 **The consequence nobody sees in the API: a snapshot leaves the machine.** `snapshot()` returns
 component labels and values — which on a real screen is customer names, amounts, addresses. Handing it
@@ -203,3 +244,10 @@ cannot carry beta APIs. All three mean `"shadcn"`.
 The repo at `github.com/vercel-labs/ui` (read 2026-11-17, HEAD `cf6c86f`), the packages on npm, and
 the docs under `apps/docs/content/docs/`. The row in `dev-flow/references/resources.md` carries the
 verdict, the catalogue comparison and the re-read trigger.
+
+The **platform** facts in §WebMCP — the preview status, the Chromium version and flag, the removed
+`unregisterTool()`/`provideContext()`/`clearContext()`, `exposedTo` and the annotation definitions —
+are from `GoogleChrome/modern-web-guidance` (`guides/webmcp/`, read 2026-11-18, HEAD `64a6d70`,
+CC-BY 4.0), not from UI SDK, which describes its own wrapper. When the two disagree about what the
+browser does, the platform source wins; when they disagree about what `registerTools` does, read the
+installed `.d.ts`.

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="440" viewBox="0 0 560 440" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" style="font-family:Cal Sans,sans-serif;font-weight:400" role="img" aria-labelledby="uisdk-layers-title uisdk-layers-desc" data-plotter="">
+<title id="uisdk-layers-title">Three tiers, one allocation</title>
+<desc id="uisdk-layers-desc">Eight behaviour units are covered exactly by four primitives, and the four primitives by one domain component. The seams of the middle tier fall in the gaps of the lower one; the top tier has no seam, and is the only tier hatched as authored here.</desc>
+
+<defs>
+<pattern id="uisdk-hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+<line x1="0" y1="0" x2="0" y2="12" stroke="currentColor" stroke-width="1"/>
+</pattern>
+<clipPath id="uisdk-clip"><rect x="84" y="110" width="392" height="76"/></clipPath>
+</defs>
+
+<g data-plotter-role="hatch" clip-path="url(#uisdk-clip)">
+<rect x="84" y="110" width="392" height="76" fill="url(#uisdk-hatch)" stroke="none"/>
+</g>
+
+<g data-plotter-role="primary">
+<rect x="84" y="110" width="392" height="76"/>
+<rect x="84" y="236" width="92" height="58"/>
+<rect x="184" y="236" width="92" height="58"/>
+<rect x="284" y="236" width="92" height="58"/>
+<rect x="384" y="236" width="92" height="58"/>
+</g>
+
+<g data-plotter-role="secondary" stroke-opacity="0.32">
+<rect x="84" y="344" width="42" height="36"/>
+<rect x="134" y="344" width="42" height="36"/>
+<rect x="184" y="344" width="42" height="36"/>
+<rect x="234" y="344" width="42" height="36"/>
+<rect x="284" y="344" width="42" height="36"/>
+<rect x="334" y="344" width="42" height="36"/>
+<rect x="384" y="344" width="42" height="36"/>
+<rect x="434" y="344" width="42" height="36"/>
+</g>
+
+<g data-plotter-role="transfer" stroke-opacity="0.32" stroke-dasharray="4 6">
+<line x1="180" y1="294" x2="180" y2="344"/>
+<line x1="280" y1="294" x2="280" y2="344"/>
+<line x1="380" y1="294" x2="380" y2="344"/>
+</g>
+
+<g data-plotter-role="dimension" stroke-opacity="0.32">
+<line x1="84" y1="404" x2="112" y2="404"/>
+<line x1="148" y1="404" x2="176" y2="404"/>
+<line x1="80" y1="408" x2="88" y2="400"/>
+<line x1="172" y1="408" x2="180" y2="400"/>
+<line x1="84" y1="384" x2="84" y2="408"/>
+<line x1="176" y1="384" x2="176" y2="408"/>
+</g>
+
+<text x="130" y="408" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity="0.5" stroke="none">2 u</text>
+
+<text x="84" y="100" font-size="11" fill="currentColor" fill-opacity="0.72" stroke="none">domain component</text>
+<text x="84" y="226" font-size="11" fill="currentColor" fill-opacity="0.72" stroke="none">primitive</text>
+<text x="84" y="334" font-size="11" fill="currentColor" fill-opacity="0.72" stroke="none">behaviour</text>
+<text x="476" y="100" text-anchor="end" font-size="11" fill="currentColor" fill-opacity="0.5" stroke="none">authored here</text>
+</svg>
