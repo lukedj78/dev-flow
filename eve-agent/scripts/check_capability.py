@@ -12,9 +12,10 @@ Checks, from the files alone (no build, no network):
   - the mount agent/extensions/<id_snake>.ts exists, and tool names stay within ^[a-z][a-z0-9_]*$ and
     64 characters once prefixed with the mount;
   - THIRD_PARTY_NOTICES exists when capability.json#thirdPartyCode is true;
-  - capability.json passes the project's schema, when a validate command is given (or recorded in
-    meta.json#stack_config.capability_validate_cmd), e.g.
-    "pnpm --filter @acme/contracts exec validate-capability {file}".
+  - capability.json passes the project's schema, when a validate command is passed with --validate-cmd,
+    e.g. "pnpm --filter @acme/contracts exec validate-capability {file}". A command recorded in
+    meta.json#stack_config.capability_validate_cmd is only PRINTED, never run: meta.json is a file in
+    the repository, and running a command from it would run whoever last edited it.
 Exit 0 when every check passes, 1 otherwise. Pure standard library.
 """
 import json
@@ -60,7 +61,7 @@ def main() -> int:
 
     meta_path = root / ".workflow" / "meta.json"
     meta = (load_json(meta_path, fails, root) or {}) if meta_path.is_file() else {}
-    validate_cmd = validate_cmd or (meta.get("stack_config") or {}).get("capability_validate_cmd")
+    recorded_cmd = (meta.get("stack_config") or {}).get("capability_validate_cmd")
 
     if not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", cap_id):
         fails.append(f"id `{cap_id}` is not kebab-case")
@@ -124,9 +125,11 @@ def main() -> int:
             r = subprocess.run(argv, cwd=root, capture_output=True, text=True)
             if r.returncode != 0:
                 fails.append(f"schema validation failed: {(r.stdout + r.stderr).strip()[:400]}")
+        elif recorded_cmd:
+            notes.append(f"capability.json not validated. meta.json records `{recorded_cmd}`; read it, then "
+                         f"re-run with --validate-cmd \"{recorded_cmd}\" to execute it")
         else:
-            notes.append("capability.json not validated against the schema: pass --validate-cmd "
-                         "or set stack_config.capability_validate_cmd")
+            notes.append("capability.json not validated against the schema: pass --validate-cmd")
 
     # The mount.
     if not NAME.match(mount):

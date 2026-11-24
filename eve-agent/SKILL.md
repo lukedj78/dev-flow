@@ -207,5 +207,5 @@ If you cannot verify with a command, the task is under-specified — stop and sa
 
 ## Bundled scripts
 
-* `scripts/check_capability.py <project-root> <capability-id>` — checks one capability package: `capability.json` present and valid against the project's schema command, dependencies limited to the contract and service packages, no import of the database package, a mount in `snake_case` that exists, `THIRD_PARTY_NOTICES` when `thirdPartyCode` is true.
+* `scripts/check_capability.py <project-root> <capability-id>` — checks one capability package: `capability.json` present, and valid against the project's schema when you pass `--validate-cmd` (a command recorded in `meta.json` is shown, never run on its own), dependencies limited to the contract and service packages, no import of the database package, a mount in `snake_case` that exists, `THIRD_PARTY_NOTICES` when `thirdPartyCode` is true.
 * `scripts/check_eve_state.py <project-root>` — reports whether the agent is scaffolded (in `apps/agent/`, `apps/web/agent/`, `agent/` beside the app or at the root), lists existing tools/skills/channels/connections/schedules/subagents/hooks/evals, reads `meta.json#stack.agent`, and proposes the next step. Run it first.
