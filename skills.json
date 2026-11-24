@@ -790,6 +790,7 @@
       "skill_file": "eve-agent/SKILL.md",
       "references": [
         "ai-elements.md",
+        "capability-package.md",
         "contracts.md",
         "eve-capabilities.md",
         "eve-channels.md",
@@ -804,9 +805,10 @@
         "staged-writes.md"
       ],
       "scripts": [
+        "check_capability.py",
         "check_eve_state.py"
       ],
-      "skill_md_lines": 212,
+      "skill_md_lines": 211,
       "bundle": "dist/eve-agent.skill"
     },
     {

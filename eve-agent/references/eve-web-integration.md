@@ -94,6 +94,44 @@ clients' events), and the callbacks `onEvent`, `onError`, `onFinish`, `onSession
 
 Do **not** introduce an ad-hoc `AGENT_BASE_URL` + manual `fetch` — `withEve()` handles routing.
 
+### Workflow callbacks — the route `withEve()` does not forward
+
+`withEve()` proxies **`/eve/*` only**. A durable session also needs `/.well-known/workflow/*` to reach
+the agent: that is where the Workflow world delivers queued steps, and where `createWebhook()` and
+approval callbacks arrive. When Next hosts the agent (`next start` in layout A, self-hosted or local
+production build), nothing forwards that prefix, and the symptom is specific: **sessions start, then
+stall at the first durable wait** — an approval never resumes, a webhook is accepted and nothing
+happens, queued work never runs. Measured on eve 1.4.0 with a production build, 2026-11-24.
+
+```ts title="next.config.ts"
+import type { NextConfig } from "next";
+import { withEve } from "eve/next";
+
+const AGENT_ORIGIN = `http://127.0.0.1:${process.env.EVE_NEXT_PRODUCTION_PORT ?? "4274"}`;
+
+const nextConfig: NextConfig = {
+  // withEve forwards /eve/* only; workflow callbacks and webhooks must reach the agent too.
+  async rewrites() {
+    return [{ source: "/.well-known/workflow/:path*", destination: `${AGENT_ORIGIN}/.well-known/workflow/:path*` }];
+  },
+};
+
+export default withEve(nextConfig);
+```
+
+And set **`WORKFLOW_LOCAL_BASE_URL` to the public origin** the browser uses (`https://app.example.com`,
+or `http://localhost:3000` locally), so the URLs the world hands out point at Next, which forwards them.
+
+- **`next dev` will not tell you.** After a restart it answers `DevelopmentRunUnavailableError` instead
+  of resuming, so durability and this route are checked in a production build only (SKILL.md
+  §Definition of Done).
+- **On Vercel** the agent runs as a Vercel service and the callbacks go through Vercel Workflow; whether
+  the rewrite is still needed there was **not** measured. Check it on the first preview deploy.
+- ⚠️ **The rewrite also makes `POST /.well-known/workflow/v1/flow` reachable from outside**, and the
+  self-hosting guide asks you to block that unauthenticated route at the edge (`eve-concepts.md`
+  §Self-hosting). Which callback paths must stay public for your world is not settled here: test, on the
+  deployed app, that an unauthenticated `POST` to `v1/flow` starts nothing, before you call the route safe.
+
 ## Message discipline (one turn at a time)
 
 ⚠️ **This section's old advice — "gate the composer on `status === \"ready\"`" — is now the opposite

@@ -61,6 +61,63 @@ export function tenantBearerAuth(service: TenantService): NonInteractiveAuthoriz
 
 **Rules:** route auth validates tenant membership *before* eve executes; the credential provider **fails closed** for unknown tenants and never logs secrets; on org-switch, re-authenticate and re-stamp `tenantId` on every session create/continue. `principalType: "user"` makes eve key the step-local token cache by user and reject unauthenticated sessions.
 
+## 1bis. Session ownership — eve checks who you are, not whose session it is
+
+Route auth answers *"is this caller allowed in?"*. eve's own docs are explicit that it "doesn't check
+who may use a session, and eve adds no per-session access list". So once a session ID leaks — a log,
+a URL, a shared screen — **any** authenticated caller of any tenant can read its stream
+(`GET /eve/v1/session/:id/stream`) and post to it. Measured on eve 1.4.0 (2026-11-24): without the
+guard below, a caller from workspace B got **200** reading and **202** writing a session of workspace A;
+with it, **403** and **403**.
+
+The fix has two halves: record the owner when the session's first turn starts, and refuse in the
+`AuthFn` when the session in the URL belongs to someone else.
+
+```ts title="agent/channels/eve.ts"
+import { ForbiddenError, type AuthFn } from "eve/channels/auth";
+import { eveChannel } from "eve/channels/eve";
+import { sessionOwners } from "../lib/session-owners";   // yours: a table sessionId → workspace, owner
+
+const sessionIdOf = (request: Request) =>
+  new URL(request.url).pathname.match(/\/eve\/v1\/session\/([^/]+)/)?.[1] ?? null;
+
+const appSession: AuthFn<Request> = async (request) => {
+  const caller = await verifyAppSession(request);              // your web app's session, never a header the client sets
+  if (!caller) return null;
+  const sessionId = sessionIdOf(request);
+  if (sessionId) {
+    const owner = await sessionOwners.get(sessionId);
+    if (owner && owner.workspaceId !== caller.workspaceId)
+      throw new ForbiddenError({ message: "This session belongs to another workspace." });
+  }
+  return { principalId: caller.userId, principalType: "user", authenticator: "app",
+           attributes: { workspaceId: caller.workspaceId } };
+};
+
+export default eveChannel({
+  auth: [appSession],
+  events: {
+    async "turn.started"(_event, ctx) {                         // first turn records the owner, later turns no-op
+      const initiator = ctx.session.auth.initiator;
+      const workspaceId = initiator?.attributes?.workspaceId;
+      if (!initiator || typeof workspaceId !== "string") return;
+      await sessionOwners.insertIfAbsent(ctx.session.id, { workspaceId, owner: initiator.principalId });
+    },
+  },
+});
+```
+
+- **Two tests, both 403, in CI from the first commit:** a caller of another workspace reads the
+  stream of a session it does not own, and posts to it.
+- ⚠️ **An unrecorded session passes.** As written (and as measured), a session ID with no row is let
+  through, which covers the instant between creation and `turn.started`. Decide that window
+  deliberately: deny unknown IDs once creation has returned, or write the row at creation in your own
+  route. Do not leave it as the default nobody chose.
+- **Workspace or person?** The check above shares a session inside its workspace. To make sessions
+  private to one person, compare `owner.owner` with the caller's user ID as well.
+- The ownership table is application data: it lives in your database, under the same row-level
+  security as everything else (`eve-concepts.md` §Self-hosting, *Tenancy is yours*).
+
 ## 2. Multi-tenant approvals — gate every side effect per tenant
 
 `approval` accepts an async policy over `ApprovalContext`. It is a **gate, not authorization** — evaluated on *every* call, and it does **not** replace the tenancy check you must repeat inside `execute()`.

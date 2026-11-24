@@ -15,7 +15,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineAgent`, `defineRemoteAgent` | `eve` |
 | `defineTool`, `disableTool`, `defineDynamic`, `toolOutput`, background-task types | `eve/tools` |
 | approval policies `always` / `once` / `never` (+ `Approval`/`ApprovalContext`/`ApprovalStatus` types) | `eve/tools/approval` (types also on `eve/tools`) |
-| built-in tool definitions — `bash`, `readFile`, `writeFile`, `webFetch` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/todo`, `/web_fetch`. **`eve/tools/defaults` was removed in 0.45.0; `eve/tools/load_skill` in 0.76.0** (skills load through the framework's `eve__skill`, which has no override subpath) |
+| built-in tool definitions — `bash`, `readFile`, `writeFile`, `webFetch` | **one subpath each**, named after the tool: `eve/tools/bash`, `/read_file`, `/write_file`, `/edit_file`, `/web_fetch`, `/web_search` (eve 1.4.0; `/todo` went in 0.65.0). **`eve/tools/defaults` was removed in 0.45.0; `eve/tools/load_skill` in 0.76.0** (skills load through the framework's `eve__skill`, which has no override subpath) |
 | the opt-in ones, not registered by default — `glob`, `grep`, `workflow` (lowercase since 0.64), `sleep`, `webSearch` | `eve/tools/glob`, `/grep`, `/workflow`, `/sleep`, `/web_search` |
 | `defineSkill` | `eve/skills` |
 | `defineInstructions` | `eve/instructions` |
@@ -28,7 +28,7 @@ Only `defineAgent` / `defineRemoteAgent` come from bare `eve`. Everything else i
 | `defineSchedule` | `eve/schedules` |
 | `defineState` | `eve/context` |
 | `defineSandbox`, `defineParentSandbox`, `DefaultSandbox` | `eve/sandbox` |
-| the provider environments — `VercelSandbox`, `DockerSandbox`, `JustBashSandbox`, `MicrosandboxSandbox` (**0.64: classes with `.environment()`, replacing the `vercel()`/`docker()` factories**), plus `defineSandboxProvider` on `eve/sandbox/provider` | `eve/sandbox/vercel`, `/docker`, `/just-bash`, `/microsandbox` — **one subpath each**, not `eve/sandbox` |
+| the provider environments — `VercelSandbox`, `DockerSandbox`, `JustBashSandbox` (**0.64: classes with `.environment()`, replacing the `vercel()`/`docker()` factories**; `MicrosandboxSandbox` and `/microsandbox` **removed in 0.83.0**), plus `defineSandboxProvider` on `eve/sandbox/provider` | `eve/sandbox/vercel`, `/docker`, `/just-bash` — **one subpath each**, not `eve/sandbox` |
 | channel authenticators `localDev`/`vercelOidc`/`placeholderAuth` | `eve/channels/auth` |
 | `slackChannel` (+ per-platform channels) | `eve/channels/slack` (etc.) |
 | `mcpChannel` — publishes the agent **as** an MCP server | `eve/channels/mcp` (not to be confused with `defineMcpClientConnection`, which calls one) |
@@ -174,12 +174,17 @@ principal. **Never derive tenant/user from model input** — only from verified
 ## Built-in default harness
 
 The model already has up to ten tools with zero code — and **the set is smaller than it used to
-be**. Always on: `bash`, `read_file`, `write_file`, `web_fetch` (**`todo` was removed in 0.65.0** — an `agent/tools/todo.ts`, even a `disableTool()` sentinel, now fails the build). Conditional: `agent`
+be**. On by default (eve 1.4.0, `docs/concepts/built-in-tools.md`): `bash`, `read_file`, `write_file`, **`edit_file`**, `web_fetch` (**`todo` was removed in 0.65.0** — an `agent/tools/todo.ts`, even a `disableTool()` sentinel, now fails the build). Conditional: `agent`
 (root session only), `ask_question` (only where the session can request input), `web_search` (only
 on a provider that supports it), and the **catalog tools** `eve__skill` (any skill), `eve__tool`
 (anything it can call: a deferred tool or agent, or a connection) and `eve__search` (anything
 `eve__tool` can call, plus deferred skills). **The harness advertises only what the current session
 actually has**, so "it's built in" and "the model can see it right now" are two different claims.
+
+**`defaultTools: false` in `agent.ts` removes every optional default at once** (eve 1.4.0) and is this
+skill's scaffold default: add back only what the product declares, with `eve add tool/<name>`. It does
+not remove the catalog tools, which eve adds from what the session can reach. One `disableTool()`
+sentinel per tool is the older, weaker form — a missed one stays on (SKILL.md, Scaffold step 4).
 
 ⚠️ **0.76.0 renamed everything eve adds itself into a reserved `eve` namespace, with no aliases.**
 `load_skill` → `eve__skill` (input `{ name }`, not `{ skill }`; the `eve/tools/load_skill` export is
@@ -209,7 +214,7 @@ export name. Don't re-implement what the harness gives you.
 
 The sandbox only matters for tools that run **shell / file / code** work. An agent that answers
 purely from its own `defineTool` `execute` (app-runtime data, API calls) never touches the sandbox
-— so a real provider (`VercelSandbox` / `DockerSandbox` / microsandbox VM) is pure startup cost and
+— so a real provider (`VercelSandbox` / `DockerSandbox`) is pure startup cost and
 infra for nothing. In that case pin `JustBashSandbox`, which satisfies the interface without a VM or
 Docker:
 
@@ -295,19 +300,18 @@ bundler does not capture `execute: someFn` and it fails on replay.
   `vercel deploy` (not `--prebuilt` when skipping prewarming).
 * When `apps/web` fronts the agent, the proxy/rewrites must forward **both** `/eve/` **and**
   `/.well-known/workflow/`.
-* Model credentials via env, three options (per `/docs/installation`): `AI_GATEWAY_API_KEY`
+* Model credentials via env, three options (per `docs/getting-started.mdx`; `/docs/installation` before 1.0): `AI_GATEWAY_API_KEY`
   (gateway, the default path), **`VERCEL_OIDC_TOKEN`** (when running against a linked Vercel
   project — what `eve link` sets up), or a direct provider key (`ANTHROPIC_API_KEY`, …) plus the
   matching `@ai-sdk/*` package for direct routing.
-* Prereqs: **Node ≥ 24** and npm. ⚠️ **eve's scaffold default has now moved three times** — `zai/glm-5.2`
-  in 0.36.0, then `openai/gpt-5.6-luna-fast` in 0.47.2, then **`spacexai/grok-4.7` in 0.63.0** (read off
-  `eve@0.64.0`'s `DEFAULT_AGENT_MODEL_ID`), the single constant used in three places at once: baked in by
-  `eve init`, resolved for a config-less agent, and pre-selected in the setup model picker (`--model`
-  overrides it). In the dev TUI the default now depends on the connection: Gateway takes `grok-4.7`,
-  OpenAI and ChatGPT `gpt-5.6-luna-fast`, Anthropic `claude-sonnet-5`. That it moved three times in
-  twenty-seven minor versions is the point: **this skill pins `anthropic/claude-sonnet-5` explicitly and never
-  relies on the scaffold default** — and whatever that default is, check whether it accepts image
-  input before inheriting it into an agent that will be handed a screenshot.
+* Prereqs: **Node ≥ 24** and npm. ⚠️ **eve's scaffold default keeps moving** — `zai/glm-5.2` (0.36.0),
+  `openai/gpt-5.6-luna-fast` (0.47.2), `spacexai/grok-4.7` (0.63.0), and **`openai/gpt-6-luna-fast` on
+  1.4.0** (`DEFAULT_AGENT_MODEL_ID`, re-read 2026-11-24), the single constant baked in by `eve init`,
+  resolved for a config-less agent, and pre-selected in the setup model picker (`--model` overrides it).
+  In the dev TUI the default also depends on the connection. That is the point: **this skill pins the
+  model explicitly** (`stack_config.default_model`, else `anthropic/claude-sonnet-5.5`) and never relies on
+  the scaffold default — and whatever the model is, check whether it accepts image input before handing
+  an agent a screenshot.
   The `model` field also accepts `defineDynamic({ events })` for per-session model choice — since
   0.33.0 there is no `fallback`; every matching handler must return a concrete model.
 * Tool `inputSchema` needs a Standard-Schema-capable Zod (**Zod 4**; Zod 3 fails) — or any
@@ -448,8 +452,8 @@ The two configuration-level exceptions, both real and both narrow:
   Gateway. Note that a dynamic or direct-provider model makes the config a runtime entry rather than
   compile-only.
 - **The Sandbox is not one of them.** The providers are
-  `eve/sandbox/{vercel,docker,just-bash,microsandbox}` (0.54.3; classes with `.environment()` since
-  0.64) — another cloud can host the Docker provider, but that is a self-hosting project, not a setting.
+  `eve/sandbox/{vercel,docker,just-bash}` (0.54.3; classes with `.environment()` since
+  0.64; microsandbox removed in 0.83.0) — another cloud can host the Docker provider, but that is a self-hosting project, not a setting.
 
 The worked example — a runtime diagram of who calls whom, where the question arises in the flow,
 and a twelve-line tool that gives an agent a GPU without touching its model, sandbox or bill:
@@ -537,7 +541,7 @@ a *request*: a World that does not recognise the value keeps the data. The compl
 ⚠️ **This was undocumented for four minors, and now it is not.** `tracePolicy` appeared **zero
 times** in `docs/guides/instrumentation.md` at 0.47.6, so this section was written from the shipped
 `.d.ts` (`eve/instrumentation`, `TraceCapturePolicy` in `dist/src/shared/trace-policy.d.ts`). At
-**0.54.3** the page has been replaced by `docs/guides/instrumentation-providers.md`, which mentions
+**0.54.3** the page has been replaced by `docs/guides/instrumentation-providers.md` (on eve 1.4.0: `docs/guides/instrumentation/instrumentation.mdx`), which mentions
 `tracePolicy` six times and adds sections this file should be read against: *Add a provider*,
 *Control inputs and outputs*, *Redact fields in a custom provider*, *Add an OpenTelemetry
 destination*, *Redact managed OpenTelemetry destinations*, *Built-in slots*, *Lifecycle events*.
@@ -583,7 +587,7 @@ destination are collected in declaration order.
 - **The flag is gone and the direction is reversed.** `experimental.instrumentationProviders` no longer
   exists; instrumentation discovery is always on. The path-named **`agent/instrumentation/` directory is
   now the only supported API**, and a remaining root `agent/instrumentation.ts` **fails the build**
-  (`docs/observability/instrumentation-migration.md`).
+  (`docs/observability/instrumentation-migration.md`, a page eve 1.4.0 no longer ships).
 - **Two separate `tracePolicy`-shaped things, don't conflate them.** A lifecycle file's own
   `defineInstrumentation({ tracePolicy })` still returns `{ emit, recordInputs, recordOutputs }` (or a
   bare boolean) and decides whether *that file* sees content — this part is unchanged. A **destination**'s
@@ -592,8 +596,8 @@ destination are collected in declaration order.
   **removed** (passing them now throws), replaced by `exportPolicy: { span: (span) => ({ emit, redact,
   inputs, outputs }) }` — an array of policies composes the way `composeSpanExportPolicies` used to.
   `otel({ functionId, tracePolicy, traceChannelRequests })` is the process-wide equivalent for the
-  lifecycle side. `[VERIFY]` the exact mapping against `node_modules/eve/docs/observability/otel.mdx` and
-  `instrumentation-migration.md` before writing a destination file — this skill has not re-verified every
+  lifecycle side. `[VERIFY]` the exact mapping against `node_modules/eve/docs/guides/instrumentation/otel.mdx` (eve 1.4.0;
+  the migration page is gone) before writing a destination file — this skill has not re-verified every
   field, only that the old shapes throw.
 
 ## Workspace seeding

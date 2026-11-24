@@ -349,23 +349,13 @@ await s.getEventStream({ startIndex: 12 });
    `inputResponses` are **mutually exclusive**: a HITL reply goes through `respond()`, so you can no
    longer smuggle one inside a send. **Since 0.42.0 `respond()` also refuses a widened
    `InputResponse[]`** — it takes exact response literals, or a value *proved* by
-   `parseInputResponses()` from `eve/client`. ⚠️ **The name is unverified and probably wrong — do not
-   type it.** Searched 2026-11-18 in the shipped packages of **both** `eve@0.91.0` and `eve@1.0.1`:
-   the string `parseInputResponses` appears in **zero files** in either, and
-   `dist/src/client/index.d.ts` carries no `InputResponse` surface at all. (The package does export
-   `InputResponse`, `InputResponseSchema` and `InputResponsesSchema`, but from elsewhere, and the
-   `parseInput` functions in `dist` are private helpers bundled inside individual tools.) So the
-   *rule* below holds — `respond()` refuses a widened array — and the **name of the escape hatch is
-   not established**: read `node_modules/eve/dist/src/client/index.d.ts` and the respond types before
-   writing the call, and fix this line with what you find. Same class as the invented
-   `launchDarkly.variation()` of 2026-11-07, and it predates the 1.0 move rather than being caused by
-   it. That bites exactly where a custom channel decodes a
+   **`parseAnswers()` from `eve/client`** (eve 1.4.0, `docs/channels/custom.mdx` §respond — found 2026-11-24; an earlier version of this note named a `parseInputResponses()` that never existed, a reminder to read the shipped docs rather than infer a name). That bites exactly where a custom channel decodes a
    platform payload, because decoding is what widens the type; the strict parse is there so a
    channel-local extra key can't ride into the session inbox:
 
    ```ts
-   import { parseInputResponses } from "eve/client";
-   await source.respond(parseInputResponses(decoded), { auth });
+   import { parseAnswers } from "eve/client";
+   await source.respond(parseAnswers(decoded), { auth });
    ```
 2. **`receive()`, `ctx.receive` and `resolveActiveSession` are removed.** Handoff is
    `to(channel, target).send(...)`; for generic Slack events the target rides **in each operation's
@@ -787,7 +777,7 @@ export default crm({ apiKey: process.env.CRM_API_KEY! });   // config validated 
 * The extension declares a **config schema** (Zod / any Standard Schema); pass config as the default-export call argument. Read secrets from `process.env` in this trusted runtime — never hardcode.
 * Tune what it exposes without forking it: `disableTool()` in the matching slot to remove a bundled tool (hooks and instruction fragments are **additive and cannot be replaced**; a dynamic definition in the same slot beats a static one), and `toolResultFrom` (from `eve/tools`) inside a hook to narrow a bundled tool's result type — ⚠️ it matches on **the imported definition, not the namespaced string**: pass the extension's own `search` definition, not `"crm__search"`. Both confirmed at 0.45.0.
 
-**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@1.0.1 extension init <name>` (**not `eve@latest` — it is a 1.0 release candidate since 2026-10-31; see `SKILL.md`**), which lays out the package:
+**Author a new extension** (a bigger, separate operation) — scaffold with `npx eve@<the project's stack_config.eve_version> extension init <name>` (the same pinned version the agent uses), which lays out the package. **A product capability inside a monorepo** — its own package in `capabilities/<id>/` with a `capability.json` contract and activation per workspace — follows `capability-package.md`, which builds on this:
 
 ```
 @acme/crm/
@@ -823,8 +813,8 @@ export default git({});             // GitHub instructions + git__pr (commit, pu
 // git({ github: { … } })           // adds the Connect-brokered git__gh tool and the signed-commit git__pr
 ```
 
-`code({ github })`, `gh` from `eve/extensions/code/tools` and the GitHub helpers from
-`eve/extensions/code/sandbox` still work but are `@deprecated` in the `.d.ts` (pointing at
+`code({ github })` and the GitHub helpers from `eve/extensions/code/sandbox` still work but are
+`@deprecated` in the `.d.ts` (`eve/extensions/code/tools` is gone on eve 1.4.0) (pointing at
 `eve/extensions/git` and `eve/extensions/git/tools`). Since 0.80.0 `git({ github })` takes an
 `authorize` callback, run once per `gh` invocation with the caller, the declared repository and the
 repo-scoped token; returning `false` blocks the command. **It gates caller × repository, not
@@ -880,9 +870,9 @@ the model it uses, ask in words — the first request writes
 that file. This is the successor to the `getLocalDevCapability()` / `eve/local-dev` that 0.64.0
 removed from the docs.
 
-⚠️ **Split in 0.73.0.** The mount is now two: **`eve/self-modification/local`** and
-**`eve/self-modification/remote`**, so `eve dev` no longer loads the deployed sandbox dependencies it
-never needed. **`eve/self-modification` remains an alias for the *local* mount and now rejects the
+⚠️ **Split in 0.73.0.** The mount is now two — on eve 1.4.0 **`eve/extensions/self-modification/local`** and
+**`eve/extensions/self-modification/remote`** (the bare `eve/self-modification` alias no longer exists), so `eve dev` no longer loads the deployed sandbox dependencies it
+never needed. In 0.73–0.75 **`eve/self-modification` was an alias for the *local* mount that rejected the
 `deployed` option** — that configuration moves to its own mount, e.g.
 `agent/extensions/self-modification-remote/extension.ts`, with the former `deployed` fields at the
 top level. Verified against 0.75.1's `exports`, which lists `./self-modification`, `./local`,
