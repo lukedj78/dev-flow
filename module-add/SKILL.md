@@ -12,7 +12,9 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | Module | Default tech | Reference file | Status |
 |---|---|---|---|
 | `auth` | better-auth (email/password + magic link; `@better-auth/mcp` + `@better-auth/cimd` when the product **is** an MCP server) | `references/module-auth.md` | ✅ implemented |
+| `auth` (teams as workspaces) | better-auth `organization` + teams, our workspace roles, `authorize()` for the three controls, `toEveAuth()` for an eve agent | `references/module-auth-teams.md` | ✅ implemented, tests green |
 | `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` | ✅ implemented |
+| `db` (`postgres-drizzle`) | Drizzle + standard `pg` driver, application role, row-level security per workspace | `references/module-db-postgres.md` | ✅ implemented, verified on Postgres 18 |
 | `payments` | Stripe (subscriptions + one-time) | `references/module-payments.md` | ✅ implemented |
 | `email` | Resend + React Email | `references/module-email.md` | ✅ implemented |
 | `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
@@ -60,7 +62,8 @@ This skill follows the dev-flow contract — see `references/contracts.md`. Key 
 
 Before Step 1: check `meta.json#stack.framework`.
 
-- If `"monorepo"`: this skill operates inside `apps/web/` (cwd = `<project-root>/apps/web/`) for web-specific modules (motion, email server actions, queries), AND inside `packages/api/` for modules consumed by both apps (auth, db, storage, realtime, payments — these are backend client wiring, not web-specific UI). Run `monorepo-sync-types` after `db` and `auth` modules to propagate types to `packages/shared/`.
+- If `"monorepo"` **and the repo has `boundaries.json`** (topology `"web-agent-inapp"`): modules go in the package `boundaries.json` declares for them — `db` in `packages/db`, `auth` in `packages/auth` — never in `packages/api`, and a dependency between packages is added to `boundaries.json` first (`pnpm lint` refuses it otherwise). Use the variants `references/module-db-postgres.md` (`db: "postgres-drizzle"`: standard driver, application role, row-level security) and `references/module-auth-teams.md` (organizations, teams as workspaces, the three controls, the eve bridge).
+- If `"monorepo"` otherwise: this skill operates inside `apps/web/` (cwd = `<project-root>/apps/web/`) for web-specific modules (motion, email server actions, queries), AND inside `packages/api/` for modules consumed by both apps (auth, db, storage, realtime, payments — these are backend client wiring, not web-specific UI). Run `monorepo-sync-types` after `db` and `auth` modules to propagate types to `packages/shared/`.
 - If `"next"` / `"vite-react"` / `"remix"` / `"astro"` / etc.: operate at project root (current behavior, unchanged).
 - If `"expo-rn"`: refuse — use `rn-module-add` instead.
 

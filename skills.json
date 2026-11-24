@@ -592,9 +592,11 @@
       "references": [
         "contracts.md",
         "module-analytics.md",
+        "module-auth-teams.md",
         "module-auth.md",
         "module-ci.md",
         "module-cms.md",
+        "module-db-postgres.md",
         "module-db.md",
         "module-deploy.md",
         "module-email.md",
@@ -612,14 +614,16 @@
         "provider-scaleway.md"
       ],
       "scripts": [
+        "check_rls.py",
         "fake_ingest.py",
         "flags_check.py",
         "observability_check.py",
         "surfaces.py",
+        "test_check_rls.py",
         "test_flags_check.py",
         "test_observability.py"
       ],
-      "skill_md_lines": 182,
+      "skill_md_lines": 185,
       "bundle": "dist/module-add.skill"
     },
     {

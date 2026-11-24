@@ -568,7 +568,7 @@ Captures user choices that downstream skills need. Keys:
 - `css_variables` (web): `true` | `false`. shadcn `--css-variables`. Default `true` (required for token-driven theming from DESIGN.md).
 - `rtl` (web, optional): `true` | `false`. shadcn `--rtl` (right-to-left support). Default `false`.
 - `auth`: `"better-auth"` | `"next-auth"` | `"clerk"` | `"supabase"` | `"supabase-auth"` | `"firebase"` | `"custom-rest"` | `"trpc"` | `null`
-- `db`: `"neon-drizzle"` | `"supabase"` | `"firebase"` | `"planetscale-prisma"` | `"custom-rest"` | `"trpc"` | `null`
+- `db`: `"neon-drizzle"` | `"postgres-drizzle"` (standard `pg` driver on any Postgres, Neon included; application role and row-level security per workspace — `module-add/references/module-db-postgres.md`) | `"supabase"` | `"firebase"` | `"planetscale-prisma"` | `"custom-rest"` | `"trpc"` | `null`
 - `payments`: `"stripe"` | `"lemon-squeezy"` | `"revenuecat"` (mobile IAP) | `null`
 - `deploy`: `"vercel"` | `"fly"` | `"cloudflare-pages"` | `"eas"` (mobile) | `null`
 - `storage` (optional — file/blob storage): **web** → `"vercel-blob"` (**default** when `deploy = "vercel"` — same platform, no extra vendor/sub-processor; how-to `module-add/references/module-storage.md`) | `"uploadthing"` | `"s3"`; **mobile** → `"supabase"` | `"firebase"` | `"custom-rest"`; `null` when the product stores no files.
