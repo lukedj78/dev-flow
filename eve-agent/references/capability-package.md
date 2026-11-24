@@ -50,7 +50,11 @@ not this one.
    `@types/node` failed every build in the measurement. Inside an existing Git repository it does
    **not** create a nested repository. It **may edit the workspace root** (`package.json` or the
    workspace configuration) and prints `Updated workspace root …` when it does — read that diff before
-   you continue.
+   you continue (on 1.4.0: `allowBuilds` in `pnpm-workspace.yaml` and `engines.node: "26.x"` in the root
+   `package.json`).
+   ⚠️ The scaffold's `extension/extension.ts` declares a placeholder config with a **required `apiKey`**.
+   Replace it with the capability's real config schema, or with `defineExtension()` when the capability
+   reads nothing from the mount site; otherwise the mount fails without a config nobody meant to pass.
 2. **`package.json`:** name `@<slug>/capability-<id>`; dependencies **only** `@<slug>/contracts` and
    `@<slug>/services` (`workspace:*`), `zod`, and `eve` as a peer/dev dependency at the pinned version.
    Add `"private": true` unless the package is meant for a registry.

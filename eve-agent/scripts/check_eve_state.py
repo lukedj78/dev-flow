@@ -126,6 +126,14 @@ def main() -> int:
     print(f"eve          : installed {installed or '(not installed)'} · pinned {pinned_eve or '(stack_config.eve_version unset)'}")
     if installed and pinned_eve and installed != pinned_eve:
         warnings.append(f"installed eve {installed} differs from stack_config.eve_version {pinned_eve} — fix the pin first.")
+    pkg_json = app / "package.json"
+    if pkg_json.is_file():
+        try:
+            spec = (json.loads(pkg_json.read_text(encoding="utf-8")).get("dependencies") or {}).get("eve", "")
+        except (json.JSONDecodeError, OSError):
+            spec = ""
+        if spec and not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", spec):
+            warnings.append(f"package.json declares eve `{spec}`, not an exact version — `eve init` writes a caret; pin it.")
     if tracked_agent == "eve" and not pinned_eve:
         warnings.append("stack_config.eve_version is unset — record the exact version (Scaffold step 12).")
     if layout.startswith("A") and (app / "next.config.ts").is_file():

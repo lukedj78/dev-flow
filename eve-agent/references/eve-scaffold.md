@@ -58,6 +58,7 @@ Before anything, settle **where the agent lives** using SKILL.md → *Which layo
 ## 2. Initialize eve inside apps/agent
 
 * Read `node_modules/eve/docs/` for the current init flow, then run `npx eve@<version> init apps/agent` (or `eve init .` from within `apps/agent`; `apps/web` in layout A). **`<version>` is `meta.json#stack_config.eve_version`** when the project has one. Without it, take the current `latest`, pin it **exactly** in `package.json` (no caret) and record it there. One place holds the version; this file never does, because it goes stale within days (eve releases every 1–3 days). Upgrading is a project decision with a cost: a self-hosted world strands every live session on a version change (`eve-concepts.md` §Self-hosting), so drain first. ⚠️ Never take the `beta` dist-tag, which still points at a stale `0.6.0-beta.20`.
+* **Then remove the caret `eve init` writes** (`"eve": "^1.4.0"` on 1.4.0) and read its edits to the workspace root: `allowBuilds` in `pnpm-workspace.yaml` and `engines.node: "26.x"` in the root `package.json`, which overrides a project's own Node pin.
 * **Check the pin after install:** the version in `node_modules/eve/package.json` equals `stack_config.eve_version`. A mismatch means the lockfile or a caret moved it; fix that before anything else.
 * Keep the default HTTP channel (`agent/channels/eve.ts`) — the web app consumes it. The Next.js app supplies the UI via `useEveAgent()`, so you do not need eve's own starter chat UI.
 * Confirm the generated layout against the docs. Expect under `agent/`:

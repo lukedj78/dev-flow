@@ -808,7 +808,7 @@
         "check_capability.py",
         "check_eve_state.py"
       ],
-      "skill_md_lines": 211,
+      "skill_md_lines": 213,
       "bundle": "dist/eve-agent.skill"
     },
     {
