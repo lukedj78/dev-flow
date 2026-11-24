@@ -594,6 +594,7 @@
         "module-analytics.md",
         "module-auth-teams.md",
         "module-auth.md",
+        "module-board.md",
         "module-ci.md",
         "module-cms.md",
         "module-db-postgres.md",
@@ -623,7 +624,7 @@
         "test_flags_check.py",
         "test_observability.py"
       ],
-      "skill_md_lines": 185,
+      "skill_md_lines": 186,
       "bundle": "dist/module-add.skill"
     },
     {

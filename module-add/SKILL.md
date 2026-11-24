@@ -15,6 +15,7 @@ This skill is the bridge between a styled-but-empty app and a functional product
 | `auth` (teams as workspaces) | better-auth `organization` + teams, our workspace roles, `authorize()` for the three controls, `toEveAuth()` for an eve agent | `references/module-auth-teams.md` | ✅ implemented, tests green |
 | `db` | Drizzle ORM + Neon Postgres | `references/module-db.md` | ✅ implemented |
 | `db` (`postgres-drizzle`) | Drizzle + standard `pg` driver, application role, row-level security per workspace | `references/module-db-postgres.md` | ✅ implemented, verified on Postgres 18 |
+| `board` | Vercel Board mounted as an app route; people from the app session, agents from platform-signed OIDC tokens, isolated per workspace | `references/module-board.md` | ✅ implemented, isolation test green |
 | `payments` | Stripe (subscriptions + one-time) | `references/module-payments.md` | ✅ implemented |
 | `email` | Resend + React Email | `references/module-email.md` | ✅ implemented |
 | `test` | Vitest + Testing Library + Playwright | `references/module-test.md` | ✅ implemented |
