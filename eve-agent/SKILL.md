@@ -79,7 +79,7 @@ Decide like this — and when the signal is ambiguous, **ask the user, do not as
 | Signal (in this order) | Layout |
 |---|---|
 | `.workflow/meta.json#stack.framework == "agent"`, or the product has **no web app at all** and every surface is elsewhere (Slack, email, GitHub, Linear) | **C** — agent-only: `agent/` at the **repo root**, no `apps/*`, no `packages/types`. No need to ask. |
-| `.workflow/meta.json#stack.monorepo.web.agent_inside == true` (a monorepo whose only consumer is its web app) | **A in `apps/web`** — layout A inside the monorepo: the agent is `apps/web/agent/`, `withEve()` in `apps/web/next.config.ts`; there is no `apps/agent`, and capability packages live in `capabilities/*` (see Capability mode). No need to ask. |
+| `.workflow/meta.json#stack.monorepo.topology == "web-agent-inapp"` (a monorepo whose only consumer of the agent is its web app) | **A in `apps/web`** — layout A inside the monorepo: the agent is `apps/web/agent/`, `withEve()` in `apps/web/next.config.ts`; there is no `apps/agent`, and capability packages live in `capabilities/*` (see Capability mode). No need to ask. |
 | `.workflow/meta.json#stack.framework == "monorepo"`, or an `apps/mobile` / `apps/*` web already exists | **B** — monorepo already serves web + mobile; add the agent as `apps/agent`. No need to ask. |
 | Framework is a single `next` app AND the user confirms the agent serves **only** this app | **A** — embedded single-app |
 | Single `next` app but mobile/RN, a 2nd web, or external services are planned | **B** — start monorepo now; migrating later (`EVE_NEXT_PRODUCTION_ORIGIN`) is possible but avoidable |

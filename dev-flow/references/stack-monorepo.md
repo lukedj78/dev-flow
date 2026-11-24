@@ -143,4 +143,4 @@ When the user asks for an "agent engine / AI core / agent backend" or names "eve
 
 - **One stack per project** — you can't mix monorepo with non-monorepo. Choose at PRD time.
 - **Switch is hard** — going from `framework="next"` to `framework="monorepo"` mid-project requires manual restructure. Use `monorepo-bootstrap` only on fresh projects (phase ≤ design_extracted).
-- **No partial monorepos** — if you want only web + a shared package (no mobile), this skill set is overkill. Use `framework="next"` + manually add a `packages/shared/` if you really need one.
+- **A monorepo needs a reason** — a second app (mobile, a second web, the agent with its own deploy), or domain packages whose boundaries must be enforced (topology `"web-agent-inapp"`, shape 1b in `stack-decisions.md`). Web plus one `packages/shared/` because it looks tidy is not one: use `framework="next"`.

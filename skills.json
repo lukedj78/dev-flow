@@ -155,6 +155,7 @@
         "stack-monorepo.md"
       ],
       "scripts": [
+        "boundaries_gate.py",
         "check_drift.py",
         "data_residency.py",
         "data_residency_gate.py",
@@ -175,6 +176,7 @@
         "research.py",
         "show_state.py",
         "surfaces.py",
+        "test_boundaries_gate.py",
         "test_contract_version.py",
         "test_data_residency.py",
         "test_debt_audit.py",
@@ -1128,9 +1130,10 @@
       "name": "monorepo-bootstrap",
       "family": "monorepo",
       "role": "operative",
-      "description": "Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Three topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app — the classic case), web+agent (Next.js app + an eve agent in apps/agent, no mobile), or web-onl...",
+      "description": "Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Four topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app), web+agent (Next.js app + an eve agent in apps/agent), web-agent-inapp (one web app with the eve...",
       "skill_file": "monorepo-bootstrap/SKILL.md",
       "references": [
+        "boundaries.md",
         "contracts.md",
         "decision-tree.md",
         "patterns.md",
@@ -1138,13 +1141,15 @@
         "structure.md"
       ],
       "scripts": [
+        "check_boundaries.py",
         "init-monorepo.sh",
         "scaffold-mobile.sh",
         "scaffold-web.sh",
+        "scaffold_packages.py",
         "test_scaffold_contract.py",
         "verify.ts"
       ],
-      "skill_md_lines": 228,
+      "skill_md_lines": 250,
       "bundle": "dist/monorepo-bootstrap.skill"
     },
     {

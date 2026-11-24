@@ -287,6 +287,13 @@ def gate_refusal(root: Path, meta: dict, cur_idx: int, new_idx: int, current: st
             if refusal:
                 return refusal
 
+        import boundaries_gate
+
+        passed, why = boundaries_gate.verify(root, meta)
+        if not passed:
+            return (f"Phase change refused: {current!r} → {requested!r} needs the package boundaries clean.\n"
+                    + "".join(f"  {line}\n" for line in why.splitlines()) + boundaries_gate.remedy(root) + "\n")
+
     # Golden rule 3 at every phase from `scaffolded` on, not only at the crossing: the design lint must
     # carry design/no-handmade-ui and the write-time guard must be installed (or each opted out with a
     # reason). smart-travel built 238 hand-made elements while its phase still said `design_extracted`;

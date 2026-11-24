@@ -48,10 +48,11 @@ When an agent is in scope, **three shapes are possible and the project decides w
 | Shape | `stack` | Choose it when |
 |---|---|---|
 | **1 · Single web app** *(default)* | `framework: "next"`, `agent: "eve"` (agent inside the app) | The product **is** the interface. One deploy, no workspace overhead — the ordinary case, and where a frontend developer does their actual work. |
+| **1b · One app in a monorepo** | `framework: "monorepo"`, `monorepo.topology: "web-agent-inapp"`, `agent: "eve"` → `apps/web/agent/` | Still one app and one agent inside it, **but** the product needs domain packages whose boundaries must hold — a services facade the agent goes through, a db package nothing else touches, capability packages. The monorepo is for the packages, not for a second app; `boundaries.json` makes the table enforceable (`monorepo-bootstrap/references/boundaries.md`). |
 | **2 · Monorepo** | `framework: "monorepo"`, `agent: "eve"` → `apps/web` + `apps/agent` | The agent has a life of its own — its own deploy cadence, channels beyond the web UI, or a second consumer (mobile, a second app) that must share types/tokens. |
 | **3 · Agent only** | `framework: "agent"`, `agent: "eve"`, no web app | Every surface is somewhere else — Slack, email, GitHub, Linear — and **nothing needs rendering**. Vercel Labs' `kody-eve-template` is this shape. |
 
-**The house default is 1, then 2.** Reach for 3 only when the product genuinely has no UI, not because the agent feels architecturally tidy on its own.
+**The house default is 1, then 2.** 1b is 1 with enforced package boundaries: choose it when the boundaries are a requirement, not a preference. Reach for 3 only when the product genuinely has no UI, not because the agent feels architecturally tidy on its own.
 
 **Don't fossilise the choice** — it follows the product, not a habit. Two directions matter:
 - A single app **can become** a monorepo later: that is `monorepo-bootstrap`'s job, and moving `agent/` into `apps/agent/` is a directory move, not a rewrite. Starting at 1 does not cost you 2.

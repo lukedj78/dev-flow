@@ -6,12 +6,21 @@
 # No tsconfig.base.json at root — see packages/typescript-config/ below (Turborepo's own pattern).
 # Idempotent: re-running detects existing files and skips them.
 #
-# Usage: init-monorepo.sh <project-root> <project-slug>
+# Usage: init-monorepo.sh <project-root> <project-slug> [topology]
+#   topology: web-mobile (default) | web-agent | web-only | web-agent-inapp
+#   web-agent-inapp: the agent lives in apps/web/agent; Biome instead of ESLint for code; ONE shared
+#   packages/config instead of typescript-config + eslint-config; capabilities/* in the workspace; the
+#   packages themselves come from boundaries.json (scaffold_packages.py), not from this script; no tool
+#   versions written here — SKILL.md Step 2 adds them with --save-exact.
 
 set -euo pipefail
 
 PROJECT_ROOT="${1:?project root required}"
 SLUG="${2:?project slug required (kebab-case, e.g. 'daysnap')}"
+TOPOLOGY="${3:-web-mobile}"
+case "$TOPOLOGY" in web-mobile|web-agent|web-only|web-agent-inapp) ;; *) echo "unknown topology: $TOPOLOGY" >&2; exit 2;; esac
+INAPP=0; [[ "$TOPOLOGY" == "web-agent-inapp" ]] && INAPP=1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cd "$PROJECT_ROOT"
 
@@ -23,6 +32,15 @@ fi
 echo "[init-monorepo] scaffolding turborepo at $PROJECT_ROOT (slug: $SLUG)…"
 
 # 1. pnpm-workspace.yaml
+if [[ ! -f pnpm-workspace.yaml && $INAPP == 1 ]]; then
+  cat > pnpm-workspace.yaml <<'EOF'
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'capabilities/*'
+EOF
+  echo "  ✓ pnpm-workspace.yaml (apps, packages, capabilities)"
+fi
 if [[ ! -f pnpm-workspace.yaml ]]; then
   cat > pnpm-workspace.yaml <<'EOF'
 packages:
@@ -62,6 +80,29 @@ EOF
 fi
 
 # 3. Root package.json
+if [[ ! -f package.json && $INAPP == 1 ]]; then
+  cat > package.json <<EOF
+{
+  "name": "@${SLUG}/root",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "biome check . && python3 scripts/check_boundaries.py . && turbo lint",
+    "format": "biome format --write .",
+    "boundaries": "python3 scripts/check_boundaries.py .",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
+EOF
+  echo "  ✓ package.json (Biome + boundaries in lint; tool versions added in Step 2)"
+fi
 if [[ ! -f package.json ]]; then
   cat > package.json <<EOF
 {
@@ -91,7 +132,13 @@ EOF
 fi
 
 # 4. packages/typescript-config/ (Turborepo official pattern — no tsconfig.base in root)
-if [[ ! -d packages/typescript-config ]]; then
+#    web-agent-inapp: skipped — packages/config holds tsconfig, Biome and env (scaffold_packages.py).
+if [[ $INAPP == 1 && ! -f scripts/check_boundaries.py ]]; then
+  mkdir -p scripts
+  cp "$SCRIPT_DIR/check_boundaries.py" scripts/check_boundaries.py
+  echo "  ✓ scripts/check_boundaries.py (the project runs its own copy, in lint and CI)"
+fi
+if [[ ! -d packages/typescript-config && $INAPP == 0 ]]; then
   mkdir -p packages/typescript-config
   cat > packages/typescript-config/package.json <<EOF
 {
@@ -149,8 +196,8 @@ EOF
   echo "  ✓ packages/typescript-config/ (base + nextjs + react-native presets)"
 fi
 
-# 5. packages/eslint-config/ (Turborepo official pattern)
-if [[ ! -d packages/eslint-config ]]; then
+# 5. packages/eslint-config/ (Turborepo official pattern) — not for web-agent-inapp (Biome)
+if [[ ! -d packages/eslint-config && $INAPP == 0 ]]; then
   mkdir -p packages/eslint-config
   cat > packages/eslint-config/package.json <<EOF
 {
@@ -220,6 +267,32 @@ EOF
 fi
 
 # 7. README.md
+if [[ ! -f README.md && $INAPP == 1 ]]; then
+  cat > README.md <<EOF
+# ${SLUG}
+
+Monorepo scaffolded by dev-flow's \`monorepo-bootstrap\` (topology \`web-agent-inapp\`).
+
+## Layout
+
+- \`apps/web/\` — the Next.js app, with the eve agent in \`apps/web/agent/\`
+- \`capabilities/\` — one capability per package (eve extensions)
+- \`packages/\` — the packages declared in \`boundaries.json\`, which also says who may depend on whom
+
+## Commands
+
+\`\`\`bash
+pnpm install       # install all workspaces
+pnpm dev           # run the app (and the agent beside it)
+pnpm lint          # Biome + package boundaries + per-package lint
+pnpm typecheck     # tsc on every package
+pnpm test          # Vitest on every package
+\`\`\`
+
+Adding a package or a dependency between packages starts in \`boundaries.json\`: \`pnpm lint\` fails until the code agrees.
+EOF
+  echo "  ✓ README.md"
+fi
 if [[ ! -f README.md ]]; then
   cat > README.md <<EOF
 # ${SLUG}
@@ -253,13 +326,29 @@ EOF
   echo "  ✓ README.md"
 fi
 
-# 8. Create empty dirs for apps/ and packages/
-mkdir -p apps/web apps/mobile packages/shared/src/types packages/shared/src/validators packages/shared/src/utils
-mkdir -p packages/design/src packages/api/src
-echo "  ✓ apps/ + packages/ directory structure"
+# 8. Create the directories this topology uses — and only those (v1 created apps/mobile and
+#    packages/design for every topology, contradicting Step 3).
+case "$TOPOLOGY" in
+  web-mobile)
+    mkdir -p apps/web apps/mobile packages/shared/src/types packages/shared/src/validators packages/shared/src/utils
+    mkdir -p packages/design/src packages/api/src ;;
+  web-agent|web-only)
+    mkdir -p apps/web packages/shared/src/types packages/shared/src/validators packages/shared/src/utils
+    mkdir -p packages/api/src packages/ui ;;
+  web-agent-inapp)
+    mkdir -p apps/web capabilities packages ;;
+esac
+echo "  ✓ directory structure for topology $TOPOLOGY"
 
 echo ""
 echo "[init-monorepo] root scaffold complete."
+if [[ $INAPP == 1 ]]; then
+  echo "  Next (SKILL.md Step 2, references/boundaries.md):"
+  echo "    - write boundaries.json, then scaffold_packages.py <root>"
+  echo "    - pnpm add -D -w --save-exact turbo typescript @biomejs/biome vitest @types/node"
+  echo "    - design-md-to-app in apps/web, then eve-agent (layout A in apps/web)"
+  exit 0
+fi
 echo "  Next:"
 echo "    - scaffold-web.sh   (invokes design-md-to-app in apps/web/)"
 echo "    - scaffold-mobile.sh (invokes rn-bootstrap in apps/mobile/)"

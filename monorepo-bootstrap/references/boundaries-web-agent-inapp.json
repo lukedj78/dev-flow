@@ -1,0 +1,17 @@
+{
+  "scope": "@SLUG",
+  "packages": {
+    "packages/config": { "purpose": "shared tsconfig, Biome and environment variables (Zod)", "may_depend_on": [] },
+    "packages/contracts": { "purpose": "Zod schemas (capability.json, events, API) and the activation helper", "may_depend_on": [] },
+    "packages/db": { "purpose": "schema, migrations, repositories with the tenant filter", "may_depend_on": ["config"] },
+    "packages/auth": { "purpose": "auth and policies", "may_depend_on": ["db", "contracts", "config"] },
+    "packages/platform": { "purpose": "tenants, workspaces, projects, capability activation, approvals", "may_depend_on": ["db", "contracts", "config"] },
+    "packages/services": { "purpose": "the application service facade: the only domain door for the agent and capabilities", "may_depend_on": ["platform", "auth"] },
+    "packages/ui": { "purpose": "design system", "may_depend_on": [] },
+    "capabilities/*": { "purpose": "one capability = one eve extension", "may_depend_on": ["contracts", "services"] },
+    "apps/web": { "purpose": "the Next.js app, with the agent in agent/", "may_depend_on": ["*"] }
+  },
+  "paths": {
+    "apps/web/agent": { "may_import": ["contracts", "services", "capability-*"] }
+  }
+}

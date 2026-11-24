@@ -1,6 +1,6 @@
 ---
 name: monorepo-bootstrap
-description: 'Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Three topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app — the classic case), web+agent (Next.js app + an eve agent in apps/agent, no mobile), or web-only (just the turborepo and shared-package tooling around one web app). Reads `.workflow/meta.json` with `stack.framework="monorepo"` and phase in {prd_drafted, design_extracted}. Always idempotent. Use when dev-flow routes here, or the user says "scaffolda il monorepo", "create a turborepo with web + mobile", "bootstrap il monorepo da PRD + DESIGN.md", "scaffolda un turborepo per web + agent eve". Not for: scaffolding only web with no monorepo tooling (use design-md-to-app), scaffolding only mobile (use rn-bootstrap), or adding modules after the scaffold (use module-add or rn-module-add).'
+description: 'Scaffold a turborepo monorepo on pnpm workspaces, with shared packages (types, design tokens or shared UI, backend client). Four topologies, asked in Step 1: web+mobile (Next.js app AND an Expo + RN app), web+agent (Next.js app + an eve agent in apps/agent), web-agent-inapp (one web app with the eve agent inside it, domain packages with enforced boundaries, Biome, one packages/config), or web-only (the turborepo tooling around one web app). Reads `.workflow/meta.json` with `stack.framework="monorepo"` and phase in {prd_drafted, design_extracted}. Always idempotent. Use when dev-flow routes here, or the user says "scaffolda il monorepo", "create a turborepo with web + mobile", "bootstrap il monorepo da PRD + DESIGN.md", "scaffolda un turborepo per web + agent eve". Not for: scaffolding only web with no monorepo tooling (use design-md-to-app), scaffolding only mobile (use rn-bootstrap), or adding modules after the scaffold (use module-add or rn-module-add).'
 ---
 
 # monorepo-bootstrap — scaffold a turborepo monorepo
@@ -32,6 +32,7 @@ See `references/contracts.md` (vendored from `dev-flow`). Key facts:
 - `references/decision-tree.md` → "The `packages/ui` rule" — which topology gets `packages/design` vs `packages/ui`.
 - `references/structure.md` — full monorepo layout (this file lives in this skill's references).
 - `references/patterns.md` — turborepo conventions, pnpm protocols.
+- `references/boundaries.md` — the `"web-agent-inapp"` topology: `boundaries.json`, the four checks `check_boundaries.py` runs, and why the agent inside the app imports only services and contracts.
 
 ## Workflow
 
@@ -47,10 +48,11 @@ Read `.workflow/meta.json`. Abort with clear message if:
 
 1. If `stack.monorepo.mobile` is already populated in `meta.json` → topology = `"web-mobile"`.
 2. Else if `stack.agent == "eve"`, or the user has said they want an agent engine and no mobile app → topology = `"web-agent"`.
-3. Else if the user has explicitly said there is no mobile app and no agent (monorepo wanted only for shared-package tooling, future multi-web-app plans, etc.) → topology = `"web-only"`.
-4. Else **ask the user directly**: "Is this monorepo web + mobile, web + an eve agent, or web-only?" Do not default to web+mobile — v1 of this skill assumed it silently, which is exactly the bug this step fixes.
+3. Else if `stack.agent == "eve"` and the agent's only consumer is the web app, but the product needs **domain packages with enforced boundaries** (a services facade, a db package, capability packages) → topology = `"web-agent-inapp"`: the agent lives in `apps/web/agent/` (eve-agent's layout A), and the monorepo exists for the packages, not for a second app. Ask when unsure between this and `"web-agent"` — the question is whether the agent has a second consumer or its own deploy cadence (then `"web-agent"`).
+4. Else if the user has explicitly said there is no mobile app and no agent (monorepo wanted only for shared-package tooling, future multi-web-app plans, etc.) → topology = `"web-only"`.
+5. Else **ask the user directly**: "Is this monorepo web + mobile, web + an eve agent (its own app, or inside the web app), or web-only?" Do not default to web+mobile — v1 of this skill assumed it silently, which is exactly the bug this step fixes.
 
-Write the answer to `meta.json#stack.monorepo.topology` (`"web-mobile"` | `"web-agent"` | `"web-only"`) so Step 5 (and any later re-run) doesn't have to re-derive it.
+Write the answer to `meta.json#stack.monorepo.topology` (`"web-mobile"` | `"web-agent"` | `"web-agent-inapp"` | `"web-only"`) so Step 5 (and any later re-run) doesn't have to re-derive it.
 
 For topology `"web-mobile"` only, also resolve:
 - `stack.monorepo.mobile.framework` missing → set to `"expo-rn"` (only valid value for v1).
@@ -62,13 +64,25 @@ If `apps/` + `packages/` + `pnpm-workspace.yaml` already exist at project root: 
 
 ### Step 2 — Scaffold the root
 
-Run `scripts/init-monorepo.sh <project-root> <project-slug>`:
+Run `scripts/init-monorepo.sh <project-root> <project-slug> <topology>` (it creates only the folders that topology uses).
+
+**Topology `"web-agent-inapp"` follows its own path here** — `references/boundaries.md` is the procedure, in short:
+
+1. The script writes `pnpm-workspace.yaml` (`apps/*`, `packages/*`, `capabilities/*`), `turbo.json`, a root `package.json` whose `lint` is **`biome check . && python3 scripts/check_boundaries.py . && turbo lint`**, `engines.node >=24`, and the project's own copy of `scripts/check_boundaries.py`. No ESLint config package and no `typescript-config`: one **`packages/config`** holds tsconfig, Biome and env.
+2. **Write `boundaries.json` at the root** — the single source for which workspace packages exist and who may depend on whom (folders that are not packages, like `tools/` or `infrastructure/`, are the project's own call). From the PRD or the project's spec when it has a boundary table; otherwise start from `references/boundaries-web-agent-inapp.json` (replace `@SLUG`) and confirm the table with the user. A package or folder outside it is a decision, not a default.
+3. `python3 <skills>/monorepo-bootstrap/scripts/scaffold_packages.py <project-root>` (the skill's script, not a project file) creates each declared package with `exports` on `.` only, an empty `src/index.ts` and a `tsconfig.json` extending `../config/tsconfig/library.json`, plus `packages/config` (`tsconfig/{base,library,nextjs}.json`, `biome.base.json`, `src/env.ts`) and a root `biome.json` that extends it.
+4. `corepack use pnpm@<current>` (it writes `packageManager`, which Turbo 2 reads), then tools at their current versions, exact: `pnpm add -D -w --save-exact turbo typescript @biomejs/biome vitest @types/node` and `pnpm --filter @<slug>/config add --save-exact zod`. Record them; this skill writes no version numbers.
+5. `pnpm exec biome check --write .` once — the generated files are not in Biome's format — then `pnpm lint`, `pnpm typecheck`, `pnpm test` must exit 0, and `python3 scripts/check_boundaries.py --self-test` must pass.
+
+Steps 3, 6 and 7 below do not apply to this topology: `packages/ui` is one of the declared packages, and there is no `packages/shared` or `packages/api` unless `boundaries.json` declares them. Continue at Step 4, then Step 5's agent paragraph.
+
+For the other topologies, `scripts/init-monorepo.sh` does the following:
 - Writes `pnpm-workspace.yaml` listing `apps/*` and `packages/*`.
   - ⚠️ **On pnpm 11, add a `minimumReleaseAgeExclude` list for any dependency you track at head.** `minimumReleaseAge` refuses to install a version published less than N minutes ago — the window in which a compromised release is normally caught — and **its default became `1440` (one day) in pnpm v11**, from `0` before. Nothing errors: `pnpm add <pkg>@latest` simply resolves to yesterday's version. Exempt fast-moving packages by name (`eve`, `ai`, `"@ai-sdk/*"`, `"@vercel/*"`), never by lowering the setting globally — the delay is worth keeping for the transitive dependencies nobody chose. Patterns need pnpm ≥ 10.17. Ref: <https://pnpm.io/settings/dependency-resolution#minimumreleaseage>.
 - Writes `turbo.json` with the pipeline definition (build/dev/lint/test/typecheck).
 - Writes root `package.json` with name `@<project-slug>/root`, scripts that proxy to turbo.
 - Writes `packages/typescript-config/` with `base.json` (path aliases, strict mode), `nextjs.json`, `react-native.json` preset extensions. Also writes `packages/eslint-config/`. **No `tsconfig.base.json` in repo root** — Turborepo official pattern.
-- Creates empty dirs: `apps/web/`, `apps/mobile/`, `packages/shared/`, `packages/design/`, `packages/api/`.
+- Creates the empty dirs of the topology: `apps/web/`, `packages/shared/`, `packages/api/`, plus `apps/mobile/` and `packages/design/` for `"web-mobile"` or `packages/ui/` for `"web-agent"` / `"web-only"`. (v1 created all five for every topology.)
 
 Update `meta.json`:
 - `stack_config.monorepo_tool = "turborepo"`
@@ -107,6 +121,8 @@ Update `meta.json#stack.monorepo.web` with any user choices recorded by design-m
 ### Step 5 — Scaffold `apps/mobile/` via `rn-bootstrap` (topology `"web-mobile"` only)
 
 **Check `meta.json#stack.monorepo.topology` first.** If it is `"web-agent"` or `"web-only"` (or `stack.monorepo.mobile` is simply absent), **skip this step entirely** — do not create `apps/mobile/`, do not invoke `rn-bootstrap`, and do not generate a NativeWind preset (there is no `packages/design/` in these topologies — see Step 3). Proceed straight to Step 6.
+
+For topology `"web-agent-inapp"`: invoke `eve-agent` in Scaffold mode **inside `apps/web`** — its layout A, the agent in `apps/web/agent/` beside `app/`, `withEve()` in `apps/web/next.config.ts`, no `apps/agent` and no `packages/types`. `boundaries.json#paths` already limits what `agent/` may import (contracts, services, capability packages), so moving it to its own app later stays a move. Set `stack_config.agent_capabilities = "packages"` when the product has capabilities (`eve-agent/references/capability-package.md`).
 
 For topology `"web-agent"` specifically: `apps/agent/` is scaffolded by invoking `eve-agent` in Scaffold mode instead, once the workspace root exists — that skill owns everything under `apps/agent/`; this skill's job stops at making sure `pnpm-workspace.yaml` / `turbo.json` already cover `apps/*` so `eve-agent` slots in without extra wiring.
 
@@ -148,7 +164,9 @@ Then verify:
 - `pnpm tsc --noEmit` from `apps/web/`, from `apps/mobile/` (topology `"web-mobile"` only), and each `packages/*/` succeeds.
 - `pnpm turbo dev --dry-run` lists every workspace that exists for the chosen topology (5 for `"web-mobile"`: web, mobile, and the 3 packages; 4 for `"web-agent"`/`"web-only"`: web, and the 3 packages — `apps/agent/` joins later once `eve-agent` scaffolds it).
 
-Then wire the design lint — automatically, here, because this is the first point where the workspace
+For `"web-agent-inapp"` the verification is Step 2's last item plus `pnpm typecheck` in `apps/web` once Step 4 has run. ⚠️ `set-phase scaffolded` also checks the design lint: when the UI library is not styled with Tailwind, record `stack.design_lint = "none"` with `stack_config.design_lint_reason`, or the move is refused. The design lint (`@shadcn/lint`, an ESLint plugin) stays on ESLint only for `apps/web` and `packages/ui`, and only where the UI library styles with Tailwind; its preset goes in `packages/config/eslint/` (there is no `packages/eslint-config`). ⚠️ `setup_design_lint.py` does not know that location yet: until it does, run it, read where it put the preset, and move it — or record the design-lint decision as an exception with its reason.
+
+For the other topologies, wire the design lint — automatically, here, because this is the first point where the workspace
 is installed and `packages/ui` (or `apps/web/components/ui`) is populated:
 
 ```bash
@@ -189,6 +207,8 @@ and refuse the transition until both from Step 8 are in place. The rest of the b
 }
 ```
 
+For topology `"web-agent-inapp"`: `stack.monorepo.topology = "web-agent-inapp"`, `stack.agent = "eve"`, `stack.lint = "biome"` (or `"eslint+biome"` once the design lint is wired), `stack_config.config_package = "single"`, and `stack_config.shared_packages` lists the packages `boundaries.json` declares.
+
 For topology `"web-agent"` / `"web-only"`, `stack.monorepo` has no `mobile` key and `shared_packages` lists `@<project-slug>/ui` instead of `@<project-slug>/design` (see Step 3/Step 6).
 
 If git repo: commit with `chore: scaffold monorepo (web + mobile + shared packages)` for `"web-mobile"`, or `chore: scaffold monorepo (web + shared packages, <topology> topology)` otherwise.
@@ -199,7 +219,9 @@ If git repo: commit with `chore: scaffold monorepo (web + mobile + shared packag
 - ❌ Generate Tailwind config in `apps/web/` without the `@<project-slug>/design/tailwind` preset (topology `"web-mobile"`) — design tokens won't reach the web app.
 - ❌ Generate `tailwind.config.js` in `apps/mobile/` without the nativewind preset — same problem mirrored.
 - ❌ Install backend client (supabase-js, tRPC) at root — must live in `packages/api/`, consumed via workspace protocol.
-- ❌ Add `tsconfig.base.json` in repo root — Turborepo recommends per-package configs that extend a shared package (`packages/typescript-config`). Don't centralize in root.
+- ❌ Add `tsconfig.base.json` in repo root — Turborepo recommends per-package configs that extend a shared package (`packages/typescript-config`, or `packages/config` in `"web-agent-inapp"`). Don't centralize in root.
+- ❌ Put the shared Biome config at `packages/config/biome.json` — Biome 2 finds it, calls it a *nested root configuration* and refuses to run. It is `biome.base.json`, extended by the root `biome.json`.
+- ❌ Add a package, or let a package depend on another, without changing `boundaries.json` first — `pnpm lint` fails, and that is the point.
 - ❌ Use `framework="monorepo"` on a project that already has scaffolded code (mid-project switch) — this skill is for fresh projects only.
 - ❌ **Assume the topology is always `"web-mobile"` and blindly invoke `rn-bootstrap`** — Step 1 must detect/ask the topology first; Step 5 skips `rn-bootstrap` entirely for `"web-agent"` / `"web-only"`. This was v1's bug: it always scaffolded `apps/mobile/` even for mobile-less projects.
 - ❌ Create both `packages/design/` AND `packages/ui/` in the same project — they are mutually exclusive per topology (Step 3).
