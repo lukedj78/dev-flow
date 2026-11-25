@@ -5,6 +5,10 @@ same code runs on Neon, a managed Postgres or one you host. The tenant boundary 
 — row-level security on every table that carries `workspace_id` — not a `where` clause each query
 has to remember. For the Neon-only setup use `module-db.md` (`neon-drizzle`).
 
+**Ids are the database's.** A caller-chosen primary key that is unique across the table turns a
+unique-key conflict into a probe of other workspaces ("does project `x` exist somewhere?"); generate it
+server-side and take from the caller only the fields a person may choose.
+
 Every block below ran against Postgres 18 with pgvector on 2026-11-24 (drizzle-orm 0.45, pg 8.23,
 PGlite 0.6). Measured: connected as the application role, workspace A sees only its rows, a query
 outside `withTenant` returns zero rows, and inserting a row for workspace B while `app.workspace` is
@@ -91,7 +95,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ap
 
 ```sql title="migrations/0001_projects.sql"
 CREATE TABLE IF NOT EXISTS projects (
-  id text PRIMARY KEY,
+  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,  -- server-generated: a caller-chosen id would let one workspace probe another's
   organization_id text NOT NULL,
   workspace_id text NOT NULL,
   name text NOT NULL,
@@ -116,13 +120,15 @@ role is never silently out of reach — and `check_rls.py` lists any table the a
 ## Schema, client, repositories
 
 ```ts title="src/schema/projects.ts"
+import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-// Every domain table carries the tenant on the row. RLS (the migration that creates the table) filters on workspace_id.
+// Every domain table carries the tenant on the row. RLS (migrations/0001_rls.sql) filters on workspace_id.
 export const projects = pgTable(
   "projects",
   {
-    id: text("id").primaryKey(),
+    // Server-generated: a caller-chosen id would turn a unique-key conflict into a probe of other workspaces.
+    id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
     organizationId: text("organization_id").notNull(),
     workspaceId: text("workspace_id").notNull(),
     name: text("name").notNull(),
@@ -177,11 +183,13 @@ import { projects } from "../schema/projects.ts";
 // the row filter is the database's (RLS), the context is the request's.
 export const projectRepository = {
   list: (db: Db, ctx: TenantContext) => withTenant(db, ctx, (tx) => tx.select().from(projects)),
-  create: (db: Db, ctx: TenantContext & { organizationId: string }, p: { id: string; name: string }) =>
+  // The id is the database's; organizationId and workspaceId come from the request context (the session),
+  // never from the caller's payload — only the fields a person may choose are taken from `p`.
+  create: (db: Db, ctx: TenantContext & { organizationId: string }, p: { name: string }) =>
     withTenant(db, ctx, (tx) =>
       tx
         .insert(projects)
-        .values({ ...p, organizationId: ctx.organizationId, workspaceId: ctx.workspaceId })
+        .values({ name: p.name, organizationId: ctx.organizationId, workspaceId: ctx.workspaceId })
         .returning(),
     ),
 };
