@@ -15,6 +15,9 @@ whose `boundaries.json` lets `auth` depend on `db`, `contracts` and `config`.
   `dist/plugins/organization/schema.d.mts`). So the **workspace role is ours**: a table
   `workspace_member_roles (workspace_id = team id, user_id, role)` in `packages/db`, with the RLS block
   of `module-db-postgres.md` because it carries `workspace_id`.
+- **Email verification is required**, to sign in and to accept an invitation: without it, an account
+  registered with someone else's address can take the invitation meant for them. `createAuth` therefore
+  needs a `sendVerificationEmail` (wire it to the email module).
 - `createAccessControl` (`better-auth/plugins/access`) to declare the actions and the roles that may
   do them. Application code checks **actions**, never role names.
 - Better Auth's own tables (user, session, organization, member, team…) are generated with its CLI.
@@ -75,21 +78,68 @@ export type Action = {
 
 ```ts title="src/auth.ts"
 import type { Db } from "@<slug>/db";
-import { betterAuth } from "better-auth";
+import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { ac, roles } from "./permissions.ts";
 
+export type SendVerificationEmail = NonNullable<
+  NonNullable<BetterAuthOptions["emailVerification"]>["sendVerificationEmail"]
+>;
+
 // Organization = the customer; Team = the workspace. Teams carry no member role in Better Auth,
 // so the workspace role lives in our table workspace_member_roles (packages/db).
-export function createAuth(db: Db) {
+// Email verification is required to sign in AND to accept an invitation: without it, someone who
+// registers with another person's address could take the invitation meant for them.
+export function createAuth(db: Db, o: { sendVerificationEmail: SendVerificationEmail }) {
   return betterAuth({
     database: drizzleAdapter(db, { provider: "pg" }),
-    emailAndPassword: { enabled: true },
-    plugins: [organization({ ac, roles, teams: { enabled: true } })],
+    emailAndPassword: { enabled: true, requireEmailVerification: true },
+    emailVerification: { sendVerificationEmail: o.sendVerificationEmail, sendOnSignUp: true },
+    plugins: [organization({ ac, roles, teams: { enabled: true }, requireEmailVerificationOnInvitation: true })],
   });
 }
 ```
+
+**The role, read fresh — and only while Better Auth still says the person belongs.** This lives in
+`packages/db` (it queries tables), and `authorize()` receives its result:
+
+```ts title="packages/db/src/repositories/workspace-roles.ts"
+import { and, eq } from "drizzle-orm";
+import { type Db, type TenantContext, withTenant } from "../client.ts";
+import { member, team, teamMember } from "../schema/auth.ts";
+import { workspaceMemberRoles } from "../schema/workspace-roles.ts";
+
+export type WorkspaceRole = (typeof workspaceMemberRoles.$inferSelect)["role"];
+
+/**
+ * The caller's role in the workspace in ctx, read on EVERY authorize() call — never cached in the session,
+ * which keeps its active team after the person is removed. A role counts only while the person is still a
+ * member of the team (Better Auth's team_member) AND of the team's organization (member): removing them in
+ * Better Auth revokes the role at once, even if our row is still there. No match → null → refused.
+ */
+export const workspaceRoleRepository = {
+  roleOf: (db: Db, ctx: TenantContext, userId: string): Promise<WorkspaceRole | null> =>
+    withTenant(db, ctx, async (tx) => {
+      const [row] = await tx
+        .select({ role: workspaceMemberRoles.role })
+        .from(workspaceMemberRoles)
+        .innerJoin(team, eq(team.id, workspaceMemberRoles.workspaceId))
+        .innerJoin(teamMember, and(eq(teamMember.teamId, team.id), eq(teamMember.userId, workspaceMemberRoles.userId)))
+        .innerJoin(
+          member,
+          and(eq(member.organizationId, team.organizationId), eq(member.userId, workspaceMemberRoles.userId)),
+        )
+        .where(and(eq(workspaceMemberRoles.workspaceId, ctx.workspaceId), eq(workspaceMemberRoles.userId, userId)));
+      return row?.role ?? null;
+    }),
+};
+```
+
+`workspace_member_roles` references `team(id)` and `"user"(id)` with `ON DELETE CASCADE`, so a deleted
+team or user takes its role rows with it. Measured on Postgres 18: `admin` while a member; `null` after
+removal from the team (role row still there) and after removal from the organization; zero role rows
+after the team is deleted.
 
 ```ts title="src/authorize.ts"
 import { type Action, roles, statements, type WorkspaceRole } from "./permissions.ts";
