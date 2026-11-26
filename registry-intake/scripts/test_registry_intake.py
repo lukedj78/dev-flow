@@ -474,6 +474,26 @@ class Hook(Base):
         rc, _ = quiet(ri.main, ["allow", str(self.root), "@x", REG, "--reason", "r", "--trust", "live"])
         self.assertEqual(rc, 1, "only a chosen UI system's registry can be live")
 
+    def test_ui_sdk_design_system_registry_is_live_only_when_the_stack_names_it(self) -> None:
+        # G1: a UI SDK project takes its components from its design system's registry (ui-agent on Agentic Factory)
+        ui_agent = "https://ui-agent.example/r/{name}.json"
+        project(self.root, ui="ui-sdk", registries={"@ui-agent": ui_agent})
+        meta = self.root / ".workflow/meta.json"
+        m = json.loads(meta.read_text())
+        m["stack"]["ui_registry"] = {"namespace": "@ui-agent", "url": ui_agent, "ui_sdk_version": "0.1.0-beta.17"}
+        meta.write_text(json.dumps(m))
+        quiet(ri.main, ["setup", str(self.root)])
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button"))
+        rc, _ = quiet(ri.main, ["allow", str(self.root), "@x", REG, "--reason", "r", "--trust", "live"])
+        self.assertEqual(rc, 1, "another registry stays on snapshots, even in a UI SDK project")
+        rc, _ = quiet(ri.main, ["allow", str(self.root), "@ui-agent", ui_agent, "--reason", "ds", "--trust", "live"])
+        self.assertEqual(rc, 0)
+
+    def test_ui_sdk_without_a_named_registry_has_nothing_live(self) -> None:
+        project(self.root, ui="ui-sdk", registries={"@ui-agent": "https://ui-agent.example/r/{name}.json"})
+        quiet(ri.main, ["setup", str(self.root)])
+        self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button"))
+
     def test_no_lock_means_no_third_party_installs(self) -> None:
         project(self.root)
         self.assertIsNone(self.decide("npx shadcn add button"))

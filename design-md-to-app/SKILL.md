@@ -139,6 +139,7 @@ Mapping skill choice → `meta.json#stack.ui` → `references/<lib>-mapping.md`:
 - "shadcn" → `references/shadcn-mapping.md` (+ `stack.ui_base` = base|radix|aria)
 - "base-ui" → `references/base-ui-mapping.md` (standalone Base UI, no shadcn CLI)
 - "mui" → `references/mui-mapping.md`
+- "ui-sdk" → `references/ui-sdk-mapping.md` — offered only on the two signals of `references/library-choice.md` (more than one framework, or an agent drives the interface). **With `stack.ui_registry` set** — the components come from the project's design-system registry (`ui-agent` on Agentic Factory) into `packages/ui` — follow `references/ui-sdk-registry-monorepo.md` instead of writing components: it runs `scripts/check_ui_registry.py items` before the install and `project` after, and seven failures of a real install are its rules.
 - "coss" → **hand off to `coss-ui/SKILL.md`** (Coss/UI — Cal.com DS on Base UI via the shadcn `@coss/*` registry; `ui_base = "base"`; requires **Tailwind v4**; mixed **MIT/AGPLv3** license). Coss's tokens are shadcn CSS vars, so DESIGN.md overrides apply as in the shadcn path.
 
 State the suggestion with a one-line rationale ("Suggerisco Base UI perché vuoi l'aesthetics flessibile di shadcn ma senza la source-maintenance del CLI"), then accept whatever the user picks. After picking, load the matching `<lib>-mapping.md` and follow it for installation, theming, and component wiring.

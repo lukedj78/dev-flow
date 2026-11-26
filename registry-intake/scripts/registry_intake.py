@@ -3400,7 +3400,7 @@ def cmd_setup(args) -> int:
     for ns, (url, p) in registries_in_components(root).items():
         # the registry of the UI system the project chose (stack.ui = coss → @coss) installs live;
         # anything else found in components.json is allowlisted but still goes through snapshots
-        live = ui is not None and ns == f"@{ui}" and ns in LIVE_UI_REGISTRIES
+        live = ns == live_ui_registry(root)
         lock["registries"].setdefault(ns, {
             "url": url, "trust": "live" if live else "snapshot",
             "reason": f"stack.ui = {ui}: the project's component system" if live
@@ -3476,6 +3476,25 @@ def stack_ui(root: Path) -> str | None:
     return stack.get("ui") or ((stack.get("monorepo") or {}).get("web") or {}).get("ui")
 
 
+def live_ui_registry(root: Path) -> str | None:
+    """The one registry this project may install live: its chosen UI system's own.
+
+    `stack.ui = "coss"` → `@coss`. `stack.ui = "ui-sdk"` with `stack.ui_registry.namespace` → that namespace: a UI SDK
+    project takes its components from its design system's registry (G1; `ui-agent` on Agentic Factory), which is the
+    project's component library the way `@coss` is a Coss project's. Anything else goes through snapshots.
+    """
+    ui = stack_ui(root)
+    if ui and f"@{ui}" in LIVE_UI_REGISTRIES:
+        return f"@{ui}"
+    if ui == "ui-sdk":
+        meta = root / ".workflow" / "meta.json"
+        reg = (json.loads(meta.read_text()).get("stack") or {}).get("ui_registry") or {}
+        ns = reg.get("namespace") if isinstance(reg, dict) else None
+        if isinstance(ns, str) and re.fullmatch(r"@[a-z0-9][a-z0-9-]*", ns):
+            return ns
+    return None
+
+
 def record(root: Path, value: str) -> None:
     """Record `stack.registry_intake`, and **write nothing when it already says that**.
 
@@ -3528,9 +3547,10 @@ def cmd_allow(args) -> int:
     if not args.ns.startswith("@") or "{name}" not in args.url or not args.url.startswith("https://"):
         print("usage: allow <root> @ns https://host/r/{name}.json --reason ...", file=sys.stderr)
         return 1
-    if args.trust == "live" and args.ns not in LIVE_UI_REGISTRIES:
-        print(f"refused: only a chosen UI system's registry ({', '.join(sorted(LIVE_UI_REGISTRIES))}) can install live; "
-              f"{args.ns} goes through snapshots", file=sys.stderr)
+    if args.trust == "live" and args.ns != live_ui_registry(root):
+        print(f"refused: only the registry of the UI system the project chose (stack.ui = coss → @coss; "
+              f"stack.ui = ui-sdk → stack.ui_registry.namespace) can install live; {args.ns} goes through snapshots",
+              file=sys.stderr)
         return 1
     lock["registries"][args.ns] = {"url": args.url, "trust": args.trust, "reason": args.reason,
                                    "allowed_by": args.by, "allowed_at": now()}
