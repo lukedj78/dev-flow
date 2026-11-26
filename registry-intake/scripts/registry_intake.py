@@ -970,7 +970,22 @@ def registry_problems(root: Path, lock: dict) -> list[str]:
     hash, nothing in vendor/ outside the lock. Cheap enough to run before and after every shell command."""
     problems = []
     allowed = lock.get("registries") or {}
-    for ns, (url, p) in registries_in_components(root).items():
+    # Every file, not `registries_in_components`, which keeps one file per namespace: a wrong URL in
+    # packages/ui was hidden by a right one in apps/web. This is also what catches, right after the
+    # command, a components.json rewritten between the hook's live-pass check and the CLI reading it.
+    declared = []
+    for p in components_jsons(root):
+        try:
+            regs = json.loads(p.read_text()).get("registries") or {}
+        except (OSError, ValueError, AttributeError):
+            problems.append(f"{p.relative_to(root)} cannot be read as JSON")
+            continue
+        if not isinstance(regs, dict):
+            problems.append(f"{p.relative_to(root)} has `registries` that is not an object")
+            continue
+        for ns, spec in regs.items():
+            declared.append((ns, spec if isinstance(spec, str) else (spec or {}).get("url", "") if isinstance(spec, dict) else "", p))
+    for ns, url, p in declared:
         if ns not in allowed:
             problems.append(f"{p.relative_to(root)} declares {ns} ({url}), which is not allowlisted")
         elif allowed[ns]["url"] != url:
@@ -3829,6 +3844,18 @@ def governed_adds(command: str) -> list[Add]:
                 out.append(Add(tool, [], unknown=f"the subcommand `{verb}` of {tool} is computed by the shell"))
                 continue
             if verb not in GOVERNED_VERBS[tool]:
+                # `shadcn -c <dir> add @x/y`: the option's value was read as the subcommand and the
+                # install was not seen at all — for every namespace (found re-probing the live-URL
+                # fix, 2026-11-26). An option before a governed verb is not parsed, so it is unreadable.
+                if any(x != "--" for x in seg[i + 1:j]) and any(w in GOVERNED_VERBS[tool] for w in seg[j + 1:]):
+                    out.append(Add(tool, [], unknown=f"options before the subcommand of {tool} "
+                                                     "(put them after it)"))
+                continue
+            if any(x != "--" for x in seg[i + 1:j]):
+                # `shadcn --cwd=<dir> add …`: the option names the directory the CLI reads, and the
+                # cwd parser below only looks after the verb
+                out.append(Add(tool, [], unknown=f"options before the subcommand of {tool} "
+                                                 "(put them after it)"))
                 continue
             rest = seg[j + 1:]
             a = Add(tool, [], moved=moved or any(x in _CWD_FLAGS or x.startswith(("--dir=", "--prefix=", "--chdir="))
@@ -3925,6 +3952,80 @@ def mcp_installs(command: str) -> list[str]:
                 out.append(" ".join(toks[i:i + 4]))
                 break
     return out
+
+
+_LIVE_FLAGS = {"-y", "--yes", "-o", "--overwrite", "-a", "--all", "-s", "--silent",
+               "--src-dir", "--no-src-dir", "--css-variables", "--no-css-variables"}
+_LIVE_FLAGS_WITH_VALUE = {"-c", "--cwd", "-p", "--path"}
+
+
+def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | None, where: Path) -> str | None:
+    """None when a live namespace may install without a snapshot, else why not.
+
+    The lock says the namespace is trusted; it does not say where shadcn fetches it from. shadcn
+    reads that from `components.json`, which no rule protected: an edit there pointed `@ui-agent`
+    at another server and the install still passed (security review, Agentic Factory, 2026-11-26).
+    So the URL every `components.json` gives the namespace must be the one the person allowlisted.
+    The file is read now, before the command runs, so the pass is for a command that is the install
+    and nothing else: a step before it could rewrite the file between this check and shadcn."""
+    want = ((lock.get("registries") or {}).get(ns) or {}).get("url")
+    if a.tool != "shadcn":
+        return "only the shadcn CLI resolves it through components.json, which is what is checked"
+    try:
+        segs = shell_segments(command)
+    except Unparsable:
+        segs = []
+    if len(segs) != 1 or a.moved:
+        return "the pass covers the install run alone, with no other command or `cd` around it — run it on its own"
+    seg = segs[0]
+    if any(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) for w in seg[:program_index(seg) + 1]):
+        return "the command sets environment variables, which can change what the CLI resolves"
+    # Only options whose meaning the hook reads the way commander does. `-c=x` is the value `=x` to
+    # commander, `-cx` is `x`, `-yc x` is `-y -c x`: each names a directory the parser above never
+    # took, so an option outside this list is refused rather than guessed at (security review).
+    after = seg[(next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), 0)) + 2:]
+    k = 0
+    while k < len(after):
+        w = after[k]
+        if w == "--":
+            break
+        if w.startswith("-") and w != "-":
+            if w in _LIVE_FLAGS_WITH_VALUE:
+                k += 2
+                continue
+            if w not in _LIVE_FLAGS and not w.startswith(("--cwd=", "--path=")):
+                return (f"the option `{w}` is not one the hook reads the way the CLI does — "
+                        "write options apart and in full (`--cwd <dir>`, `--yes`)")
+        k += 1
+    if root is None or not where.is_relative_to(root.resolve()):
+        return "the command runs outside the project, whose components.json is the one checked"
+    tool_at = next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), None)
+    if tool_at is None or tool_at + 1 >= len(seg) or seg[tool_at + 1] not in GOVERNED_VERBS["shadcn"]:
+        # `shadcn -c <dir> add …`: an option before the verb is skipped by the parser above, so the
+        # directory it names was never the one read here (found re-probing this fix, 2026-11-26)
+        return "options before the subcommand are not read by the hook — put them after `add`"
+    files =[where / "components.json"] + (components_jsons(root) if root else [])
+    if not files[0].exists():
+        return f"there is no components.json in {where}, so the CLI would not resolve it from the lock"
+    seen: set[Path] = set()
+    for p in files:
+        if not p.exists() or p.resolve() in seen:
+            continue
+        seen.add(p.resolve())
+        try:
+            regs = json.loads(p.read_text()).get("registries") or {}
+        except (OSError, ValueError, AttributeError):
+            return f"{p} cannot be read as JSON"
+        if not isinstance(regs, dict):
+            return f"{p} has `registries` that is not an object"
+        if ns not in regs and p != files[0]:
+            continue
+        spec = regs.get(ns)
+        url = spec if isinstance(spec, str) else (spec or {}).get("url") if isinstance(spec, dict) else None
+        if url != want:
+            return (f"{p} gives it {url!r}, not the URL in {LOCK} ({want!r}). A changed registry URL in "
+                    "components.json is a new registry: allowlist it again with `registry_intake.py allow`")
+    return None
 
 
 def written_path(tool_input: dict) -> str:
@@ -4060,6 +4161,9 @@ def hook_decision(payload: dict) -> str | None:
             ns = ns_of(it)
             if parts and safe_name(parts[1]) and lock and \
                     ((lock.get("registries") or {}).get(ns) or {}).get("trust") == "live":
+                why = live_pass_refused(command, a, ns, lock, root, where)
+                if why:
+                    return f"`{tool} add {it}`: {ns} is trusted live, but {why}. {how}"
                 continue  # the project's own UI system, allowlisted as live with its reason
             if lock is None:
                 return (f"`{tool} add {it}` installs third-party source and this project has no {LOCK}. "

