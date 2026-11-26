@@ -167,9 +167,16 @@ build of it, and a pin to a snapshot ages out the moment the publisher cleans up
 ## Trust levels
 
 Every allowlisted registry is `trust: "snapshot"`. The one exception is the registry of the **UI system
-the project chose**: with `stack.ui = "coss"`, `setup` records `@coss` as `trust: "live"`, and the hook
-lets `shadcn add @coss/…` through — that registry is the project's component library, owned by
-`coss-ui`. `allow --trust live` is refused for anything else.
+the project chose**, which is the project's component library rather than third-party code:
+
+- `stack.ui = "coss"` → `@coss`, owned by `coss-ui`;
+- `stack.ui = "ui-sdk"` with `stack.ui_registry.namespace` → that namespace: the project's own design
+  system registry (G1; `@ui-agent` on Agentic Factory), installed into `packages/ui` by
+  `design-md-to-app/references/ui-sdk-registry-monorepo.md`.
+
+`setup` records that one registry as `trust: "live"` and the hook lets installs from that namespace through.
+`allow --trust live` is refused for any other namespace — a second registry in a UI SDK project still goes
+through snapshots. Live is not unreviewed: an update of the design system is its own pull request.
 
 ## Third-party agent skills — the same two controls, minus the install
 

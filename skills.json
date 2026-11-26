@@ -296,7 +296,7 @@
         "registry_intake.py",
         "test_registry_intake.py"
       ],
-      "skill_md_lines": 865,
+      "skill_md_lines": 872,
       "bundle": "dist/registry-intake.skill"
     },
     {
@@ -474,21 +474,24 @@
         "showcase-template.md",
         "skeleton-audit.md",
         "spec.md",
-        "ui-sdk-mapping.md"
+        "ui-sdk-mapping.md",
+        "ui-sdk-registry-monorepo.md"
       ],
       "scripts": [
         "build_registry.py",
+        "check_ui_registry.py",
         "meta_io.py",
         "parse_design_md.py",
         "pixel_diff.py",
         "setup_design_lint.py",
         "setup_primitives_guard.py",
+        "test_check_ui_registry.py",
         "test_pixel_diff.py",
         "test_setup_design_lint.py",
         "test_setup_primitives_guard.py",
         "test_templates.py"
       ],
-      "skill_md_lines": 1412,
+      "skill_md_lines": 1413,
       "bundle": "dist/design-md-to-app.skill"
     },
     {

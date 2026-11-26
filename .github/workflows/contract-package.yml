@@ -26,7 +26,8 @@ on:
 jobs:
   test:
     name: pytest @ ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not -latest: on 26.04 setup-python has no 3.9, the floor macOS users run (2026-11-26).
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]

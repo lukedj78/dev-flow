@@ -155,7 +155,9 @@ jobs:
   # tested there, so research.py shipped 3.12-only syntax and failed on a stock Mac with a SyntaxError.
   python-floor:
     name: scripts on Python 3.9
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04, where setup-python has no 3.9 (measured 2026-11-26): pin the last image
+    # that has it, so the floor macOS users run keeps being tested.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -165,6 +167,11 @@ jobs:
 
       - name: Compile every script on 3.9
         run: python -m compileall -q $(git ls-files '*.py' | grep -v '^contract-package/')
+
+      # The lint job installs it too: url-to-design-md's tests read what it writes with the consumer's parser,
+      # which needs YAML. Without it the floor job failed as soon as its runner could start (2026-11-26).
+      - name: Install pyyaml
+        run: pip install pyyaml
 
       - name: Run every skill's test suite on 3.9
         run: python scripts/run_skill_tests.py
