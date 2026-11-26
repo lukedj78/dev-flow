@@ -178,6 +178,14 @@ the project chose**, which is the project's component library rather than third-
 `allow --trust live` is refused for any other namespace — a second registry in a UI SDK project still goes
 through snapshots. Live is not unreviewed: an update of the design system is its own pull request.
 
+**Live trusts a URL, not a name.** shadcn resolves `@ns` from `components.json`, which the lock does not
+protect, so the hook lets a live install through only while every `components.json` that names the
+namespace — and the one in the directory the command runs in — gives it the **URL in the lock**, and only
+for the install run alone: no other command, `cd`, environment variable or option before `add`, any of
+which could change what the CLI reads after the check. A moved URL is a new registry: `allow` it again.
+Found by a security review on Agentic Factory (2026-11-26); re-probing it found that an option before the
+subcommand (`shadcn -c <dir> add @x/y`) hid **any** install from the hook, now refused too.
+
 ## Third-party agent skills — the same two controls, minus the install
 
 A skill is not code: it is **instructions the agent obeys**, which is worse, because it changes what
