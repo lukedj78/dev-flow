@@ -520,6 +520,9 @@ class Hook(Base):
         write(self.root, "packages/ui/components.json", {"registries": {"@ui-agent": "https://evil.example/r/{name}.json"}})
         self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button", cwd=self.root / "apps/web"),
                              "a second components.json that disagrees with the lock is the same redirect")
+        found = ri.registry_problems(self.root, json.loads((self.root / ri.LOCK).read_text()))
+        self.assertTrue(any("packages/ui/components.json" in f for f in found),
+                        "check sees every file, not one per namespace")
 
     def test_the_live_pass_is_for_the_install_alone(self) -> None:
         # The file is read when the hook runs, before the command: anything run before the install in
@@ -532,6 +535,8 @@ class Hook(Base):
                   "env X=1 npx shadcn add @ui-agent/button",
                   "npx shadcn -c /tmp/elsewhere add @ui-agent/button",
                   "npx shadcn add @ui-agent/button -c /tmp/elsewhere",
+                  "npx shadcn add @ui-agent/button -c=apps/web",
+                  "npx shadcn add @ui-agent/button --cwd ../",
                   "npx eve add @ui-agent/button"):
             with self.subTest(c=c):
                 self.assertIsNotNone(self.decide(c))

@@ -970,7 +970,19 @@ def registry_problems(root: Path, lock: dict) -> list[str]:
     hash, nothing in vendor/ outside the lock. Cheap enough to run before and after every shell command."""
     problems = []
     allowed = lock.get("registries") or {}
-    for ns, (url, p) in registries_in_components(root).items():
+    # Every file, not `registries_in_components`, which keeps one file per namespace: a wrong URL in
+    # packages/ui was hidden by a right one in apps/web. This is also what catches, right after the
+    # command, a components.json rewritten between the hook's live-pass check and the CLI reading it.
+    declared = []
+    for p in components_jsons(root):
+        try:
+            regs = json.loads(p.read_text()).get("registries") or {}
+        except (OSError, ValueError, AttributeError):
+            problems.append(f"{p.relative_to(root)} cannot be read as JSON")
+            continue
+        for ns, spec in regs.items():
+            declared.append((ns, spec if isinstance(spec, str) else (spec or {}).get("url", "") if isinstance(spec, dict) else "", p))
+    for ns, url, p in declared:
         if ns not in allowed:
             problems.append(f"{p.relative_to(root)} declares {ns} ({url}), which is not allowlisted")
         elif allowed[ns]["url"] != url:
@@ -3960,6 +3972,11 @@ def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | 
     seg = segs[0]
     if any(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) for w in seg[:program_index(seg) + 1]):
         return "the command sets environment variables, which can change what the CLI resolves"
+    if any(w.startswith("-c=") for w in seg):
+        # commander reads `-c=x` as the value `=x`, a different directory from the `x` read here
+        return "`-c=<dir>` means a different directory to the CLI than to the hook — use `--cwd <dir>`"
+    if root is None or not where.is_relative_to(root.resolve()):
+        return "the command runs outside the project, whose components.json is the one checked"
     tool_at = next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), None)
     if tool_at is None or tool_at + 1 >= len(seg) or seg[tool_at + 1] not in GOVERNED_VERBS["shadcn"]:
         # `shadcn -c <dir> add …`: an option before the verb is skipped by the parser above, so the
