@@ -980,6 +980,9 @@ def registry_problems(root: Path, lock: dict) -> list[str]:
         except (OSError, ValueError, AttributeError):
             problems.append(f"{p.relative_to(root)} cannot be read as JSON")
             continue
+        if not isinstance(regs, dict):
+            problems.append(f"{p.relative_to(root)} has `registries` that is not an object")
+            continue
         for ns, spec in regs.items():
             declared.append((ns, spec if isinstance(spec, str) else (spec or {}).get("url", "") if isinstance(spec, dict) else "", p))
     for ns, url, p in declared:
@@ -3951,6 +3954,11 @@ def mcp_installs(command: str) -> list[str]:
     return out
 
 
+_LIVE_FLAGS = {"-y", "--yes", "-o", "--overwrite", "-a", "--all", "-s", "--silent",
+               "--src-dir", "--no-src-dir", "--css-variables", "--no-css-variables"}
+_LIVE_FLAGS_WITH_VALUE = {"-c", "--cwd", "-p", "--path"}
+
+
 def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | None, where: Path) -> str | None:
     """None when a live namespace may install without a snapshot, else why not.
 
@@ -3972,9 +3980,23 @@ def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | 
     seg = segs[0]
     if any(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) for w in seg[:program_index(seg) + 1]):
         return "the command sets environment variables, which can change what the CLI resolves"
-    if any(w.startswith("-c=") for w in seg):
-        # commander reads `-c=x` as the value `=x`, a different directory from the `x` read here
-        return "`-c=<dir>` means a different directory to the CLI than to the hook — use `--cwd <dir>`"
+    # Only options whose meaning the hook reads the way commander does. `-c=x` is the value `=x` to
+    # commander, `-cx` is `x`, `-yc x` is `-y -c x`: each names a directory the parser above never
+    # took, so an option outside this list is refused rather than guessed at (security review).
+    after = seg[(next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), 0)) + 2:]
+    k = 0
+    while k < len(after):
+        w = after[k]
+        if w == "--":
+            break
+        if w.startswith("-") and w != "-":
+            if w in _LIVE_FLAGS_WITH_VALUE:
+                k += 2
+                continue
+            if w not in _LIVE_FLAGS and not w.startswith(("--cwd=", "--path=")):
+                return (f"the option `{w}` is not one the hook reads the way the CLI does — "
+                        "write options apart and in full (`--cwd <dir>`, `--yes`)")
+        k += 1
     if root is None or not where.is_relative_to(root.resolve()):
         return "the command runs outside the project, whose components.json is the one checked"
     tool_at = next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), None)
@@ -3994,6 +4016,8 @@ def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | 
             regs = json.loads(p.read_text()).get("registries") or {}
         except (OSError, ValueError, AttributeError):
             return f"{p} cannot be read as JSON"
+        if not isinstance(regs, dict):
+            return f"{p} has `registries` that is not an object"
         if ns not in regs and p != files[0]:
             continue
         spec = regs.get(ns)

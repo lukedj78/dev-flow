@@ -508,6 +508,9 @@ class Hook(Base):
         self.assertIn("components.json", self.decide("npx shadcn add @ui-agent/button") or "")
         write(self.root, "components.json", {"registries": {"@ui-agent": {"url": url, "headers": {"x": "y"}}}})
         self.assertIsNone(self.decide("npx shadcn add @ui-agent/button"), "the object form with the same url is the same registry")
+        write(self.root, "components.json", {"registries": ["@ui-agent"]})
+        self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button"))
+        self.assertTrue(any("not an object" in f for f in ri.registry_problems(self.root, json.loads((self.root / ri.LOCK).read_text()))))
         write(self.root, "components.json", {"registries": {}})
         self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button"), "no entry: shadcn cannot resolve it from the lock")
 
@@ -517,6 +520,8 @@ class Hook(Base):
         write(self.root, "packages/ui/components.json", {"registries": {"@ui-agent": url}})
         self.assertIsNone(self.decide("npx shadcn add @ui-agent/button", cwd=self.root / "apps/web"))
         self.assertIsNone(self.decide("pnpm dlx shadcn@4.21.0 add @ui-agent/button --cwd apps/web"))
+        self.assertIsNone(self.decide("npx shadcn add @ui-agent/button --yes --overwrite --cwd apps/web"),
+                          "the ordinary options still pass")
         write(self.root, "packages/ui/components.json", {"registries": {"@ui-agent": "https://evil.example/r/{name}.json"}})
         self.assertIsNotNone(self.decide("npx shadcn add @ui-agent/button", cwd=self.root / "apps/web"),
                              "a second components.json that disagrees with the lock is the same redirect")
@@ -537,6 +542,8 @@ class Hook(Base):
                   "npx shadcn add @ui-agent/button -c /tmp/elsewhere",
                   "npx shadcn add @ui-agent/button -c=apps/web",
                   "npx shadcn add @ui-agent/button --cwd ../",
+                  "npx shadcn add @ui-agent/button -c/tmp/elsewhere",
+                  "npx shadcn add @ui-agent/button -yc /tmp/elsewhere",
                   "npx eve add @ui-agent/button"):
             with self.subTest(c=c):
                 self.assertIsNotNone(self.decide(c))
