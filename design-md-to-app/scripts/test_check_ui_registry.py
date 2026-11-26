@@ -112,6 +112,17 @@ class Project(unittest.TestCase):
         self.w("apps/web/package.json", {"name": "web", "dependencies": {"next": "16.4.6", "react": "19.3.1"}})
         self.assertEqual(self.codes(), ["P4"])
 
+    def test_sql_in_a_string_is_not_an_import(self):
+        # measured on a real app: a test's `select … from "user"` read as a package `user`
+        self.w("apps/web/e2e/harness.ts", 'import pg from "pg"\nconst q = `select id from "user" where x = 1`\n')
+        self.w("apps/web/package.json", {"name": "web", "dependencies": {"next": "16.4.6", "react": "19.3.1", "@ui-sdk/react": V, "pg": "8.0.0"}})
+        self.assertEqual(self.codes(), [])
+
+    def test_multiline_and_dynamic_imports_are_still_read(self):
+        self.w("apps/web/lib/x.ts", 'import {\n  a,\n  b,\n} from "missing-pkg"\nconst m = await import("other-missing")\n')
+        found = [f for f in c.check_project(self.root) if f["code"] == "P4"]
+        self.assertEqual(sorted(f["what"].split()[1] for f in found), ["missing-pkg,", "other-missing,"])
+
     def test_an_alias_import_left_unrewritten(self):
         self.w("apps/web/components/blocks/login.tsx", "import { Card } from '@/components/ui/card'\n")
         self.assertEqual(self.codes(), ["P5"])
