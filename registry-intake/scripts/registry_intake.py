@@ -2192,7 +2192,7 @@ def cmd_hook_approve(args) -> int:
                               "stays on the report at review."))
         approved[approval_key(rel, event, command)] = {
             "command": command, "event": event, "file": rel, "why": why,
-            "by": args.by, "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+            "by": args.by, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "scripts": digests}
     save_lock(root, lock)
     print(f"\n✓ {len(targets)} hook command(s) recorded as read by {args.by}. Any edit to the text, "
@@ -4427,9 +4427,19 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("caps"); s.add_argument("root", type=Path); s.add_argument("--reason", required=True)
     sub.add_parser("hook")
     sub.add_parser("hook-post")
+    # What follows `--` goes to shadcn untouched. Split it off before argparse: on Python 3.9 — macOS's own, the
+    # floor these scripts target — argparse refuses a `--` after positionals ("unrecognized arguments: -- --yes"),
+    # so the order SKILL.md documents failed there while 3.10+ accepted it (measured 2026-11-26).
+    argv = list(sys.argv[1:] if argv is None else argv)
+    passthrough: list[str] = []
+    if argv[:1] == ["install"] and "--" in argv:
+        cut = argv.index("--")
+        argv, passthrough = argv[:cut], argv[cut + 1:]
     args = ap.parse_args(argv)
     if getattr(args, "shadcn_args", None) and args.shadcn_args[:1] == ["--"]:
         args.shadcn_args = args.shadcn_args[1:]
+    if passthrough:
+        args.shadcn_args = list(getattr(args, "shadcn_args", None) or []) + passthrough
 
     if args.cmd == "review":
         root = args.root.resolve()

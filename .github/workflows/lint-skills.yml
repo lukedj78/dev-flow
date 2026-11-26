@@ -155,7 +155,9 @@ jobs:
   # tested there, so research.py shipped 3.12-only syntax and failed on a stock Mac with a SyntaxError.
   python-floor:
     name: scripts on Python 3.9
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04, where setup-python has no 3.9 (measured 2026-11-26): pin the last image
+    # that has it, so the floor macOS users run keeps being tested.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
