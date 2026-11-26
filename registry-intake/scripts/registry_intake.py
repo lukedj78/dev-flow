@@ -3957,6 +3957,7 @@ def mcp_installs(command: str) -> list[str]:
 _LIVE_FLAGS = {"-y", "--yes", "-o", "--overwrite", "-a", "--all", "-s", "--silent",
                "--src-dir", "--no-src-dir", "--css-variables", "--no-css-variables"}
 _LIVE_FLAGS_WITH_VALUE = {"-c", "--cwd", "-p", "--path"}
+_LIVE_LAUNCHER_WORDS = {"npx", "pnpm", "dlx", "exec", "bunx", "yarn", "npm", "-y", "--yes"}
 
 
 def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | None, where: Path) -> str | None:
@@ -3980,10 +3981,24 @@ def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | 
     seg = segs[0]
     if any(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) for w in seg[:program_index(seg) + 1]):
         return "the command sets environment variables, which can change what the CLI resolves"
+    if root is None or not where.is_relative_to(root.resolve()):
+        return "the command runs outside the project, whose components.json is the one checked"
+    tool_at = next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), None)
+    # Before the program, only a plain launcher: `pnpm -C <dir> dlx shadcn …` or `npx --prefix …`
+    # move the directory the CLI runs in, in forms `moved` does not catch (attached, `=`).
+    # Allowlisted, not parsed (security review, 2026-11-26).
+    if tool_at is not None and any(w not in _LIVE_LAUNCHER_WORDS for w in seg[:tool_at]):
+        return ("the pass covers a plain launcher only (`npx`, `pnpm dlx`, `bunx`, `yarn dlx`, `npm exec`) "
+                "— write it with no options before shadcn")
+    verb_at = tool_at + 2 if tool_at is not None and seg[tool_at + 1:tool_at + 2] == ["--"] else (tool_at or 0) + 1
+    if tool_at is None or verb_at >= len(seg) or seg[verb_at] not in GOVERNED_VERBS["shadcn"]:
+        # `shadcn -c <dir> add …`: an option before the verb is skipped by the parser above, so the
+        # directory it names was never the one read here (found re-probing this fix, 2026-11-26)
+        return "options before the subcommand are not read by the hook — put them after `add`"
     # Only options whose meaning the hook reads the way commander does. `-c=x` is the value `=x` to
     # commander, `-cx` is `x`, `-yc x` is `-y -c x`: each names a directory the parser above never
     # took, so an option outside this list is refused rather than guessed at (security review).
-    after = seg[(next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), 0)) + 2:]
+    after = seg[verb_at + 1:]
     k = 0
     while k < len(after):
         w = after[k]
@@ -3997,13 +4012,6 @@ def live_pass_refused(command: str, a: "Add", ns: str, lock: dict, root: Path | 
                 return (f"the option `{w}` is not one the hook reads the way the CLI does — "
                         "write options apart and in full (`--cwd <dir>`, `--yes`)")
         k += 1
-    if root is None or not where.is_relative_to(root.resolve()):
-        return "the command runs outside the project, whose components.json is the one checked"
-    tool_at = next((i for i, w in enumerate(seg) if tool_of(w) == "shadcn"), None)
-    if tool_at is None or tool_at + 1 >= len(seg) or seg[tool_at + 1] not in GOVERNED_VERBS["shadcn"]:
-        # `shadcn -c <dir> add …`: an option before the verb is skipped by the parser above, so the
-        # directory it names was never the one read here (found re-probing this fix, 2026-11-26)
-        return "options before the subcommand are not read by the hook — put them after `add`"
     files =[where / "components.json"] + (components_jsons(root) if root else [])
     if not files[0].exists():
         return f"there is no components.json in {where}, so the CLI would not resolve it from the lock"
