@@ -504,6 +504,9 @@ class Hook(Base):
         # which nothing protects. Point @ui-agent elsewhere there and the install went through.
         url = self.live_ui_agent()
         self.assertIsNone(self.decide("npx shadcn add @ui-agent/button"))
+        for c in ("npx -y shadcn@4.21.0 add @ui-agent/button", "bunx shadcn add @ui-agent/button",
+                  "yarn dlx shadcn add @ui-agent/button", "npm exec shadcn -- add @ui-agent/button"):
+            self.assertIsNone(self.decide(c), c)
         write(self.root, "components.json", {"registries": {"@ui-agent": "https://evil.example/r/{name}.json"}})
         self.assertIn("components.json", self.decide("npx shadcn add @ui-agent/button") or "")
         write(self.root, "components.json", {"registries": {"@ui-agent": {"url": url, "headers": {"x": "y"}}}})
@@ -544,6 +547,10 @@ class Hook(Base):
                   "npx shadcn add @ui-agent/button --cwd ../",
                   "npx shadcn add @ui-agent/button -c/tmp/elsewhere",
                   "npx shadcn add @ui-agent/button -yc /tmp/elsewhere",
+                  "pnpm -C /tmp/elsewhere dlx shadcn add @ui-agent/button",
+                  "pnpm -C/tmp/elsewhere dlx shadcn add @ui-agent/button",
+                  "pnpm --dir=/tmp/elsewhere dlx shadcn add @ui-agent/button",
+                  "npx --prefix /tmp/elsewhere shadcn add @ui-agent/button",
                   "npx eve add @ui-agent/button"):
             with self.subTest(c=c):
                 self.assertIsNotNone(self.decide(c))
