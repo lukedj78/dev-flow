@@ -95,6 +95,17 @@ def deps_of(pkg_json: Path) -> set[str]:
     return {*p.get("dependencies", {}), *p.get("devDependencies", {}), *p.get("peerDependencies", {})}
 
 
+# Real module specifiers only: `import … from "x"`, `export … from "x"`, `import "x"` at the start of a statement, and
+# `import("x")`. A looser pattern read SQL as imports — `select … from "user"` in a test became a package `user` (P4
+# false positive, measured on Agentic Factory's apps/web, 2026-11-26).
+STATIC_IMPORT = re.compile(r"""^\s*(?:import|export)\s(?:[^;'"]*?\sfrom\s*)?['"]([^'"]+)['"]""", re.M)
+DYNAMIC_IMPORT = re.compile(r"""\bimport\(\s*['"]([^'"]+)['"]\s*\)""")
+
+
+def import_specs(text: str) -> list[str]:
+    return STATIC_IMPORT.findall(text) + DYNAMIC_IMPORT.findall(text)
+
+
 def package_of(spec: str) -> str | None:
     if spec.startswith((".", "/", "@/", "~/", "node:")):
         return None
@@ -127,7 +138,7 @@ def check_project(root: Path, ui_pkg: str = "packages/ui", app: str = "apps/web"
         if "node_modules" in f.parts or ".next" in f.parts:
             continue
         text = f.read_text(errors="ignore")
-        for spec in re.findall(r"""(?:from|import)\s*\(?\s*['"]([^'"]+)['"]""", text):
+        for spec in import_specs(text):
             m = ALIAS_IMPORT.search(f"from '{spec}'")
             if m:
                 out.append(finding("P5", "stop", str(f.relative_to(root)), f"imports {spec}: it does not exist in the monorepo — the item was copied without rewriting (U5)"))
