@@ -180,6 +180,7 @@
         "test_contract_version.py",
         "test_data_residency.py",
         "test_debt_audit.py",
+        "test_design_lint_gate.py",
         "test_founder_gate.py",
         "test_gate_doors.py",
         "test_history.py",
@@ -479,6 +480,7 @@
       ],
       "scripts": [
         "build_registry.py",
+        "check_handmade_ui.py",
         "check_ui_registry.py",
         "meta_io.py",
         "parse_design_md.py",
