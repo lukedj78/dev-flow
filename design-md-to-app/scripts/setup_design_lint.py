@@ -4,13 +4,19 @@
     setup_design_lint.py <project-root>            install + wire + measure + record (idempotent)
     setup_design_lint.py <project-root> --check    verify only, change nothing (exit 1 if not)
 
-Two topologies, detected from disk:
+Three topologies, detected from disk:
 
   monorepo   packages/eslint-config + a packages/ui with components.json. The plugin block
              goes into packages/eslint-config/design-system.js, spread only into the UI
              packages (apps/* with components.json, and packages/ui).
   single     components.json + eslint.config.* at the root. The block goes into
              eslint.design-system.mjs next to it, spread into the existing config.
+  oxlint     .oxlintrc.json + oxlint >= 1.80 at the root and no eslint.config.*. @shadcn/lint and
+             the design rules load as Oxlint JS plugins (`jsPlugins`); the rules go into
+             oxlint.design-system.mjs, the policy into .oxlintrc.json. components.json is optional:
+             without it the component directory comes from the tsconfig `@/*` path and the theme
+             from the stylesheet that imports Tailwind. The way for a project ESLint cannot parse —
+             TypeScript 7 ships no JavaScript API, and @typescript-eslint/parser needs one.
 
 Everything here was hit on a real project before it was written down — see
 references/design-system-lint.md for the evidence behind each rule:
@@ -48,6 +54,10 @@ from pathlib import Path
 
 VERSION = "0.1.0"
 PLUGIN = "@shadcn/lint"
+OXLINT_CONFIG = ".oxlintrc.json"
+OXLINT_PRESET = "oxlint.design-system.mjs"
+# @shadcn/lint's README: "Requires Oxlint 1.80 or later" (jsPlugins). Read 2026-11-28, @shadcn/lint 0.2.5.
+OXLINT_MIN = (1, 80)
 TAILWIND_UIS = {"shadcn", "base-ui", "coss"}
 # 🔴 ui-sdk is NOT in that set, and the first version of this change put it there.
 #
@@ -159,7 +169,45 @@ def detect(root: Path) -> list[dict]:
         if (d / "components.json").exists() and eslint_config_of(d):
             units.append({"kind": "single", "config_pkg": d, "targets": [d],
                           "preset": d / "eslint.design-system.mjs", "theme": theme_css(d)})
+    # Oxlint at the root, and ESLint nowhere there: ESLint keeps the lint wherever it is configured, since
+    # every rule of ours runs on it and the write-time guard was written for it first.
+    if not units and oxlint_project(root):
+        units.append({"kind": "oxlint", "config_pkg": root, "targets": [root], "preset": root / OXLINT_PRESET,
+                      "config": root / OXLINT_CONFIG, "theme": theme_css(root)})
     return units
+
+
+def oxlint_project(pkg: Path) -> bool:
+    """`.oxlintrc.json` plus oxlint in the package's dependencies, and no eslint.config.* beside them."""
+    if not (pkg / OXLINT_CONFIG).exists() or eslint_config_of(pkg):
+        return False
+    try:
+        d = json.loads((pkg / "package.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return "oxlint" in {**d.get("dependencies", {}), **d.get("devDependencies", {})}
+
+
+def oxlint_version(pkg: Path) -> tuple[int, int] | None:
+    exe = pkg / "node_modules" / ".bin" / "oxlint"
+    if not exe.exists():
+        return None
+    out = subprocess.run([str(exe), "--version"], capture_output=True, text=True, check=False).stdout
+    m = re.search(r"(\d+)\.(\d+)", out)
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def tailwind_stylesheet(pkg: Path) -> Path | None:
+    """The stylesheet that imports Tailwind — what @shadcn/lint reads as the theme without components.json."""
+    known = ["app/globals.css", "src/app/globals.css", "styles/globals.css", "src/styles/globals.css"]
+    cands = [pkg / k for k in known] + sorted(pkg.glob("app/**/*.css")) + sorted(pkg.glob("src/**/*.css"))
+    for c in cands:
+        try:
+            if re.search(r"@import\s+['\"]tailwindcss['\"]", c.read_text(errors="ignore")):
+                return c
+        except OSError:
+            continue
+    return None
 
 
 def _pkg_name(pkg: Path) -> str | None:
@@ -188,7 +236,11 @@ def why_undetected(root: Path) -> str:
     cands = [d for d in [root, *sorted((root / "apps").glob("*")), root / "packages" / "ui"]
              if (d / "components.json").exists()]
     if not cands:
-        return "no components.json at the root, in apps/* or in packages/ui — run shadcn init first"
+        if (root / OXLINT_CONFIG).exists():
+            return (f"{OXLINT_CONFIG} at the root but oxlint is not in package.json, or an eslint.config.* sits "
+                    "beside it (ESLint then owns the lint: add components.json)")
+        return ("no components.json at the root, in apps/* or in packages/ui — run shadcn init first, or lint "
+                f"with Oxlint ({OXLINT_CONFIG} + oxlint >= 1.80 at the root)")
     notes = []
     for d in cands:
         rel = d.relative_to(root).as_posix() or "."
@@ -212,7 +264,8 @@ def theme_css(pkg: Path) -> Path | None:
     try:
         css = json.loads((pkg / "components.json").read_text())["tailwind"]["css"]
     except (OSError, KeyError, json.JSONDecodeError):
-        return None
+        # no components.json: only an Oxlint unit gets here (detect() needs one for ESLint)
+        return tailwind_stylesheet(pkg) if oxlint_project(pkg) else None
     return (pkg / css) if css else None
 
 
@@ -379,8 +432,24 @@ def ui_import_path(topo: dict) -> str:
         try:
             return json.loads((t / "components.json").read_text())["aliases"]["ui"]
         except (OSError, KeyError, json.JSONDecodeError):
-            continue
+            alias = tsconfig_alias(t, component_dir(t))
+            if alias:
+                return alias
     return "components/ui"
+
+
+def tsconfig_alias(pkg: Path, comp_dir: str) -> str | None:
+    """`@/components/ui` when tsconfig maps `@/*` to the package root (or `src/` holding the directory).
+    Read as text: tsconfig.json is JSONC, and only this one mapping matters."""
+    try:
+        text = (pkg / "tsconfig.json").read_text()
+    except OSError:
+        return None
+    m = re.search(r'"@/\*"\s*:\s*\[\s*"\.?/?(src/)?\*"', text)
+    if not m:
+        return None
+    rel = comp_dir[len("src/"):] if m.group(1) and comp_dir.startswith("src/") else comp_dir
+    return None if m.group(1) and not comp_dir.startswith("src/") else f"@/{rel}"
 
 
 def library_primitives(ui: str | None, base: str) -> dict:
@@ -796,6 +865,118 @@ def inject_design_rules(text: str, topo: dict, severity: str, base: str, card_in
     return head + decl + design_rules_config(topo, severity, card_in_card) + text[m.end():]
 
 
+def oxlint_preset_source(topo: dict, *, base: str = "base", exceptions: str | None = None) -> str:
+    """The design rules as an Oxlint JS plugin module. The policy (severities, overrides) lives in
+    .oxlintrc.json: Oxlint's config is JSON, so a module cannot spread into it the way an ESLint preset does."""
+    return f'''// Written by design-md-to-app/scripts/setup_design_lint.py — the design rules (R90, R38) as an Oxlint JS
+// plugin, loaded by {OXLINT_CONFIG} ("jsPlugins"). Severities and overrides live there. Re-run the script to
+// update. See design-md-to-app/references/design-system-lint.md §Oxlint.
+
+{design_rules_source(topo, base, exceptions)}
+// Oxlint names a JS plugin by its meta.name: the rules are design/no-handmade-ui and design/no-card-in-card.
+// designExceptions above is ESLint's shape and is not read by Oxlint: on Oxlint an exception is an override
+// in {OXLINT_CONFIG} that turns a design rule off for its files, with the reason beside it.
+export default {{ meta: {{ name: "design" }}, ...designPlugin }}
+'''
+
+
+def declared_shadows(theme: Path | None) -> list[str]:
+    """`shadow-<name>` for every --shadow-<name> in @theme — the same list the ESLint preset reads at load time.
+    Oxlint's config is JSON, so it is computed here and rewritten on every run."""
+    try:
+        css = theme.read_text() if theme else ""
+    except OSError:
+        return []
+    body = re.search(r"@theme[^{]*\{([\s\S]*?)\n\}", css)
+    return sorted({f"shadow-{n}" for n in re.findall(r"--shadow-([a-z0-9-]+)\s*:", body.group(1) if body else "")})
+
+
+def oxlint_overrides(topo: dict, card_in_card: bool) -> list[dict]:
+    comp = f"{component_dir(topo['config_pkg'])}/**"
+    design_off = {"design/no-handmade-ui": "off", **({"design/no-card-in-card": "off"} if card_in_card else {})}
+    return [
+        # the vendored primitives own their appearance; no-raw-colors and no-inline-styles stay on
+        {"files": [comp], "rules": {"shadcn/no-restyle": "off", "shadcn/no-arbitrary-values": "off",
+                                    "shadcn/require-static-classes": "off", "shadcn/no-unknown-classes": "off",
+                                    **design_off}},
+        # shadcn's chart injects per-series CSS variables at runtime
+        {"files": [f"{component_dir(topo['config_pkg'])}/chart.tsx"], "rules": {"shadcn/no-inline-styles": "off"}},
+        # the DESIGN.md type specimen renders literal values on purpose
+        {"files": ["app/**/showcase/**", "src/app/**/showcase/**"],
+         "rules": {"shadcn/no-inline-styles": "off", "shadcn/no-arbitrary-values": "off"}},
+        # where a raw element is not UI: tests, stories, emails (HANDMADE_IGNORES)
+        {"files": [g for g in HANDMADE_IGNORES if "showcase" not in g], "rules": design_off},
+    ]
+
+
+def wire_oxlint(topo: dict, severity: str, card_in_card: bool) -> bool:
+    """Merge @shadcn/lint and the design rules into .oxlintrc.json. Idempotent; the project's own rules,
+    plugins, overrides and any severity it already set are kept — only design/no-handmade-ui is forced to
+    "error" (golden rule 3, R90)."""
+    cfg = topo["config"]
+    text = cfg.read_text()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"{cfg} is not plain JSON ({e}) — comments are allowed by Oxlint but not by this script; "
+                         "wire it by hand (references/design-system-lint.md §Oxlint)")
+    before = json.dumps(data, sort_keys=True)
+    plugins = data.setdefault("jsPlugins", [])
+    for spec in (PLUGIN, f"./{topo['preset'].name}"):
+        if spec not in plugins:
+            plugins.append(spec)
+    shadcn = data.setdefault("settings", {}).setdefault("shadcn", {})
+    if not (topo["config_pkg"] / "components.json").exists():
+        alias = tsconfig_alias(topo["config_pkg"], component_dir(topo["config_pkg"]))
+        if alias:
+            shadcn.setdefault("ui", alias)
+    rules = data.setdefault("rules", {})
+    for rule, value in (("shadcn/no-restyle", [severity, {"allow": ["layout"]}]),
+                        ("shadcn/no-arbitrary-values", [severity, {"allow": ["layout"]}]),
+                        ("shadcn/no-inline-styles", severity),
+                        ("shadcn/require-static-classes", severity),
+                        ("shadcn/no-unknown-classes", "warn")):
+        rules.setdefault(rule, value)
+    shadows = declared_shadows(topo.get("theme"))
+    raw = rules.get("shadcn/no-raw-colors")
+    if raw is None:
+        rules["shadcn/no-raw-colors"] = [severity, {"allow": shadows}] if shadows else severity
+    elif isinstance(raw, list) and len(raw) > 1 and isinstance(raw[1], dict) and shadows:
+        raw[1]["allow"] = sorted({*raw[1].get("allow", []), *shadows})
+    rules["design/no-handmade-ui"] = "error"
+    if card_in_card:
+        rules.setdefault("design/no-card-in-card", severity)
+    overrides = data.setdefault("overrides", [])
+    have = [json.dumps(o.get("files"), sort_keys=True) for o in overrides]
+    for o in oxlint_overrides(topo, card_in_card):
+        if json.dumps(o["files"], sort_keys=True) not in have:
+            overrides.append(o)
+    if json.dumps(data, sort_keys=True) == before:
+        return False
+    cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    return True
+
+
+def oxlint_rules(topo: dict) -> dict:
+    try:
+        return json.loads(topo["config"].read_text()).get("rules", {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def handmade_enforced(topo: dict) -> bool:
+    """design/no-handmade-ui at "error" where the unit keeps its policy: the ESLint preset, or .oxlintrc.json
+    with the rules module beside it."""
+    preset = topo["preset"].read_text() if topo["preset"].exists() else ""
+    if "export const designPlugin" not in preset:
+        return False
+    if topo["kind"] == "oxlint":
+        level = oxlint_rules(topo).get("design/no-handmade-ui")
+        level = level[0] if isinstance(level, list) else level
+        return level in ("error", 2)
+    return bool(HANDMADE_ERROR.search(preset))
+
+
 def os_relpath(target: Path, start: Path) -> str:
     import os
     return os.path.relpath(target, start)
@@ -834,13 +1015,29 @@ def wire_config(cfg: Path, import_from: str) -> bool:
     return True
 
 
-def set_lint_script(pkg: Path, cap: int) -> None:
+def capped(script: str, cap: int, tool: str) -> str:
+    """The lint script with `--max-warnings <cap>` on the `tool` command. A chained script
+    (`oxlint && node scripts/check-tokens.mjs`) gets it on that command, not at the end of the chain, where it
+    would land on a script that does not take it. With no such command the whole script is the linter."""
+    parts = re.split(r"(\s*(?:&&|\|\||;)\s*)", script)
+    for i in range(0, len(parts), 2):
+        if re.match(rf"(?:npx\s+|pnpm\s+(?:exec\s+)?|bunx\s+|yarn\s+)?{tool}(?:\s|$)", parts[i].strip()):
+            parts[i] = re.sub(r"\s*--max-warnings[ =]\d+", "", parts[i]).rstrip() + f" --max-warnings {cap}"
+            return "".join(parts)
+    base = re.sub(r"\s*--max-warnings[ =]\d+", "", script).strip()
+    if tool == "oxlint" and base:
+        # the script runs other checks but not the linter: it goes first, so its cap gates something
+        return f"oxlint --max-warnings {cap} && {base}"
+    # ESLint as before: the script is the linter (`eslint`, `next lint`)
+    return f"{base or tool} --max-warnings {cap}"
+
+
+def set_lint_script(pkg: Path, cap: int, tool: str = "eslint") -> None:
     p = pkg / "package.json"
     text = p.read_text()
     d = json.loads(text)
-    cur = d.get("scripts", {}).get("lint", "eslint")
-    base = re.sub(r"\s*--max-warnings\s+\d+", "", cur).strip() or "eslint"
-    new = f"{base} --max-warnings {cap}"
+    cur = d.get("scripts", {}).get("lint", tool)
+    new = capped(cur, cap, tool)
     if cur == new:
         return
     # edit the one value in place so the file keeps its formatting
@@ -880,7 +1077,7 @@ Do not edit the vendored primitives to silence a finding there.
     p.write_text(s)
 
 
-def record(root: Path) -> None:
+def record(root: Path, linter: str | None = None) -> None:
     p = root / ".workflow" / "meta.json"
     if not p.exists():
         return
@@ -891,9 +1088,13 @@ def record(root: Path) -> None:
 
     with meta_io.locked(p.parent):
         m = json.loads(p.read_text())
-        if m.get("stack", {}).get("design_lint") == "shadcn-lint":
+        stack = m.setdefault("stack", {})
+        lint_unset = linter is not None and not stack.get("lint")
+        if stack.get("design_lint") == "shadcn-lint" and not lint_unset:
             return
-        m.setdefault("stack", {})["design_lint"] = "shadcn-lint"
+        stack["design_lint"] = "shadcn-lint"
+        if lint_unset:
+            stack["lint"] = linter  # a cache of the repository (contract §stack.lint): set only when empty
         meta_io.write_json(p, m)
         prettier = root / "node_modules" / ".bin" / "prettier"
         if prettier.exists():  # keep the project's own JSON formatting
@@ -918,9 +1119,53 @@ def run_eslint(pkg: Path) -> list[dict]:
     return [{"file": str(Path(r["filePath"]).relative_to(pkg)), **m} for r in rows for m in r["messages"]]
 
 
+def run_oxlint(pkg: Path) -> list[dict]:
+    """Oxlint's JSON report in ESLint's message shape: ruleId `plugin/rule`, severity 2 or 1, line."""
+    exe = pkg / "node_modules" / ".bin" / "oxlint"
+    cmd = [str(exe)] if exe.exists() else ["npx", "--no-install", "oxlint"]
+    out = subprocess.run([*cmd, "--format", "json"], cwd=pkg, capture_output=True, text=True, check=False)
+    try:
+        rows = json.loads(out.stdout)["diagnostics"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        raise SystemExit(f"oxlint did not produce a report in {pkg}:\n{(out.stderr or out.stdout)[-1500:]}")
+    msgs = []
+    for r in rows:
+        code = r.get("code") or ""
+        m = re.match(r"^([\w@/.-]+)\((.+)\)$", code)
+        span = ((r.get("labels") or [{}])[0].get("span") or {})
+        msgs.append({"file": r.get("filename", ""), "ruleId": f"{m.group(1)}/{m.group(2)}" if m else code or None,
+                     "severity": 2 if r.get("severity") == "error" else 1, "message": r.get("message", ""),
+                     "line": span.get("line", 0), "fatal": not code and r.get("severity") == "error"})
+    return msgs
+
+
 # ---------------------------------------------------------------------------------------
 # Check
 # ---------------------------------------------------------------------------------------
+
+def oxlint_problems(root: Path, topo: dict) -> list[str]:
+    out = []
+    try:
+        data = json.loads(topo["config"].read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        return [f"{OXLINT_CONFIG} is unreadable ({e})"]
+    plugins = data.get("jsPlugins") or []
+    for spec in (PLUGIN, f"./{topo['preset'].name}"):
+        if spec not in plugins:
+            out.append(f'{OXLINT_CONFIG} does not load "{spec}" in jsPlugins')
+    has_components = (topo["config_pkg"] / "components.json").exists()
+    if not has_components and not ((data.get("settings") or {}).get("shadcn") or {}).get("ui"):
+        out.append(f"{OXLINT_CONFIG} has no settings.shadcn.ui and there is no components.json — @shadcn/lint "
+                   "cannot tell which imports are the design system's components")
+    lint = json.loads((topo["config_pkg"] / "package.json").read_text()).get("scripts", {}).get("lint", "")
+    if not re.search(r"(^|[\s;&|])oxlint(\s|$)", lint):
+        out.append("the lint script does not run oxlint")
+    version = oxlint_version(topo["config_pkg"])
+    if version is not None and version < OXLINT_MIN:
+        out.append(f"oxlint {version[0]}.{version[1]} is installed; @shadcn/lint needs "
+                   f"{OXLINT_MIN[0]}.{OXLINT_MIN[1]} or later (jsPlugins)")
+    return out
+
 
 def check(root: Path) -> tuple[bool, list[str]]:
     meta = load_meta(root)
@@ -948,21 +1193,23 @@ def check(root: Path) -> tuple[bool, list[str]]:
             problems.append(f"{PLUGIN} is not installed in {where}")
         if not topo["preset"].exists():
             problems.append(f"{topo['preset'].relative_to(root)} is missing")
-        for t in topo["targets"]:
-            cfg = eslint_config_of(t)
-            if "designSystemConfig" not in cfg.read_text():
-                problems.append(f"{cfg.relative_to(root)} does not spread designSystemConfig")
-            lint = json.loads((t / "package.json").read_text()).get("scripts", {}).get("lint", "")
-            if only_warn(root, topo) and "--max-warnings" not in lint:
-                problems.append(f"{(t / 'package.json').relative_to(root)}: eslint-plugin-only-warn is on, so "
-                                "the lint script needs --max-warnings to gate anything")
+        if topo["kind"] == "oxlint":
+            problems += oxlint_problems(root, topo)
+        else:
+            for t in topo["targets"]:
+                cfg = eslint_config_of(t)
+                if "designSystemConfig" not in cfg.read_text():
+                    problems.append(f"{cfg.relative_to(root)} does not spread designSystemConfig")
+                lint = json.loads((t / "package.json").read_text()).get("scripts", {}).get("lint", "")
+                if only_warn(root, topo) and "--max-warnings" not in lint:
+                    problems.append(f"{(t / 'package.json').relative_to(root)}: eslint-plugin-only-warn is on, so "
+                                    "the lint script needs --max-warnings to gate anything")
         # golden rule 3's other half: a raw element imports nothing, so without this rule a green lint says
         # nothing about primitives (smart-travel, 238 hand-made elements behind a green lint)
-        if topo["preset"].exists():
-            text = topo["preset"].read_text()
-            if not HANDMADE_ERROR.search(text) or "export const designPlugin" not in text:
-                problems.append(f"{topo['preset'].relative_to(root)} has no design/no-handmade-ui at \"error\" "
-                                "(golden rule 3, R90) — re-run setup_design_lint.py to add it")
+        if topo["preset"].exists() and not handmade_enforced(topo):
+            where_ = OXLINT_CONFIG if topo["kind"] == "oxlint" else topo["preset"].relative_to(root)
+            problems.append(f"{where_} has no design/no-handmade-ui at \"error\" "
+                            "(golden rule 3, R90) — re-run setup_design_lint.py to add it")
     import setup_primitives_guard
     g_ok, g_lines = setup_primitives_guard.check(root)
     if not g_ok:
@@ -1001,7 +1248,7 @@ def setup(root: Path) -> int:
             "The lint script carries a `--max-warnings` cap. Never raise it to make a change pass; "
             "lower it when findings are fixed.")
     write_agents(root, gate)
-    record(root)
+    record(root, "oxlint" if any(u["kind"] == "oxlint" for u in units) else None)
     print("  AGENTS.md updated · meta.json stack.design_lint = shadcn-lint")
     # the same rule at write time: hooks that refuse hand-made UI while the agent writes it
     import setup_primitives_guard
@@ -1022,9 +1269,13 @@ def export_preset(config_pkg: Path, preset: Path) -> str:
     return f"{d['name']}/design-system"
 
 
-def existing_severity(preset: Path) -> str | None:
+def existing_severity(preset: Path, topo: dict | None = None) -> str | None:
     """The severity a previous run wrote. A re-run never downgrades it: a project scaffolded at
     "error" is past `scaffolded` afterwards, and reading only the phase would turn it to "warn"."""
+    if topo and topo.get("kind") == "oxlint":
+        level = oxlint_rules(topo).get("shadcn/no-inline-styles")
+        level = level[0] if isinstance(level, list) else level
+        return level if level in ("error", "warn") else None
     if not preset.exists():
         return None
     m = re.search(r'"shadcn/no-inline-styles":\s*"(error|warn)"', preset.read_text())
@@ -1041,8 +1292,15 @@ def existing_cap(pkg: Path) -> int | None:
 
 
 def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
-    warn_only = only_warn(root, topo)
-    severity = existing_severity(topo["preset"]) or ("error" if fresh else "warn")
+    oxlint = topo["kind"] == "oxlint"
+    warn_only = False if oxlint else only_warn(root, topo)
+    severity = existing_severity(topo["preset"], topo) or ("error" if fresh else "warn")
+    if oxlint:
+        version = oxlint_version(topo["config_pkg"])
+        if version is not None and version < OXLINT_MIN:
+            print(f"  oxlint {version[0]}.{version[1]} cannot load @shadcn/lint — upgrade to "
+                  f"{OXLINT_MIN[0]}.{OXLINT_MIN[1]} or later first", file=sys.stderr)
+            return 1, warn_only
     where = topo["config_pkg"].relative_to(root).as_posix() or "."
     print(f"{topo['kind']} ({where}) · {'fresh scaffold' if fresh else 'existing app'} · "
           f"only-warn={'yes' if warn_only else 'no'} · rules at {severity}")
@@ -1072,9 +1330,17 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
     existing = topo["preset"].read_text() if topo["preset"].exists() else None
     if existing is None or untouched(existing):
         exceptions = recorded_exceptions(existing) if existing else None
-        new = stamp(preset_source(topo, severity, base=base, card_in_card=card, exceptions=exceptions))
+        source = (oxlint_preset_source(topo, base=base, exceptions=exceptions) if oxlint else
+                  preset_source(topo, severity, base=base, card_in_card=card, exceptions=exceptions))
+        new = stamp(source)
         if new != existing:
             topo["preset"].write_text(new)
+    elif oxlint:
+        if "export const designPlugin" not in existing:
+            print(f"  {topo['preset'].relative_to(root)}: edited by the project and without designPlugin — restore "
+                  "it or delete it so the script writes it again", file=sys.stderr)
+            return 1, warn_only
+        print(f"  {topo['preset'].relative_to(root)}: edited by the project — kept")
     else:
         injected = inject_design_rules(existing, topo, severity, base, card)
         if injected is None:
@@ -1086,20 +1352,24 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             topo["preset"].write_text(injected)
             print(f"  {topo['preset'].relative_to(root)}: edited by the project — kept, design/no-handmade-ui "
                   "and design/no-card-in-card injected")
-    if topo["kind"] == "monorepo":
-        import_from = export_preset(topo["config_pkg"], topo["preset"])
+    if oxlint:
+        changed = wire_oxlint(topo, severity, card)
+        print(f"  {'wired' if changed else 'already wired'}: {topo['config'].relative_to(root)}")
     else:
-        import_from = f"./{topo['preset'].name}"
+        if topo["kind"] == "monorepo":
+            import_from = export_preset(topo["config_pkg"], topo["preset"])
+        else:
+            import_from = f"./{topo['preset'].name}"
 
-    # 3. wire each UI package
-    for t in topo["targets"]:
-        changed = wire_config(eslint_config_of(t), import_from)
-        print(f"  {'wired' if changed else 'already wired'}: {eslint_config_of(t).relative_to(root)}")
+        # 3. wire each UI package
+        for t in topo["targets"]:
+            changed = wire_config(eslint_config_of(t), import_from)
+            print(f"  {'wired' if changed else 'already wired'}: {eslint_config_of(t).relative_to(root)}")
 
     # 4. measure
     failed = False
     for t in topo["targets"]:
-        msgs = run_eslint(t)
+        msgs = run_oxlint(t) if oxlint else run_eslint(t)
         design = [m for m in msgs if (m.get("ruleId") or "").startswith(("shadcn/", "design/"))]
         handmade = [m for m in msgs if (m.get("ruleId") or "").startswith("design/") and m.get("severity") == 2]
         fatal = [m for m in msgs if m.get("fatal")]
@@ -1150,7 +1420,7 @@ def setup_unit(root: Path, topo: dict, fresh: bool) -> tuple[int, bool]:
             print(f"  {name}: note — {len(errors)} error(s) already present and not the design lint's "
                   "(the lint was failing before this ran):")
             print("\n".join(lines))
-        set_lint_script(t, cap)
+        set_lint_script(t, cap, "oxlint" if oxlint else "eslint")
         print(f"  {name}: {len(design)} design-lint finding(s), lint capped at --max-warnings {cap}")
     return (1 if failed else 0), warn_only
 

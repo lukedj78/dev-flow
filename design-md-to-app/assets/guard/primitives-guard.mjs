@@ -69,10 +69,11 @@ function unitOf(file) {
 const linters = new Map()
 async function findings(unit, text, file) {
   if (text == null) return []
-  // ESLint is loaded on the first lint, not at start-up: the Bash hooks run before and after every shell
+  // The linter is loaded on the first lint, not at start-up: the Bash hooks run before and after every shell
   // command, and most commands touch no UI file — loading it eagerly cost up to ~0.8 s a hook for nothing.
   if (!linters.has(unit.dir)) {
-    const { guardLinter } = await import("./eslint.guard.mjs")
+    // the unit's engine: ESLint, or Oxlint where ESLint cannot parse the project (TypeScript 7)
+    const { guardLinter } = await import(unit.engine === "oxlint" ? "./oxlint.guard.mjs" : "./eslint.guard.mjs")
     linters.set(unit.dir, await guardLinter(root, unit))
   }
   const [result] = await linters.get(unit.dir).lintText(text, { filePath: path.resolve(root, file) })

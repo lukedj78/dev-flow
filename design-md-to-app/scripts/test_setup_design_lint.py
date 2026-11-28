@@ -698,6 +698,8 @@ class PhaseGate(unittest.TestCase):
                 "framework": "next", "ui": "shadcn", "design_lint": "none", "registry_intake": "none",
                 "data_residency": "none"},
                 "stack_config": {"design_lint_reason": "prototype, thrown away",
+                                 # since #50 an opt-out of the lint keeps golden rule 3: the floor, or its own reason
+                                 "handmade_ui_check_reason": "prototype, thrown away",
                                  "registry_intake_reason": "the same crossing gates registry intake; not under test here"},
                 "wireframes": {"skipped": True, "reason": "not under test here"}})
             self.assertEqual(self.set_phase(root, "scaffolded").returncode, 0)
@@ -724,3 +726,159 @@ class PhaseGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------------------
+# Oxlint — the topology for a project ESLint cannot parse (TypeScript 7 has no JS API)
+# ---------------------------------------------------------------------------------------
+
+OXLINTRC = {"plugins": ["react", "typescript"], "rules": {"react/rules-of-hooks": "error"}}
+TSCONFIG = '{\n  // JSONC, as tsc writes it\n  "compilerOptions": { "paths": { "@/*": ["./*"] } }\n}\n'
+
+
+def oxlint_app(root: Path, lint: str = "oxlint && node scripts/check-theme-tokens.mjs") -> None:
+    write(root, "package.json", {"name": "kit", "scripts": {"lint": lint},
+                                 "devDependencies": {"oxlint": "1.94.0", "@shadcn/lint": "0.2.5", "tailwindcss": "4.2.0"}})
+    write(root, ".oxlintrc.json", OXLINTRC)
+    write(root, "tsconfig.json", TSCONFIG)
+    write(root, "app/globals.css", "@layer theme;\n@import 'tailwindcss';\n@theme {\n  --shadow-popup: 0 1px 2px red;\n}\n")
+    (root / "components" / "ui").mkdir(parents=True)
+
+
+def oxlint_node_project() -> Path | None:
+    """A project whose node_modules has oxlint >= 1.80 and @shadcn/lint, used read-only (no network)."""
+    env = os.environ.get("DESIGN_LINT_OXLINT_PROJECT")
+    cands = [Path(env)] if env else sorted(Path.home().glob("projects/*"))
+    for c in cands:
+        if all((c / "node_modules" / p / "package.json").exists() for p in ("oxlint", "@shadcn/lint")):
+            v = sdl.oxlint_version(c)
+            if v and v >= sdl.OXLINT_MIN:
+                return c
+    return None
+
+
+class Oxlint(unittest.TestCase):
+    def test_detected_without_components_json(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            [unit] = sdl.detect(root)
+            self.assertEqual(unit["kind"], "oxlint")
+            self.assertEqual(unit["preset"].name, sdl.OXLINT_PRESET)
+            self.assertEqual(unit["theme"], root / "app/globals.css", "the stylesheet that imports Tailwind")
+            self.assertEqual(sdl.ui_import_path(unit), "@/components/ui", "from tsconfig's @/* path")
+
+    def test_eslint_beside_it_keeps_the_lint(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            write(root, "eslint.config.mjs", NEXT16_CONFIG)
+            self.assertEqual(sdl.detect(root), [], "ESLint without components.json: not an Oxlint unit either")
+            self.assertIn("ESLint then owns the lint", sdl.why_undetected(root))
+            write(root, "components.json", COMPONENTS_APP)
+            self.assertEqual([u["kind"] for u in sdl.detect(root)], ["single"])
+
+    def test_needs_oxlint_in_package_json(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            write(root, "package.json", {"name": "kit", "scripts": {"lint": "oxlint"}})
+            self.assertEqual(sdl.detect(root), [])
+
+    def test_cap_goes_on_the_linter_command_of_a_chain(self) -> None:
+        chain = "oxlint && node scripts/check-theme-tokens.mjs && node scripts/check-motion-tokens.mjs"
+        self.assertEqual(sdl.capped(chain, 7, "oxlint"),
+                         "oxlint --max-warnings 7 && node scripts/check-theme-tokens.mjs && node scripts/check-motion-tokens.mjs")
+        self.assertEqual(sdl.capped(sdl.capped(chain, 7, "oxlint"), 5, "oxlint").count("--max-warnings"), 1)
+        self.assertEqual(sdl.capped("tsc --noEmit && eslint . --max-warnings 9", 4, "eslint"),
+                         "tsc --noEmit && eslint . --max-warnings 4")
+        self.assertEqual(sdl.capped("eslint", 3, "eslint"), "eslint --max-warnings 3", "unchanged for a plain script")
+        self.assertEqual(sdl.capped("next lint", 2, "eslint"), "next lint --max-warnings 2", "no eslint command: as before")
+        self.assertEqual(sdl.capped("tsc --noEmit", 1, "oxlint"), "oxlint --max-warnings 1 && tsc --noEmit",
+                         "a chain without the linter gets it first, never the cap on another command")
+
+    def test_wiring_merges_keeps_the_project_and_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            [unit] = sdl.detect(root)
+            unit["preset"].write_text(sdl.stamp(sdl.oxlint_preset_source(unit)))
+            self.assertTrue(sdl.wire_oxlint(unit, "warn", True))
+            cfg = json.loads((root / ".oxlintrc.json").read_text())
+            self.assertEqual(cfg["plugins"], ["react", "typescript"])
+            self.assertEqual(cfg["rules"]["react/rules-of-hooks"], "error", "the project's own rules stay")
+            self.assertEqual(cfg["jsPlugins"], ["@shadcn/lint", f"./{sdl.OXLINT_PRESET}"])
+            self.assertEqual(cfg["settings"]["shadcn"]["ui"], "@/components/ui")
+            self.assertEqual(cfg["rules"]["design/no-handmade-ui"], "error", "R90 is always an error")
+            self.assertEqual(cfg["rules"]["shadcn/no-raw-colors"], ["warn", {"allow": ["shadow-popup"]}],
+                             "declared shadows by exact name, never shadow-*")
+            comp = next(o for o in cfg["overrides"] if o["files"] == ["components/ui/**"])
+            self.assertNotIn("shadcn/no-raw-colors", comp["rules"], "raw colours stay on in the primitives")
+            self.assertEqual(comp["rules"]["design/no-handmade-ui"], "off")
+            self.assertFalse(sdl.wire_oxlint(unit, "warn", True), "a second run changes nothing")
+            cfg["rules"]["shadcn/no-restyle"] = "error"
+            cfg["rules"]["design/no-handmade-ui"] = "warn"
+            write(root, ".oxlintrc.json", cfg)
+            sdl.wire_oxlint(unit, "warn", True)
+            cfg = json.loads((root / ".oxlintrc.json").read_text())
+            self.assertEqual(cfg["rules"]["shadcn/no-restyle"], "error", "a severity the project chose is kept")
+            self.assertEqual(cfg["rules"]["design/no-handmade-ui"], "error", "except R90's")
+
+    def test_rules_module_and_enforcement(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            [unit] = sdl.detect(root)
+            src = sdl.oxlint_preset_source(unit)
+            self.assertIn("export const designPlugin", src)
+            self.assertIn('export default { meta: { name: "design" }, ...designPlugin }', src)
+            self.assertNotIn("@shadcn/lint\"", src.split("BEGIN:design-rules")[0], "the module does not load the plugin")
+            unit["preset"].write_text(sdl.stamp(src))
+            self.assertFalse(sdl.handmade_enforced(unit), "not wired into .oxlintrc.json yet")
+            sdl.wire_oxlint(unit, "warn", True)
+            self.assertTrue(sdl.handmade_enforced(unit))
+            self.assertEqual(sdl.existing_severity(unit["preset"], unit), "warn")
+
+    def test_check_names_what_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root, lint="tsc --noEmit")
+            meta(root, "page_generated", framework="next", ui="ui-sdk", design_lint="shadcn-lint")
+            [unit] = sdl.detect(root)
+            problems = sdl.oxlint_problems(root, unit)
+            self.assertTrue(any("jsPlugins" in p for p in problems))
+            self.assertTrue(any("does not run oxlint" in p for p in problems))
+            unit["preset"].write_text(sdl.stamp(sdl.oxlint_preset_source(unit)))
+            sdl.wire_oxlint(unit, "warn", True)
+            sdl.set_lint_script(root, 0, "oxlint")
+            self.assertEqual(sdl.oxlint_problems(root, unit), [])
+            ok, lines = sdl.check(root)
+            self.assertFalse(ok, "the write-time guard is still missing")
+            self.assertTrue(all(line.startswith("write-time guard:") for line in lines), lines)
+
+    def test_end_to_end_with_a_real_oxlint(self) -> None:
+        home = oxlint_node_project()
+        if home is None:
+            self.skipTest("no project with oxlint >= 1.80 and @shadcn/lint in ~/projects (DESIGN_LINT_OXLINT_PROJECT)")
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root, lint="oxlint")
+            (root / "node_modules").symlink_to(home / "node_modules")
+            write(root, ".gitignore", "node_modules\n")  # as in any project: Oxlint skips what git ignores
+            meta(root, "page_generated", framework="next", ui="ui-sdk")
+            write(root, "components/ui/button.tsx", "export function Button(p) { return <button {...p} /> }\n")
+            write(root, "app/page.tsx", 'import { Button } from "@/components/ui/button"\n'
+                                        'export default function Page() { return <Button className="p-[13px]">Go</Button> }\n')
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                rc = sdl.setup(root)
+            self.assertEqual(rc, 0, out.getvalue())
+            lint = json.loads((root / "package.json").read_text())["scripts"]["lint"]
+            self.assertRegex(lint, r"^oxlint --max-warnings [1-9]\d*$", "the page's arbitrary value is a warning")
+            self.assertTrue(sdl.check(root)[0], sdl.check(root)[1])
+            self.assertEqual(json.loads((root / ".workflow/meta.json").read_text())["stack"]["lint"], "oxlint")
+            event = {"tool_name": "Write", "tool_input": {"file_path": str(root / "app/new.tsx"),
+                     "content": "export default function N() { return <button>Go</button> }\n"}}
+            r = subprocess.run(["node", str(root / "scripts/guard/primitives-guard.mjs"), "pre"],
+                               input=json.dumps(event), capture_output=True, text=True,
+                               env={**os.environ, "CLAUDE_PROJECT_DIR": str(root)}, check=False)
+            self.assertEqual(r.returncode, 2, r.stderr)
+            self.assertIn("hand-written <button>", r.stderr)
+            event["tool_input"]["content"] = 'import { Button } from "@/components/ui/button"\n' \
+                                             "export default function N() { return <Button>Go</Button> }\n"
+            r = subprocess.run(["node", str(root / "scripts/guard/primitives-guard.mjs"), "pre"],
+                               input=json.dumps(event), capture_output=True, text=True,
+                               env={**os.environ, "CLAUDE_PROJECT_DIR": str(root)}, check=False)
+            self.assertEqual(r.returncode, 0, r.stderr)

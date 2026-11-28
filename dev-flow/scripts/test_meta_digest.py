@@ -35,7 +35,8 @@ class Fixture(unittest.TestCase):
             "phase": "design_extracted", "history": [], "artifacts": {},
             "stack": {"framework": "next", "ui": "shadcn", "design_lint": "none", "registry_intake": "none",
                       "primitives_guard": "none", "data_residency": None},
-            "stack_config": {"design_lint_reason": "t", "registry_intake_reason": "t", "primitives_guard_reason": "t"},
+            "stack_config": {"design_lint_reason": "t", "handmade_ui_check_reason": "t",  # since #50 the opt-out keeps the rule
+                             "registry_intake_reason": "t", "primitives_guard_reason": "t"},
             "inventory": {"verdict": "skipped", "reason": "t"}, "wireframes": {"skipped": True, "reason": "t"},
         }))
 

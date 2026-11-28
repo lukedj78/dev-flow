@@ -14,6 +14,8 @@ finds hand-made UI after the fact; this guard refuses it **while the agent write
                                        touched, right after it (agents write with `cat > … <<'EOF'` too);
                                        Stop / SubagentStop — the same on every changed .tsx against HEAD
   scripts/guard/eslint.guard.mjs       the two rules only, imported from the project's preset (~1 s a file)
+  scripts/guard/oxlint.guard.mjs       the same on Oxlint, for a unit with "engine": "oxlint" (no ESLint, no
+                                       TypeScript parser: the way for a TypeScript 7 project)
   scripts/guard/guard.json             the units: app dir, preset, primitives dir, ignores, rules
   .claude/settings.json                the hooks, merged into what is there, nothing removed
   AGENTS.md (and CLAUDE.md if it does not import AGENTS.md)   the rule every agent reads first
@@ -43,7 +45,7 @@ import meta_io  # noqa: E402 — vendored copy of dev-flow/scripts/meta_io.py �
 
 ASSETS = HERE.parent / "assets" / "guard"
 GUARD_DIR = Path("scripts") / "guard"
-COPIED = ("primitives-guard.mjs", "eslint.guard.mjs")
+COPIED = ("primitives-guard.mjs", "eslint.guard.mjs", "oxlint.guard.mjs")
 CMD = 'node "$CLAUDE_PROJECT_DIR"/scripts/guard/primitives-guard.mjs'
 # (event, matcher, mode, timeout). The two Bash hooks check a shell write right after the command that made
 # it: in the 2026-10-17 compliance trial every agent wrote its files with `cat > … <<'EOF'`, which the Write
@@ -106,13 +108,18 @@ def guard_units(root: Path, units: list[dict]) -> list[dict]:
         if sdl.card_in_card_applies(root):
             rules["design/no-card-in-card"] = "error"
         for t in topo["targets"]:
-            out.append({
+            unit = {
                 "dir": t.relative_to(root).as_posix() or ".",
                 "preset": topo["preset"].relative_to(root).as_posix(),
                 "components": components,
                 "ignores": [f"{sdl.component_dir(t)}/**", *sdl.HANDMADE_IGNORES],
                 "rules": rules,
-            })
+            }
+            if topo["kind"] == "oxlint":
+                # Oxlint: the rules module is a JS plugin, the exemptions live in .oxlintrc.json's overrides
+                unit["engine"] = "oxlint"
+                unit["config"] = topo["config"].relative_to(root).as_posix()
+            out.append(unit)
     return out
 
 
