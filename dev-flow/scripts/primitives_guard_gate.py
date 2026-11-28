@@ -63,10 +63,11 @@ def verify(root: Path, meta: dict) -> tuple[bool, str]:
     try:
         import setup_design_lint as sdl
         for topo in sdl.detect(root):
-            text = topo["preset"].read_text() if topo["preset"].exists() else ""
-            if not sdl.HANDMADE_ERROR.search(text):
+            # the ESLint preset, or .oxlintrc.json beside the Oxlint rules module (sdl.handmade_enforced)
+            if not sdl.handmade_enforced(topo):
                 ok = False
-                lines.append(f"✗ {topo['preset'].relative_to(root)} has no design/no-handmade-ui at \"error\"")
+                where = sdl.OXLINT_CONFIG if topo["kind"] == "oxlint" else topo["preset"].relative_to(root)
+                lines.append(f"✗ {where} has no design/no-handmade-ui at \"error\"")
     except Exception as e:  # noqa: BLE001 — a gate reports, never crashes the caller
         ok = False
         lines.append(f"✗ cannot read the design-system preset: {e}")

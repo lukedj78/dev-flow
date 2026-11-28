@@ -493,7 +493,7 @@
         "test_setup_primitives_guard.py",
         "test_templates.py"
       ],
-      "skill_md_lines": 1413,
+      "skill_md_lines": 1416,
       "bundle": "dist/design-md-to-app.skill"
     },
     {

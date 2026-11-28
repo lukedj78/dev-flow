@@ -165,6 +165,49 @@ function declaredShadows() {
 Adding a shadow to the theme then never produces a lint finding nobody understands. Reported
 `shadow-float` count on annotix after the change: 0.
 
+### Oxlint: the same rules where ESLint cannot parse the project
+
+`@shadcn/lint` is not tied to ESLint: its README says *"Available for both ESLint and Oxlint"*, and its
+`package.json` (0.2.5) declares `eslint` and `@typescript-eslint/parser` as **optional** peers. On Oxlint
+1.80 or later it loads as a JS plugin (`"jsPlugins": ["@shadcn/lint"]` in `.oxlintrc.json`), and so do the
+design rules of this file, from a module the script writes.
+
+**Why this topology exists — TypeScript 7.** TypeScript 7 (the native port) ships no JavaScript compiler
+API: `require("typescript").createSourceFile` is `undefined` (verified on 7.0.2, 2026-11-28).
+`@typescript-eslint/parser` 8.74 declares `typescript >=4.8.4 <6.1.0` and calls that API, so ESLint cannot
+read a `.ts`/`.tsx` file there, and neither can the write-time guard's `eslint.guard.mjs`. Its
+`typescript-estree` already lists an optional `@typescript/native` peer, for TypeScript 7.1 dev and beta
+builds only — until that lands, a TypeScript 7 project lints its design system on Oxlint, which parses
+TypeScript itself.
+
+What the script does when the root has `.oxlintrc.json` and `oxlint` in `package.json`, and no
+`eslint.config.*` (ESLint keeps the lint wherever it is configured):
+
+| Piece | Where |
+|---|---|
+| the design rules (R90, R38) as an Oxlint plugin named `design` | `oxlint.design-system.mjs` at the root |
+| `@shadcn/lint` and that module | `jsPlugins` in `.oxlintrc.json` |
+| severities, the component-directory override, chart, showcase, tests and stories | `rules` and `overrides` in `.oxlintrc.json` — the project's own rules, plugins and severities are kept; only `design/no-handmade-ui` is forced to `error` |
+| the components | `components.json` when there is one; otherwise `settings.shadcn.ui` from the tsconfig `@/*` path (`@/components/ui`) |
+| the theme | `components.json`'s stylesheet, or the one that imports Tailwind — what `@shadcn/lint` itself looks for |
+| declared shadows | listed by exact name in `shadcn/no-raw-colors` (JSON cannot read the theme at load time; re-run after adding one) |
+| the cap | `--max-warnings` on the **`oxlint` command** of the `lint` script, also inside a chain (`oxlint && node scripts/check-tokens.mjs`) |
+| the write-time guard | the same hooks; the unit says `"engine": "oxlint"` and `oxlint.guard.mjs` lints the proposed text from a temporary file, since Oxlint reads no stdin |
+
+**An exception on Oxlint** is an override in `.oxlintrc.json` that turns a design rule off for its files,
+with the reason in the commit and in the PR; the guard reads the same overrides. The `designExceptions`
+block of the module is ESLint's shape and Oxlint does not read it.
+
+Measured on the ui-agent kit (TypeScript 7.0.2, Oxlint 1.94, 2026-11-28): all six `@shadcn/lint` rules
+and both design rules run; 5,309 warnings and 286 `design/no-handmade-ui` findings in 159 files, against 719
+warnings before. `no-unknown-classes` found real defects on the way — `text-xs` 70 times in a theme that
+resets `--text-*`, and layout classes with no CSS anywhere — once the kit's style-less hook classes were
+allowed with `"allow": ["c-*"]`.
+
+**Not verified:** how stable Oxlint's JS plugin API is across minor versions — re-run
+`setup_design_lint.py --check` after upgrading Oxlint. A monorepo on Oxlint is not detected yet: one root
+`.oxlintrc.json` covering `apps/*` and `packages/ui` would work, but no project has been measured.
+
 ### ⚠️ `eslint-plugin-only-warn` makes every rule a warning
 
 The shadcn monorepo template's `packages/eslint-config/base.js` loads `eslint-plugin-only-warn`.

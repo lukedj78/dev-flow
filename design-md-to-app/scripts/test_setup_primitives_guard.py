@@ -152,6 +152,22 @@ class Install(unittest.TestCase):
             ui = next(x for x in units if x["dir"] == "packages/ui")
             self.assertIn("src/components/**", ui["ignores"])
 
+    def test_oxlint_unit_names_its_engine_and_config(self) -> None:
+        from test_setup_design_lint import oxlint_app
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); oxlint_app(root)
+            meta(root, "page_generated", framework="next", ui="ui-sdk", design_lint="shadcn-lint")
+            (u,) = sdl.detect(root)
+            u["preset"].write_text(sdl.stamp(sdl.oxlint_preset_source(u)))
+            (unit,) = spg.guard_units(root, [u])
+            self.assertEqual((unit["engine"], unit["config"], unit["preset"]),
+                             ("oxlint", ".oxlintrc.json", sdl.OXLINT_PRESET))
+            quiet(spg.install, root, [u])
+            self.assertTrue((root / "scripts/guard/oxlint.guard.mjs").exists())
+            guard = json.loads((root / "scripts/guard/guard.json").read_text())["units"][0]
+            self.assertEqual(guard["engine"], "oxlint")
+            self.assertTrue(spg.check(root)[0], spg.check(root)[1])
+
 
 class ConfinedWrites(unittest.TestCase):
     """Every write the guard's setup makes lands inside the project once symlinks are followed (as registry-intake's)."""

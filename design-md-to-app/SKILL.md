@@ -921,7 +921,10 @@ It detects the topology (single app at the root; a web+mobile app in `apps/*`; t
 with `packages/eslint-config` + `packages/ui`), installs `@shadcn/lint` in the package that owns the
 lint config, writes the preset, spreads it into the existing config without replacing it, sets the
 lint cap, appends a block to `AGENTS.md`, and records `stack.design_lint = "shadcn-lint"`. Re-running
-changes nothing.
+changes nothing. **On Oxlint** (`.oxlintrc.json` + `oxlint` ≥ 1.80 at the root, no `eslint.config.*`) — the
+way for a project on TypeScript 7, which `@typescript-eslint/parser` cannot read — the same rules load as
+Oxlint JS plugins, `components.json` is optional and the cap goes on the `oxlint` command of a chained
+`lint` script (`references/design-system-lint.md` §Oxlint).
 
 **Golden rule 3 is in the preset and at write time.** The preset carries `design/no-handmade-ui` (always
 `error`: raw elements, hand-written roles, classes that redraw a card/badge/alert/separator, each message
